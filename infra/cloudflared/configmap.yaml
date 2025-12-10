@@ -6,6 +6,7 @@ metadata:
 data:
   config.yaml: |
     tunnel: homelab-k8s
+    credentials-file: /etc/cloudflared/credentials.json
     metrics: 0.0.0.0:2000
     ingress:
       - hostname: vault.cooked.beer

@@ -4,4 +4,4 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - deployment.yaml
-  - ../../secrets/cloudflared.enc.yaml
+  - ../../secrets/cloudflared-credentials.enc.yaml
