@@ -17,10 +17,11 @@ spec:
         - name: cloudflared
           image: cloudflare/cloudflared:latest
           imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
           args:
-            - tunnel
-            - --no-autoupdate
-            - run
+            - cloudflared tunnel --no-autoupdate \
+                --config /etc/cloudflared/config.yaml \
+                run --token "${TUNNEL_TOKEN}"
           env:
             - name: TUNNEL_TOKEN
               valueFrom:
