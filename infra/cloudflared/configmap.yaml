@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: cloudflared
+data:
+  config.yaml: |
+    tunnel: homelab-k8s
+    metrics: 0.0.0.0:2000
+    ingress:
+      - hostname: vault.cooked.beer
+        service: http://vaultwarden.security.svc.cluster.local:80
+      - hostname: jellyfin.cooked.beer
+        service: http://jellyfin.media.svc.cluster.local:8096
+      - service: http_status:404
