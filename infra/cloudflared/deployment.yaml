@@ -20,9 +20,7 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args:
-            - cloudflared tunnel --no-autoupdate \
-                --config /etc/cloudflared/config.yaml \
-                run --token "${TUNNEL_TOKEN}"
+            - cloudflared tunnel --no-autoupdate --config /etc/cloudflared/config.yaml run --token "${TUNNEL_TOKEN}"
           env:
             - name: TUNNEL_TOKEN
               valueFrom:
