@@ -13,4 +13,14 @@ data:
         service: http://vaultwarden.security.svc.cluster.local:80
       - hostname: jellyfin.cooked.beer
         service: http://jellyfin.media.svc.cluster.local:8096
+      - hostname: prowlarr.cooked.beer
+        service: http://prowlarr.media.svc.cluster.local:9696
+      - hostname: radarr.cooked.beer
+        service: http://radarr.media.svc.cluster.local:7878
+      - hostname: sonarr.cooked.beer
+        service: http://sonarr.media.svc.cluster.local:8989
+      - hostname: sabnzbd.cooked.beer
+        service: http://sabnzbd.media.svc.cluster.local:8080
+      - hostname: jellyseerr.cooked.beer
+        service: http://jellyseerr.media.svc.cluster.local:5055
       - service: http_status:404
