@@ -1,0 +1,34 @@
+---
+# NFS PV for Plex Media on NAS #2 (192.168.1.154)
+# Contains: TV Shows, Downloads (in-progress and complete)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-plex-media
+spec:
+  capacity:
+    storage: 10Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs
+  mountOptions:
+    - nfsvers=3
+    - nolock
+  nfs:
+    server: 192.168.1.154
+    path: "/volume1/Plex Media"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-plex-media
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  volumeName: nfs-plex-media
+  resources:
+    requests:
+      storage: 10Ti

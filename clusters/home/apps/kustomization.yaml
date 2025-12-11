@@ -2,3 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - apps-kustomization.yaml
+  # Shared NFS storage for media
+  - ../../../apps/shared
+  # *arr stack
+  - ../../../apps/prowlarr
+  - ../../../apps/radarr
+  - ../../../apps/sonarr
+  - ../../../apps/sabnzbd
+  - ../../../apps/jellyseerr

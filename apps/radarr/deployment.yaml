@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: radarr
+  template:
+    metadata:
+      labels:
+        app: radarr
+    spec:
+      containers:
+        - name: radarr
+          image: linuxserver/radarr:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 7878
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: Australia/Melbourne
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            # Movies on NAS #1 (192.168.1.153) - /volume1/emby_media
+            # Inside Radarr use /movies/Movies
+            - name: movies
+              mountPath: /movies
+            # Downloads on NAS #2 (192.168.1.154) - /volume1/Plex Media
+            # Inside Radarr use /downloads/Downloads[/Done]
+            - name: downloads
+              mountPath: /downloads
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: radarr-config
+        - name: movies
+          persistentVolumeClaim:
+            claimName: nfs-emby-media
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: nfs-plex-media
