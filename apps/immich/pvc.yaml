@@ -1,0 +1,27 @@
+# PostgreSQL PVC - uses Longhorn for database storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-postgres
+  namespace: immich
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Redis PVC - small ephemeral cache
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-redis
+  namespace: immich
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

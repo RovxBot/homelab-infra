@@ -23,4 +23,6 @@ data:
         service: http://sabnzbd.media.svc.cluster.local:8080
       - hostname: jellyseerr.cooked.beer
         service: http://jellyseerr.media.svc.cluster.local:5055
+      - hostname: immich.cooked.beer
+        service: http://immich-server.immich.svc.cluster.local:2283
       - service: http_status:404
