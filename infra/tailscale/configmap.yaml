@@ -12,7 +12,7 @@ data:
         }
       },
       "Web": {
-        "${TS_CERT_DOMAIN}:443": {
+        "samflix.risk-lenok.ts.net:443": {
           "Handlers": {
             "/": {
               "Proxy": "http://jellyfin.media.svc.cluster.local:8096"
@@ -21,6 +21,6 @@ data:
         }
       },
       "AllowFunnel": {
-        "${TS_CERT_DOMAIN}:443": true
+        "samflix.risk-lenok.ts.net:443": true
       }
     }
