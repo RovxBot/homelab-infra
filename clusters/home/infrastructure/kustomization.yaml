@@ -4,3 +4,5 @@ resources:
   - infrastructure-kustomization.yaml
   - ../../../infra/longhorn
   - ../../../infra/cloudflared
+  - ../../../infra/tailscale
+  - ../../../secrets/tailscale-auth.enc.yaml
