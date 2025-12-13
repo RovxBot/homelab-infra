@@ -45,14 +45,23 @@ spec:
               fi
 
               path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\\.jpg$' | head -n 1 || true)"
-              if [ -z "$path" ]; then
-                echo "998981.jpg not found in artifact; skipping"
+              if [ -n "$path" ]; then
+                echo "Extracting $path -> $dst"
+                mkdir -p "$(dirname "$dst")"
+                tar -xzf "$tmp/artifact.tar.gz" -O "$path" > "$dst"
                 exit 0
               fi
 
-              echo "Extracting $path -> $dst"
+              b64_path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\\.jpg\\.b64$' | head -n 1 || true)"
+              if [ -z "$b64_path" ]; then
+                echo "No jpg or base64 asset found in artifact; skipping"
+                exit 0
+              fi
+
+              echo "Decoding $b64_path -> $dst"
               mkdir -p "$(dirname "$dst")"
-              tar -xzf "$tmp/artifact.tar.gz" -O "$path" > "$dst"
+              tar -xzf "$tmp/artifact.tar.gz" -O "$b64_path" | base64 -D > "$dst" 2>/dev/null || \
+              tar -xzf "$tmp/artifact.tar.gz" -O "$b64_path" | base64 -d > "$dst"
           volumeMounts:
             - name: assets
               mountPath: /usr/share/nginx/html
