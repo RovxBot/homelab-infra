@@ -14,28 +14,6 @@ spec:
         app: homepage
     spec:
       serviceAccountName: homepage
-      initContainers:
-        - name: fetch-background
-          image: curlimages/curl:8.11.1
-          imagePullPolicy: IfNotPresent
-          command:
-            - sh
-            - -c
-            - |
-              set -u
-              dst="/app/config/998981.jpg"
-              if [ ! -s "$dst" ]; then
-                echo "Downloading background image to $dst"
-                if ! curl -fsSL --retry 3 --retry-delay 2 --max-time 30 -o "$dst" "https://raw.githubusercontent.com/RovxBot/homelab-infra/main/998981.jpg"; then
-                  echo "Background download failed (continuing without it)"
-                  rm -f "$dst" || true
-                fi
-              else
-                echo "Background image already present: $dst"
-              fi
-          volumeMounts:
-            - name: config
-              mountPath: /app/config
       containers:
         - name: homepage
           image: ghcr.io/benphelps/homepage:latest

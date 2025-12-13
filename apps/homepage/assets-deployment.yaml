@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage-assets
+  namespace: homepage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepage-assets
+  template:
+    metadata:
+      labels:
+        app: homepage-assets
+    spec:
+      serviceAccountName: homepage
+      initContainers:
+        - name: sync-assets
+          image: bitnami/kubectl:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              dst="/usr/share/nginx/html/998981.jpg"
+              if [ -s "$dst" ]; then
+                echo "Asset already present: $dst"
+                exit 0
+              fi
+
+              artifact_url="$(kubectl -n flux-system get gitrepository flux-system -o jsonpath='{.status.artifact.url}' 2>/dev/null || true)"
+              if [ -z "$artifact_url" ]; then
+                echo "No Flux artifact URL found; skipping"
+                exit 0
+              fi
+
+              tmp="$(mktemp -d)"
+              trap 'rm -rf "$tmp"' EXIT
+
+              echo "Fetching Flux artifact: $artifact_url"
+              if ! curl -fsSL --retry 3 --retry-delay 2 --max-time 60 -o "$tmp/artifact.tar.gz" "$artifact_url"; then
+                echo "Failed to fetch artifact; skipping"
+                exit 0
+              fi
+
+              path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\\.jpg$' | head -n 1 || true)"
+              if [ -z "$path" ]; then
+                echo "998981.jpg not found in artifact; skipping"
+                exit 0
+              fi
+
+              echo "Extracting $path -> $dst"
+              mkdir -p "$(dirname "$dst")"
+              tar -xzf "$tmp/artifact.tar.gz" -O "$path" > "$dst"
+          volumeMounts:
+            - name: assets
+              mountPath: /usr/share/nginx/html
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: assets
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: assets
+          persistentVolumeClaim:
+            claimName: homepage-assets
