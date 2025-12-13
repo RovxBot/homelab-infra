@@ -23,6 +23,8 @@ spec:
           env:
             - name: TZ
               value: Australia/Melbourne
+            - name: JELLYFIN_DATA_DIR
+              value: /config
           volumeMounts:
             - name: config
               mountPath: /config

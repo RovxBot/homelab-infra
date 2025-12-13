@@ -3,3 +3,21 @@ kind: Kustomization
 resources:
   - longhorn.yaml
   - default-backup-target.yaml
+patches:
+  - target:
+      kind: Service
+      name: longhorn-frontend
+      namespace: longhorn-system
+    patch: |
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: longhorn-frontend
+        namespace: longhorn-system
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 80
+            targetPort: http
+            nodePort: 30080

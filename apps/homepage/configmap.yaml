@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-app-config
+  namespace: homepage
+data:
+  settings.yaml: |
+    ---
+    title: cooked.beer
+    theme: dark
+    color: slate
+    headerStyle: boxedWidgets
+    hideVersion: true
+    useEqualHeights: true
+    statusStyle: "dot"
+
+    background: https://images.unsplash.com/photo-1502790671504-542ad42d5189?auto=format&fit=crop&w=2560&q=80
+    cardBlur: sm
+
+    quicklaunch:
+      searchDescriptions: true
+      hideInternetSearch: true
+      showSearchSuggestions: true
+      mobileButtonPosition: bottom-right
+
+    layout:
+      Media:
+        style: row
+        columns: 3
+      Security:
+        style: row
+        columns: 2
+
+  services.yaml: |
+    ---
+    - Media:
+        - Radarr:
+            href: https://radarr.cooked.beer
+            description: Movies automation
+            icon: radarr
+            target: _blank
+        - Sonarr:
+            href: https://sonarr.cooked.beer
+            description: TV automation
+            icon: sonarr
+            target: _blank
+        - Prowlarr:
+            href: https://prowlarr.cooked.beer
+            description: Indexer management
+            icon: prowlarr
+            target: _blank
+        - SABnzbd:
+            href: https://sabnzbd.cooked.beer
+            description: Usenet downloads
+            icon: sabnzbd
+            target: _blank
+        - Jellyseerr:
+            href: https://jellyseerr.cooked.beer
+            description: Requests & discovery
+            icon: jellyseerr
+            target: _blank
+        - Jellyfin (LAN):
+            href: http://192.168.1.190:32096
+            description: Local streaming
+            icon: jellyfin
+            target: _blank
+
+    - Security:
+        - Vaultwarden:
+            href: https://vault.cooked.beer
+            description: Password manager
+            icon: bitwarden
+            target: _blank
+
+    - Cluster:
+        - Longhorn (LAN):
+            href: http://192.168.1.190:30080
+            description: Storage UI
+            icon: longhorn
+            target: _blank
+        - Pods by Node (LAN):
+            href: http://192.168.1.190:32081
+            description: Running pods per node
+            icon: kubernetes
+            target: _blank
+
+  bookmarks.yaml: |
+    ---
+    - Homelab:
+        - Homepage:
+            - abbr: HP
+              href: https://homepage.cooked.beer
+        - Jellyfin (LAN):
+            - abbr: JF
+              href: http://192.168.1.190:32096
+        - Tailscale:
+            - abbr: TS
+              href: https://login.tailscale.com/admin/machines
+        - Cloudflare:
+            - abbr: CF
+              href: https://dash.cloudflare.com/
+        - Longhorn (LAN):
+            - abbr: LH
+              href: http://192.168.1.190:30080
+        - Pods by Node (LAN):
+            - abbr: K8
+              href: http://192.168.1.190:32081
+
+  widgets.yaml: |
+    ---
+    - greeting:
+        text_size: xl
+        text: cooked.beer
+
+    - datetime:
+        text_size: xl
+        format:
+          dateStyle: medium
+          timeStyle: short
+
+    - search:
+        provider: duckduckgo
+        showSearchSuggestions: true
+        target: _blank
+
+    - resources:
+        label: System
+        cpu: true
+        memory: true
+        uptime: true
+    - resources:
+        label: Storage
+        disk: /
+
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: cluster
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+
+  kubernetes.yaml: |
+    ---
+    mode: cluster
