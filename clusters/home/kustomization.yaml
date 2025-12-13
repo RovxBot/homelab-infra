@@ -4,3 +4,4 @@ resources:
   - flux-system
   - infrastructure/infrastructure-kustomization.yaml
   - apps/apps-kustomization.yaml
+  - apps/homepage-kustomization.yaml
