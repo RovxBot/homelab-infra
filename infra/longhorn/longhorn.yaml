@@ -1,9 +1,14 @@
+
 ---
 # Builtin: "helm template" does not respect --create-namespace
 apiVersion: v1
 kind: Namespace
 metadata:
   name: longhorn-system
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/audit: privileged
 ---
 # Source: longhorn/templates/priorityclass.yaml
 apiVersion: scheduling.k8s.io/v1
