@@ -49,7 +49,7 @@ spec:
                 exit 0
               fi
 
-              path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\\.jpg$' | head -n 1 || true)"
+              path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\.jpg$' | head -n 1 || true)"
               if [ -n "$path" ]; then
                 echo "Extracting $path -> $dst"
                 mkdir -p "$(dirname "$dst")"
@@ -57,7 +57,7 @@ spec:
                 exit 0
               fi
 
-              b64_path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\\.jpg\\.b64$' | head -n 1 || true)"
+              b64_path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\.jpg\.b64$' | head -n 1 || true)"
               if [ -z "$b64_path" ]; then
                 echo "No jpg or base64 asset found in artifact; skipping"
                 exit 0
