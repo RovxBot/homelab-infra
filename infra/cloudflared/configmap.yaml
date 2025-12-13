@@ -25,4 +25,6 @@ data:
         service: http://jellyseerr.media.svc.cluster.local:5055
       - hostname: immich.cooked.beer
         service: http://immich-server.immich.svc.cluster.local:2283
+      - hostname: homepage.cooked.beer
+        service: http://homepage.homepage.svc.cluster.local:3000
       - service: http_status:404

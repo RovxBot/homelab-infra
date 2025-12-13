@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: homepage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepage
+  template:
+    metadata:
+      labels:
+        app: homepage
+    spec:
+      containers:
+        - name: homepage
+          image: ghcr.io/benphelps/homepage:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: TZ
+              value: Australia/Melbourne
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: homepage-config

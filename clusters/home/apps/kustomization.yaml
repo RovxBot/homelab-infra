@@ -10,3 +10,4 @@ resources:
   - ../../../apps/sonarr
   - ../../../apps/sabnzbd
   - ../../../apps/jellyseerr
+  - ../../../apps/homepage
