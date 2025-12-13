@@ -15,7 +15,7 @@ data:
     statusStyle: "dot"
 
     background:
-      image: /api/config/998981.jpg
+      image: https://assets.cooked.beer/998981.jpg
       opacity: 20
       blur: sm
       saturate: 150
