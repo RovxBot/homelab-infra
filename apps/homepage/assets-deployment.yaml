@@ -23,6 +23,9 @@ spec:
         - name: sync-assets
           image: bitnami/kubectl:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
           command:
             - sh
             - -c
