@@ -8,14 +8,19 @@ data:
     ---
     title: cooked.beer
     theme: dark
-    color: slate
+    color: violet
     headerStyle: boxedWidgets
     hideVersion: true
     useEqualHeights: true
     statusStyle: "dot"
 
-    background: https://images.unsplash.com/photo-1502790671504-542ad42d5189?auto=format&fit=crop&w=2560&q=80
-    cardBlur: sm
+    background:
+      image: https://images.unsplash.com/photo-1502790671504-542ad42d5189?auto=format&fit=crop&w=2560&q=80
+      opacity: 20
+      blur: sm
+      saturate: 150
+      brightness: 90
+    cardBlur: md
 
     quicklaunch:
       searchDescriptions: true
@@ -36,75 +41,98 @@ data:
     - Media:
         - Radarr:
             href: https://radarr.cooked.beer
+            siteMonitor: https://radarr.cooked.beer
             description: Movies automation
             icon: radarr
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: media
+              app: radarr
         - Sonarr:
             href: https://sonarr.cooked.beer
+            siteMonitor: https://sonarr.cooked.beer
             description: TV automation
             icon: sonarr
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: media
+              app: sonarr
         - Prowlarr:
             href: https://prowlarr.cooked.beer
+            siteMonitor: https://prowlarr.cooked.beer
             description: Indexer management
             icon: prowlarr
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: media
+              app: prowlarr
         - SABnzbd:
             href: https://sabnzbd.cooked.beer
+            siteMonitor: https://sabnzbd.cooked.beer
             description: Usenet downloads
             icon: sabnzbd
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: media
+              app: sabnzbd
         - Jellyseerr:
             href: https://jellyseerr.cooked.beer
+            siteMonitor: https://jellyseerr.cooked.beer
             description: Requests & discovery
             icon: jellyseerr
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: media
+              app: jellyseerr
         - Jellyfin (LAN):
             href: http://192.168.1.190:32096
+            siteMonitor: http://192.168.1.190:32096
             description: Local streaming
             icon: jellyfin
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: media
+              app: jellyfin
 
     - Security:
         - Vaultwarden:
             href: https://vault.cooked.beer
+            siteMonitor: https://vault.cooked.beer
             description: Password manager
             icon: bitwarden
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: security
+              app: vaultwarden
 
     - Cluster:
         - Longhorn (LAN):
             href: http://192.168.1.190:30080
+            siteMonitor: http://192.168.1.190:30080
             description: Storage UI
             icon: longhorn
             target: _blank
+            widget:
+              type: kubernetes
+              namespace: longhorn-system
+              app: longhorn-ui
         - Pods by Node (LAN):
             href: http://192.168.1.190:32081
+            siteMonitor: http://192.168.1.190:32081
             description: Running pods per node
             icon: kubernetes
             target: _blank
 
   bookmarks.yaml: |
     ---
-    - Homelab:
-        - Homepage:
-            - abbr: HP
-              href: https://homepage.cooked.beer
-        - Jellyfin (LAN):
-            - abbr: JF
-              href: http://192.168.1.190:32096
-        - Tailscale:
-            - abbr: TS
-              href: https://login.tailscale.com/admin/machines
-        - Cloudflare:
-            - abbr: CF
-              href: https://dash.cloudflare.com/
-        - Longhorn (LAN):
-            - abbr: LH
-              href: http://192.168.1.190:30080
-        - Pods by Node (LAN):
-            - abbr: K8
-              href: http://192.168.1.190:32081
+    []
 
   widgets.yaml: |
     ---
@@ -148,3 +176,102 @@ data:
   kubernetes.yaml: |
     ---
     mode: cluster
+
+  custom.css: |
+    :root {
+      --anime-pink: 255 92 219;
+      --anime-violet: 138 90 255;
+      --anime-cyan: 80 220 255;
+      --anime-glass: 20 24 38;
+    }
+
+    #page_container::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(900px 500px at 10% 0%, rgb(var(--anime-pink) / 0.20), transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, rgb(var(--anime-cyan) / 0.16), transparent 55%),
+        radial-gradient(900px 700px at 50% 110%, rgb(var(--anime-violet) / 0.22), transparent 60%),
+        linear-gradient(180deg, rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.55));
+      mix-blend-mode: screen;
+      opacity: 0.75;
+    }
+
+    #page_container::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          180deg,
+          rgb(255 255 255 / 0.03) 0px,
+          rgb(255 255 255 / 0.03) 1px,
+          transparent 3px,
+          transparent 6px
+        );
+      opacity: 0.35;
+    }
+
+    #information-widgets {
+      border-bottom-color: rgb(var(--anime-violet) / 0.45) !important;
+    }
+
+    #information-widgets,
+    dialog,
+    .service-block {
+      background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.55), rgb(var(--anime-glass) / 0.30)) !important;
+      backdrop-filter: blur(14px) saturate(1.25);
+      box-shadow:
+        0 8px 26px rgb(0 0 0 / 0.35),
+        0 0 0 1px rgb(var(--anime-violet) / 0.22) inset;
+      border-radius: 18px !important;
+    }
+
+    .information-widget-resource .resource-usage {
+      height: 0.35rem !important;
+      border-radius: 999px !important;
+      overflow: hidden;
+    }
+
+    .information-widget-resource .resource-usage > div {
+      background: linear-gradient(
+        90deg,
+        rgb(var(--anime-cyan) / 0.85),
+        rgb(var(--anime-violet) / 0.85),
+        rgb(var(--anime-pink) / 0.85)
+      ) !important;
+      box-shadow: 0 0 18px rgb(var(--anime-violet) / 0.35);
+    }
+
+    .widget-container span,
+    .widget-container div {
+      text-shadow: 0 0 18px rgb(var(--anime-violet) / 0.22);
+    }
+
+    #inner_wrapper .container a[href^="http"] {
+      transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+      filter: saturate(1.05);
+    }
+
+    #inner_wrapper .container a[href^="http"]:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.2);
+    }
+
+    #inner_wrapper .container a[href^="http"] > div {
+      box-shadow:
+        0 10px 30px rgb(0 0 0 / 0.35),
+        0 0 0 1px rgb(var(--anime-pink) / 0.18) inset;
+      border-radius: 16px !important;
+      backdrop-filter: blur(10px) saturate(1.15);
+    }
+
+    #inner_wrapper .container a[href^="http"]:hover > div {
+      box-shadow:
+        0 18px 50px rgb(0 0 0 / 0.45),
+        0 0 0 1px rgb(var(--anime-pink) / 0.25) inset,
+        0 0 28px rgb(var(--anime-violet) / 0.18);
+    }
