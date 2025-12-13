@@ -4,5 +4,7 @@ namespace: homepage
 resources:
   - namespace.yaml
   - pvc.yaml
+  - rbac.yaml
+  - configmap.yaml
   - deployment.yaml
   - service.yaml

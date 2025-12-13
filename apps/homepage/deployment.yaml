@@ -13,6 +13,7 @@ spec:
       labels:
         app: homepage
     spec:
+      serviceAccountName: homepage
       containers:
         - name: homepage
           image: ghcr.io/benphelps/homepage:latest
@@ -26,7 +27,30 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
+            - name: app-config
+              mountPath: /app/config/settings.yaml
+              subPath: settings.yaml
+              readOnly: true
+            - name: app-config
+              mountPath: /app/config/services.yaml
+              subPath: services.yaml
+              readOnly: true
+            - name: app-config
+              mountPath: /app/config/bookmarks.yaml
+              subPath: bookmarks.yaml
+              readOnly: true
+            - name: app-config
+              mountPath: /app/config/widgets.yaml
+              subPath: widgets.yaml
+              readOnly: true
+            - name: app-config
+              mountPath: /app/config/kubernetes.yaml
+              subPath: kubernetes.yaml
+              readOnly: true
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: homepage-config
+        - name: app-config
+          configMap:
+            name: homepage-app-config
