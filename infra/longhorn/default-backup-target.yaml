@@ -1,0 +1,7 @@
+apiVersion: longhorn.io/v1beta1
+kind: BackupTarget
+metadata:
+  name: default
+  namespace: longhorn-system
+spec:
+  backupTargetURL: "nfs://longhorn-backupstore-placeholder/backupstore"
