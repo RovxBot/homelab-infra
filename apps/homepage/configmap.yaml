@@ -15,7 +15,7 @@ data:
     statusStyle: "dot"
 
     background:
-      image: https://images.unsplash.com/photo-1502790671504-542ad42d5189?auto=format&fit=crop&w=2560&q=80
+      image: /api/config/998981.jpg
       opacity: 20
       blur: sm
       saturate: 150
@@ -274,4 +274,49 @@ data:
         0 18px 50px rgb(0 0 0 / 0.45),
         0 0 0 1px rgb(var(--anime-pink) / 0.25) inset,
         0 0 28px rgb(var(--anime-violet) / 0.18);
+    }
+
+    /* Keep per-service widgets, but remove their layout footprint */
+    #inner_wrapper .container a[href^="http"] > div {
+      position: relative;
+    }
+
+    #inner_wrapper .container a[href^="http"] .service-container {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: auto !important;
+      justify-content: flex-end;
+      pointer-events: none;
+      opacity: 0.95;
+    }
+
+    #inner_wrapper .container a[href^="http"] .service-block {
+      min-width: 0 !important;
+      padding: 0.25rem 0.45rem !important;
+      margin: 0 0 0 0.4rem !important;
+      border-radius: 999px !important;
+      background: linear-gradient(
+        180deg,
+        rgb(var(--anime-glass) / 0.65),
+        rgb(var(--anime-glass) / 0.35)
+      ) !important;
+      box-shadow:
+        0 0 0 1px rgb(var(--anime-violet) / 0.22) inset,
+        0 0 16px rgb(var(--anime-violet) / 0.12);
+      backdrop-filter: blur(10px) saturate(1.2);
+    }
+
+    #inner_wrapper .container a[href^="http"] .service-block > div:first-child {
+      font-size: 0.8rem !important;
+      line-height: 1rem !important;
+      font-weight: 700 !important;
+      text-shadow: 0 0 16px rgb(var(--anime-violet) / 0.35);
+    }
+
+    #inner_wrapper .container a[href^="http"] .service-block > div:last-child {
+      font-size: 0.55rem !important;
+      line-height: 0.75rem !important;
+      letter-spacing: 0.08em;
+      opacity: 0.8;
     }
