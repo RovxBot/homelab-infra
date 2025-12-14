@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - longhorn.yaml
   - default-backup-target.yaml
+  - recurring-jobs.yaml
 patches:
   - target:
       kind: Service

@@ -4,4 +4,5 @@ metadata:
   name: default
   namespace: longhorn-system
 spec:
-  backupTargetURL: "nfs://longhorn-backupstore-placeholder/backupstore"
+  backupTargetURL: "s3://cooked-k8s@us-east-005/longhorn"
+  credentialSecret: longhorn-b2-credentials
