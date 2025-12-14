@@ -18,6 +18,14 @@ spec:
       containers:
         - name: redis
           image: redis:6.2-alpine
+          args:
+            - redis-server
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+            - --stop-writes-on-bgsave-error
+            - "no"
           ports:
             - containerPort: 6379
           volumeMounts:
@@ -25,8 +33,7 @@ spec:
               mountPath: /data
       volumes:
         - name: redis-data
-          persistentVolumeClaim:
-            claimName: immich-redis
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
