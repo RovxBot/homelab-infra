@@ -15,7 +15,7 @@ data:
     statusStyle: "dot"
 
     background:
-      image: https://assets.cooked.beer/998981.jpg
+      image: https://homepage.cooked.beer/assets/998981.jpg
       opacity: 20
       blur: sm
       saturate: 150
@@ -52,6 +52,7 @@ data:
               type: kubernetes
               namespace: media
               app: radarr
+              podSelector: app=radarr
         - Sonarr:
             href: https://sonarr.cooked.beer
             siteMonitor: http://sonarr.media.svc.cluster.local:8989/ping
@@ -62,6 +63,7 @@ data:
               type: kubernetes
               namespace: media
               app: sonarr
+              podSelector: app=sonarr
         - Prowlarr:
             href: https://prowlarr.cooked.beer
             siteMonitor: http://prowlarr.media.svc.cluster.local:9696/ping
@@ -72,6 +74,7 @@ data:
               type: kubernetes
               namespace: media
               app: prowlarr
+              podSelector: app=prowlarr
         - SABnzbd:
             href: https://sabnzbd.cooked.beer
             siteMonitor: http://sabnzbd.media.svc.cluster.local:8080
@@ -82,6 +85,7 @@ data:
               type: kubernetes
               namespace: media
               app: sabnzbd
+              podSelector: app=sabnzbd
         - Jellyseerr:
             href: https://jellyseerr.cooked.beer
             siteMonitor: http://jellyseerr.media.svc.cluster.local:5055/login
@@ -92,6 +96,7 @@ data:
               type: kubernetes
               namespace: media
               app: jellyseerr
+              podSelector: app=jellyseerr
         - Jellyfin (LAN):
             href: http://192.168.1.190:32096
             siteMonitor: http://jellyfin.media.svc.cluster.local:8096
@@ -102,6 +107,7 @@ data:
               type: kubernetes
               namespace: media
               app: jellyfin
+              podSelector: app=jellyfin
 
     - Security:
         - Vaultwarden:
@@ -114,6 +120,7 @@ data:
               type: kubernetes
               namespace: security
               app: vaultwarden
+              podSelector: app=vaultwarden
 
     - Cluster:
         - Longhorn (LAN):
@@ -126,11 +133,24 @@ data:
               type: kubernetes
               namespace: longhorn-system
               app: longhorn-ui
+              podSelector: app=longhorn-ui
         - Pods by Node (LAN):
             href: http://192.168.1.190:32081
             siteMonitor: http://pod-report.homepage.svc.cluster.local:80
             description: Running pods per node
             icon: kubernetes
+            target: _blank
+
+    - Me:
+        - GitHub:
+            href: https://github.com/RovxBot
+            description: My profile
+            icon: github
+            target: _blank
+        - Blog:
+            href: https://rovblog.cooked.beer
+            description: rovblog.cooked.beer
+            icon: mdi-rss
             target: _blank
 
   bookmarks.yaml: |
@@ -313,19 +333,30 @@ data:
 
     /* Header layout: title + search on top, nodes under */
     #widgets-wrap {
+      display: grid !important;
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas:
+        "greeting search datetime"
+        "kubernetes kubernetes kubernetes";
       align-items: center;
+      column-gap: 0.9rem;
+      row-gap: 0.6rem;
+    }
+
+    /* Pull children of `#information-widgets-right` into the grid */
+    #information-widgets-right {
+      display: contents;
     }
 
     .information-widget-greeting {
-      order: 1;
-      margin-right: 0.25rem;
+      grid-area: greeting;
     }
 
     .information-widget-search {
-      order: 2;
-      flex: 1 1 520px;
-      min-width: 260px;
+      grid-area: search;
+      width: 100%;
       max-width: 860px;
+      justify-self: start;
     }
 
     .information-widget-search input {
@@ -337,12 +368,12 @@ data:
     }
 
     .information-widget-datetime {
-      order: 3;
+      grid-area: datetime;
+      justify-self: end;
     }
 
     .information-widget-kubernetes {
-      order: 4;
-      flex: 1 1 100%;
+      grid-area: kubernetes;
       width: 100%;
-      margin-top: 0.4rem;
+      margin: 0;
     }

@@ -31,7 +31,7 @@ spec:
             - -c
             - |
               set -eu
-              dst="/usr/share/nginx/html/998981.jpg"
+              dst="/usr/share/nginx/html/assets/998981.jpg"
               if [ -s "$dst" ]; then
                 echo "Asset already present: $dst"
                 exit 0

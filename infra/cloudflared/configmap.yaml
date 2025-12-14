@@ -26,6 +26,9 @@ data:
       - hostname: immich.cooked.beer
         service: http://immich-server.immich.svc.cluster.local:2283
       - hostname: homepage.cooked.beer
+        path: /assets/*
+        service: http://homepage-assets.homepage.svc.cluster.local:80
+      - hostname: homepage.cooked.beer
         service: http://homepage.homepage.svc.cluster.local:3000
       - hostname: assets.cooked.beer
         service: http://homepage-assets.homepage.svc.cluster.local:80
