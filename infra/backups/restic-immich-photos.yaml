@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: restic-immich-photos
+  namespace: immich
+spec:
+  schedule: "45 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: restic
+              image: restic/restic:0.17.3
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: restic-b2-photos
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: restic-b2-photos
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: RESTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: restic-b2-photos
+                      key: RESTIC_PASSWORD
+                - name: RESTIC_REPOSITORY
+                  value: "s3:https://s3.us-east-005.backblazeb2.com/cooked-photos/restic/immich-uploads"
+                - name: RESTIC_CACHE_DIR
+                  value: /cache
+              command:
+                - sh
+                - -lc
+                - |
+                  set -euo pipefail
+                  restic snapshots >/dev/null 2>&1 || restic init
+                  restic backup /data \
+                    --host k8s \
+                    --tag immich \
+                    --one-file-system
+                  restic forget \
+                    --keep-daily 30 \
+                    --keep-weekly 12 \
+                    --keep-monthly 12 \
+                    --prune
+              volumeMounts:
+                - name: photos
+                  mountPath: /data
+                  readOnly: true
+                - name: cache
+                  mountPath: /cache
+          volumes:
+            - name: photos
+              persistentVolumeClaim:
+                claimName: nfs-immich-uploads
+            - name: cache
+              emptyDir: {}
