@@ -54,7 +54,7 @@ data:
               app: radarr
         - Sonarr:
             href: https://sonarr.cooked.beer
-            siteMonitor: http://sonarr.media.svc.cluster.local:8989
+            siteMonitor: http://sonarr.media.svc.cluster.local:8989/ping
             description: TV automation
             icon: sonarr
             target: _blank
@@ -64,7 +64,7 @@ data:
               app: sonarr
         - Prowlarr:
             href: https://prowlarr.cooked.beer
-            siteMonitor: http://prowlarr.media.svc.cluster.local:9696
+            siteMonitor: http://prowlarr.media.svc.cluster.local:9696/ping
             description: Indexer management
             icon: prowlarr
             target: _blank
@@ -84,7 +84,7 @@ data:
               app: sabnzbd
         - Jellyseerr:
             href: https://jellyseerr.cooked.beer
-            siteMonitor: http://jellyseerr.media.svc.cluster.local:5055
+            siteMonitor: http://jellyseerr.media.svc.cluster.local:5055/login
             description: Requests & discovery
             icon: jellyseerr
             target: _blank
