@@ -4,9 +4,6 @@ resources:
   - longhorn.yaml
   - default-backup-target.yaml
   - recurring-jobs.yaml
-  - node-disks/metal5.yaml
-  - node-disks/metal6.yaml
-  - node-disks/metal7.yaml
 patches:
   - target:
       kind: Service
