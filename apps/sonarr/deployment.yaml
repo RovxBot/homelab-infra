@@ -33,6 +33,9 @@ spec:
             # Plex Media NFS share - contains TV Shows and Downloads
             - name: plex-media
               mountPath: /data
+            # SABnzbd reports completed/incomplete under /downloads/...; expose same share there too
+            - name: plex-media
+              mountPath: /downloads
       volumes:
         - name: config
           persistentVolumeClaim:

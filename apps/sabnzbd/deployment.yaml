@@ -13,6 +13,20 @@ spec:
       labels:
         app: sabnzbd
     spec:
+      initContainers:
+        - name: ensure-download-dirs
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              mkdir -p /downloads/Downloading
+              mkdir -p /downloads/Downloads/Done
+          volumeMounts:
+            - name: downloads
+              mountPath: /downloads
       containers:
         - name: sabnzbd
           image: linuxserver/sabnzbd:latest
