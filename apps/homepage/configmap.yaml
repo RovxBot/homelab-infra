@@ -17,8 +17,8 @@ data:
     background:
       image: /assets/998981.jpg
       opacity: 38
-      blur: md
-      saturate: 120
+      blur: sm
+      saturate: 130
       brightness: 108
     cardBlur: md
 
@@ -194,6 +194,7 @@ data:
       --anime-cyan: 80 220 255;
       --anime-glass: 20 24 38;
       --anime-white: 244 247 255;
+      --glass-border: 255 255 255;
     }
 
     body {
@@ -254,7 +255,7 @@ data:
     #inner_wrapper .container a[href^="http"] > div {
       position: relative;
       overflow: hidden;
-      border: 1px solid rgb(var(--anime-violet) / 0.20);
+      border: 1px solid rgb(var(--glass-border) / 0.10);
     }
 
     #information-widgets::before,
@@ -266,8 +267,8 @@ data:
       background:
         radial-gradient(700px 220px at 18% 0%, rgb(var(--anime-pink) / 0.18), transparent 60%),
         radial-gradient(700px 220px at 82% 0%, rgb(var(--anime-cyan) / 0.14), transparent 60%),
-        linear-gradient(135deg, rgb(255 255 255 / 0.06), transparent 55%);
-      filter: blur(10px);
+        linear-gradient(135deg, rgb(255 255 255 / 0.08), transparent 55%);
+      filter: blur(12px);
       opacity: 0.9;
       transform: translateY(-6px);
     }
@@ -283,6 +284,48 @@ data:
       pointer-events: none;
       background: linear-gradient(180deg, rgb(255 255 255 / 0.10), transparent);
       opacity: 0.35;
+    }
+
+    /* Make the header widgets feel like a single glass panel */
+    #information-widgets {
+      border-radius: 22px !important;
+      border: 1px solid rgb(var(--glass-border) / 0.12) !important;
+      background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.62), rgb(var(--anime-glass) / 0.28)) !important;
+      box-shadow:
+        0 18px 60px rgb(0 0 0 / 0.45),
+        0 0 0 1px rgb(var(--anime-violet) / 0.20) inset;
+    }
+
+    /* Buttons/cards: deeper glass + nicer hover */
+    #inner_wrapper .container a[href^="http"] > div {
+      border: 1px solid rgb(var(--glass-border) / 0.10) !important;
+      background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.62), rgb(var(--anime-glass) / 0.20)) !important;
+      box-shadow:
+        0 18px 50px rgb(0 0 0 / 0.42),
+        0 0 0 1px rgb(var(--anime-violet) / 0.18) inset;
+    }
+
+    #inner_wrapper .container a[href^="http"]:hover > div {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow:
+        0 26px 70px rgb(0 0 0 / 0.52),
+        0 0 0 1px rgb(var(--anime-pink) / 0.22) inset,
+        0 0 34px rgb(var(--anime-violet) / 0.18);
+    }
+
+    /* Service status pills: glass + neon edge */
+    #inner_wrapper .container a[href^="http"] .service-block {
+      border: 1px solid rgb(var(--glass-border) / 0.10) !important;
+      box-shadow:
+        0 0 0 1px rgb(var(--anime-violet) / 0.18) inset,
+        0 0 18px rgb(var(--anime-violet) / 0.10);
+    }
+
+    /* Monitoring bars: brighter, more liquid */
+    .information-widget-resource .resource-usage {
+      height: 0.45rem !important;
+      background: rgb(255 255 255 / 0.04);
+      box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06) inset;
     }
 
     /* Crisper typography */
