@@ -3,11 +3,6 @@
     text_size: xl
     text: cooked.beer
 
-- search:
-    provider: duckduckgo
-    showSearchSuggestions: true
-    target: _blank
-
 - datetime:
     text_size: xl
     format:
