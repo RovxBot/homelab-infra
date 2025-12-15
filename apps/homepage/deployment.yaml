@@ -95,6 +95,32 @@ spec:
           ports:
             - containerPort: 3000
               name: http
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - sh
+                  - -lc
+                  - |
+                    # Force Next.js ISR to refresh the homepage after config changes.
+                    # Retry because the server may not be ready immediately.
+                    node - <<'NODE'
+                    const http = require("http");
+                    const url = "http://127.0.0.1:3000/api/revalidate";
+                    let tries = 0;
+                    function attempt() {
+                      tries += 1;
+                      const req = http.get(url, (res) => {
+                        res.resume();
+                        process.exit(0);
+                      });
+                      req.on("error", () => {
+                        if (tries >= 30) process.exit(0);
+                        setTimeout(attempt, 1000);
+                      });
+                    }
+                    attempt();
+                    NODE
           env:
             - name: TZ
               value: Australia/Melbourne
