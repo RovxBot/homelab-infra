@@ -15,7 +15,7 @@ data:
     statusStyle: "dot"
 
     background:
-      image: /assets/998981.jpg
+      image: https://homepage.cooked.beer/assets/998981.jpg
       opacity: 38
       blur: md
       saturate: 120
@@ -199,7 +199,7 @@ data:
     body {
       background:
         linear-gradient(180deg, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.70)),
-        url("/assets/998981.jpg");
+        url("https://homepage.cooked.beer/assets/998981.jpg");
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
