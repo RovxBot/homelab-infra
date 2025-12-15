@@ -30,38 +30,12 @@ spec:
             - name: TZ
               value: Australia/Melbourne
           volumeMounts:
-            - name: config
-              mountPath: /app/config
             - name: logs
               mountPath: /app/config/logs
             - name: app-config
-              mountPath: /app/config/settings.yaml
-              subPath: settings.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/services.yaml
-              subPath: services.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/bookmarks.yaml
-              subPath: bookmarks.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/widgets.yaml
-              subPath: widgets.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/kubernetes.yaml
-              subPath: kubernetes.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/custom.css
-              subPath: custom.css
+              mountPath: /app/config
               readOnly: true
       volumes:
-        - name: config
-          persistentVolumeClaim:
-            claimName: homepage-config
         - name: logs
           emptyDir: {}
         - name: app-config
