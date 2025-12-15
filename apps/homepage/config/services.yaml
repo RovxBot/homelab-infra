@@ -1,0 +1,112 @@
+---
+- Media:
+    - Radarr:
+        href: https://radarr.cooked.beer
+        siteMonitor: http://radarr.media.svc.cluster.local:7878
+        description: Movies automation
+        icon: radarr
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: media
+          app: radarr
+          podSelector: app=radarr
+    - Sonarr:
+        href: https://sonarr.cooked.beer
+        siteMonitor: http://sonarr.media.svc.cluster.local:8989/ping
+        description: TV automation
+        icon: sonarr
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: media
+          app: sonarr
+          podSelector: app=sonarr
+    - Prowlarr:
+        href: https://prowlarr.cooked.beer
+        siteMonitor: http://prowlarr.media.svc.cluster.local:9696/ping
+        description: Indexer management
+        icon: prowlarr
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: media
+          app: prowlarr
+          podSelector: app=prowlarr
+    - SABnzbd:
+        href: https://sabnzbd.cooked.beer
+        siteMonitor: http://sabnzbd.media.svc.cluster.local:8080
+        description: Usenet downloads
+        icon: sabnzbd
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: media
+          app: sabnzbd
+          podSelector: app=sabnzbd
+    - Jellyseerr:
+        href: https://jellyseerr.cooked.beer
+        siteMonitor: http://jellyseerr.media.svc.cluster.local:5055/login
+        description: Requests & discovery
+        icon: jellyseerr
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: media
+          app: jellyseerr
+          podSelector: app=jellyseerr
+    - Jellyfin (LAN):
+        href: http://192.168.1.190:32096
+        siteMonitor: http://jellyfin.media.svc.cluster.local:8096
+        description: Local streaming
+        icon: jellyfin
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: media
+          app: jellyfin
+          podSelector: app=jellyfin
+
+- Security:
+    - Vaultwarden:
+        href: https://vault.cooked.beer
+        siteMonitor: http://vaultwarden.security.svc.cluster.local:80
+        description: Password manager
+        icon: bitwarden
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: security
+          app: vaultwarden
+          podSelector: app=vaultwarden
+
+- Cluster:
+    - Longhorn (LAN):
+        href: http://192.168.1.190:30080
+        siteMonitor: http://longhorn-frontend.longhorn-system.svc.cluster.local:80
+        description: Storage UI
+        icon: longhorn
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: longhorn-system
+          app: longhorn-ui
+          podSelector: app=longhorn-ui
+    - Pods by Node (LAN):
+        href: http://192.168.1.190:32081
+        siteMonitor: http://pod-report.homepage.svc.cluster.local:80
+        description: Running pods per node
+        icon: kubernetes
+        target: _blank
+
+- Me:
+    - GitHub:
+        href: https://github.com/RovxBot
+        description: My profile
+        icon: github
+        target: _blank
+    - Blog:
+        href: https://rovblog.cooked.beer
+        description: rovblog.cooked.beer
+        icon: mdi-rss
+        target: _blank

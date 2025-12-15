@@ -1,0 +1,24 @@
+---
+- greeting:
+    text_size: xl
+    text: cooked.beer
+
+- search:
+    provider: duckduckgo
+    showSearchSuggestions: true
+    target: _blank
+
+- datetime:
+    text_size: xl
+    format:
+      dateStyle: medium
+      timeStyle: short
+
+- kubernetes:
+    cluster:
+      show: false
+    nodes:
+      show: true
+      cpu: true
+      memory: true
+      showLabel: true

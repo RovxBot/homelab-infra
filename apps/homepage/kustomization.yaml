@@ -6,8 +6,20 @@ resources:
   - pvc.yaml
   - assets-pvc.yaml
   - rbac.yaml
-  - configmap.yaml
   - assets-deployment.yaml
   - assets-service.yaml
   - deployment.yaml
   - service.yaml
+
+configMapGenerator:
+  - name: homepage-app-config
+    files:
+      - config/settings.yaml
+      - config/services.yaml
+      - config/bookmarks.yaml
+      - config/widgets.yaml
+      - config/kubernetes.yaml
+      - config/custom.css
+
+generatorOptions:
+  disableNameSuffixHash: false

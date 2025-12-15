@@ -20,6 +20,23 @@ spec:
     spec:
       serviceAccountName: homepage
       initContainers:
+        - name: sync-config
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              mkdir -p /dst
+              cp -f /src/* /dst/
+              mkdir -p /dst/logs
+          volumeMounts:
+            - name: config
+              mountPath: /dst
+            - name: app-config
+              mountPath: /src
+              readOnly: true
         - name: sync-background
           image: bitnami/kubectl:latest
           imagePullPolicy: IfNotPresent
@@ -86,30 +103,6 @@ spec:
               mountPath: /app/config
             - name: logs
               mountPath: /app/config/logs
-            - name: app-config
-              mountPath: /app/config/settings.yaml
-              subPath: settings.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/services.yaml
-              subPath: services.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/bookmarks.yaml
-              subPath: bookmarks.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/widgets.yaml
-              subPath: widgets.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/kubernetes.yaml
-              subPath: kubernetes.yaml
-              readOnly: true
-            - name: app-config
-              mountPath: /app/config/custom.css
-              subPath: custom.css
-              readOnly: true
             - name: public-assets
               mountPath: /app/public/assets
               readOnly: true

@@ -1,0 +1,356 @@
+:root {
+  --anime-pink: 255 92 219;
+  --anime-violet: 138 90 255;
+  --anime-cyan: 80 220 255;
+  --anime-glass: 20 24 38;
+  --anime-white: 244 247 255;
+  --glass-border: 255 255 255;
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.70)),
+    url("/assets/998981.jpg");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+#page_container::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 500px at 12% 0%, rgb(var(--anime-pink) / 0.16), transparent 55%),
+    radial-gradient(900px 500px at 88% 0%, rgb(var(--anime-cyan) / 0.12), transparent 55%),
+    radial-gradient(900px 700px at 50% 110%, rgb(var(--anime-violet) / 0.16), transparent 60%);
+  opacity: 0.65;
+}
+
+#page_container::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.03) 0px,
+      rgb(255 255 255 / 0.03) 1px,
+      transparent 3px,
+      transparent 6px
+    );
+  opacity: 0.22;
+}
+
+#information-widgets {
+  border-bottom-color: rgb(var(--anime-violet) / 0.45) !important;
+}
+
+#information-widgets,
+dialog,
+.service-block {
+  background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.55), rgb(var(--anime-glass) / 0.30)) !important;
+  backdrop-filter: blur(14px) saturate(1.25);
+  box-shadow:
+    0 8px 26px rgb(0 0 0 / 0.35),
+    0 0 0 1px rgb(var(--anime-violet) / 0.22) inset;
+  border-radius: 18px !important;
+}
+
+/* Liquid-glass sheen */
+#information-widgets,
+dialog,
+#inner_wrapper .container a[href^="http"] > div {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(var(--glass-border) / 0.10);
+}
+
+#information-widgets::before,
+#inner_wrapper .container a[href^="http"] > div::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(700px 220px at 18% 0%, rgb(var(--anime-pink) / 0.18), transparent 60%),
+    radial-gradient(700px 220px at 82% 0%, rgb(var(--anime-cyan) / 0.14), transparent 60%),
+    linear-gradient(135deg, rgb(255 255 255 / 0.08), transparent 55%);
+  filter: blur(12px);
+  opacity: 0.9;
+  transform: translateY(-6px);
+}
+
+#information-widgets::after,
+#inner_wrapper .container a[href^="http"] > div::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38%;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.10), transparent);
+  opacity: 0.35;
+}
+
+/* Keep sheen behind content (fixes dark blocks around header widgets) */
+#information-widgets > *,
+#inner_wrapper .container a[href^="http"] > div > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Make the header widgets feel like a single glass panel */
+#information-widgets {
+  border-radius: 22px !important;
+  border: 1px solid rgb(var(--glass-border) / 0.12) !important;
+  background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.62), rgb(var(--anime-glass) / 0.28)) !important;
+  box-shadow:
+    0 18px 60px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(var(--anime-violet) / 0.20) inset;
+}
+
+/* Header children should not render their own dark backgrounds */
+.information-widget-greeting,
+.information-widget-search,
+.information-widget-datetime {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+}
+
+/* `headerStyle: boxedWidgets` adds per-widget boxes via app CSS; strip them */
+#information-widgets .widget-container,
+#information-widgets .information-widget-form {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Buttons/cards: deeper glass + nicer hover */
+#inner_wrapper .container a[href^="http"] > div {
+  border: 1px solid rgb(var(--glass-border) / 0.10) !important;
+  background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.62), rgb(var(--anime-glass) / 0.20)) !important;
+  box-shadow:
+    0 18px 50px rgb(0 0 0 / 0.42),
+    0 0 0 1px rgb(var(--anime-violet) / 0.18) inset;
+}
+
+#inner_wrapper .container a[href^="http"]:hover > div {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 26px 70px rgb(0 0 0 / 0.52),
+    0 0 0 1px rgb(var(--anime-pink) / 0.22) inset,
+    0 0 34px rgb(var(--anime-violet) / 0.18);
+}
+
+/* Service status pills: glass + neon edge */
+#inner_wrapper .container a[href^="http"] .service-block {
+  border: 1px solid rgb(var(--glass-border) / 0.10) !important;
+  box-shadow:
+    0 0 0 1px rgb(var(--anime-violet) / 0.18) inset,
+    0 0 18px rgb(var(--anime-violet) / 0.10);
+}
+
+/* Monitoring bars: brighter, more liquid */
+.information-widget-resource .resource-usage {
+  height: 0.45rem !important;
+  background: rgb(255 255 255 / 0.04);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06) inset;
+}
+
+/* Crisper typography */
+#inner_wrapper {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+.group-title {
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 22px rgb(var(--anime-violet) / 0.22);
+}
+
+.information-widget-resource .resource-usage {
+  height: 0.35rem !important;
+  border-radius: 999px !important;
+  overflow: hidden;
+}
+
+.information-widget-resource .resource-usage > div {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--anime-cyan) / 0.85),
+    rgb(var(--anime-violet) / 0.85),
+    rgb(var(--anime-pink) / 0.85)
+  ) !important;
+  box-shadow: 0 0 18px rgb(var(--anime-violet) / 0.35);
+}
+
+.widget-container span,
+.widget-container div {
+  text-shadow: 0 0 18px rgb(var(--anime-violet) / 0.22);
+}
+
+#inner_wrapper .container a[href^="http"] {
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+  filter: saturate(1.05);
+}
+
+#inner_wrapper .container a[href^="http"]:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.2);
+}
+
+#inner_wrapper .container a[href^="http"] > div {
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 0.35),
+    0 0 0 1px rgb(var(--anime-pink) / 0.18) inset;
+  border-radius: 16px !important;
+  backdrop-filter: blur(10px) saturate(1.15);
+  background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.55), rgb(var(--anime-glass) / 0.22)) !important;
+}
+
+/* More consistent card spacing */
+#inner_wrapper .container {
+  gap: 1rem !important;
+}
+
+#inner_wrapper .container a[href^="http"]:hover > div {
+  box-shadow:
+    0 18px 50px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(var(--anime-pink) / 0.25) inset,
+    0 0 28px rgb(var(--anime-violet) / 0.18);
+}
+
+/* Keep per-service widgets, but remove their layout footprint */
+#inner_wrapper .container a[href^="http"] > div {
+  position: relative;
+}
+
+#inner_wrapper .container a[href^="http"] .service-container {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: auto !important;
+  justify-content: flex-end;
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+#inner_wrapper .container a[href^="http"] .service-block {
+  min-width: 0 !important;
+  padding: 0.25rem 0.45rem !important;
+  margin: 0 0 0 0.4rem !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--anime-glass) / 0.65),
+    rgb(var(--anime-glass) / 0.35)
+  ) !important;
+  box-shadow:
+    0 0 0 1px rgb(var(--anime-violet) / 0.22) inset,
+    0 0 16px rgb(var(--anime-violet) / 0.12);
+  backdrop-filter: blur(10px) saturate(1.2);
+}
+
+#inner_wrapper .container a[href^="http"] .service-block > div:first-child {
+  font-size: 0.8rem !important;
+  line-height: 1rem !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 16px rgb(var(--anime-violet) / 0.35);
+}
+
+#inner_wrapper .container a[href^="http"] .service-block > div:last-child {
+  font-size: 0.55rem !important;
+  line-height: 0.75rem !important;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+/* Header layout: stable flex row (no grid/layout tricks) */
+#widgets-wrap {
+  display: flex !important;
+  align-items: center;
+  gap: 0.9rem;
+  row-gap: 0.75rem;
+}
+
+.information-widget-search {
+  width: 100%;
+  max-width: 860px;
+  flex: 1 1 520px;
+}
+
+.information-widget-search input {
+  border-radius: 999px !important;
+  background: rgb(var(--anime-glass) / 0.35) !important;
+  box-shadow:
+    0 0 0 1px rgb(var(--anime-violet) / 0.20) inset,
+    0 0 22px rgb(var(--anime-violet) / 0.12);
+}
+
+.information-widget-datetime {
+  margin-left: auto;
+}
+
+/* Force node stats under the top row */
+.information-widget-kubernetes {
+  width: 100%;
+  flex: 1 1 100%;
+  order: 10;
+  margin-top: 0.5rem;
+}
+
+/* Cluster monitoring: no card background + K8s logo */
+.information-widget-kubernetes {
+  position: relative;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  padding-left: 56px !important;
+}
+
+/* Use background-image instead of ::before to avoid stacking issues */
+.information-widget-kubernetes {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Cpath%20fill%3D%22%23326CE5%22%20d%3D%22M256%2044c-14%200-27%204-38%2011L92%20128c-12%207-20%2020-20%2035v146c0%2015%208%2028%2020%2035l126%2073c11%206%2024%2011%2038%2011s27-4%2038-11l126-73c12-7%2020-20%2020-35V163c0-15-8-28-20-35L294%2055c-11-6-24-11-38-11z%22/%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M256%20122c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm0%20251c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm-122-71c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm244%200c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm-175-123c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm106%200c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm-53%2029c-52%200-95%2042-95%2095%200%2052%2042%2095%2095%2095s95-42%2095-95c0-52-42-95-95-95zm0%2038c31%200%2057%2025%2057%2057%200%2031-25%2057-57%2057s-57-25-57-57c0-31%2025-57%2057-57z%22/%3E%3C/svg%3E") !important;
+  background-size: 32px 32px !important;
+  background-position: 14px 14px !important;
+  background-repeat: no-repeat !important;
+}
+
+.information-widget-kubernetes .information-widget-resource,
+.information-widget-kubernetes .information-widget-card,
+.information-widget-kubernetes .information-widget {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Mobile: stack title/search/date cleanly */
+@media (max-width: 860px) {
+  #widgets-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    row-gap: 0.75rem;
+  }
+
+  .information-widget-search {
+    max-width: 100%;
+  }
+
+  .information-widget-datetime {
+    margin-left: 0;
+  }
+}
