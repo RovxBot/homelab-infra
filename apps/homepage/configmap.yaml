@@ -264,6 +264,7 @@ data:
       position: absolute;
       inset: -2px;
       pointer-events: none;
+      z-index: 0;
       background:
         radial-gradient(700px 220px at 18% 0%, rgb(var(--anime-pink) / 0.18), transparent 60%),
         radial-gradient(700px 220px at 82% 0%, rgb(var(--anime-cyan) / 0.14), transparent 60%),
@@ -282,8 +283,16 @@ data:
       right: 0;
       height: 38%;
       pointer-events: none;
+      z-index: 0;
       background: linear-gradient(180deg, rgb(255 255 255 / 0.10), transparent);
       opacity: 0.35;
+    }
+
+    /* Keep sheen behind content (fixes dark blocks around header widgets) */
+    #information-widgets > *,
+    #inner_wrapper .container a[href^="http"] > div > * {
+      position: relative;
+      z-index: 1;
     }
 
     /* Make the header widgets feel like a single glass panel */
@@ -294,6 +303,16 @@ data:
       box-shadow:
         0 18px 60px rgb(0 0 0 / 0.45),
         0 0 0 1px rgb(var(--anime-violet) / 0.20) inset;
+    }
+
+    /* Header children should not render their own dark backgrounds */
+    .information-widget-greeting,
+    .information-widget-search,
+    .information-widget-datetime {
+      background: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+      backdrop-filter: none !important;
     }
 
     /* Buttons/cards: deeper glass + nicer hover */
@@ -504,6 +523,7 @@ data:
       width: 32px;
       height: 32px;
       pointer-events: none;
+      z-index: 2;
       background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Cpath%20fill%3D%22%23326CE5%22%20d%3D%22M256%2044c-14%200-27%204-38%2011L92%20128c-12%207-20%2020-20%2035v146c0%2015%208%2028%2020%2035l126%2073c11%206%2024%2011%2038%2011s27-4%2038-11l126-73c12-7%2020-20%2020-35V163c0-15-8-28-20-35L294%2055c-11-6-24-11-38-11z%22/%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M256%20122c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm0%20251c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm-122-71c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm244%200c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm-175-123c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm106%200c-15%200-27%2012-27%2027s12%2027%2027%2027%2027-12%2027-27-12-27-27-27zm-53%2029c-52%200-95%2042-95%2095%200%2052%2042%2095%2095%2095s95-42%2095-95c0-52-42-95-95-95zm0%2038c31%200%2057%2025%2057%2057%200%2031-25%2057-57%2057s-57-25-57-57c0-31%2025-57%2057-57z%22/%3E%3C/svg%3E");
       background-size: contain;
       background-repeat: no-repeat;
