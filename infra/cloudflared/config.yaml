@@ -1,0 +1,34 @@
+tunnel: 19dd24d6-5e63-4ba3-a23c-fbebc7312e3f
+credentials-file: /etc/cloudflared/credentials.json
+metrics: 0.0.0.0:2000
+ingress:
+  - hostname: vault.cooked.beer
+    service: http://vaultwarden.security.svc.cluster.local:80
+  - hostname: jellyfin.cooked.beer
+    service: http://jellyfin.media.svc.cluster.local:8096
+  - hostname: prowlarr.cooked.beer
+    service: http://prowlarr.media.svc.cluster.local:9696
+  - hostname: radarr.cooked.beer
+    service: http://radarr.media.svc.cluster.local:7878
+  - hostname: sonarr.cooked.beer
+    service: http://sonarr.media.svc.cluster.local:8989
+  - hostname: sabnzbd.cooked.beer
+    service: http://sabnzbd.media.svc.cluster.local:8080
+  - hostname: jellyseerr.cooked.beer
+    service: http://jellyseerr.media.svc.cluster.local:5055
+  - hostname: immich.cooked.beer
+    service: http://immich-server.immich.svc.cluster.local:2283
+  - hostname: grafana.cooked.beer
+    service: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80
+  - hostname: prometheus.cooked.beer
+    service: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+  - hostname: alertmanager.cooked.beer
+    service: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
+  - hostname: homepage.cooked.beer
+    path: /assets/*
+    service: http://homepage-assets.homepage.svc.cluster.local:80
+  - hostname: homepage.cooked.beer
+    service: http://homepage.homepage.svc.cluster.local:3000
+  - hostname: assets.cooked.beer
+    service: http://homepage-assets.homepage.svc.cluster.local:80
+  - service: http_status:404
