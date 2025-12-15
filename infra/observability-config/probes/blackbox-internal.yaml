@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: blackbox-internal
+  namespace: monitoring
+spec:
+  jobName: blackbox-internal
+  interval: 60s
+  prober:
+    url: http://blackbox-exporter.monitoring.svc.cluster.local:9115
+  module: http_2xx
+  targets:
+    staticConfig:
+      static:
+        - http://homepage.homepage.svc.cluster.local:3000
+        - http://vaultwarden.security.svc.cluster.local:80
+        - http://radarr.media.svc.cluster.local:7878
+        - http://sonarr.media.svc.cluster.local:8989/ping
+        - http://prowlarr.media.svc.cluster.local:9696/ping
+        - http://sabnzbd.media.svc.cluster.local:8080
+        - http://jellyseerr.media.svc.cluster.local:5055/login
+        - http://jellyfin.media.svc.cluster.local:8096
+        - http://immich-server.immich.svc.cluster.local:2283
+        - http://longhorn-frontend.longhorn-system.svc.cluster.local:80
+

@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-homelab-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  homelab-overview.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Nodes Ready",
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+          "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value" },
+          "targets": [
+            { "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})", "legendFormat": "ready", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "none", "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] }
+        },
+        {
+          "type": "stat",
+          "title": "Pods Pending",
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+          "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value" },
+          "targets": [
+            { "expr": "sum(kube_pod_status_phase{phase=\"Pending\"})", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "none", "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 } ] } }, "overrides": [] }
+        },
+        {
+          "type": "stat",
+          "title": "Restarts (1h)",
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+          "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value" },
+          "targets": [
+            { "expr": "sum(increase(kube_pod_container_status_restarts_total[1h]))", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "none", "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 } ] } }, "overrides": [] }
+        },
+        {
+          "type": "stat",
+          "title": "PVC Usage (Top 1)",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value" },
+          "targets": [
+            { "expr": "topk(1, (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100)", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] }
+        },
+        {
+          "type": "timeseries",
+          "title": "Node CPU Usage (%)",
+          "gridPos": { "h": 8, "w": 9, "x": 0, "y": 4 },
+          "options": { "legend": { "displayMode": "list", "placement": "right" } },
+          "targets": [
+            { "expr": "100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))", "legendFormat": "{{instance}}", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+        },
+        {
+          "type": "timeseries",
+          "title": "Node Memory Usage (%)",
+          "gridPos": { "h": 8, "w": 9, "x": 9, "y": 4 },
+          "options": { "legend": { "displayMode": "list", "placement": "right" } },
+          "targets": [
+            { "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))", "legendFormat": "{{instance}}", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] }
+        },
+        {
+          "type": "table",
+          "title": "Top Pod Restarts (1h)",
+          "gridPos": { "h": 9, "w": 9, "x": 0, "y": 12 },
+          "targets": [
+            { "expr": "topk(10, increase(kube_pod_container_status_restarts_total[1h]))", "legendFormat": "{{namespace}}/{{pod}}", "refId": "A" }
+          ],
+          "options": { "showHeader": true, "cellHeight": "sm" },
+          "transformations": [
+            { "id": "labelsToFields", "options": { "mode": "columns" } },
+            { "id": "organize", "options": { "excludeByName": { "Time": true }, "indexByName": {}, "renameByName": { "Value": "restarts_1h" } } }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "External URL Uptime (probe_success)",
+          "gridPos": { "h": 9, "w": 9, "x": 9, "y": 12 },
+          "targets": [
+            { "expr": "probe_success{job=\"blackbox-external\"}", "legendFormat": "{{instance}}", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] }
+        },
+        {
+          "type": "timeseries",
+          "title": "Internal Service Uptime (probe_success)",
+          "gridPos": { "h": 9, "w": 18, "x": 0, "y": 21 },
+          "targets": [
+            { "expr": "probe_success{job=\"blackbox-internal\"}", "legendFormat": "{{instance}}", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] }
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 40,
+      "style": "dark",
+      "tags": ["homelab", "kubernetes"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Homelab Overview",
+      "uid": "homelab-overview",
+      "version": 1,
+      "weekStart": ""
+    }
+

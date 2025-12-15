@@ -1,0 +1,26 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: blackbox-external
+  namespace: monitoring
+spec:
+  jobName: blackbox-external
+  interval: 60s
+  prober:
+    url: http://blackbox-exporter.monitoring.svc.cluster.local:9115
+  module: http_2xx
+  targets:
+    staticConfig:
+      static:
+        - https://homepage.cooked.beer
+        - https://grafana.cooked.beer
+        - https://prometheus.cooked.beer
+        - https://alertmanager.cooked.beer
+        - https://vault.cooked.beer
+        - https://radarr.cooked.beer
+        - https://sonarr.cooked.beer
+        - https://prowlarr.cooked.beer
+        - https://sabnzbd.cooked.beer
+        - https://jellyseerr.cooked.beer
+        - https://immich.cooked.beer
+
