@@ -19,6 +19,58 @@ spec:
         app: homepage
     spec:
       serviceAccountName: homepage
+      initContainers:
+        - name: sync-background
+          image: bitnami/kubectl:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              dst="/work/998981.jpg"
+              if [ -s "$dst" ]; then
+                echo "Background already present: $dst"
+                exit 0
+              fi
+
+              artifact_url="$(kubectl -n flux-system get gitrepository flux-system -o jsonpath='{.status.artifact.url}' 2>/dev/null || true)"
+              if [ -z "$artifact_url" ]; then
+                echo "No Flux artifact URL found; skipping"
+                exit 0
+              fi
+
+              tmp="$(mktemp -d)"
+              trap 'rm -rf "$tmp"' EXIT
+
+              echo "Fetching Flux artifact: $artifact_url"
+              if ! curl -fsSL --retry 3 --retry-delay 2 --max-time 60 -o "$tmp/artifact.tar.gz" "$artifact_url"; then
+                echo "Failed to fetch artifact; skipping"
+                exit 0
+              fi
+
+              path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\.jpg$' | head -n 1 || true)"
+              if [ -n "$path" ]; then
+                echo "Extracting $path -> $dst"
+                tar -xzf "$tmp/artifact.tar.gz" -O "$path" > "$dst"
+                exit 0
+              fi
+
+              b64_path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\.jpg\.b64$' | head -n 1 || true)"
+              if [ -z "$b64_path" ]; then
+                echo "No jpg or base64 asset found in artifact; skipping"
+                exit 0
+              fi
+
+              echo "Decoding $b64_path -> $dst"
+              tar -xzf "$tmp/artifact.tar.gz" -O "$b64_path" | base64 -D > "$dst" 2>/dev/null || \
+              tar -xzf "$tmp/artifact.tar.gz" -O "$b64_path" | base64 -d > "$dst"
+          volumeMounts:
+            - name: public-assets
+              mountPath: /work
       containers:
         - name: homepage
           image: ghcr.io/benphelps/homepage:latest
@@ -35,9 +87,14 @@ spec:
             - name: app-config
               mountPath: /app/config
               readOnly: true
+            - name: public-assets
+              mountPath: /app/public/assets
+              readOnly: true
       volumes:
         - name: logs
           emptyDir: {}
         - name: app-config
           configMap:
             name: homepage-app-config
+        - name: public-assets
+          emptyDir: {}
