@@ -467,32 +467,18 @@ data:
       opacity: 0.8;
     }
 
-    /* Header layout: title + search on top, nodes under */
+    /* Header layout: stable flex row (no grid/layout tricks) */
     #widgets-wrap {
-      display: grid !important;
-      grid-template-columns: auto 1fr auto;
-      grid-template-areas:
-        "greeting search datetime"
-        "kubernetes kubernetes kubernetes";
+      display: flex !important;
       align-items: center;
-      column-gap: 0.9rem;
-      row-gap: 0.6rem;
-    }
-
-    /* Pull children of `#information-widgets-right` into the grid */
-    #information-widgets-right {
-      display: contents;
-    }
-
-    .information-widget-greeting {
-      grid-area: greeting;
+      gap: 0.9rem;
+      row-gap: 0.75rem;
     }
 
     .information-widget-search {
-      grid-area: search;
       width: 100%;
       max-width: 860px;
-      justify-self: start;
+      flex: 1 1 520px;
     }
 
     .information-widget-search input {
@@ -504,14 +490,15 @@ data:
     }
 
     .information-widget-datetime {
-      grid-area: datetime;
-      justify-self: end;
+      margin-left: auto;
     }
 
+    /* Force node stats under the top row */
     .information-widget-kubernetes {
-      grid-area: kubernetes;
       width: 100%;
-      margin: 0;
+      flex: 1 1 100%;
+      order: 10;
+      margin-top: 0.5rem;
     }
 
     /* Cluster monitoring: no card background + K8s logo */
@@ -544,12 +531,8 @@ data:
     /* Mobile: stack title/search/date cleanly */
     @media (max-width: 860px) {
       #widgets-wrap {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-          "greeting"
-          "search"
-          "datetime"
-          "kubernetes";
+        flex-direction: column;
+        align-items: stretch;
         row-gap: 0.75rem;
       }
 
@@ -558,6 +541,6 @@ data:
       }
 
       .information-widget-datetime {
-        justify-self: start;
+        margin-left: 0;
       }
     }
