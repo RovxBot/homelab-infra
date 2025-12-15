@@ -6,3 +6,4 @@ resources:
   - apps/apps-kustomization.yaml
   - apps/arr-kustomization.yaml
   - apps/homepage-kustomization.yaml
+  - infrastructure/longhorn-node-disks-kustomization.yaml
