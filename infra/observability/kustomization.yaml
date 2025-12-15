@@ -4,4 +4,5 @@ resources:
   - namespace.yaml
   - prometheus-community-helmrepository.yaml
   - kube-prometheus-stack-helmrelease.yaml
+  - blackbox-exporter-helmrelease.yaml
 

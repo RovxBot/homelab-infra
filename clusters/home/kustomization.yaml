@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - flux-system
   - infrastructure/infrastructure-kustomization.yaml
+  - infrastructure/observability-config-kustomization.yaml
   - apps/apps-kustomization.yaml
   - apps/arr-kustomization.yaml
   - apps/homepage-kustomization.yaml
