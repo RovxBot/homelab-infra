@@ -15,11 +15,11 @@ data:
     statusStyle: "dot"
 
     background:
-      image: https://homepage.cooked.beer/assets/998981.jpg
-      opacity: 20
-      blur: sm
-      saturate: 150
-      brightness: 90
+      image: /assets/998981.jpg
+      opacity: 38
+      blur: md
+      saturate: 120
+      brightness: 108
     cardBlur: md
 
     quicklaunch:
@@ -193,6 +193,16 @@ data:
       --anime-violet: 138 90 255;
       --anime-cyan: 80 220 255;
       --anime-glass: 20 24 38;
+      --anime-white: 244 247 255;
+    }
+
+    body {
+      background:
+        linear-gradient(180deg, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.70)),
+        url("/assets/998981.jpg");
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
     }
 
     #page_container::before {
@@ -201,12 +211,10 @@ data:
       inset: 0;
       pointer-events: none;
       background:
-        radial-gradient(900px 500px at 10% 0%, rgb(var(--anime-pink) / 0.20), transparent 55%),
-        radial-gradient(900px 500px at 90% 0%, rgb(var(--anime-cyan) / 0.16), transparent 55%),
-        radial-gradient(900px 700px at 50% 110%, rgb(var(--anime-violet) / 0.22), transparent 60%),
-        linear-gradient(180deg, rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.55));
-      mix-blend-mode: screen;
-      opacity: 0.75;
+        radial-gradient(900px 500px at 12% 0%, rgb(var(--anime-pink) / 0.16), transparent 55%),
+        radial-gradient(900px 500px at 88% 0%, rgb(var(--anime-cyan) / 0.12), transparent 55%),
+        radial-gradient(900px 700px at 50% 110%, rgb(var(--anime-violet) / 0.16), transparent 60%);
+      opacity: 0.65;
     }
 
     #page_container::after {
@@ -222,7 +230,7 @@ data:
           transparent 3px,
           transparent 6px
         );
-      opacity: 0.35;
+      opacity: 0.22;
     }
 
     #information-widgets {
@@ -238,6 +246,20 @@ data:
         0 8px 26px rgb(0 0 0 / 0.35),
         0 0 0 1px rgb(var(--anime-violet) / 0.22) inset;
       border-radius: 18px !important;
+    }
+
+    /* Crisper typography */
+    #inner_wrapper {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    h1,
+    h2,
+    h3,
+    .group-title {
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 22px rgb(var(--anime-violet) / 0.22);
     }
 
     .information-widget-resource .resource-usage {
@@ -277,6 +299,11 @@ data:
         0 0 0 1px rgb(var(--anime-pink) / 0.18) inset;
       border-radius: 16px !important;
       backdrop-filter: blur(10px) saturate(1.15);
+    }
+
+    /* More consistent card spacing */
+    #inner_wrapper .container {
+      gap: 1rem !important;
     }
 
     #inner_wrapper .container a[href^="http"]:hover > div {
@@ -376,4 +403,25 @@ data:
       grid-area: kubernetes;
       width: 100%;
       margin: 0;
+    }
+
+    /* Mobile: stack title/search/date cleanly */
+    @media (max-width: 860px) {
+      #widgets-wrap {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "greeting"
+          "search"
+          "datetime"
+          "kubernetes";
+        row-gap: 0.75rem;
+      }
+
+      .information-widget-search {
+        max-width: 100%;
+      }
+
+      .information-widget-datetime {
+        justify-self: start;
+      }
     }
