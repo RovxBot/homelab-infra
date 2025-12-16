@@ -98,18 +98,33 @@
         description: Dashboards & logs
         icon: grafana
         target: _blank
+        widget:
+          type: kubernetes
+          namespace: monitoring
+          app: grafana
+          podSelector: app.kubernetes.io/name=grafana,app.kubernetes.io/instance=kube-prometheus-stack
     - Prometheus:
         href: https://prometheus.cooked.beer
         siteMonitor: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/-/ready
         description: Metrics & rules
         icon: prometheus
         target: _blank
+        widget:
+          type: kubernetes
+          namespace: monitoring
+          app: prometheus
+          podSelector: prometheus=kube-prometheus-stack-prometheus
     - Alertmanager:
         href: https://alertmanager.cooked.beer
         siteMonitor: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/-/ready
         description: Alert routing
         icon: mdi-bell-alert
         target: _blank
+        widget:
+          type: kubernetes
+          namespace: monitoring
+          app: alertmanager
+          podSelector: alertmanager=kube-prometheus-stack-alertmanager
 
 - Security:
     - Vaultwarden:
