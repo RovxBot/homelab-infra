@@ -7,7 +7,7 @@ spec:
   jobName: blackbox-external
   interval: 60s
   prober:
-    url: http://blackbox-exporter.monitoring.svc.cluster.local:9115
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
   module: http_2xx
   targets:
     staticConfig:
@@ -23,4 +23,3 @@ spec:
         - https://sabnzbd.cooked.beer
         - https://jellyseerr.cooked.beer
         - https://immich.cooked.beer
-
