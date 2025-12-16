@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: blackbox-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: blackbox.rules
+      rules:
+        - alert: ExternalEndpointDown
+          expr: probe_success{job="blackbox-external"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "External endpoint down: {{ $labels.instance }}"
+            description: "Blackbox probe failing for {{ $labels.instance }} (job={{ $labels.job }}) for >2m."
+
+        - alert: InternalEndpointDown
+          expr: probe_success{job="blackbox-internal"} == 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Internal endpoint down: {{ $labels.instance }}"
+            description: "Blackbox probe failing for {{ $labels.instance }} (job={{ $labels.job }}) for >2m."
+

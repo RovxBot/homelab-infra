@@ -76,6 +76,9 @@ spec:
 
     alertmanager:
       alertmanagerSpec:
+        configSecret: alertmanager-config
+        secrets:
+          - alertmanager-smtp-auth
         storage:
           volumeClaimTemplate:
             spec:
