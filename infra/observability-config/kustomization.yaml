@@ -2,10 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - dashboards/homelab-overview-dashboard.yaml
+  - dashboards/logs-overview-dashboard.yaml
+  - datasources/loki-datasource.yaml
   - alertmanager/alertmanager-config.yaml
   - probes/blackbox-internal.yaml
   - probes/blackbox-external.yaml
   - rules/blackbox-alerts.yaml
   - servicemonitors/cloudflared-metrics.yaml
   - servicemonitors/longhorn-backend.yaml
-

@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-logs-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  logs-overview.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "graphTooltip": 1,
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Log lines / min (cluster)",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum(rate({job=~\".+\"}[1m])) * 60"
+            }
+          ],
+          "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "textMode": "value" },
+          "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+        },
+        {
+          "type": "stat",
+          "title": "Error logs / min",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum(rate({job=~\".+\"} |= \"error\" [1m])) * 60"
+            }
+          ],
+          "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "textMode": "value" },
+          "fieldConfig": { "defaults": { "unit": "ops", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 } ] } }, "overrides": [] }
+        },
+        {
+          "type": "timeseries",
+          "title": "Log volume by namespace (lines/s)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "topk(10, sum by (namespace) (rate({namespace!=\"\"}[5m])))"
+            }
+          ],
+          "options": { "legend": { "displayMode": "list", "placement": "right" } },
+          "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+        },
+        {
+          "type": "timeseries",
+          "title": "Error logs by namespace (lines/s)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "topk(10, sum by (namespace) (rate({namespace!=\"\"} |= \"error\" [5m])))"
+            }
+          ],
+          "options": { "legend": { "displayMode": "list", "placement": "right" } },
+          "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+        },
+        {
+          "type": "logs",
+          "title": "Recent errors (all namespaces)",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace!=\"\"} |= \"error\""
+            }
+          ],
+          "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "dedupStrategy": "exact" }
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 40,
+      "style": "dark",
+      "tags": ["logs", "loki", "kubernetes"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "timezone": "",
+      "title": "Logs Overview",
+      "uid": "logs-overview",
+      "version": 1
+    }
+

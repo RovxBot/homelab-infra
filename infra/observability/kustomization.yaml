@@ -3,6 +3,9 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - prometheus-community-helmrepository.yaml
+  - grafana-helmrepository.yaml
   - kube-prometheus-stack-helmrelease.yaml
   - blackbox-exporter-helmrelease.yaml
+  - loki-helmrelease.yaml
+  - promtail-helmrelease.yaml
 
