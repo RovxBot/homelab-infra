@@ -29,6 +29,9 @@ data:
       mobileButtonPosition: bottom-right
 
     layout:
+      Apps:
+        style: row
+        columns: 3
       Media:
         style: row
         columns: 3
@@ -47,6 +50,30 @@ data:
 
   services.yaml: |
     ---
+    - Apps:
+        - Homepage:
+            href: https://homepage.cooked.beer
+            siteMonitor: http://homepage.homepage.svc.cluster.local:3000
+            description: Dashboard
+            icon: homepage
+            target: _blank
+            widget:
+              type: kubernetes
+              namespace: homepage
+              app: homepage
+              podSelector: app=homepage
+        - Immich:
+            href: https://immich.cooked.beer
+            siteMonitor: http://immich-server.immich.svc.cluster.local:2283/api/server-info/ping
+            description: Photos
+            icon: immich
+            target: _blank
+            widget:
+              type: kubernetes
+              namespace: immich
+              app: immich-server
+              podSelector: app=immich-server
+
     - Media:
         - Radarr:
             href: https://radarr.cooked.beer
@@ -115,6 +142,26 @@ data:
               app: jellyfin
               podSelector: app=jellyfin
 
+    - Observability:
+        - Grafana:
+            href: https://grafana.cooked.beer
+            siteMonitor: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80/api/health
+            description: Dashboards
+            icon: grafana
+            target: _blank
+        - Prometheus:
+            href: https://prometheus.cooked.beer
+            siteMonitor: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/-/ready
+            description: Metrics & rules
+            icon: prometheus
+            target: _blank
+        - Alertmanager:
+            href: https://alertmanager.cooked.beer
+            siteMonitor: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/-/ready
+            description: Alert routing
+            icon: alertmanager
+            target: _blank
+
     - Security:
         - Vaultwarden:
             href: https://vault.cooked.beer
@@ -145,23 +192,6 @@ data:
             siteMonitor: http://pod-report.homepage.svc.cluster.local:80
             description: Running pods per node
             icon: kubernetes
-            target: _blank
-
-    - Observability:
-        - Grafana:
-            href: https://grafana.cooked.beer
-            description: Dashboards
-            icon: grafana
-            target: _blank
-        - Prometheus:
-            href: https://prometheus.cooked.beer
-            description: Metrics & rules
-            icon: prometheus
-            target: _blank
-        - Alertmanager:
-            href: https://alertmanager.cooked.beer
-            description: Alert routing
-            icon: alertmanager
             target: _blank
 
     - Me:
