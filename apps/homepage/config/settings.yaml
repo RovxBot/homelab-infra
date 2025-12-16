@@ -22,12 +22,21 @@ quicklaunch:
   mobileButtonPosition: bottom-right
 
 layout:
+  Apps:
+    style: row
+    columns: 3
   Media:
     style: row
     columns: 3
   Security:
     style: row
     columns: 3
+  Observability:
+    style: row
+    columns: 3
   Cluster:
+    style: row
+    columns: 3
+  Me:
     style: row
     columns: 3
