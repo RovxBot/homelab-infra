@@ -22,15 +22,20 @@ spec:
         pipelineStages:
           - cri: {}
           - match:
-              selector: '{namespace="cloudflared", app="cloudflared"}'
+              selector: '{namespace="monitoring", container="loki"}'
+              stages:
+                - drop:
+                    expression: '(caller=engine\\.go:274|caller=metrics\\.go:237).*component=querier.*query=.*\\|= (\\\"error\\\"|"error")'
+          - match:
+              selector: '{namespace="cloudflared"}'
               stages:
                 - drop:
                     expression: 'stream [0-9]+ canceled by remote with error code 0'
           - match:
-              selector: '{namespace="kube-system", app="kube-apiserver"}'
+              selector: '{namespace="kube-system", container="kube-apiserver"}'
               stages:
                 - drop:
-                    expression: 'addrConn\\.createTransport failed to connect to .*2379.*operation was canceled'
+                    expression: '(localhost:2379.*operation was cancel(l)?ed)|(addrConn\\.createTransport failed to connect to .*2379.*operation was cancel(l)?ed)'
         extraRelabelConfigs:
           - action: replace
             source_labels: [__meta_kubernetes_pod_node_name]

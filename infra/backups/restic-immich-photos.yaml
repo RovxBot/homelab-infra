@@ -10,6 +10,7 @@ spec:
   failedJobsHistoryLimit: 2
   jobTemplate:
     spec:
+      ttlSecondsAfterFinished: 86400
       backoffLimit: 1
       template:
         spec:
@@ -19,6 +20,8 @@ spec:
               image: restic/restic:0.17.3
               imagePullPolicy: IfNotPresent
               env:
+                - name: RESTIC_RETRY_LOCK
+                  value: 2m
                 - name: AWS_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:
