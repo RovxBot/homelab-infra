@@ -27,6 +27,15 @@ spec:
   values:
     kubeTargetVersionOverride: "1.34.0"
 
+    # Talos secures/doesn't expose these component metrics on the node IPs by default,
+    # which makes the default ServiceMonitors show as DOWN. Disable them to avoid noise.
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeProxy:
+      enabled: false
+
     prometheusOperator:
       admissionWebhooks:
         enabled: true
