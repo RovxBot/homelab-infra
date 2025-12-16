@@ -7,7 +7,7 @@ spec:
   jobName: blackbox-internal
   interval: 60s
   prober:
-    url: http://blackbox-exporter.monitoring.svc.cluster.local:9115
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
   module: http_2xx
   targets:
     staticConfig:
@@ -22,4 +22,3 @@ spec:
         - http://jellyfin.media.svc.cluster.local:8096
         - http://immich-server.immich.svc.cluster.local:2283
         - http://longhorn-frontend.longhorn-system.svc.cluster.local:80
-
