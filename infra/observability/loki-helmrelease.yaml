@@ -16,6 +16,14 @@ spec:
       interval: 12h
   values:
     deploymentMode: SingleBinary
+    gateway:
+      enabled: false
+    lokiCanary:
+      enabled: false
+    resultsCache:
+      enabled: false
+    chunksCache:
+      enabled: false
 
     loki:
       auth_enabled: false
@@ -46,9 +54,6 @@ spec:
         enabled: true
         storageClass: longhorn
         size: 20Gi
-      extraVolumeMounts:
-        - name: storage
-          mountPath: /var/loki
 
     # disable other modes
     read:
@@ -57,4 +62,3 @@ spec:
       replicas: 0
     backend:
       replicas: 0
-
