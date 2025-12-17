@@ -35,7 +35,7 @@ spec:
               selector: '{namespace="kube-system", container="kube-apiserver"}'
               stages:
                 - drop:
-                    expression: '(localhost:2379.*operation was cancel(l)?ed)|(addrConn\\.createTransport failed to connect to .*2379.*operation was cancel(l)?ed)'
+                    expression: '(localhost:2379.*operation was cancel(l)?ed)|(addrConn\\.createTransport failed to connect to .*2379.*operation was cancel(l)?ed)|(localhost:2379.*authentication handshake failed: context canceled)|(addrConn\\.createTransport failed to connect to .*2379.*authentication handshake failed: context canceled)'
         extraRelabelConfigs:
           - action: replace
             source_labels: [__meta_kubernetes_pod_node_name]

@@ -20,12 +20,12 @@ stringData:
       group_interval: 5m
       repeat_interval: 4h
       routes:
-        - receiver: null
+        - receiver: blackhole
           matchers:
             - alertname="Watchdog"
 
     receivers:
-      - name: null
+      - name: blackhole
       - name: email
         email_configs:
           - to: sam@cooked.beer
