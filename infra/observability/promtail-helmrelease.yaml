@@ -22,6 +22,11 @@ spec:
         pipelineStages:
           - cri: {}
           - match:
+              selector: '{namespace="monitoring", container="grafana"}'
+              stages:
+                - drop:
+                    expression: 'logger=tsdb\\.loki.*endpoint=queryData.*msg=\"Response received from loki\"'
+          - match:
               selector: '{namespace="monitoring", container="loki"}'
               stages:
                 - drop:
