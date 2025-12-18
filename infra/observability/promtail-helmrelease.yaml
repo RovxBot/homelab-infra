@@ -26,6 +26,8 @@ spec:
               stages:
                 - drop:
                     expression: 'logger=tsdb\\.loki.*endpoint=queryData.*msg=\"Response received from loki\"'
+                - drop:
+                    expression: '(errorMessageID=publicdashboards\\.notFound)|(path=/api/dashboards/uid/[^ ]+/public-dashboards.*status=404)'
           - match:
               selector: '{namespace="monitoring", container="loki"}'
               stages:
@@ -36,6 +38,11 @@ spec:
               stages:
                 - drop:
                     expression: 'stream [0-9]+ canceled by remote with error code 0'
+          - match:
+              selector: '{namespace="longhorn-system", container="longhorn-manager"}'
+              stages:
+                - drop:
+                    expression: 'Failed to get filesystem device type of /var/lib/longhorn/'
           - match:
               selector: '{namespace="kube-system", container="kube-apiserver"}'
               stages:
