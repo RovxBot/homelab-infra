@@ -32,7 +32,7 @@ spec:
               selector: '{namespace="monitoring", container="loki"}'
               stages:
                 - drop:
-                    expression: '(caller=engine\\.go:274|caller=metrics\\.go:237).*component=querier.*query=.*\\|= (\\\"error\\\"|"error")'
+                    expression: '(caller=engine\\.go:274.*component=querier.*msg=\"executing query\")|(caller=metrics\\.go:237.*component=querier.*status=200)'
           - match:
               selector: '{namespace="cloudflared"}'
               stages:
