@@ -92,9 +92,36 @@ data:
             }
           ],
           "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "dedupStrategy": "exact" }
+        },
+        {
+          "type": "stat",
+          "title": "Jellyfin error logs / min",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 22 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum(rate({namespace=\"media\", app=\"jellyfin\"} |~ \"(?i)(error|exception|fail|fatal)\" [1m])) * 60"
+            }
+          ],
+          "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "textMode": "value" },
+          "fieldConfig": { "defaults": { "unit": "ops", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 } ] } }, "overrides": [] }
+        },
+        {
+          "type": "logs",
+          "title": "Jellyfin errors (live)",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 26 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"media\", app=\"jellyfin\"} |~ \"(?i)(error|exception|fail|fatal)\""
+            }
+          ],
+          "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "dedupStrategy": "exact" }
         }
       ],
-      "refresh": "30s",
+      "refresh": "10s",
       "schemaVersion": 40,
       "style": "dark",
       "tags": ["logs", "loki", "kubernetes"],
@@ -105,4 +132,3 @@ data:
       "uid": "logs-overview",
       "version": 1
     }
-
