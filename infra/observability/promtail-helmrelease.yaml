@@ -25,14 +25,14 @@ spec:
               selector: '{namespace="monitoring", container="grafana"}'
               stages:
                 - drop:
-                    expression: 'logger=tsdb\\.loki.*endpoint=queryData.*msg=\"Response received from loki\"'
+                    expression: 'logger=tsdb\\.loki.*Response received from loki'
                 - drop:
                     expression: '(errorMessageID=publicdashboards\\.notFound)|(path=/api/dashboards/uid/[^ ]+/public-dashboards.*status=404)'
           - match:
               selector: '{namespace="monitoring", container="loki"}'
               stages:
                 - drop:
-                    expression: '(caller=engine\\.go:274.*msg=\"executing query\")|(caller=metrics\\.go:237.*status=200)'
+                    expression: '(caller=engine\\.go:274)|(caller=metrics\\.go:237)'
           - match:
               selector: '{namespace="cloudflared"}'
               stages:
