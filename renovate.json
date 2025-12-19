@@ -7,38 +7,64 @@
     "helpers:pinGitHubActionDigests"
   ],
   "timezone": "Australia/Melbourne",
-  "schedule": ["after 8pm and before 6am every day"],
-  "labels": ["dependencies"],
+  "schedule": [
+    "after 8pm",
+    "before 6am"
+  ],
+  "labels": [
+    "dependencies"
+  ],
   "rebaseWhen": "conflicted",
   "prConcurrentLimit": 10,
   "branchConcurrentLimit": 10,
   "dependencyDashboardTitle": "Renovate Dependency Dashboard",
-  "enabledManagers": ["flux", "kubernetes", "helm-values", "github-actions", "regex"],
-  "ignorePaths": ["**/*.b64", "age-key.txt", "immich_backup_*.sql"],
+  "enabledManagers": [
+    "flux",
+    "kubernetes",
+    "helm-values",
+    "github-actions",
+    "custom.regex"
+  ],
+  "ignorePaths": [
+    "**/*.b64",
+    "age-key.txt",
+    "immich_backup_*.sql"
+  ],
   "packageRules": [
     {
       "description": "Auto-merge patch updates (safe defaults).",
-      "matchUpdateTypes": ["patch"],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "automerge": true,
       "automergeType": "pr"
     },
     {
       "description": "Group Flux Helm chart updates together.",
-      "matchManagers": ["flux"],
-      "matchDatasources": ["helm"],
+      "matchManagers": [
+        "flux"
+      ],
+      "matchDatasources": [
+        "helm"
+      ],
       "groupName": "flux-helm-charts"
     },
     {
       "description": "Group Kubernetes image updates together.",
-      "matchManagers": ["kubernetes"],
-      "matchDatasources": ["docker"],
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
       "groupName": "kubernetes-images"
     },
     {
       "description": "Don't auto-merge major updates.",
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "automerge": false
     }
   ]
 }
-
