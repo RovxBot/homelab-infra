@@ -37,7 +37,7 @@ spec:
                 - sh
                 - -lc
                 - |
-                  set -euo pipefail
+                  set -eu
 
                   if [ -d /data/maps ] && [ -d /data/vmaps ] && [ -d /data/dbc ]; then
                     echo "Client data already present in /data (maps/vmaps/dbc). Nothing to do."
