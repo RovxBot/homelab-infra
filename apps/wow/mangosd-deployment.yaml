@@ -77,9 +77,25 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+        - name: lua-compat
+          image: ghcr.io/rovxbot/mangoszero:server-v22.04.105-c4efb75778f4c127ee144c9fa718a230f8a4cb6c
+          imagePullPolicy: Always
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              # MaNGOS is linked against `liblua52.so`; Ubuntu provides `liblua5.2.so.0`.
+              if [ ! -e /usr/local/lib/liblua52.so ]; then
+                ln -s /lib/x86_64-linux-gnu/liblua5.2.so.0 /usr/local/lib/liblua52.so
+              fi
+              ls -la /usr/local/lib/liblua52.so
+          volumeMounts:
+            - name: lua-compat
+              mountPath: /usr/local/lib
       containers:
         - name: mangosd
-          image: ghcr.io/rovxbot/mangoszero:server-v22.04.105
+          image: ghcr.io/rovxbot/mangoszero:server-v22.04.105-c4efb75778f4c127ee144c9fa718a230f8a4cb6c
           imagePullPolicy: Always
           env:
             - name: WOW_MODE
@@ -108,6 +124,8 @@ spec:
               value: "8085"
             - name: DATA_DIR
               value: /data
+            - name: LD_LIBRARY_PATH
+              value: /usr/local/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
           ports:
             - name: world
               containerPort: 8085
@@ -122,7 +140,11 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: lua-compat
+              mountPath: /usr/local/lib
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: wow-data-rwx
+        - name: lua-compat
+          emptyDir: {}
