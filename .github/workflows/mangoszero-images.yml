@@ -26,6 +26,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase image owner
+        shell: bash
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -33,6 +37,5 @@ jobs:
           file: ops/wow-images/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/mangoszero:latest
-            ghcr.io/${{ github.repository_owner }}/mangoszero:${{ github.sha }}
-
+            ghcr.io/${{ env.OWNER_LC }}/mangoszero:latest
+            ghcr.io/${{ env.OWNER_LC }}/mangoszero:${{ github.sha }}
