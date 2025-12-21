@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=build /opt/mangos /opt/mangos
 COPY ops/wow-images/entrypoint.sh /entrypoint.sh
 
-RUN useradd -u 1000 -m -s /bin/bash mangos \
+RUN useradd -u 10001 -m -s /bin/bash mangos \
   && mkdir -p /data /config \
   && chown -R mangos:mangos /data /config /opt/mangos /entrypoint.sh \
   && chmod +x /entrypoint.sh
@@ -54,4 +54,3 @@ USER mangos
 WORKDIR /data
 
 ENTRYPOINT ["/usr/bin/tini","--","/entrypoint.sh"]
-
