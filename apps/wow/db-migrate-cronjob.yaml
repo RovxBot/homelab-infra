@@ -21,20 +21,54 @@ spec:
             - name: work
               emptyDir: {}
           initContainers:
-            - name: clone
+            - name: clone-base
               image: alpine/git:2.47.2
               env:
-                - name: WOW_DB_REPO
-                  value: https://github.com/RovxBot/1.12.1-database.git
-                - name: WOW_DB_REF
+                - name: WOW_BASE_DB_REPO
+                  value: https://github.com/mangoszero/database.git
+                - name: WOW_BASE_DB_REF
                   value: master
               command:
                 - sh
                 - -lc
                 - |
                   set -eu
-                  rm -rf /work/repo
-                  git clone --depth=1 --branch "${WOW_DB_REF}" "${WOW_DB_REPO}" /work/repo
+                  rm -rf /work/base
+                  git clone --depth=1 --branch "${WOW_BASE_DB_REF}" "${WOW_BASE_DB_REPO}" /work/base
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+            - name: clone-realm
+              image: alpine/git:2.47.2
+              env:
+                - name: WOW_REALM_DB_REPO
+                  value: https://github.com/mangos/Realm_DB.git
+                - name: WOW_REALM_DB_REF
+                  value: master
+              command:
+                - sh
+                - -lc
+                - |
+                  set -eu
+                  rm -rf /work/realm
+                  git clone --depth=1 --branch "${WOW_REALM_DB_REF}" "${WOW_REALM_DB_REPO}" /work/realm
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+            - name: clone-custom
+              image: alpine/git:2.47.2
+              env:
+                - name: WOW_CUSTOM_DB_REPO
+                  value: https://github.com/RovxBot/1.12.1-database.git
+                - name: WOW_CUSTOM_DB_REF
+                  value: master
+              command:
+                - sh
+                - -lc
+                - |
+                  set -eu
+                  rm -rf /work/custom
+                  git clone --depth=1 --branch "${WOW_CUSTOM_DB_REF}" "${WOW_CUSTOM_DB_REPO}" /work/custom
               volumeMounts:
                 - name: work
                   mountPath: /work
@@ -51,11 +85,9 @@ spec:
                     secretKeyRef:
                       name: wow-mariadb-auth
                       key: MARIADB_ROOT_PASSWORD
-                # Repo layout defaults (adjust to match your content repo):
-                - name: WOW_DB_BOOTSTRAP_DIR
-                  value: /work/repo/bootstrap
-                - name: WOW_DB_MIGRATIONS_DIR
-                  value: /work/repo/migrations
+                # Custom repo layout (migrations only; base schema/data comes from upstream):
+                - name: WOW_CUSTOM_MIGRATIONS_DIR
+                  value: /work/custom/migrations
                 # Vanilla DB names (match upstream defaults).
                 - name: WOW_REALM_DB
                   value: realmd
@@ -111,6 +143,12 @@ spec:
                     db --execute "CREATE DATABASE IF NOT EXISTS \`${dbname}\`;"
                   }
 
+                  drop_db() {
+                    dbname="$1"
+                    db --execute "DROP DATABASE IF EXISTS \`${dbname}\`;"
+                    db --execute "CREATE DATABASE \`${dbname}\`;"
+                  }
+
                   ensure_user_grants() {
                     # Ensure the app user can access all DBs (idempotent).
                     db --execute "CREATE USER IF NOT EXISTS '${WOW_DB_USER}'@'%' IDENTIFIED BY '${WOW_DB_PASSWORD}';"
@@ -120,22 +158,47 @@ spec:
                     db --execute "FLUSH PRIVILEGES;"
                   }
 
-                  bootstrap_if_empty() {
+                  has_db_version() {
                     dbname="$1"
-                    dir="$2"
-                    table_count="$(db --database "${dbname}" --skip-column-names --batch --execute "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${dbname}';")"
-                    if [ "${table_count}" -eq 0 ]; then
-                      if [ -d "${dir}" ]; then
-                        echo "Bootstrapping ${dbname} from ${dir}..."
-                        find "${dir}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
-                          echo "Applying bootstrap (${dbname}): ${f##*/}"
-                          db --database "${dbname}" < "$f"
-                        done
-                      else
-                        echo "DB ${dbname} is empty, but no bootstrap dir found at ${dir}; skipping."
-                      fi
+                    db --database "${dbname}" --skip-column-names --batch --execute \
+                      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${dbname}' AND table_name='db_version';" 2>/dev/null || echo "0"
+                  }
+
+                  bootstrap_sql_dump() {
+                    dbname="$1"
+                    dump_file="$2"
+                    workdir="$3"
+                    echo "Bootstrapping ${dbname} from ${dump_file}..."
+                    (cd "${workdir}" && db --database "${dbname}" < "${dump_file}")
+                  }
+
+                  ensure_realm_db() {
+                    if [ "$(has_db_version "${WOW_REALM_DB}")" -eq 0 ]; then
+                      echo "Realm DB missing db_version; recreating ${WOW_REALM_DB}..."
+                      drop_db "${WOW_REALM_DB}"
+                      bootstrap_sql_dump "${WOW_REALM_DB}" "Setup/realmdLoadDB.sql" "/work/realm"
                     else
-                      echo "DB ${dbname} already initialized (${table_count} tables); skipping bootstrap."
+                      echo "Realm DB already has db_version; leaving as-is."
+                    fi
+                  }
+
+                  ensure_world_db() {
+                    if [ "$(has_db_version "${WOW_WORLD_DB}")" -eq 0 ]; then
+                      echo "World DB missing db_version; recreating ${WOW_WORLD_DB}..."
+                      drop_db "${WOW_WORLD_DB}"
+                      bootstrap_sql_dump "${WOW_WORLD_DB}" "World/Setup/mangosdLoadDB.sql" "/work/base"
+                    else
+                      echo "World DB already has db_version; leaving as-is."
+                    fi
+                  }
+
+                  ensure_char_db() {
+                    if [ "$(has_db_version "${WOW_CHAR_DB}")" -eq 0 ]; then
+                      echo "Character DB missing db_version; recreating ${WOW_CHAR_DB}..."
+                      drop_db "${WOW_CHAR_DB}"
+                      bootstrap_sql_dump "${WOW_CHAR_DB}" "Character/Setup/characterLoadDB.sql" "/work/base"
+                    else
+                      echo "Character DB already has db_version; leaving as-is."
                     fi
                   }
 
@@ -144,9 +207,9 @@ spec:
                   ensure_db "${WOW_CHAR_DB}"
                   ensure_user_grants
 
-                  bootstrap_if_empty "${WOW_REALM_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_REALM_DB}"
-                  bootstrap_if_empty "${WOW_WORLD_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_WORLD_DB}"
-                  bootstrap_if_empty "${WOW_CHAR_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_CHAR_DB}"
+                  ensure_realm_db
+                  ensure_world_db
+                  ensure_char_db
 
                   # Ensure the realm list table exists (some bootstrap sets may omit it).
                   realm_table_count="$(db --database "${WOW_REALM_DB}" --skip-column-names --batch --execute "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${WOW_REALM_DB}' AND table_name='realmlist';")"
@@ -159,14 +222,14 @@ spec:
                   db --database "${WOW_REALM_DB}" --execute "INSERT INTO realmlist (id, name, address, port) VALUES (${WOW_REALM_ID}, '${WOW_REALM_NAME}', '${WOW_REALM_ADDRESS}', ${WOW_REALM_PORT}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), port=VALUES(port);"
 
                   # Apply custom migrations to world DB (gates/tweaks live here).
-                  if [ -d "${WOW_DB_MIGRATIONS_DIR}" ]; then
-                    echo "Applying world migrations from ${WOW_DB_MIGRATIONS_DIR}..."
-                    find "${WOW_DB_MIGRATIONS_DIR}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
+                  if [ -d "${WOW_CUSTOM_MIGRATIONS_DIR}" ]; then
+                    echo "Applying world migrations from ${WOW_CUSTOM_MIGRATIONS_DIR}..."
+                    find "${WOW_CUSTOM_MIGRATIONS_DIR}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
                       echo "Applying migration: ${f##*/}"
                       db --database "${WOW_WORLD_DB}" < "$f"
                     done
                   else
-                    echo "No migrations dir found at ${WOW_DB_MIGRATIONS_DIR}; nothing to do."
+                    echo "No migrations dir found at ${WOW_CUSTOM_MIGRATIONS_DIR}; nothing to do."
                   fi
               volumeMounts:
                 - name: work
