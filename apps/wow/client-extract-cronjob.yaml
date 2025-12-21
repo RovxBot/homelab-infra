@@ -28,7 +28,7 @@ spec:
               emptyDir: {}
           containers:
             - name: extract
-              image: ghcr.io/rovxbot/mangoszero:latest
+              image: ghcr.io/rovxbot/mangoszero:server-v22.04.105
               imagePullPolicy: Always
               env:
                 - name: WOW_SKIP_MMAPS
@@ -106,4 +106,3 @@ spec:
                   mountPath: /data
                 - name: work
                   mountPath: /work
-

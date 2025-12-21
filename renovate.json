@@ -30,6 +30,33 @@
     "age-key.txt",
     "immich_backup_*.sql"
   ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "^ops/wow-images/mangoszero\\.ref$"
+      ],
+      "matchStrings": [
+        "^(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\s*$"
+      ],
+      "depNameTemplate": "mangoszero/server",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "^apps/wow/(realmd|mangosd)-deployment\\.yaml$",
+        "^apps/wow/client-extract-cronjob\\.yaml$"
+      ],
+      "matchStrings": [
+        "ghcr\\.io/rovxbot/mangoszero:server-(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "mangoszero/server",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    }
+  ],
   "packageRules": [
     {
       "description": "Auto-merge patch updates (safe defaults).",

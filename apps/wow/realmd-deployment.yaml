@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: realmd
-          image: ghcr.io/rovxbot/mangoszero:latest
+          image: ghcr.io/rovxbot/mangoszero:server-v22.04.105
           imagePullPolicy: Always
           env:
             - name: WOW_MODE
@@ -49,4 +49,3 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
-
