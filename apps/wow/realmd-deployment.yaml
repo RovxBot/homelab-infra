@@ -35,9 +35,10 @@ spec:
               for _ in $(seq 1 180); do
                 if mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
                   -e "SELECT 1" >/dev/null 2>&1; then
-                  if mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
-                    -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='realmd' AND table_name='realmlist';" \
-                    >/dev/null 2>&1; then
+                  count="$(mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
+                    --skip-column-names --batch \
+                    -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='realmd' AND table_name IN ('db_version','realmlist');" 2>/dev/null || echo 0)"
+                  if [ "${count}" -ge 2 ]; then
                     exit 0
                   fi
                 fi

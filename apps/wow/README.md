@@ -13,7 +13,7 @@ This directory provides a basic Kubernetes scaffold for a private, LAN-only TCP 
 This repo builds a container image from upstream `mangoszero/server`:
 
 - Workflow: `.github/workflows/mangoszero-images.yml`
-- Image: `ghcr.io/rovxbot/mangoszero:latest`
+- Image: `ghcr.io/rovxbot/mangoszero:server-<ref>` (see `ops/wow-images/mangoszero.ref`)
 
 ## Client files (maps/vmaps/etc)
 
@@ -28,7 +28,7 @@ This scaffold includes a suspended extraction CronJob (`wow-client-extract`). Yo
 ## Before enabling
 
 1. Ensure the MaNGOS image has built and is available in GHCR.
-2. Ensure your DB content repo has `bootstrap/` SQL ready (see `apps/wow/db-sync-config.md`).
+2. Ensure your DB content repo has `migrations/` (optional) ready (see `apps/wow/db-sync-config.md`).
 3. Unsuspend Flux Kustomization `apps-wow` (it is shipped as `suspend: true` so nothing deploys until you’re ready).
 4. Run the DB sync once (CronJob is `suspend: true` by default; run manually).
 
