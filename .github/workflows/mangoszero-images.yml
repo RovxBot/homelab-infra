@@ -2,10 +2,8 @@ name: Build MaNGOS Zero image
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ops/wow-images/**
-      - .github/workflows/mangoszero-images.yml
+  # Build is intentionally manual to avoid burning CI minutes.
+  # When you want a new build, run this workflow from the Actions tab.
 
 permissions:
   contents: read
