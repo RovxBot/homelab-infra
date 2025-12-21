@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wow-server
+  namespace: wow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wow-server
+  template:
+    metadata:
+      labels:
+        app: wow-server
+    spec:
+      containers:
+        - name: server
+          # Replace with your own server image you have rights to run.
+          image: ghcr.io/REPLACE_ME/wow-server:1.12.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: Australia/Melbourne
+            - name: DB_HOST
+              value: wow-mariadb.wow.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: wow-mariadb-auth
+                  key: MARIADB_DATABASE
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wow-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wow-mariadb-auth
+                  key: MARIADB_PASSWORD
+          ports:
+            - name: tcp-1
+              containerPort: 30000
+            - name: tcp-2
+              containerPort: 30001
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "6"
+              memory: 12Gi
+

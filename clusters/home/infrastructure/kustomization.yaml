@@ -12,3 +12,4 @@ resources:
   - ../../../secrets/longhorn-b2-credentials.enc.yaml
   - ../../../secrets/restic-b2-photos.enc.yaml
   - ../../../secrets/grafana-admin.enc.yaml
+  - ../../../secrets/wow-mariadb-auth.enc.yaml
