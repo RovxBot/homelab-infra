@@ -27,7 +27,7 @@ spec:
                 - name: WOW_DB_REPO
                   value: https://github.com/RovxBot/1.12.1-database.git
                 - name: WOW_DB_REF
-                  value: main
+                  value: master
               command:
                 - sh
                 - -lc

@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: wow
 resources:
   - namespace.yaml
-  - data-pvc.yaml
+  - data-pvc-rwx.yaml
   - client-files-pv.yaml
   - mariadb-pvc.yaml
   - mariadb-statefulset.yaml
