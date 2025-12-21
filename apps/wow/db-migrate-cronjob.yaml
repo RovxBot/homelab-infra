@@ -46,11 +46,6 @@ spec:
                   value: wow-mariadb.wow.svc.cluster.local
                 - name: DB_PORT
                   value: "3306"
-                - name: DB_NAME
-                  valueFrom:
-                    secretKeyRef:
-                      name: wow-mariadb-auth
-                      key: MARIADB_DATABASE
                 - name: DB_ROOT_PASSWORD
                   valueFrom:
                     secretKeyRef:
@@ -61,6 +56,32 @@ spec:
                   value: /work/repo/bootstrap
                 - name: WOW_DB_MIGRATIONS_DIR
                   value: /work/repo/migrations
+                # Vanilla DB names (match upstream defaults).
+                - name: WOW_REALM_DB
+                  value: realmd
+                - name: WOW_WORLD_DB
+                  value: mangos0
+                - name: WOW_CHAR_DB
+                  value: character0
+                # Realm entry (for LAN NodePort access via metal7)
+                - name: WOW_REALM_ID
+                  value: "1"
+                - name: WOW_REALM_NAME
+                  value: "cooked.beer (vanilla)"
+                - name: WOW_REALM_ADDRESS
+                  value: "192.168.1.197"
+                - name: WOW_REALM_PORT
+                  value: "30085"
+                - name: WOW_DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: wow-mariadb-auth
+                      key: MARIADB_USER
+                - name: WOW_DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wow-mariadb-auth
+                      key: MARIADB_PASSWORD
               command:
                 - sh
                 - -lc
@@ -85,34 +106,62 @@ spec:
                     sleep 2
                   done
 
-                  mysql --execute "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;"
+                  ensure_db() {
+                    local db="$1"
+                    mysql --execute "CREATE DATABASE IF NOT EXISTS \`${db}\`;"
+                  }
 
-                  # Detect an empty database (no tables) and only then bootstrap.
-                  table_count="$(mysql --database "${DB_NAME}" --skip-column-names --batch --execute \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';\")"
-                  if [ \"${table_count}\" -eq 0 ]; then
-                    if [ -d \"${WOW_DB_BOOTSTRAP_DIR}\" ]; then
-                      echo \"Bootstrapping DB from ${WOW_DB_BOOTSTRAP_DIR}...\"
-                      find \"${WOW_DB_BOOTSTRAP_DIR}\" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
-                        echo \"Applying bootstrap: ${f##*/}\"
-                        mysql --database \"${DB_NAME}\" < \"$f\"
-                      done
+                  ensure_user_grants() {
+                    # Ensure the app user can access all DBs (idempotent).
+                    mysql --execute "CREATE USER IF NOT EXISTS '${WOW_DB_USER}'@'%' IDENTIFIED BY '${WOW_DB_PASSWORD}';"
+                    mysql --execute "GRANT ALL PRIVILEGES ON \`${WOW_REALM_DB}\`.* TO '${WOW_DB_USER}'@'%';"
+                    mysql --execute "GRANT ALL PRIVILEGES ON \`${WOW_WORLD_DB}\`.* TO '${WOW_DB_USER}'@'%';"
+                    mysql --execute "GRANT ALL PRIVILEGES ON \`${WOW_CHAR_DB}\`.* TO '${WOW_DB_USER}'@'%';"
+                    mysql --execute "FLUSH PRIVILEGES;"
+                  }
+
+                  bootstrap_if_empty() {
+                    local db="$1"
+                    local dir="$2"
+                    local table_count
+                    table_count="$(mysql --database "${db}" --skip-column-names --batch --execute \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${db}';\")"
+                    if [ "${table_count}" -eq 0 ]; then
+                      if [ -d "${dir}" ]; then
+                        echo "Bootstrapping ${db} from ${dir}..."
+                        find "${dir}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
+                          echo "Applying bootstrap (${db}): ${f##*/}"
+                          mysql --database "${db}" < "$f"
+                        done
+                      else
+                        echo "DB ${db} is empty, but no bootstrap dir found at ${dir}; skipping."
+                      fi
                     else
-                      echo \"DB is empty, but no bootstrap dir found at ${WOW_DB_BOOTSTRAP_DIR}; skipping bootstrap.\"
+                      echo "DB ${db} already initialized (${table_count} tables); skipping bootstrap."
                     fi
-                  else
-                    echo \"DB already initialized (${table_count} tables); skipping bootstrap.\"
-                  fi
+                  }
 
-                  if [ -d \"${WOW_DB_MIGRATIONS_DIR}\" ]; then
-                    echo \"Applying migrations from ${WOW_DB_MIGRATIONS_DIR}...\"
-                    find \"${WOW_DB_MIGRATIONS_DIR}\" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
-                      echo \"Applying migration: ${f##*/}\"
-                      mysql --database \"${DB_NAME}\" < \"$f\"
+                  ensure_db "${WOW_REALM_DB}"
+                  ensure_db "${WOW_WORLD_DB}"
+                  ensure_db "${WOW_CHAR_DB}"
+                  ensure_user_grants
+
+                  bootstrap_if_empty "${WOW_REALM_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_REALM_DB}"
+                  bootstrap_if_empty "${WOW_WORLD_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_WORLD_DB}"
+                  bootstrap_if_empty "${WOW_CHAR_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_CHAR_DB}"
+
+                  # Ensure realm record points to the LAN node/port (idempotent; assumes sane defaults in schema).
+                  mysql --database "${WOW_REALM_DB}" --execute "INSERT INTO realmlist (id, name, address, port) VALUES (${WOW_REALM_ID}, '${WOW_REALM_NAME}', '${WOW_REALM_ADDRESS}', ${WOW_REALM_PORT}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), port=VALUES(port);"
+
+                  # Apply custom migrations to world DB (gates/tweaks live here).
+                  if [ -d "${WOW_DB_MIGRATIONS_DIR}" ]; then
+                    echo "Applying world migrations from ${WOW_DB_MIGRATIONS_DIR}..."
+                    find "${WOW_DB_MIGRATIONS_DIR}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
+                      echo "Applying migration: ${f##*/}"
+                      mysql --database "${WOW_WORLD_DB}" < "$f"
                     done
                   else
-                    echo \"No migrations dir found at ${WOW_DB_MIGRATIONS_DIR}; nothing to do.\"
+                    echo "No migrations dir found at ${WOW_DB_MIGRATIONS_DIR}; nothing to do."
                   fi
               volumeMounts:
                 - name: work
                   mountPath: /work
-

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wow-realmd
+  namespace: wow
+spec:
+  type: NodePort
+  selector:
+    app: wow-realmd
+  ports:
+    - name: realm
+      port: 3724
+      targetPort: realm
+      nodePort: 30724
+      protocol: TCP
+

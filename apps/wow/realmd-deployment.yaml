@@ -1,35 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wow-server
+  name: wow-realmd
   namespace: wow
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: wow-server
+      app: wow-realmd
   template:
     metadata:
       labels:
-        app: wow-server
+        app: wow-realmd
     spec:
       containers:
-        - name: server
-          # Replace with your own server image you have rights to run.
-          image: ghcr.io/REPLACE_ME/wow-server:1.12.1
-          imagePullPolicy: IfNotPresent
+        - name: realmd
+          image: ghcr.io/rovxbot/mangoszero:latest
+          imagePullPolicy: Always
           env:
-            - name: TZ
-              value: Australia/Melbourne
+            - name: WOW_MODE
+              value: realmd
             - name: DB_HOST
               value: wow-mariadb.wow.svc.cluster.local
             - name: DB_PORT
               value: "3306"
-            - name: DB_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: wow-mariadb-auth
-                  key: MARIADB_DATABASE
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -40,16 +34,19 @@ spec:
                 secretKeyRef:
                   name: wow-mariadb-auth
                   key: MARIADB_PASSWORD
+            - name: DB_REALM_DB
+              value: realmd
+            - name: REALM_PORT
+              value: "3724"
           ports:
-            - name: tcp-1
-              containerPort: 30000
-            - name: tcp-2
-              containerPort: 30001
+            - name: realm
+              containerPort: 3724
+              protocol: TCP
           resources:
             requests:
-              cpu: "2"
-              memory: 4Gi
+              cpu: 250m
+              memory: 256Mi
             limits:
-              cpu: "6"
-              memory: 12Gi
+              cpu: "1"
+              memory: 1Gi
 
