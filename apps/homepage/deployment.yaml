@@ -17,6 +17,8 @@ spec:
     metadata:
       labels:
         app: homepage
+      annotations:
+        homepage.cooked.beer/config-rev: "wow-services-2025-12-21"
     spec:
       serviceAccountName: homepage
       initContainers:
