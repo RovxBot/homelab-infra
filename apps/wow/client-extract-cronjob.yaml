@@ -23,7 +23,7 @@ spec:
                 claimName: wow-client-files
             - name: data
               persistentVolumeClaim:
-                claimName: wow-data
+                claimName: wow-data-rwx
             - name: work
               emptyDir: {}
           containers:

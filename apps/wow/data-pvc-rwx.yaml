@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: wow-data
+  name: wow-data-rwx
   namespace: wow
 spec:
   accessModes:
@@ -10,4 +10,3 @@ spec:
   resources:
     requests:
       storage: 20Gi
-

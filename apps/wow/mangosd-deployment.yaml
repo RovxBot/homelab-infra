@@ -61,4 +61,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: wow-data
+            claimName: wow-data-rwx
