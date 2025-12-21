@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: mangosd
-          image: ghcr.io/rovxbot/mangoszero:latest
+          image: ghcr.io/rovxbot/mangoszero:server-v22.04.105
           imagePullPolicy: Always
           env:
             - name: WOW_MODE
@@ -62,4 +62,3 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: wow-data
-

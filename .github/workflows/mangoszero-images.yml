@@ -30,12 +30,24 @@ jobs:
         shell: bash
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
+      - name: Read upstream ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="$(cat ops/wow-images/mangoszero.ref)"
+          # normalize for docker tag safety
+          ref_tag="$(echo "${ref}" | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
+          echo "MANGOSZERO_REF=${ref}" >> "$GITHUB_ENV"
+          echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ops/wow-images/Dockerfile
           push: true
+          build-args: |
+            MANGOSZERO_REF=${{ env.MANGOSZERO_REF }}
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/mangoszero:latest
-            ghcr.io/${{ env.OWNER_LC }}/mangoszero:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/mangoszero:server-${{ env.REF_TAG }}
+            ghcr.io/${{ env.OWNER_LC }}/mangoszero:server-${{ env.REF_TAG }}-${{ github.sha }}
