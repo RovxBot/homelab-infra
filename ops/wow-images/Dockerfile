@@ -43,6 +43,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
     && rm -rf /var/lib/apt/lists/*
 
+# MaNGOS expects `liblua52.so` on some distros; Ubuntu ships `liblua5.2.so.0`.
+RUN set -eu; \
+  if ! ldconfig -p 2>/dev/null | grep -q 'liblua52\.so'; then \
+    p="$(ldconfig -p 2>/dev/null | awk '/liblua5\\.2\\.so\\.0/{print $NF; exit}')" ; \
+    if [ -n "${p:-}" ]; then \
+      ln -sf "${p}" "$(dirname "${p}")/liblua52.so"; \
+    fi; \
+  fi
+
 COPY --from=build /opt/mangos /opt/mangos
 COPY ops/wow-images/entrypoint.sh /entrypoint.sh
 
