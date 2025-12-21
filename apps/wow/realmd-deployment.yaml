@@ -13,6 +13,38 @@ spec:
       labels:
         app: wow-realmd
     spec:
+      initContainers:
+        - name: wait-db
+          image: mariadb:11.4
+          env:
+            - name: DB_HOST
+              value: wow-mariadb.wow.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wow-mariadb-auth
+                  key: MARIADB_ROOT_PASSWORD
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              echo "Waiting for realmd DB schema..."
+              for _ in $(seq 1 180); do
+                if mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
+                  -e "SELECT 1" >/dev/null 2>&1; then
+                  if mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
+                    -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='realmd' AND table_name='realmlist';" \
+                    >/dev/null 2>&1; then
+                    exit 0
+                  fi
+                fi
+                sleep 2
+              done
+              echo "Timed out waiting for realmd schema" >&2
+              exit 1
       containers:
         - name: realmd
           image: ghcr.io/rovxbot/mangoszero:server-v22.04.105
