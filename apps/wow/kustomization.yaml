@@ -4,10 +4,12 @@ namespace: wow
 resources:
   - namespace.yaml
   - data-pvc.yaml
+  - client-files-pv.yaml
   - mariadb-pvc.yaml
   - mariadb-statefulset.yaml
   - mariadb-service.yaml
   - db-migrate-cronjob.yaml
+  - client-extract-cronjob.yaml
   - realmd-deployment.yaml
   - realmd-service.yaml
   - mangosd-deployment.yaml

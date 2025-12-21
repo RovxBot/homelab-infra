@@ -1,0 +1,35 @@
+---
+# NFS PV for WoW 1.12.1 client files on NAS #2 (192.168.1.154)
+# Path: /volume1/Plex Media/Games/1.12.1-client
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-wow-1121-client
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs
+  mountOptions:
+    - nfsvers=3
+    - nolock
+  nfs:
+    server: 192.168.1.154
+    path: "/volume1/Plex Media/Games/1.12.1-client"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wow-client-files
+  namespace: wow
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  volumeName: nfs-wow-1121-client
+  resources:
+    requests:
+      storage: 50Gi
+

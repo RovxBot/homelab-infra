@@ -19,10 +19,11 @@ This repo builds a container image from upstream `mangoszero/server`:
 
 The world server needs extracted client data files (DBC/maps/vmaps/mmaps) available under the `wow-data` PVC.
 
-This scaffold does not yet include the extraction Job. You will need:
+This scaffold includes a suspended extraction CronJob (`wow-client-extract`). You will need:
 
-1. A way to mount your 1.12.1 client files into the cluster (usually an NFS PVC from your NAS).
-2. A one-time extraction job (we can add this next once you tell me where the client files live).
+1. Ensure the NFS path in `apps/wow/client-files-pv.yaml` matches where your client lives.
+2. Run it once: `kubectl -n wow create job --from=cronjob/wow-client-extract wow-client-extract-1`
+3. Wait for it to complete, then start `wow-mangosd`.
 
 ## Before enabling
 
