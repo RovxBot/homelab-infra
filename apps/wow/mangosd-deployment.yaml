@@ -97,6 +97,8 @@ spec:
         - name: mangosd
           image: ghcr.io/rovxbot/mangoszero:server-v22.04.105-c4efb75778f4c127ee144c9fa718a230f8a4cb6c
           imagePullPolicy: Always
+          stdin: true
+          tty: true
           env:
             - name: WOW_MODE
               value: mangosd
