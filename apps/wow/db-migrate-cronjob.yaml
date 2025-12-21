@@ -88,8 +88,8 @@ spec:
                 - |
                   set -eu
 
-                  mysql() {
-                    command mysql \
+                  db() {
+                    command mariadb \
                       --protocol=tcp \
                       --host "${DB_HOST}" \
                       --port "${DB_PORT}" \
@@ -100,7 +100,7 @@ spec:
 
                   echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
                   for _ in $(seq 1 120); do
-                    if mysql --execute "SELECT 1" >/dev/null 2>&1; then
+                    if db --execute "SELECT 1" >/dev/null 2>&1; then
                       break
                     fi
                     sleep 2
@@ -108,29 +108,29 @@ spec:
 
                   ensure_db() {
                     local db="$1"
-                    mysql --execute "CREATE DATABASE IF NOT EXISTS \`${db}\`;"
+                    db --execute "CREATE DATABASE IF NOT EXISTS \`${db}\`;"
                   }
 
                   ensure_user_grants() {
                     # Ensure the app user can access all DBs (idempotent).
-                    mysql --execute "CREATE USER IF NOT EXISTS '${WOW_DB_USER}'@'%' IDENTIFIED BY '${WOW_DB_PASSWORD}';"
-                    mysql --execute "GRANT ALL PRIVILEGES ON \`${WOW_REALM_DB}\`.* TO '${WOW_DB_USER}'@'%';"
-                    mysql --execute "GRANT ALL PRIVILEGES ON \`${WOW_WORLD_DB}\`.* TO '${WOW_DB_USER}'@'%';"
-                    mysql --execute "GRANT ALL PRIVILEGES ON \`${WOW_CHAR_DB}\`.* TO '${WOW_DB_USER}'@'%';"
-                    mysql --execute "FLUSH PRIVILEGES;"
+                    db --execute "CREATE USER IF NOT EXISTS '${WOW_DB_USER}'@'%' IDENTIFIED BY '${WOW_DB_PASSWORD}';"
+                    db --execute "GRANT ALL PRIVILEGES ON \`${WOW_REALM_DB}\`.* TO '${WOW_DB_USER}'@'%';"
+                    db --execute "GRANT ALL PRIVILEGES ON \`${WOW_WORLD_DB}\`.* TO '${WOW_DB_USER}'@'%';"
+                    db --execute "GRANT ALL PRIVILEGES ON \`${WOW_CHAR_DB}\`.* TO '${WOW_DB_USER}'@'%';"
+                    db --execute "FLUSH PRIVILEGES;"
                   }
 
                   bootstrap_if_empty() {
                     local db="$1"
                     local dir="$2"
                     local table_count
-                    table_count="$(mysql --database "${db}" --skip-column-names --batch --execute \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${db}';\")"
+                    table_count="$(db --database "${db}" --skip-column-names --batch --execute \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${db}';\")"
                     if [ "${table_count}" -eq 0 ]; then
                       if [ -d "${dir}" ]; then
                         echo "Bootstrapping ${db} from ${dir}..."
                         find "${dir}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
                           echo "Applying bootstrap (${db}): ${f##*/}"
-                          mysql --database "${db}" < "$f"
+                          db --database "${db}" < "$f"
                         done
                       else
                         echo "DB ${db} is empty, but no bootstrap dir found at ${dir}; skipping."
@@ -150,14 +150,14 @@ spec:
                   bootstrap_if_empty "${WOW_CHAR_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_CHAR_DB}"
 
                   # Ensure realm record points to the LAN node/port (idempotent; assumes sane defaults in schema).
-                  mysql --database "${WOW_REALM_DB}" --execute "INSERT INTO realmlist (id, name, address, port) VALUES (${WOW_REALM_ID}, '${WOW_REALM_NAME}', '${WOW_REALM_ADDRESS}', ${WOW_REALM_PORT}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), port=VALUES(port);"
+                  db --database "${WOW_REALM_DB}" --execute "INSERT INTO realmlist (id, name, address, port) VALUES (${WOW_REALM_ID}, '${WOW_REALM_NAME}', '${WOW_REALM_ADDRESS}', ${WOW_REALM_PORT}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), port=VALUES(port);"
 
                   # Apply custom migrations to world DB (gates/tweaks live here).
                   if [ -d "${WOW_DB_MIGRATIONS_DIR}" ]; then
                     echo "Applying world migrations from ${WOW_DB_MIGRATIONS_DIR}..."
                     find "${WOW_DB_MIGRATIONS_DIR}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
                       echo "Applying migration: ${f##*/}"
-                      mysql --database "${WOW_WORLD_DB}" < "$f"
+                      db --database "${WOW_WORLD_DB}" < "$f"
                     done
                   else
                     echo "No migrations dir found at ${WOW_DB_MIGRATIONS_DIR}; nothing to do."
