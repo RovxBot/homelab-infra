@@ -13,6 +13,10 @@ spec:
       labels:
         app: wow-mangosd
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/hostname: metal7
       initContainers:
         - name: wait-db
           image: mariadb:11.4

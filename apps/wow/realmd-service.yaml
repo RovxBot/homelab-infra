@@ -4,13 +4,11 @@ metadata:
   name: wow-realmd
   namespace: wow
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: wow-realmd
   ports:
     - name: realm
       port: 3724
       targetPort: realm
-      nodePort: 30724
       protocol: TCP
-
