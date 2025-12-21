@@ -21,6 +21,8 @@ spec:
             - name: mysql
               containerPort: 3306
           env:
+            - name: MARIADB_ROOT_HOST
+              value: "%"
             - name: MARIADB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -55,4 +57,3 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: wow-mariadb-data
-

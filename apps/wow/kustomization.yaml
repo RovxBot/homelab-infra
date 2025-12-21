@@ -3,9 +3,12 @@ kind: Kustomization
 namespace: wow
 resources:
   - namespace.yaml
+  - data-pvc.yaml
   - mariadb-pvc.yaml
   - mariadb-statefulset.yaml
   - mariadb-service.yaml
   - db-migrate-cronjob.yaml
-  - server-deployment.yaml
-  - server-service.yaml
+  - realmd-deployment.yaml
+  - realmd-service.yaml
+  - mangosd-deployment.yaml
+  - mangosd-service.yaml

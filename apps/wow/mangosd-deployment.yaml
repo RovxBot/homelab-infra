@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wow-mangosd
+  namespace: wow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wow-mangosd
+  template:
+    metadata:
+      labels:
+        app: wow-mangosd
+    spec:
+      containers:
+        - name: mangosd
+          image: ghcr.io/rovxbot/mangoszero:latest
+          imagePullPolicy: Always
+          env:
+            - name: WOW_MODE
+              value: mangosd
+            - name: DB_HOST
+              value: wow-mariadb.wow.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wow-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wow-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: DB_REALM_DB
+              value: realmd
+            - name: DB_WORLD_DB
+              value: mangos0
+            - name: DB_CHAR_DB
+              value: character0
+            - name: WORLD_PORT
+              value: "8085"
+            - name: DATA_DIR
+              value: /data
+          ports:
+            - name: world
+              containerPort: 8085
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "6"
+              memory: 12Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: wow-data
+
