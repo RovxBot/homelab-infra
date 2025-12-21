@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  suspend: true
+  suspend: false
   path: ./apps/wow
   prune: true
   sourceRef:
@@ -16,4 +16,3 @@ spec:
     provider: sops
     secretRef:
       name: sops-age
-
