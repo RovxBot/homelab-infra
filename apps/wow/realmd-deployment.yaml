@@ -57,7 +57,7 @@ spec:
               exit 1
       containers:
         - name: realmd
-          image: ghcr.io/rovxbot/mangoszero:server-v22.04.105
+          image: ghcr.io/rovxbot/mangoszero:server-v22.04.105-c4efb75778f4c127ee144c9fa718a230f8a4cb6c
           imagePullPolicy: Always
           env:
             - name: WOW_MODE
