@@ -6,5 +6,6 @@ resources:
   - mariadb-pvc.yaml
   - mariadb-statefulset.yaml
   - mariadb-service.yaml
+  - db-migrate-cronjob.yaml
   - server-deployment.yaml
   - server-service.yaml
