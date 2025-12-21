@@ -166,12 +166,30 @@ spec:
                       "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${dbname}' AND table_name='db_version';" 2>/dev/null || echo "0"
                   }
 
+                  db_version_rows() {
+                    dbname="$1"
+                    if [ "$(has_db_version "${dbname}")" -eq 0 ]; then
+                      echo "0"
+                      return
+                    fi
+                    db --database "${dbname}" --skip-column-names --batch --execute \
+                      "SELECT COUNT(*) FROM \`db_version\`;" 2>/dev/null || echo "0"
+                  }
+
                   bootstrap_sql_dump() {
                     dbname="$1"
                     dump_file="$2"
                     workdir="$3"
                     echo "Bootstrapping ${dbname} from ${dump_file}..."
                     (cd "${workdir}" && db --database "${dbname}" < "${dump_file}")
+                  }
+
+                  bootstrap_world_fulldb() {
+                    echo "Loading World FullDB into ${WOW_WORLD_DB}..."
+                    find /work/base/World/Setup/FullDB -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
+                      echo "Applying FullDB: ${f##*/}"
+                      db --database "${WOW_WORLD_DB}" < "$f"
+                    done
                   }
 
                   ensure_realm_db() {
@@ -186,11 +204,16 @@ spec:
 
                   ensure_world_db() {
                     if [ "$(has_db_version "${WOW_WORLD_DB}")" -eq 0 ]; then
-                      echo "World DB missing db_version; recreating ${WOW_WORLD_DB}..."
+                      echo "World DB missing db_version table; recreating ${WOW_WORLD_DB}..."
                       drop_db "${WOW_WORLD_DB}"
                       bootstrap_sql_dump "${WOW_WORLD_DB}" "World/Setup/mangosdLoadDB.sql" "/work/base"
+                    fi
+
+                    # If schema exists but db_version has no rows, load the FullDB dataset.
+                    if [ "$(db_version_rows "${WOW_WORLD_DB}")" -eq 0 ]; then
+                      bootstrap_world_fulldb
                     else
-                      echo "World DB already has db_version; leaving as-is."
+                      echo "World DB already has db_version rows; leaving FullDB as-is."
                     fi
                   }
 
