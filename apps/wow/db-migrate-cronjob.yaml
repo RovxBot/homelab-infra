@@ -148,7 +148,14 @@ spec:
                   bootstrap_if_empty "${WOW_WORLD_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_WORLD_DB}"
                   bootstrap_if_empty "${WOW_CHAR_DB}" "${WOW_DB_BOOTSTRAP_DIR}/${WOW_CHAR_DB}"
 
-                  # Ensure realm record points to the LAN node/port (idempotent; assumes sane defaults in schema).
+                  # Ensure the realm list table exists (some bootstrap sets may omit it).
+                  realm_table_count="$(db --database "${WOW_REALM_DB}" --skip-column-names --batch --execute "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${WOW_REALM_DB}' AND table_name='realmlist';")"
+                  if [ "${realm_table_count}" -eq 0 ]; then
+                    echo "realmlist table not found in ${WOW_REALM_DB}; creating minimal schema..."
+                    db --database "${WOW_REALM_DB}" --execute "CREATE TABLE IF NOT EXISTS realmlist (id INT UNSIGNED NOT NULL DEFAULT 0, name VARCHAR(32) NOT NULL DEFAULT '', address VARCHAR(255) NOT NULL DEFAULT '127.0.0.1', port SMALLINT UNSIGNED NOT NULL DEFAULT 8085, icon TINYINT UNSIGNED NOT NULL DEFAULT 0, realmflags TINYINT UNSIGNED NOT NULL DEFAULT 0, timezone TINYINT UNSIGNED NOT NULL DEFAULT 0, allowedSecurityLevel TINYINT UNSIGNED NOT NULL DEFAULT 0, population FLOAT NOT NULL DEFAULT 0, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+                  fi
+
+                  # Ensure realm record points to the LAN node/port (idempotent).
                   db --database "${WOW_REALM_DB}" --execute "INSERT INTO realmlist (id, name, address, port) VALUES (${WOW_REALM_ID}, '${WOW_REALM_NAME}', '${WOW_REALM_ADDRESS}', ${WOW_REALM_PORT}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), port=VALUES(port);"
 
                   # Apply custom migrations to world DB (gates/tweaks live here).
