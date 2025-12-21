@@ -104,6 +104,8 @@ spec:
                   value: "192.168.1.197"
                 - name: WOW_REALM_PORT
                   value: "30085"
+                - name: WOW_REALM_BUILDS
+                  value: "5875"
                 - name: WOW_DB_USER
                   valueFrom:
                     secretKeyRef:
@@ -219,7 +221,7 @@ spec:
                   fi
 
                   # Ensure realm record points to the LAN node/port (idempotent).
-                  db --database "${WOW_REALM_DB}" --execute "INSERT INTO realmlist (id, name, address, port) VALUES (${WOW_REALM_ID}, '${WOW_REALM_NAME}', '${WOW_REALM_ADDRESS}', ${WOW_REALM_PORT}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), port=VALUES(port);"
+                  db --database "${WOW_REALM_DB}" --execute "INSERT INTO realmlist (id, name, address, port, realmbuilds) VALUES (${WOW_REALM_ID}, '${WOW_REALM_NAME}', '${WOW_REALM_ADDRESS}', ${WOW_REALM_PORT}, '${WOW_REALM_BUILDS}') ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), port=VALUES(port), realmbuilds=VALUES(realmbuilds);"
 
                   # Apply custom migrations to world DB (gates/tweaks live here).
                   if [ -d "${WOW_CUSTOM_MIGRATIONS_DIR}" ]; then
