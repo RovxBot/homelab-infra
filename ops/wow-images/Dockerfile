@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g \
     libbz2-1.0 \
     libreadline8t64 \
+    liblua5.2-0 \
     libmariadb3 \
     gettext-base \
     tini \

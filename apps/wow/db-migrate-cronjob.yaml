@@ -32,7 +32,7 @@ spec:
                 - sh
                 - -lc
                 - |
-                  set -euo pipefail
+                  set -eu
                   rm -rf /work/repo
                   git clone --depth=1 --branch "${WOW_DB_REF}" "${WOW_DB_REPO}" /work/repo
               volumeMounts:
@@ -86,7 +86,7 @@ spec:
                 - sh
                 - -lc
                 - |
-                  set -euo pipefail
+                  set -eu
 
                   mysql() {
                     command mysql \
