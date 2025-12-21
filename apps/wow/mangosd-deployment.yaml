@@ -13,6 +13,60 @@ spec:
       labels:
         app: wow-mangosd
     spec:
+      initContainers:
+        - name: wait-db
+          image: mariadb:11.4
+          env:
+            - name: DB_HOST
+              value: wow-mariadb.wow.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wow-mariadb-auth
+                  key: MARIADB_ROOT_PASSWORD
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              echo "Waiting for mangos0 + character0 DB schema..."
+              for _ in $(seq 1 180); do
+                if mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
+                  -e "SELECT 1" >/dev/null 2>&1; then
+                  if mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
+                    -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='mangos0';" \
+                    >/dev/null 2>&1 && \
+                    mariadb --protocol=tcp -h "${DB_HOST}" -P "${DB_PORT}" -u root -p"${DB_ROOT_PASSWORD}" \
+                    -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='character0';" \
+                    >/dev/null 2>&1; then
+                    exit 0
+                  fi
+                fi
+                sleep 2
+              done
+              echo "Timed out waiting for DB schema" >&2
+              exit 1
+        - name: wait-data
+          image: busybox:1.36
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              echo "Waiting for extracted client data..."
+              for _ in $(seq 1 180); do
+                if [ -f /data/dbc/AreaTable.dbc ] && [ -d /data/maps ] && [ -d /data/vmaps ]; then
+                  exit 0
+                fi
+                sleep 2
+              done
+              echo "Timed out waiting for client data" >&2
+              exit 1
+          volumeMounts:
+            - name: data
+              mountPath: /data
       containers:
         - name: mangosd
           image: ghcr.io/rovxbot/mangoszero:server-v22.04.105
