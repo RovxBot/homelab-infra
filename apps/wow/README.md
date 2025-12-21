@@ -4,8 +4,8 @@ This directory provides a basic Kubernetes scaffold for a private, LAN-only TCP 
 
 - `wow` namespace
 - `wow-mariadb` StatefulSet (Longhorn PVC)
-- `wow-realmd` (auth) Deployment + NodePort Service (TCP 3724)
-- `wow-mangosd` (world) Deployment + NodePort Service (TCP 8085)
+- `wow-realmd` (auth) Deployment pinned to `metal7` using `hostNetwork` (TCP 3724 on `192.168.1.197`)
+- `wow-mangosd` (world) Deployment pinned to `metal7` using `hostNetwork` (TCP 8085 on `192.168.1.197`)
 - `wow-db-sync` CronJob to bootstrap/migrate DB from your separate content repo
 
 ## Build image

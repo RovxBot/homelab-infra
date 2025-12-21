@@ -4,13 +4,11 @@ metadata:
   name: wow-mangosd
   namespace: wow
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: wow-mangosd
   ports:
     - name: world
       port: 8085
       targetPort: world
-      nodePort: 30085
       protocol: TCP
-
