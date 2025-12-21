@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wow-client-extract
+  namespace: wow
+spec:
+  # Suspended by default; run manually:
+  # kubectl -n wow create job --from=cronjob/wow-client-extract wow-client-extract-1
+  suspend: true
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: client
+              persistentVolumeClaim:
+                claimName: wow-client-files
+            - name: data
+              persistentVolumeClaim:
+                claimName: wow-data
+            - name: work
+              emptyDir: {}
+          containers:
+            - name: extract
+              image: ghcr.io/rovxbot/mangoszero:latest
+              imagePullPolicy: Always
+              env:
+                - name: WOW_SKIP_MMAPS
+                  value: "false"
+              command:
+                - sh
+                - -lc
+                - |
+                  set -euo pipefail
+
+                  if [ -d /data/maps ] && [ -d /data/vmaps ] && [ -d /data/dbc ]; then
+                    echo "Client data already present in /data (maps/vmaps/dbc). Nothing to do."
+                    exit 0
+                  fi
+
+                  if [ ! -d /client/Data ]; then
+                    echo "Expected /client/Data to exist (WoW 1.12.1 client files). Check the NFS path." >&2
+                    exit 1
+                  fi
+
+                  echo "Preparing workspace..."
+                  mkdir -p /work
+                  ln -s /client/Data /work/Data
+                  cd /work
+
+                  if [ -x /opt/mangos/bin/mapextractor ]; then
+                    echo "Running mapextractor..."
+                    /opt/mangos/bin/mapextractor
+                  else
+                    echo "Missing /opt/mangos/bin/mapextractor in image." >&2
+                    exit 1
+                  fi
+
+                  if [ -x /opt/mangos/bin/vmapextractor ]; then
+                    echo "Running vmapextractor..."
+                    /opt/mangos/bin/vmapextractor
+                  else
+                    echo "Missing /opt/mangos/bin/vmapextractor in image." >&2
+                    exit 1
+                  fi
+
+                  if [ -x /opt/mangos/bin/vmap_assembler ]; then
+                    echo "Running vmap_assembler..."
+                    /opt/mangos/bin/vmap_assembler Buildings vmaps
+                  else
+                    echo "Missing /opt/mangos/bin/vmap_assembler in image." >&2
+                    exit 1
+                  fi
+
+                  if [ "${WOW_SKIP_MMAPS}" = "true" ]; then
+                    echo "Skipping mmaps generation (WOW_SKIP_MMAPS=true)"
+                  else
+                    if [ -x /opt/mangos/bin/mmaps_generator ]; then
+                      echo "Running mmaps_generator (this can take a while)..."
+                      /opt/mangos/bin/mmaps_generator
+                    else
+                      echo "Missing /opt/mangos/bin/mmaps_generator in image." >&2
+                      exit 1
+                    fi
+                  fi
+
+                  echo "Copying extracted data to /data..."
+                  mkdir -p /data
+                  [ -d maps ] && cp -a maps /data/
+                  [ -d dbc ] && cp -a dbc /data/
+                  [ -d vmaps ] && cp -a vmaps /data/
+                  [ -d mmaps ] && cp -a mmaps /data/ || true
+
+                  echo "Done."
+              volumeMounts:
+                - name: client
+                  mountPath: /client
+                  readOnly: true
+                - name: data
+                  mountPath: /data
+                - name: work
+                  mountPath: /work
+
