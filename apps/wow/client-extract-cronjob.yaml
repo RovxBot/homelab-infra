@@ -53,26 +53,26 @@ spec:
                   mkdir -p /work
                   rm -rf /work/out
                   mkdir -p /work/out
-                  ln -s /client/Data /work/out/Data
                   cd /work/out
 
                   echo "Running map extractor..."
-                  /opt/mangos/bin/tools/map-extractor
+                  /opt/mangos/bin/tools/map-extractor -i /client -o /work/out -f 0 -e 3
 
                   echo "Running vmap extractor..."
-                  /opt/mangos/bin/tools/vmap-extractor
+                  /opt/mangos/bin/tools/vmap-extractor -i /client -s
 
                   if [ "${WOW_SKIP_MMAPS}" = "true" ]; then
                     echo "Skipping mmaps extraction (WOW_SKIP_MMAPS=true)"
                   else
                     echo "Running mmap extractor (can take hours)..."
-                    /opt/mangos/bin/tools/mmap-extractor
+                    /opt/mangos/bin/tools/mmap-extractor -i /client
                   fi
 
                   echo "Copying extracted data to /data..."
                   mkdir -p /data
                   [ -d maps ] && cp -a maps /data/
                   [ -d dbc ] && cp -a dbc /data/
+                  [ -d Buildings ] && cp -a Buildings /data/ || true
                   [ -d vmaps ] && cp -a vmaps /data/
                   [ -d mmaps ] && cp -a mmaps /data/ || true
 

@@ -107,8 +107,8 @@ spec:
                   done
 
                   ensure_db() {
-                    local db="$1"
-                    db --execute "CREATE DATABASE IF NOT EXISTS \`${db}\`;"
+                    dbname="$1"
+                    db --execute "CREATE DATABASE IF NOT EXISTS \`${dbname}\`;"
                   }
 
                   ensure_user_grants() {
@@ -121,22 +121,21 @@ spec:
                   }
 
                   bootstrap_if_empty() {
-                    local db="$1"
-                    local dir="$2"
-                    local table_count
-                    table_count="$(db --database "${db}" --skip-column-names --batch --execute \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${db}';\")"
+                    dbname="$1"
+                    dir="$2"
+                    table_count="$(db --database "${dbname}" --skip-column-names --batch --execute "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${dbname}';")"
                     if [ "${table_count}" -eq 0 ]; then
                       if [ -d "${dir}" ]; then
-                        echo "Bootstrapping ${db} from ${dir}..."
+                        echo "Bootstrapping ${dbname} from ${dir}..."
                         find "${dir}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
-                          echo "Applying bootstrap (${db}): ${f##*/}"
-                          db --database "${db}" < "$f"
+                          echo "Applying bootstrap (${dbname}): ${f##*/}"
+                          db --database "${dbname}" < "$f"
                         done
                       else
-                        echo "DB ${db} is empty, but no bootstrap dir found at ${dir}; skipping."
+                        echo "DB ${dbname} is empty, but no bootstrap dir found at ${dir}; skipping."
                       fi
                     else
-                      echo "DB ${db} already initialized (${table_count} tables); skipping bootstrap."
+                      echo "DB ${dbname} already initialized (${table_count} tables); skipping bootstrap."
                     fi
                   }
 
