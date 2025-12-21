@@ -25,6 +25,9 @@ layout:
   Apps:
     style: row
     columns: 3
+  Games:
+    style: row
+    columns: 3
   Media:
     style: row
     columns: 3

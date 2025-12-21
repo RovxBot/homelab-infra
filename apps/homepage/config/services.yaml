@@ -23,6 +23,38 @@
           app: immich-server
           podSelector: app=immich-server
 
+- Games:
+    - WoW Login (realmd):
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wow
+        description: Auth / realm list (TCP 3724)
+        icon: mdi-account-key
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: wow
+          app: wow-realmd
+          podSelector: app=wow-realmd
+    - WoW World (mangosd):
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wow
+        description: World server (TCP 8085)
+        icon: mdi-sword-cross
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: wow
+          app: wow-mangosd
+          podSelector: app=wow-mangosd
+    - WoW DB (MariaDB):
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wow
+        description: Database
+        icon: mdi-database
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: wow
+          app: wow-mariadb
+          podSelector: app=wow-mariadb
+
 - Media:
     - Radarr:
         href: https://radarr.cooked.beer
