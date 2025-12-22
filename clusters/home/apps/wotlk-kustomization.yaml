@@ -6,7 +6,7 @@ metadata:
 spec:
   interval: 10m
   # Suspended until you’re ready to cut over from 1.12.1 (ports 3724/8085 conflict).
-  suspend: true
+  suspend: false
   path: ./apps/wotlk
   prune: true
   sourceRef:
