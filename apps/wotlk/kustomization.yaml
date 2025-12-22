@@ -3,11 +3,13 @@ kind: Kustomization
 namespace: wotlk
 resources:
   - namespace.yaml
+  - client-files-pv.yaml
   - mariadb-pvc.yaml
   - mariadb-service.yaml
   - mariadb-statefulset.yaml
   - data-pvc-rwx.yaml
   - db-bootstrap-cronjob.yaml
+  - client-extract-cronjob.yaml
   - authserver-config.yaml
   - authserver-deployment.yaml
   - worldserver-config.yaml

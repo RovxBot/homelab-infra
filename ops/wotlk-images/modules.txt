@@ -4,3 +4,9 @@
 # Examples:
 # https://github.com/azerothcore/mod-ah-bot.git
 # https://github.com/azerothcore/mod-transmog.git@master
+
+https://github.com/ZhengPeiRu21/mod-individual-progression@master
+https://github.com/mod-playerbots/mod-playerbots@master
+https://github.com/NathanHandley/mod-ah-bot-plus@master
+https://github.com/azerothcore/mod-aoe-loot@master
+https://github.com/gitdalisar/mod-Faction-Free@main

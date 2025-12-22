@@ -1,0 +1,140 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-client-extract
+  namespace: wotlk
+spec:
+  # Suspended by default; run manually when ready:
+  # kubectl -n wotlk create job --from=cronjob/wotlk-client-extract wotlk-client-extract-1
+  suspend: true
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: client
+              persistentVolumeClaim:
+                claimName: wotlk-client-files
+            - name: data
+              persistentVolumeClaim:
+                claimName: wotlk-data-rwx
+            - name: work
+              emptyDir: {}
+          containers:
+            - name: extract
+              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-master
+              imagePullPolicy: Always
+              env:
+                # mmaps generation is very slow; enable manually when you're ready.
+                - name: WOTLK_SKIP_MMAPS
+                  value: "true"
+              command:
+                - sh
+                - -lc
+                - |
+                  set -eu
+
+                  if [ -d /data/maps ] && [ -d /data/vmaps ] && [ -d /data/dbc ] && [ "${WOTLK_SKIP_MMAPS}" = "true" ]; then
+                    echo "Client data already present in /data (maps/vmaps/dbc). Nothing to do."
+                    exit 0
+                  fi
+
+                  if [ -d /data/maps ] && [ -d /data/vmaps ] && [ -d /data/dbc ] && [ -d /data/mmaps ] && [ "${WOTLK_SKIP_MMAPS}" != "true" ]; then
+                    echo "Client data already present in /data (maps/vmaps/dbc/mmaps). Nothing to do."
+                    exit 0
+                  fi
+
+                  if [ ! -d /client/Data ]; then
+                    echo "Expected /client/Data to exist (WoW 3.3.5a client files). Check the NFS path." >&2
+                    exit 1
+                  fi
+
+                  find_tool() {
+                    name="$1"
+                    for d in \
+                      /azerothcore/env/dist/bin \
+                      /azerothcore/bin \
+                      /usr/local/bin \
+                      /usr/bin \
+                      /bin; do
+                      if [ -x "${d}/${name}" ]; then
+                        echo "${d}/${name}"
+                        return 0
+                      fi
+                    done
+                    if command -v "$name" >/dev/null 2>&1; then
+                      command -v "$name"
+                      return 0
+                    fi
+                    return 1
+                  }
+
+                  MAP_EXTRACTOR="$(find_tool map_extractor || true)"
+                  VMAP_EXTRACTOR="$(find_tool vmap4_extractor || true)"
+                  VMAP_ASSEMBLER="$(find_tool vmap4_assembler || true)"
+                  MMAPS_GENERATOR="$(find_tool mmaps_generator || true)"
+
+                  if [ -z "${MAP_EXTRACTOR}" ] || [ -z "${VMAP_EXTRACTOR}" ] || [ -z "${VMAP_ASSEMBLER}" ] || [ -z "${MMAPS_GENERATOR}" ]; then
+                    echo "Missing one or more extractor tools in the tools image." >&2
+                    echo "Found: map_extractor=${MAP_EXTRACTOR:-<missing>} vmap4_extractor=${VMAP_EXTRACTOR:-<missing>} vmap4_assembler=${VMAP_ASSEMBLER:-<missing>} mmaps_generator=${MMAPS_GENERATOR:-<missing>}" >&2
+                    exit 1
+                  fi
+
+                  echo "Preparing workspace..."
+                  rm -rf /work/wow
+                  mkdir -p /work/wow
+
+                  # AzerothCore extractor expects tools and ./Data in the current directory.
+                  ln -s /client/Data /work/wow/Data
+                  cp -f "${MAP_EXTRACTOR}" /work/wow/map_extractor
+                  cp -f "${VMAP_EXTRACTOR}" /work/wow/vmap4_extractor
+                  cp -f "${VMAP_ASSEMBLER}" /work/wow/vmap4_assembler
+                  cp -f "${MMAPS_GENERATOR}" /work/wow/mmaps_generator
+                  chmod +x /work/wow/map_extractor /work/wow/vmap4_extractor /work/wow/vmap4_assembler /work/wow/mmaps_generator
+
+                  cd /work/wow
+
+                  echo "Extracting base (dbc/maps/Cameras)..."
+                  rm -rf dbc maps Cameras
+                  ./map_extractor
+
+                  echo "Extracting vmaps..."
+                  mkdir -p Buildings vmaps
+                  rm -rf Buildings/* vmaps/*
+                  ./vmap4_extractor
+                  ./vmap4_assembler Buildings vmaps
+                  rm -rf Buildings || true
+
+                  if [ "${WOTLK_SKIP_MMAPS}" = "true" ]; then
+                    echo "Skipping mmaps generation (WOTLK_SKIP_MMAPS=true)"
+                  else
+                    echo "Generating mmaps (can take hours)..."
+                    mkdir -p mmaps
+                    rm -rf mmaps/*
+                    ./mmaps_generator
+                  fi
+
+                  echo "Copying extracted data to /data..."
+                  mkdir -p /data
+                  rm -rf /data/dbc /data/maps /data/vmaps /data/Cameras /data/mmaps || true
+                  [ -d dbc ] && cp -a dbc /data/
+                  [ -d maps ] && cp -a maps /data/
+                  [ -d vmaps ] && cp -a vmaps /data/
+                  [ -d Cameras ] && cp -a Cameras /data/ || true
+                  [ -d mmaps ] && cp -a mmaps /data/ || true
+
+                  echo "Done."
+              volumeMounts:
+                - name: client
+                  mountPath: /client
+                  readOnly: true
+                - name: data
+                  mountPath: /data
+                - name: work
+                  mountPath: /work
