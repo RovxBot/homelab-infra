@@ -1,0 +1,6 @@
+# One module repo per line (optional):
+# https://github.com/<org>/<repo>.git[@<ref>]
+#
+# Examples:
+# https://github.com/azerothcore/mod-ah-bot.git
+# https://github.com/azerothcore/mod-transmog.git@master

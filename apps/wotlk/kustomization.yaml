@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: wotlk
+resources:
+  - namespace.yaml
+  - mariadb-pvc.yaml
+  - mariadb-service.yaml
+  - mariadb-statefulset.yaml
+  - data-pvc-rwx.yaml
+  - db-bootstrap-cronjob.yaml
+  - authserver-config.yaml
+  - authserver-deployment.yaml
+  - worldserver-config.yaml
+  - worldserver-deployment.yaml

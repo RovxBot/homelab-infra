@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wotlk-authserver-config
+data:
+  authserver.conf: |
+    [authserver]
+    LogsDir = ""
+    BindIP = "0.0.0.0"
+    RealmServerPort = 3724
+    LoginDatabaseInfo = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_AUTH_DB}"

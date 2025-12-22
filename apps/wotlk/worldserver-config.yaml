@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wotlk-worldserver-config
+data:
+  worldserver.conf: |
+    [worldserver]
+    LogsDir = ""
+    BindIP = "0.0.0.0"
+    WorldServerPort = 8085
+    RealmID = 1
+    Console.Enable = 0
+    BeepAtStart = 0
+    DataDir = "${DATA_DIR}"
+    LoginDatabaseInfo     = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_AUTH_DB}"
+    WorldDatabaseInfo     = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_WORLD_DB}"
+    CharacterDatabaseInfo = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_CHAR_DB}"

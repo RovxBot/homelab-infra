@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wotlk-worldserver
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: wotlk-worldserver
+  template:
+    metadata:
+      labels:
+        app: wotlk-worldserver
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/hostname: metal7
+      initContainers:
+        - name: render-config
+          image: alpine:3.20
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              apk add --no-cache gettext >/dev/null
+              mkdir -p /etc-out
+              envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
+          env:
+            - name: DB_HOST
+              value: wotlk-mariadb.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_AUTH_DB
+              value: acore_auth
+            - name: DB_WORLD_DB
+              value: acore_world
+            - name: DB_CHAR_DB
+              value: acore_characters
+            - name: DATA_DIR
+              value: /azerothcore/env/dist/data
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+          volumeMounts:
+            - name: config-tpl
+              mountPath: /etc-tpl
+              readOnly: true
+            - name: etc
+              mountPath: /etc-out
+      containers:
+        - name: worldserver
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-master
+          imagePullPolicy: Always
+          ports:
+            - name: world
+              containerPort: 8085
+              protocol: TCP
+          volumeMounts:
+            - name: etc
+              mountPath: /azerothcore/env/dist/etc
+            - name: logs
+              mountPath: /azerothcore/env/dist/logs
+            - name: data
+              mountPath: /azerothcore/env/dist/data
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "6"
+              memory: 16Gi
+      volumes:
+        - name: config-tpl
+          configMap:
+            name: wotlk-worldserver-config
+        - name: etc
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: wotlk-data-rwx

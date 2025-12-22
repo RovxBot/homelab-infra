@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wotlk-mariadb
+spec:
+  selector:
+    app: wotlk-mariadb
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

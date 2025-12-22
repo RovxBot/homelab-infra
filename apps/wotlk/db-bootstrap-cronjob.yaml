@@ -1,0 +1,147 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-db-bootstrap
+  namespace: wotlk
+spec:
+  # Suspended by default; run manually when ready:
+  # kubectl -n wotlk create job --from=cronjob/wotlk-db-bootstrap wotlk-db-bootstrap-1
+  suspend: true
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: work
+              emptyDir: {}
+          initContainers:
+            - name: clone-acore
+              image: alpine/git:2.47.2
+              env:
+                - name: ACORE_REPO
+                  value: https://github.com/azerothcore/azerothcore-wotlk.git
+                - name: ACORE_REF
+                  value: master
+              command:
+                - sh
+                - -lc
+                - |
+                  set -eu
+                  rm -rf /work/acore
+                  git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" /work/acore
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+          containers:
+            - name: mariadb-client
+              image: mariadb:11.4
+              env:
+                - name: DB_HOST
+                  value: wotlk-mariadb.wotlk.svc.cluster.local
+                - name: DB_PORT
+                  value: "3306"
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+                - name: ACORE_DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_USER
+                - name: ACORE_DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_PASSWORD
+                - name: ACORE_AUTH_DB
+                  value: acore_auth
+                - name: ACORE_CHAR_DB
+                  value: acore_characters
+                - name: ACORE_WORLD_DB
+                  value: acore_world
+                - name: REALM_ID
+                  value: "1"
+                - name: REALM_NAME
+                  value: "cooked.beer (WotLK)"
+                - name: REALM_ADDRESS
+                  value: "192.168.1.197"
+                - name: REALM_LOCAL_SUBNET
+                  value: "255.255.255.0"
+                - name: REALM_WORLD_PORT
+                  value: "8085"
+                - name: REALM_FLAG
+                  value: "0"
+                - name: REALM_GAMEBUILD
+                  value: "12340"
+              command:
+                - sh
+                - -lc
+                - |
+                  set -eu
+
+                  db() {
+                    command mariadb \
+                      --protocol=tcp \
+                      --host "${DB_HOST}" \
+                      --port "${DB_PORT}" \
+                      --user root \
+                      --password="${DB_ROOT_PASSWORD}" \
+                      "$@"
+                  }
+
+                  echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
+                  for _ in $(seq 1 240); do
+                    if db --execute "SELECT 1" >/dev/null 2>&1; then
+                      break
+                    fi
+                    sleep 2
+                  done
+
+                  ensure_user() {
+                    db --execute "CREATE USER IF NOT EXISTS '${ACORE_DB_USER}'@'%' IDENTIFIED BY '${ACORE_DB_PASSWORD}';"
+                    db --execute "GRANT ALL PRIVILEGES ON \`${ACORE_AUTH_DB}\`.* TO '${ACORE_DB_USER}'@'%';"
+                    db --execute "GRANT ALL PRIVILEGES ON \`${ACORE_CHAR_DB}\`.* TO '${ACORE_DB_USER}'@'%';"
+                    db --execute "GRANT ALL PRIVILEGES ON \`${ACORE_WORLD_DB}\`.* TO '${ACORE_DB_USER}'@'%';"
+                    db --execute "FLUSH PRIVILEGES;"
+                  }
+
+                  recreate_db() {
+                    dbname="$1"
+                    echo "Recreating ${dbname}..."
+                    db --execute "DROP DATABASE IF EXISTS \`${dbname}\`;"
+                    db --execute "CREATE DATABASE \`${dbname}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+                  }
+
+                  apply_dir() {
+                    dbname="$1"
+                    dir="$2"
+                    echo "Loading ${dbname} from ${dir}..."
+                    find "${dir}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
+                      echo "Applying ${dbname}: ${f##*/}"
+                      db --database "${dbname}" < "$f"
+                    done
+                  }
+
+                  ensure_user
+
+                  recreate_db "${ACORE_AUTH_DB}"
+                  recreate_db "${ACORE_CHAR_DB}"
+                  recreate_db "${ACORE_WORLD_DB}"
+
+                  apply_dir "${ACORE_AUTH_DB}" /work/acore/data/sql/base/db_auth
+                  apply_dir "${ACORE_CHAR_DB}" /work/acore/data/sql/base/db_characters
+                  apply_dir "${ACORE_WORLD_DB}" /work/acore/data/sql/base/db_world
+
+                  echo "Upserting realm row..."
+                  db --database "${ACORE_AUTH_DB}" --execute "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, flag, timezone, allowedSecurityLevel, population, gamebuild) VALUES (${REALM_ID}, '${REALM_NAME}', '${REALM_ADDRESS}', '${REALM_ADDRESS}', '${REALM_LOCAL_SUBNET}', ${REALM_WORLD_PORT}, ${REALM_FLAG}, 1, 0, 0, ${REALM_GAMEBUILD}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), localAddress=VALUES(localAddress), localSubnetMask=VALUES(localSubnetMask), port=VALUES(port), flag=VALUES(flag), gamebuild=VALUES(gamebuild);"
+              volumeMounts:
+                - name: work
+                  mountPath: /work

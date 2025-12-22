@@ -1,0 +1,108 @@
+name: Build AzerothCore WotLK images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase image owner
+        shell: bash
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - name: Read upstream ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="$(cat ops/wotlk-images/azerothcore.ref)"
+          ref_tag="$(echo "${ref}" | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
+          echo "ACORE_REF=${ref}" >> "$GITHUB_ENV"
+          echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
+
+      - name: Prepare build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .work
+          mkdir -p .work
+          git clone --depth=1 --branch "${ACORE_REF}" https://github.com/azerothcore/azerothcore-wotlk.git .work/acore
+
+          # Optional modules
+          if [[ -f ops/wotlk-images/modules.txt ]]; then
+            while IFS= read -r line; do
+              line="${line#"${line%%[![:space:]]*}"}" # ltrim
+              [[ -z "$line" ]] && continue
+              [[ "$line" == \#* ]] && continue
+
+              repo="${line}"
+              ref="master"
+              if [[ "$line" == *@* ]]; then
+                repo="${line%@*}"
+                ref="${line#*@}"
+              fi
+
+              name="$(basename "$repo" .git)"
+              echo "Adding module: $repo@$ref -> modules/$name"
+              git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
+            done < ops/wotlk-images/modules.txt
+          fi
+
+      - name: Build and push authserver
+        uses: docker/build-push-action@v6
+        with:
+          context: .work/acore
+          file: .work/acore/apps/docker/Dockerfile
+          target: authserver
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}-${{ github.sha }}
+
+      - name: Build and push worldserver
+        uses: docker/build-push-action@v6
+        with:
+          context: .work/acore
+          file: .work/acore/apps/docker/Dockerfile
+          target: worldserver
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}-${{ github.sha }}
+
+      - name: Build and push db-import
+        uses: docker/build-push-action@v6
+        with:
+          context: .work/acore
+          file: .work/acore/apps/docker/Dockerfile
+          target: db-import
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}-${{ github.sha }}
+
+      - name: Build and push tools
+        uses: docker/build-push-action@v6
+        with:
+          context: .work/acore
+          file: .work/acore/apps/docker/Dockerfile
+          target: tools
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}
+            ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}-${{ github.sha }}

@@ -8,8 +8,10 @@ resources:
   - ../../../infra/tailscale
   - ../../../infra/backups
   - ../../../infra/observability
+  - ../../../infra/namespaces/wotlk.yaml
   - ../../../secrets/tailscale-auth.enc.yaml
   - ../../../secrets/longhorn-b2-credentials.enc.yaml
   - ../../../secrets/restic-b2-photos.enc.yaml
   - ../../../secrets/grafana-admin.enc.yaml
   - ../../../secrets/wow-mariadb-auth.enc.yaml
+  - ../../../secrets/wotlk-mariadb-auth.enc.yaml
