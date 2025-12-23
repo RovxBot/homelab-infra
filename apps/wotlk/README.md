@@ -49,3 +49,9 @@ Run once when ready:
 ## Progression / gates
 
 See `apps/wotlk/PROGRESSION.md` for the current **Individual Progression** tier list, level caps, and access gates.
+
+## Playerbots pathing (recommended)
+
+If Playerbots feel janky (stuck on hills, odd movement), generate **mmaps** once. This can take hours and will use CPU heavily while it runs:
+
+- `kubectl -n wotlk create job --from=cronjob/wotlk-client-extract-mmaps wotlk-client-extract-mmaps-1`
