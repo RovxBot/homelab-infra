@@ -1,0 +1,208 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wotlk-accountmgr
+  namespace: wotlk
+data:
+  index.php: |
+    <?php
+    declare(strict_types=1);
+
+    function envOrDefault(string $key, string $default = ''): string {
+      $val = getenv($key);
+      return $val === false ? $default : $val;
+    }
+
+    function requireBasicAuth(): void {
+      $user = envOrDefault('BASIC_AUTH_USER');
+      $pass = envOrDefault('BASIC_AUTH_PASSWORD');
+      if ($user === '' || $pass === '') {
+        http_response_code(500);
+        echo "Server misconfigured: BASIC_AUTH_USER/BASIC_AUTH_PASSWORD not set.";
+        exit;
+      }
+
+      $providedUser = $_SERVER['PHP_AUTH_USER'] ?? '';
+      $providedPass = $_SERVER['PHP_AUTH_PW'] ?? '';
+
+      if (!hash_equals($user, $providedUser) || !hash_equals($pass, $providedPass)) {
+        header('WWW-Authenticate: Basic realm="WotLK Account Manager"');
+        http_response_code(401);
+        echo "Unauthorized";
+        exit;
+      }
+    }
+
+    function normalizeUsername(string $username): string {
+      $username = trim($username);
+      if ($username === '') {
+        throw new RuntimeException("Username is required.");
+      }
+      if (!preg_match('/^[A-Za-z0-9_]{3,32}$/', $username)) {
+        throw new RuntimeException("Username must be 3-32 chars and only A-Z, 0-9, underscore.");
+      }
+      return $username;
+    }
+
+    function validatePassword(string $password): string {
+      if ($password === '') {
+        throw new RuntimeException("Password is required.");
+      }
+      if (strlen($password) < 8) {
+        throw new RuntimeException("Password must be at least 8 characters.");
+      }
+      return $password;
+    }
+
+    function soapExecute(string $command): string {
+      $soapUrl = envOrDefault('SOAP_URL', 'http://127.0.0.1:7878/');
+      $soapUser = envOrDefault('SOAP_USERNAME');
+      $soapPass = envOrDefault('SOAP_PASSWORD');
+
+      if ($soapUser === '' || $soapPass === '') {
+        throw new RuntimeException("Server misconfigured: SOAP_USERNAME/SOAP_PASSWORD not set.");
+      }
+
+      $envelope =
+        '<?xml version="1.0" encoding="utf-8"?>' .
+        '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">' .
+        '<SOAP-ENV:Body>' .
+        '<executeCommand xmlns="urn:TC">' .
+        '<command>' . htmlspecialchars($command, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</command>' .
+        '</executeCommand>' .
+        '</SOAP-ENV:Body>' .
+        '</SOAP-ENV:Envelope>';
+
+      $headers = [
+        'Content-Type: text/xml; charset=utf-8',
+        'SOAPAction: "urn:TC#executeCommand"',
+      ];
+
+      $context = stream_context_create([
+        'http' => [
+          'method' => 'POST',
+          'header' => implode("\r\n", array_merge($headers, [
+            'Authorization: Basic ' . base64_encode($soapUser . ':' . $soapPass),
+          ])),
+          'content' => $envelope,
+          'timeout' => 10,
+        ],
+      ]);
+
+      $resp = @file_get_contents($soapUrl, false, $context);
+      if ($resp === false) {
+        $err = error_get_last();
+        $msg = $err['message'] ?? 'request failed';
+        throw new RuntimeException("SOAP request failed: " . $msg);
+      }
+
+      return $resp;
+    }
+
+    function renderPage(string $flash = '', string $flashKind = 'info'): void {
+      $title = 'WotLK Account Manager';
+      $flashHtml = '';
+      if ($flash !== '') {
+        $flashHtml = '<div class="flash ' . htmlspecialchars($flashKind) . '">' . htmlspecialchars($flash) . '</div>';
+      }
+      echo <<<HTML
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>{$title}</title>
+      <style>
+        :root { color-scheme: dark; }
+        body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1020; color: #e9ecff; }
+        .wrap { max-width: 920px; margin: 0 auto; padding: 28px 16px 56px; }
+        .hero { display:flex; align-items:flex-end; justify-content:space-between; gap: 16px; margin-bottom: 18px; }
+        h1 { margin: 0; font-size: 26px; letter-spacing: .2px; }
+        .hint { opacity: .75; font-size: 13px; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        @media (min-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
+        .card { background: rgba(255,255,255,.06); border: 1px solid rgba(165,180,252,.22); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.35); }
+        .card h2 { margin: 0 0 10px; font-size: 16px; }
+        label { display:block; font-size: 12px; opacity: .8; margin: 10px 0 6px; }
+        input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.25); color: #fff; }
+        input::placeholder { color: rgba(255,255,255,.5); }
+        button { margin-top: 12px; width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(124,58,237,.45); background: linear-gradient(135deg, rgba(124,58,237,.8), rgba(168,85,247,.6)); color: #fff; font-weight: 700; cursor: pointer; }
+        button:hover { filter: brightness(1.05); }
+        .flash { border-radius: 14px; padding: 10px 12px; margin: 12px 0 18px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); }
+        .flash.ok { border-color: rgba(34,197,94,.45); }
+        .flash.err { border-color: rgba(239,68,68,.45); }
+        .small { font-size: 12px; opacity: .75; margin-top: 10px; line-height: 1.35; }
+        code { background: rgba(0,0,0,.3); padding: 1px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,.10); }
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <div class="hero">
+          <div>
+            <h1>{$title}</h1>
+            <div class="hint">Talks to the worldserver SOAP interface inside the cluster.</div>
+          </div>
+        </div>
+        {$flashHtml}
+        <div class="grid">
+          <div class="card">
+            <h2>Create account</h2>
+            <form method="post">
+              <input type="hidden" name="action" value="create" />
+              <label>Username</label>
+              <input name="username" placeholder="Rov" autocomplete="username" required />
+              <label>Password</label>
+              <input name="password" type="password" autocomplete="new-password" required />
+              <button type="submit">Create</button>
+              <div class="small">Uses <code>account create USER PASS PASS</code></div>
+            </form>
+          </div>
+          <div class="card">
+            <h2>Change password</h2>
+            <form method="post">
+              <input type="hidden" name="action" value="passwd" />
+              <label>Username</label>
+              <input name="username" placeholder="Rov" autocomplete="username" required />
+              <label>New password</label>
+              <input name="password" type="password" autocomplete="new-password" required />
+              <button type="submit">Update password</button>
+              <div class="small">Uses <code>account set password USER PASS PASS</code></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+    HTML;
+    }
+
+    requireBasicAuth();
+
+    $flash = '';
+    $flashKind = 'info';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      try {
+        $action = $_POST['action'] ?? '';
+        $username = normalizeUsername($_POST['username'] ?? '');
+        $password = validatePassword($_POST['password'] ?? '');
+
+        if ($action === 'create') {
+          // AzerothCore console expects password confirmation, so pass it twice.
+          soapExecute('account create ' . $username . ' ' . $password . ' ' . $password);
+          $flash = "Created account: " . $username;
+          $flashKind = 'ok';
+        } elseif ($action === 'passwd') {
+          soapExecute('account set password ' . $username . ' ' . $password . ' ' . $password);
+          $flash = "Updated password for: " . $username;
+          $flashKind = 'ok';
+        } else {
+          throw new RuntimeException("Unknown action.");
+        }
+      } catch (Throwable $e) {
+        $flash = $e->getMessage();
+        $flashKind = 'err';
+      }
+    }
+
+    renderPage($flash, $flashKind);
+

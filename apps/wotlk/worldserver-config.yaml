@@ -12,6 +12,13 @@ data:
     Console.Enable = 0
     BeepAtStart = 0
     DataDir = "${DATA_DIR}"
+
+    SOAP.Enabled = 1
+    SOAP.IP = "127.0.0.1"
+    SOAP.Port = 7878
+    SOAP.Username = "${SOAP_USERNAME}"
+    SOAP.Password = "${SOAP_PASSWORD}"
+
     LoginDatabaseInfo     = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_AUTH_DB}"
     WorldDatabaseInfo     = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_WORLD_DB}"
     CharacterDatabaseInfo = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_CHAR_DB}"
