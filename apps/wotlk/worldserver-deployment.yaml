@@ -132,6 +132,12 @@ spec:
 
                 # Teleporting after death can place bots in bad terrain; keep it small.
                 set_kv "AiPlayerbot.RandomBotTeleportDistance" "25"
+
+                # No auto-summon/port-to-player on invite.
+                set_kv "AiPlayerbot.SummonWhenGroup" "0"
+
+                # Cap randombot max level to the highest real player online.
+                set_kv "AiPlayerbot.SyncLevelWithPlayers" "1"
               fi
           volumeMounts:
             - name: etc
