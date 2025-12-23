@@ -160,6 +160,15 @@ spec:
 
                 # Add a bit of imperfection so they don't look "too optimal".
                 set_kv "AiPlayerbot.RandomGearLoweringChance" "0.25"
+
+                # Mid-sized server feel: bots cycle online/offline from a larger pool,
+                # and only run while at least one real player is online.
+                set_kv "AiPlayerbot.DisabledWithoutRealPlayer" "1"
+                set_kv "AiPlayerbot.DisabledWithoutRealPlayerLoginDelay" "15"
+                set_kv "AiPlayerbot.DisabledWithoutRealPlayerLogoutDelay" "120"
+
+                set_kv "AiPlayerbot.EnablePeriodicOnlineOffline" "1"
+                set_kv "AiPlayerbot.PeriodicOnlineOfflineRatio" "2.5"
               fi
           volumeMounts:
             - name: etc
