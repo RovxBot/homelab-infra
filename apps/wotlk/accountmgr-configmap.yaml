@@ -69,6 +69,25 @@ data:
       }
 
       $signupHint = isSignupEnabled() ? 'Sign up is enabled (invite code required).' : 'Sign up is disabled.';
+      $signupCard = '';
+      if (isSignupEnabled()) {
+        $signupCard = <<<HTML
+        <div class="card" style="margin-top:14px;">
+          <form method="post">
+            <input type="hidden" name="action" value="signup" />
+            <label>New username</label>
+            <input name="username" autocomplete="username" required />
+            <label>New password (max 16 chars)</label>
+            <input name="password" type="password" autocomplete="new-password" required />
+            <label>Email</label>
+            <input name="email" type="email" autocomplete="email" required />
+            <label>Invite code</label>
+            <input name="invite" required />
+            <button type="submit">Create account</button>
+          </form>
+        </div>
+        HTML;
+      }
 
       echo <<<HTML
     <!doctype html>
@@ -107,6 +126,7 @@ data:
             <button type="submit">Login</button>
           </form>
         </div>
+        {$signupCard}
       </div>
     </body>
     </html>
