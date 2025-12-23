@@ -31,6 +31,21 @@ spec:
               set -eu
               rm -rf /acore-src/*
               git clone --depth=1 --branch "Playerbot" "https://github.com/mod-playerbots/azerothcore-wotlk.git" /acore-src
+              mkdir -p /acore-src/modules
+
+              # Clone module repos so the in-server DB updater can find their SQL folders.
+              clone_module() {
+                repo="$1"
+                ref="${2:-master}"
+                name="$(basename "$repo" .git)"
+                # Don't fail the whole pod if a module is temporarily unavailable.
+                git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name" || true
+              }
+
+              clone_module "https://github.com/ZhengPeiRu21/mod-individual-progression.git" "master"
+              clone_module "https://github.com/mod-playerbots/mod-playerbots.git" "master"
+              clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
+              clone_module "https://github.com/azerothcore/mod-aoe-loot.git" "master"
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
