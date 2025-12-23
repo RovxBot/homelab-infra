@@ -58,7 +58,7 @@ spec:
                     client_data_dir="/client/data"
                   else
                     # Try to locate the client Data folder within the share.
-                    client_data_dir="$(find /client -maxdepth 4 -type d \\( -name Data -o -name data \\) -print | head -n 1 || true)"
+                    client_data_dir="$(find /client -maxdepth 4 -type d -name Data -print -o -type d -name data -print | head -n 1 || true)"
                   fi
 
                   if [ -z "${client_data_dir}" ] || [ ! -d "${client_data_dir}" ]; then
