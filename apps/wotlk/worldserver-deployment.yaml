@@ -145,6 +145,21 @@ spec:
                 # Make bots reject invites from much lower-geared players.
                 # (Level-based invites are already enabled via GroupInvitationPermission=1.)
                 set_kv "AiPlayerbot.GearScoreCheck" "1"
+
+                # Make bots more "human" (avoid free conveniences).
+                # Keep raid enabled (mechanics helpers), but remove food/taxi cheats.
+                set_kv "AiPlayerbot.BotCheats" "\"raid\""
+
+                # Don't generate/upgrade gear out of thin air on levelup.
+                # Bots can still upgrade via loot/quests and trading.
+                set_kv "AiPlayerbot.AutoUpgradeEquip" "0"
+
+                # Bots shouldn't auto-queue systems unless you want them to.
+                set_kv "AiPlayerbot.RandomBotJoinLfg" "0"
+                set_kv "AiPlayerbot.RandomBotJoinBG" "0"
+
+                # Add a bit of imperfection so they don't look "too optimal".
+                set_kv "AiPlayerbot.RandomGearLoweringChance" "0.25"
               fi
           volumeMounts:
             - name: etc
