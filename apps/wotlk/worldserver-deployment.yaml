@@ -82,6 +82,16 @@ spec:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_PASSWORD
+            - name: SOAP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-soap-auth
+                  key: SOAP_USERNAME
+            - name: SOAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-soap-auth
+                  key: SOAP_PASSWORD
           volumeMounts:
             - name: config-tpl
               mountPath: /etc-tpl
@@ -221,6 +231,46 @@ spec:
             limits:
               cpu: "6"
               memory: 16Gi
+        - name: accountmgr
+          image: php:8.3-cli-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              php -S 0.0.0.0:8088 -t /app
+          env:
+            - name: SOAP_URL
+              value: http://127.0.0.1:7878/
+            - name: SOAP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-soap-auth
+                  key: SOAP_USERNAME
+            - name: SOAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-soap-auth
+                  key: SOAP_PASSWORD
+            - name: BASIC_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-accountmgr-auth
+                  key: BASIC_AUTH_USER
+            - name: BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-accountmgr-auth
+                  key: BASIC_AUTH_PASSWORD
+          ports:
+            - name: accountmgr
+              containerPort: 8088
+              protocol: TCP
+          volumeMounts:
+            - name: accountmgr-web
+              mountPath: /app/index.php
+              subPath: index.php
       volumes:
         - name: config-tpl
           configMap:
@@ -234,3 +284,6 @@ spec:
             claimName: wotlk-data-rwx
         - name: acore-src
           emptyDir: {}
+        - name: accountmgr-web
+          configMap:
+            name: wotlk-accountmgr
