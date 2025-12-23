@@ -22,6 +22,18 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: metal7
       initContainers:
+        - name: clone-acore
+          image: alpine/git:2.47.2
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              rm -rf /acore-src/*
+              git clone --depth=1 --branch "Playerbot" "https://github.com/mod-playerbots/azerothcore-wotlk.git" /acore-src
+          volumeMounts:
+            - name: acore-src
+              mountPath: /acore-src
         - name: render-config
           image: alpine:3.20
           command:
@@ -88,6 +100,8 @@ spec:
               value: "7"
             - name: AC_UPDATES_AUTO_SETUP
               value: "1"
+            - name: AC_SOURCE_DIRECTORY
+              value: /acore-src
           ports:
             - name: world
               containerPort: 8085
@@ -99,6 +113,9 @@ spec:
               mountPath: /azerothcore/env/dist/logs
             - name: data
               mountPath: /azerothcore/env/dist/data
+            - name: acore-src
+              mountPath: /acore-src
+              readOnly: true
           resources:
             requests:
               cpu: "2"
@@ -117,3 +134,5 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: wotlk-data-rwx
+        - name: acore-src
+          emptyDir: {}
