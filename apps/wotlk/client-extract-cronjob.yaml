@@ -50,8 +50,21 @@ spec:
                     exit 0
                   fi
 
-                  if [ ! -d /client/Data ]; then
-                    echo "Expected /client/Data to exist (WoW 3.3.5a client files). Check the NFS path." >&2
+                  # ChromieCraft client packs often use lowercase `data/` on case-sensitive filesystems.
+                  client_data_dir=""
+                  if [ -d /client/Data ]; then
+                    client_data_dir="/client/Data"
+                  elif [ -d /client/data ]; then
+                    client_data_dir="/client/data"
+                  else
+                    # Try to locate the client Data folder within the share.
+                    client_data_dir="$(find /client -maxdepth 4 -type d \\( -name Data -o -name data \\) -print | head -n 1 || true)"
+                  fi
+
+                  if [ -z "${client_data_dir}" ] || [ ! -d "${client_data_dir}" ]; then
+                    echo "Expected WoW client data folder (Data/ or data/) under /client but none was found." >&2
+                    echo "Top-level /client:" >&2
+                    ls -la /client >&2 || true
                     exit 1
                   fi
 
@@ -90,8 +103,8 @@ spec:
                   rm -rf /work/wow
                   mkdir -p /work/wow
 
-                  # AzerothCore extractor expects tools and ./Data in the current directory.
-                  ln -s /client/Data /work/wow/Data
+                  # AzerothCore extractor expects tools and ./Data (capital D) in the current directory.
+                  ln -s "${client_data_dir}" /work/wow/Data
                   cp -f "${MAP_EXTRACTOR}" /work/wow/map_extractor
                   cp -f "${VMAP_EXTRACTOR}" /work/wow/vmap4_extractor
                   cp -f "${VMAP_ASSEMBLER}" /work/wow/vmap4_assembler
