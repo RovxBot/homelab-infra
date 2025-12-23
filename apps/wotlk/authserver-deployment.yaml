@@ -57,7 +57,7 @@ spec:
               mountPath: /etc-out
       containers:
         - name: authserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-master
+          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-playerbot
           imagePullPolicy: Always
           ports:
             - name: auth

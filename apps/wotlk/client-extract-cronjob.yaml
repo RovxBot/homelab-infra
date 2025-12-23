@@ -28,7 +28,7 @@ spec:
               emptyDir: {}
           containers:
             - name: extract
-              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-master
+              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot
               imagePullPolicy: Always
               env:
                 # mmaps generation is very slow; enable manually when you're ready.

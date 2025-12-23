@@ -30,10 +30,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          repo="$(cat ops/wotlk-images/azerothcore.repo 2>/dev/null || true)"
+          if [[ -z "${repo}" ]]; then
+            repo="https://github.com/azerothcore/azerothcore-wotlk.git"
+          fi
           ref="$(cat ops/wotlk-images/azerothcore.ref)"
           ref_tag="$(echo "${ref}" | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
+          repo_tag="$(echo "${repo}" | sed -E 's#^https?://##' | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
+          repo_tag="${repo_tag,,}"
           echo "ACORE_REF=${ref}" >> "$GITHUB_ENV"
+          echo "ACORE_REPO=${repo}" >> "$GITHUB_ENV"
           echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
+          echo "REPO_TAG=${repo_tag}" >> "$GITHUB_ENV"
 
       - name: Prepare build context
         shell: bash
@@ -41,7 +49,7 @@ jobs:
           set -euo pipefail
           rm -rf .work
           mkdir -p .work
-          git clone --depth=1 --branch "${ACORE_REF}" https://github.com/azerothcore/azerothcore-wotlk.git .work/acore
+          git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" .work/acore
 
           # Optional modules
           if [[ -f ops/wotlk-images/modules.txt ]]; then
@@ -66,6 +74,7 @@ jobs:
       - name: Build and push authserver
         uses: docker/build-push-action@v6
         with:
+          progress: plain
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: authserver
@@ -77,6 +86,7 @@ jobs:
       - name: Build and push worldserver
         uses: docker/build-push-action@v6
         with:
+          progress: plain
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: worldserver
@@ -88,6 +98,7 @@ jobs:
       - name: Build and push db-import
         uses: docker/build-push-action@v6
         with:
+          progress: plain
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: db-import
@@ -99,6 +110,7 @@ jobs:
       - name: Build and push tools
         uses: docker/build-push-action@v6
         with:
+          progress: plain
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: tools
