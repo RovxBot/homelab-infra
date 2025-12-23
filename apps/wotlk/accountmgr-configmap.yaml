@@ -27,7 +27,7 @@ data:
       }
     }
 
-    function requireAuth(): void {
+    function checkBasicAuth(): bool {
       $user = envOrDefault('BASIC_AUTH_USER');
       $pass = envOrDefault('BASIC_AUTH_PASSWORD');
       if ($user === '' || $pass === '') {
@@ -42,17 +42,23 @@ data:
 
       // If already logged in via session, allow.
       if (!empty($_SESSION['auth_ok'])) {
-        return;
+        return true;
       }
 
       // Allow HTTP Basic Auth too (curl-friendly), but don't rely on the browser prompt.
       $providedUser = $_SERVER['PHP_AUTH_USER'] ?? '';
       $providedPass = $_SERVER['PHP_AUTH_PW'] ?? '';
 
-      if (!hash_equals($user, $providedUser) || !hash_equals($pass, $providedPass)) {
-        // Render our own login page (some browsers block basic-auth prompts).
-        renderLogin();
+      if ($providedUser === '' && $providedPass === '') {
+        return false;
       }
+
+      if (!hash_equals($user, $providedUser) || !hash_equals($pass, $providedPass)) {
+        return false;
+      }
+
+      $_SESSION['auth_ok'] = true;
+      return true;
     }
 
     function renderLogin(string $flash = '', string $flashKind = 'info'): void {
@@ -61,6 +67,8 @@ data:
       if ($flash !== '') {
         $flashHtml = '<div class="flash ' . htmlspecialchars($flashKind) . '">' . htmlspecialchars($flash) . '</div>';
       }
+
+      $signupHint = isSignupEnabled() ? 'Sign up is enabled (invite code required).' : 'Sign up is disabled.';
 
       echo <<<HTML
     <!doctype html>
@@ -87,7 +95,7 @@ data:
     <body>
       <div class="wrap">
         <h1>{$title}</h1>
-        <div class="hint">Login required (local LAN only recommended).</div>
+        <div class="hint">{$signupHint}</div>
         {$flashHtml}
         <div class="card">
           <form method="post">
@@ -323,7 +331,7 @@ data:
       renderLogin('Logged out', 'ok');
     }
 
-    requireAuth();
+    $isAuthed = checkBasicAuth() || !empty($_SESSION['auth_ok']);
 
     $flash = '';
     $flashKind = 'info';
@@ -344,7 +352,11 @@ data:
           soapExecute('account create ' . $username . ' ' . $password . ' ' . $email);
           $flash = "Created account: " . $username;
           $flashKind = 'ok';
+          renderLogin($flash, $flashKind);
         } elseif ($action === 'passwd') {
+          if (!$isAuthed) {
+            renderLogin('Login required for this action.', 'err');
+          }
           $username = normalizeUsername($_POST['username'] ?? '');
           $password = validatePassword($_POST['password'] ?? '');
           // AzerothCore expects password confirmation, so pass it twice.
@@ -360,4 +372,7 @@ data:
       }
     }
 
+    if (!$isAuthed) {
+      renderLogin($flash, $flashKind);
+    }
     renderPage($flash, $flashKind);
