@@ -26,6 +26,9 @@ spec:
                 claimName: wotlk-data-rwx
             - name: work
               emptyDir: {}
+            - name: mmaps-config
+              configMap:
+                name: wotlk-mmaps-config
           containers:
             - name: extract
               image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot
@@ -184,7 +187,7 @@ spec:
                     echo "Generating mmaps (can take hours)..."
                     mkdir -p mmaps
                     rm -rf mmaps/*
-                    ./mmaps_generator
+                    ./mmaps_generator --config /config/mmaps-config.yaml
                   fi
 
                   echo "Copying extracted data to /data..."
@@ -205,3 +208,7 @@ spec:
                   mountPath: /data
                 - name: work
                   mountPath: /work
+                - name: mmaps-config
+                  mountPath: /config/mmaps-config.yaml
+                  subPath: mmaps-config.yaml
+                  readOnly: true
