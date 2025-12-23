@@ -104,7 +104,61 @@ spec:
                   mkdir -p /work/wow
 
                   # AzerothCore extractor expects tools and ./Data (capital D) in the current directory.
-                  ln -s "${client_data_dir}" /work/wow/Data
+                  # Some client packs store this as lowercase `data/` with lowercase `.mpq` files, which
+                  # breaks extractors on case-sensitive filesystems. Build a compatibility `Data/` tree.
+                  mkdir -p /work/wow/Data
+
+                  # Link all root MPQs with `.MPQ` extension (and keep original base name casing).
+                  for f in "${client_data_dir}"/*; do
+                    [ -f "$f" ] || continue
+                    b="$(basename "$f")"
+                    case "$b" in
+                      *.mpq) ln -sf "$f" "/work/wow/Data/${b%.mpq}.MPQ" ;;
+                      *.MPQ) ln -sf "$f" "/work/wow/Data/$b" ;;
+                      *) : ;;
+                    esac
+                  done
+
+                  # Common expected names (exact case)
+                  [ -f "${client_data_dir}/common.mpq" ] && ln -sf "${client_data_dir}/common.mpq" /work/wow/Data/common.MPQ || true
+                  [ -f "${client_data_dir}/common-2.mpq" ] && ln -sf "${client_data_dir}/common-2.mpq" /work/wow/Data/common-2.MPQ || true
+                  [ -f "${client_data_dir}/expansion.mpq" ] && ln -sf "${client_data_dir}/expansion.mpq" /work/wow/Data/expansion.MPQ || true
+                  [ -f "${client_data_dir}/lichking.mpq" ] && ln -sf "${client_data_dir}/lichking.mpq" /work/wow/Data/lichking.MPQ || true
+
+                  # Locale folders mapping (lowercase -> expected WoW casing)
+                  map_locale_dir() {
+                    case "$1" in
+                      enus) echo "enUS" ;;
+                      engb) echo "enGB" ;;
+                      dede) echo "deDE" ;;
+                      eses) echo "esES" ;;
+                      frfr) echo "frFR" ;;
+                      ruru) echo "ruRU" ;;
+                      *) echo "" ;;
+                    esac
+                  }
+
+                  for lc in "${client_data_dir}"/*; do
+                    [ -d "$lc" ] || continue
+                    lc_base="$(basename "$lc")"
+                    loc="$(map_locale_dir "$lc_base")"
+                    [ -z "$loc" ] && continue
+
+                    mkdir -p "/work/wow/Data/${loc}"
+                    # Link files, normalizing `.mpq` -> `.MPQ` and locale substring in filenames.
+                    for lf in "$lc"/*; do
+                      [ -f "$lf" ] || continue
+                      lb="$(basename "$lf")"
+                      nb="$lb"
+                      nb="${nb//$lc_base/$loc}"
+                      case "$nb" in
+                        *.mpq) nb="${nb%.mpq}.MPQ" ;;
+                        *.MPQ) : ;;
+                        *) : ;;
+                      esac
+                      ln -sf "$lf" "/work/wow/Data/${loc}/${nb}"
+                    done
+                  done
                   cp -f "${MAP_EXTRACTOR}" /work/wow/map_extractor
                   cp -f "${VMAP_EXTRACTOR}" /work/wow/vmap4_extractor
                   cp -f "${VMAP_ASSEMBLER}" /work/wow/vmap4_assembler
