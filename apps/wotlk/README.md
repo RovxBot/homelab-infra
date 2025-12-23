@@ -45,3 +45,7 @@ Run once when ready:
 3. Unsuspend Flux `apps-wotlk`.
 4. Run the DB bootstrap job once.
 5. Add client data extraction (separate step; needs your 3.3.5a client path).
+
+## Progression / gates
+
+See `apps/wotlk/PROGRESSION.md` for the current **Individual Progression** tier list, level caps, and access gates.
