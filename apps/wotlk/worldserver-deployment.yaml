@@ -61,6 +61,24 @@ spec:
               readOnly: true
             - name: etc
               mountPath: /etc-out
+        - name: seed-module-config
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot
+          imagePullPolicy: Always
+          command:
+            - bash
+            - -lc
+            - |
+              set -euo pipefail
+              mkdir -p /azerothcore/env/dist/etc/modules
+              shopt -s nullglob
+              for f in /azerothcore/env/ref/etc/modules/*.conf.dist; do
+                base="$(basename "$f" .dist)"
+                # Copy defaults once; allow user overrides via future config management.
+                cp -n "$f" "/azerothcore/env/dist/etc/modules/$base" || true
+              done
+          volumeMounts:
+            - name: etc
+              mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
           image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot
