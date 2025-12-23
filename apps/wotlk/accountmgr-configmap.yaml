@@ -100,7 +100,7 @@ data:
         $msg = $err['message'] ?? 'request failed';
 
         // Worldserver SOAP may not be ready yet right after a rollout.
-        if (strpos($msg, 'Connection refused') !== false || strpos($msg, 'Failed to open stream') !== false) {
+        if (strpos($msg, 'Connection refused') !== false) {
           usleep(500000); // 0.5s
           continue;
         }
