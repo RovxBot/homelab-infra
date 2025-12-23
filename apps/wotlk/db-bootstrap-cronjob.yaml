@@ -67,6 +67,8 @@ spec:
                   value: acore_characters
                 - name: ACORE_WORLD_DB
                   value: acore_world
+                - name: ACORE_PLAYERBOTS_DB
+                  value: acore_playerbots
                 - name: REALM_ID
                   value: "1"
                 - name: REALM_NAME
@@ -112,6 +114,7 @@ spec:
                     db --execute "GRANT ALL PRIVILEGES ON \`${ACORE_AUTH_DB}\`.* TO '${ACORE_DB_USER}'@'%';"
                     db --execute "GRANT ALL PRIVILEGES ON \`${ACORE_CHAR_DB}\`.* TO '${ACORE_DB_USER}'@'%';"
                     db --execute "GRANT ALL PRIVILEGES ON \`${ACORE_WORLD_DB}\`.* TO '${ACORE_DB_USER}'@'%';"
+                    db --execute "GRANT ALL PRIVILEGES ON \`${ACORE_PLAYERBOTS_DB}\`.* TO '${ACORE_DB_USER}'@'%';"
                     db --execute "FLUSH PRIVILEGES;"
                   }
 
@@ -137,6 +140,7 @@ spec:
                   recreate_db "${ACORE_AUTH_DB}"
                   recreate_db "${ACORE_CHAR_DB}"
                   recreate_db "${ACORE_WORLD_DB}"
+                  recreate_db "${ACORE_PLAYERBOTS_DB}"
 
                   apply_dir "${ACORE_AUTH_DB}" /work/acore/data/sql/base/db_auth
 

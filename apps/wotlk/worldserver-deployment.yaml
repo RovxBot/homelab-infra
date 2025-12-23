@@ -102,6 +102,22 @@ spec:
               value: "1"
             - name: AC_SOURCE_DIRECTORY
               value: /acore-src
+            - name: DB_HOST
+              value: wotlk-mariadb.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: AC_PLAYERBOTS_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_playerbots"
           ports:
             - name: world
               containerPort: 8085
