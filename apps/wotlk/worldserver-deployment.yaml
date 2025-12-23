@@ -263,6 +263,13 @@ spec:
                 secretKeyRef:
                   name: wotlk-accountmgr-auth
                   key: BASIC_AUTH_PASSWORD
+            - name: ALLOW_SIGNUP
+              value: "true"
+            - name: INVITE_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-accountmgr-invite
+                  key: INVITE_CODE
           ports:
             - name: accountmgr
               containerPort: 8088

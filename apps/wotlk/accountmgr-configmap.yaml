@@ -13,6 +13,20 @@ data:
       return $val === false ? $default : $val;
     }
 
+    function isSignupEnabled(): bool {
+      return envOrDefault('ALLOW_SIGNUP', 'false') === 'true';
+    }
+
+    function requireInviteCode(string $provided): void {
+      $invite = envOrDefault('INVITE_CODE');
+      if ($invite === '') {
+        throw new RuntimeException("Server misconfigured: INVITE_CODE not set.");
+      }
+      if (!hash_equals($invite, $provided)) {
+        throw new RuntimeException("Invalid invite code.");
+      }
+    }
+
     function requireAuth(): void {
       $user = envOrDefault('BASIC_AUTH_USER');
       $pass = envOrDefault('BASIC_AUTH_PASSWORD');
@@ -110,7 +124,25 @@ data:
       if (strlen($password) < 8) {
         throw new RuntimeException("Password must be at least 8 characters.");
       }
+      if (strlen($password) > 16) {
+        // WoW client limit (keeps signup compatible).
+        throw new RuntimeException("Password must be 16 characters or less.");
+      }
       return $password;
+    }
+
+    function validateEmail(string $email): string {
+      $email = trim($email);
+      if ($email === '') {
+        throw new RuntimeException("Email is required.");
+      }
+      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new RuntimeException("Email is invalid.");
+      }
+      if (strlen($email) > 255) {
+        throw new RuntimeException("Email is too long.");
+      }
+      return $email;
     }
 
     function soapExecute(string $command): string {
@@ -176,6 +208,27 @@ data:
       if ($flash !== '') {
         $flashHtml = '<div class="flash ' . htmlspecialchars($flashKind) . '">' . htmlspecialchars($flash) . '</div>';
       }
+      $signupCard = '';
+      if (isSignupEnabled()) {
+        $signupCard = <<<HTML
+          <div class="card">
+            <h2>Create account (public)</h2>
+            <form method="post">
+              <input type="hidden" name="action" value="signup" />
+              <label>Username</label>
+              <input name="username" placeholder="Rov" autocomplete="username" required />
+              <label>Password (max 16 chars)</label>
+              <input name="password" type="password" autocomplete="new-password" required />
+              <label>Email</label>
+              <input name="email" type="email" autocomplete="email" required />
+              <label>Invite code</label>
+              <input name="invite" placeholder="Ask Sam for the code" required />
+              <button type="submit">Sign up</button>
+              <div class="small">Uses <code>account create USER PASS EMAIL</code></div>
+            </form>
+          </div>
+        HTML;
+      }
       echo <<<HTML
     <!doctype html>
     <html lang="en">
@@ -222,18 +275,7 @@ data:
           </form>
         </div>
         <div class="grid">
-          <div class="card">
-            <h2>Create account</h2>
-            <form method="post">
-              <input type="hidden" name="action" value="create" />
-              <label>Username</label>
-              <input name="username" placeholder="Rov" autocomplete="username" required />
-              <label>Password</label>
-              <input name="password" type="password" autocomplete="new-password" required />
-              <button type="submit">Create</button>
-              <div class="small">Uses <code>account create USER PASS PASS</code></div>
-            </form>
-          </div>
+          {$signupCard}
           <div class="card">
             <h2>Change password</h2>
             <form method="post">
@@ -291,15 +333,21 @@ data:
         if ($action === 'login' || $action === 'logout') {
           throw new RuntimeException("Invalid action.");
         }
-        $username = normalizeUsername($_POST['username'] ?? '');
-        $password = validatePassword($_POST['password'] ?? '');
-
-        if ($action === 'create') {
-          // AzerothCore console expects password confirmation, so pass it twice.
-          soapExecute('account create ' . $username . ' ' . $password . ' ' . $password);
+        if ($action === 'signup') {
+          if (!isSignupEnabled()) {
+            throw new RuntimeException("Sign up is disabled.");
+          }
+          $username = normalizeUsername($_POST['username'] ?? '');
+          $password = validatePassword($_POST['password'] ?? '');
+          $email = validateEmail($_POST['email'] ?? '');
+          requireInviteCode((string)($_POST['invite'] ?? ''));
+          soapExecute('account create ' . $username . ' ' . $password . ' ' . $email);
           $flash = "Created account: " . $username;
           $flashKind = 'ok';
         } elseif ($action === 'passwd') {
+          $username = normalizeUsername($_POST['username'] ?? '');
+          $password = validatePassword($_POST['password'] ?? '');
+          // AzerothCore expects password confirmation, so pass it twice.
           soapExecute('account set password ' . $username . ' ' . $password . ' ' . $password);
           $flash = "Updated password for: " . $username;
           $flashKind = 'ok';
