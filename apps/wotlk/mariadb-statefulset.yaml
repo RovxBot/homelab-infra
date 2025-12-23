@@ -14,28 +14,28 @@ spec:
         app: wotlk-mariadb
     spec:
       containers:
-        - name: mariadb
-          image: mariadb:11.4
+        - name: mysql
+          image: mysql:8.0
           ports:
             - name: mysql
               containerPort: 3306
           env:
-            - name: MARIADB_ROOT_PASSWORD
+            - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_ROOT_PASSWORD
-            - name: MARIADB_USER
+            - name: MYSQL_USER
               valueFrom:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_USER
-            - name: MARIADB_PASSWORD
+            - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_PASSWORD
-            - name: MARIADB_ROOT_HOST
+            - name: MYSQL_ROOT_HOST
               value: "%"
           volumeMounts:
             - name: data
