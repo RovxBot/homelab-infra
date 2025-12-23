@@ -83,6 +83,11 @@ spec:
         - name: worldserver
           image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot
           imagePullPolicy: Always
+          env:
+            - name: AC_UPDATES_ENABLE_DATABASES
+              value: "7"
+            - name: AC_UPDATES_AUTO_SETUP
+              value: "1"
           ports:
             - name: world
               containerPort: 8085

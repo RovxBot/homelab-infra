@@ -40,7 +40,7 @@ spec:
                   mountPath: /work
           containers:
             - name: mariadb-client
-              image: mariadb:11.4
+              image: mysql:8.0
               env:
                 - name: DB_HOST
                   value: wotlk-mariadb.wotlk.svc.cluster.local
@@ -88,16 +88,18 @@ spec:
                   set -eu
 
                   db() {
-                    command mariadb \
+                    command mysql \
                       --protocol=tcp \
                       --host "${DB_HOST}" \
                       --port "${DB_PORT}" \
                       --user root \
                       --password="${DB_ROOT_PASSWORD}" \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
                       "$@"
                   }
 
-                  echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
+                  echo "Waiting for MySQL at ${DB_HOST}:${DB_PORT}..."
                   for _ in $(seq 1 240); do
                     if db --execute "SELECT 1" >/dev/null 2>&1; then
                       break
@@ -124,7 +126,7 @@ spec:
                     dbname="$1"
                     dir="$2"
                     echo "Loading ${dbname} from ${dir}..."
-                    find "${dir}" -maxdepth 1 -type f -name '*.sql' -print | sort | while read -r f; do
+                    find "${dir}" -type f -name '*.sql' -print | sort | while read -r f; do
                       echo "Applying ${dbname}: ${f##*/}"
                       db --database "${dbname}" < "$f"
                     done
@@ -137,7 +139,9 @@ spec:
                   recreate_db "${ACORE_WORLD_DB}"
 
                   apply_dir "${ACORE_AUTH_DB}" /work/acore/data/sql/base/db_auth
+
                   apply_dir "${ACORE_CHAR_DB}" /work/acore/data/sql/base/db_characters
+
                   apply_dir "${ACORE_WORLD_DB}" /work/acore/data/sql/base/db_world
 
                   echo "Upserting realm row..."

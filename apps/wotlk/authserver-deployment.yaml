@@ -76,6 +76,11 @@ spec:
         - name: authserver
           image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-playerbot
           imagePullPolicy: Always
+          env:
+            - name: AC_UPDATES_ENABLE_DATABASES
+              value: "1"
+            - name: AC_UPDATES_AUTO_SETUP
+              value: "1"
           ports:
             - name: auth
               containerPort: 3724
