@@ -1,0 +1,198 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-client-extract-mmaps
+  namespace: wotlk
+spec:
+  # Suspended by default; run manually when ready:
+  # kubectl -n wotlk create job --from=cronjob/wotlk-client-extract-mmaps wotlk-client-extract-mmaps-1
+  suspend: true
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: client
+              persistentVolumeClaim:
+                claimName: wotlk-client-files
+            - name: data
+              persistentVolumeClaim:
+                claimName: wotlk-data-rwx
+            - name: work
+              emptyDir: {}
+          containers:
+            - name: extract
+              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot
+              imagePullPolicy: Always
+              env:
+                - name: WOTLK_SKIP_MMAPS
+                  value: "false"
+              command:
+                - bash
+                - -lc
+                - |
+                  set -eu
+
+                  if [ -d /data/maps ] && [ -d /data/vmaps ] && [ -d /data/dbc ] && [ -d /data/mmaps ]; then
+                    echo "Client data already present in /data (maps/vmaps/dbc/mmaps). Nothing to do."
+                    exit 0
+                  fi
+
+                  # ChromieCraft client packs often use lowercase `data/` on case-sensitive filesystems.
+                  client_data_dir=""
+                  if [ -d /client/Data ]; then
+                    client_data_dir="/client/Data"
+                  elif [ -d /client/data ]; then
+                    client_data_dir="/client/data"
+                  else
+                    # Try to locate the client Data folder within the share.
+                    client_data_dir="$(find /client -maxdepth 4 -type d -name Data -print -o -type d -name data -print | head -n 1 || true)"
+                  fi
+
+                  if [ -z "${client_data_dir}" ] || [ ! -d "${client_data_dir}" ]; then
+                    echo "Expected WoW client data folder (Data/ or data/) under /client but none was found." >&2
+                    echo "Top-level /client:" >&2
+                    ls -la /client >&2 || true
+                    exit 1
+                  fi
+
+                  find_tool() {
+                    name="$1"
+                    for d in \
+                      /azerothcore/env/dist/bin \
+                      /azerothcore/bin \
+                      /usr/local/bin \
+                      /usr/bin \
+                      /bin; do
+                      if [ -x "${d}/${name}" ]; then
+                        echo "${d}/${name}"
+                        return 0
+                      fi
+                    done
+                    if command -v "$name" >/dev/null 2>&1; then
+                      command -v "$name"
+                      return 0
+                    fi
+                    return 1
+                  }
+
+                  MAP_EXTRACTOR="$(find_tool map_extractor || true)"
+                  VMAP_EXTRACTOR="$(find_tool vmap4_extractor || true)"
+                  VMAP_ASSEMBLER="$(find_tool vmap4_assembler || true)"
+                  MMAPS_GENERATOR="$(find_tool mmaps_generator || true)"
+
+                  if [ -z "${MAP_EXTRACTOR}" ] || [ -z "${VMAP_EXTRACTOR}" ] || [ -z "${VMAP_ASSEMBLER}" ] || [ -z "${MMAPS_GENERATOR}" ]; then
+                    echo "Missing one or more extractor tools in the tools image." >&2
+                    echo "Found: map_extractor=${MAP_EXTRACTOR:-<missing>} vmap4_extractor=${VMAP_EXTRACTOR:-<missing>} vmap4_assembler=${VMAP_ASSEMBLER:-<missing>} mmaps_generator=${MMAPS_GENERATOR:-<missing>}" >&2
+                    exit 1
+                  fi
+
+                  echo "Preparing workspace..."
+                  rm -rf /work/wow
+                  mkdir -p /work/wow
+
+                  # AzerothCore extractor expects tools and ./Data (capital D) in the current directory.
+                  # Some client packs store this as lowercase `data/` with lowercase `.mpq` files, which
+                  # breaks extractors on case-sensitive filesystems. Build a compatibility `Data/` tree.
+                  mkdir -p /work/wow/Data
+
+                  # Link all root MPQs with `.MPQ` extension (and keep original base name casing).
+                  for f in "${client_data_dir}"/*; do
+                    [ -f "$f" ] || continue
+                    b="$(basename "$f")"
+                    case "$b" in
+                      *.mpq) ln -sf "$f" "/work/wow/Data/${b%.mpq}.MPQ" ;;
+                      *.MPQ) ln -sf "$f" "/work/wow/Data/$b" ;;
+                      *) : ;;
+                    esac
+                  done
+
+                  # Common expected names (exact case)
+                  [ -f "${client_data_dir}/common.mpq" ] && ln -sf "${client_data_dir}/common.mpq" /work/wow/Data/common.MPQ || true
+                  [ -f "${client_data_dir}/common-2.mpq" ] && ln -sf "${client_data_dir}/common-2.mpq" /work/wow/Data/common-2.MPQ || true
+                  [ -f "${client_data_dir}/expansion.mpq" ] && ln -sf "${client_data_dir}/expansion.mpq" /work/wow/Data/expansion.MPQ || true
+                  [ -f "${client_data_dir}/lichking.mpq" ] && ln -sf "${client_data_dir}/lichking.mpq" /work/wow/Data/lichking.MPQ || true
+
+                  # Locale folders mapping (lowercase -> expected WoW casing)
+                  map_locale_dir() {
+                    case "$1" in
+                      enus) echo "enUS" ;;
+                      engb) echo "enGB" ;;
+                      dede) echo "deDE" ;;
+                      eses) echo "esES" ;;
+                      frfr) echo "frFR" ;;
+                      ruru) echo "ruRU" ;;
+                      *) echo "" ;;
+                    esac
+                  }
+
+                  for lc in "${client_data_dir}"/*; do
+                    [ -d "$lc" ] || continue
+                    lc_base="$(basename "$lc")"
+                    loc="$(map_locale_dir "$lc_base")"
+                    [ -z "$loc" ] && continue
+
+                    mkdir -p "/work/wow/Data/${loc}"
+                    # Link files, normalizing `.mpq` -> `.MPQ` and locale substring in filenames.
+                    for lf in "$lc"/*; do
+                      [ -f "$lf" ] || continue
+                      lb="$(basename "$lf")"
+                      nb="$lb"
+                      nb="${nb//$lc_base/$loc}"
+                      case "$nb" in
+                        *.mpq) nb="${nb%.mpq}.MPQ" ;;
+                        *.MPQ) : ;;
+                        *) : ;;
+                      esac
+                      ln -sf "$lf" "/work/wow/Data/${loc}/${nb}"
+                    done
+                  done
+
+                  cp -f "${MAP_EXTRACTOR}" /work/wow/map_extractor
+                  cp -f "${VMAP_EXTRACTOR}" /work/wow/vmap4_extractor
+                  cp -f "${VMAP_ASSEMBLER}" /work/wow/vmap4_assembler
+                  cp -f "${MMAPS_GENERATOR}" /work/wow/mmaps_generator
+                  chmod +x /work/wow/map_extractor /work/wow/vmap4_extractor /work/wow/vmap4_assembler /work/wow/mmaps_generator
+
+                  cd /work/wow
+
+                  echo "Extracting base (dbc/maps/Cameras)..."
+                  rm -rf dbc maps Cameras
+                  ./map_extractor
+
+                  echo "Extracting vmaps..."
+                  mkdir -p Buildings vmaps
+                  rm -rf Buildings/* vmaps/*
+                  ./vmap4_extractor
+                  ./vmap4_assembler Buildings vmaps
+                  rm -rf Buildings || true
+
+                  echo "Generating mmaps (can take hours)..."
+                  mkdir -p mmaps
+                  rm -rf mmaps/*
+                  ./mmaps_generator
+
+                  echo "Copying extracted data to /data..."
+                  mkdir -p /data
+                  rm -rf /data/dbc /data/maps /data/vmaps /data/Cameras /data/mmaps || true
+                  [ -d dbc ] && cp -a dbc /data/
+                  [ -d maps ] && cp -a maps /data/
+                  [ -d vmaps ] && cp -a vmaps /data/
+                  [ -d Cameras ] && cp -a Cameras /data/ || true
+                  [ -d mmaps ] && cp -a mmaps /data/ || true
+
+                  echo "Done."
+              volumeMounts:
+                - name: client
+                  mountPath: /client
+                  readOnly: true
+                - name: data
+                  mountPath: /data
+                - name: work
+                  mountPath: /work

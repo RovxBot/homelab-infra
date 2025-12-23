@@ -103,6 +103,36 @@ spec:
                 # Copy defaults once; allow user overrides via future config management.
                 cp -n "$f" "/azerothcore/env/dist/etc/modules/$base" || true
               done
+
+              # Tweak playerbots defaults to be more "real" (less teleport-y, fewer bots).
+              conf="/azerothcore/env/dist/etc/modules/playerbots.conf"
+              if [ -f "$conf" ]; then
+                set_kv() {
+                  k="$1"
+                  v="$2"
+                  if grep -qE "^${k}[[:space:]]*=" "$conf"; then
+                    perl -pi -e "s/^\\Q${k}\\E\\s*=.*$/${k} = ${v}/" "$conf"
+                  else
+                    echo "${k} = ${v}" >>"$conf"
+                  fi
+                }
+
+                # Keep bots enabled.
+                set_kv "AiPlayerbot.Enabled" "1"
+                set_kv "AiPlayerbot.RandomBotAutologin" "1"
+
+                # Reduce load and chaos (500 can be very janky without perfect navmeshes).
+                set_kv "AiPlayerbot.MinRandomBots" "150"
+                set_kv "AiPlayerbot.MaxRandomBots" "150"
+
+                # Prefer RPG / questing behavior, but with less artificial teleporting.
+                set_kv "AiPlayerbot.RandomBotRpgChance" "0.45"
+                set_kv "AiPlayerbot.ProbTeleToBankers" "0.05"
+                set_kv "AiPlayerbot.AutoTeleportForLevel" "0"
+
+                # Teleporting after death can place bots in bad terrain; keep it small.
+                set_kv "AiPlayerbot.RandomBotTeleportDistance" "25"
+              fi
           volumeMounts:
             - name: etc
               mountPath: /azerothcore/env/dist/etc

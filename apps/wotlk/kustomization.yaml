@@ -10,6 +10,7 @@ resources:
   - data-pvc-rwx.yaml
   - db-bootstrap-cronjob.yaml
   - client-extract-cronjob.yaml
+  - client-extract-mmaps-cronjob.yaml
   - authserver-config.yaml
   - authserver-deployment.yaml
   - worldserver-config.yaml
