@@ -138,6 +138,13 @@ spec:
 
                 # Cap randombot max level to the highest real player online.
                 set_kv "AiPlayerbot.SyncLevelWithPlayers" "1"
+
+                # Allow full 40-man raids (player + 39 bots).
+                set_kv "AiPlayerbot.MaxAddedBots" "39"
+
+                # Make bots reject invites from much lower-geared players.
+                # (Level-based invites are already enabled via GroupInvitationPermission=1.)
+                set_kv "AiPlayerbot.GearScoreCheck" "1"
               fi
           volumeMounts:
             - name: etc
