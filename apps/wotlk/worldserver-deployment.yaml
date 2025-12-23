@@ -63,7 +63,7 @@ spec:
               mountPath: /etc-out
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-master
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot
           imagePullPolicy: Always
           ports:
             - name: world

@@ -25,9 +25,9 @@ spec:
               image: alpine/git:2.47.2
               env:
                 - name: ACORE_REPO
-                  value: https://github.com/azerothcore/azerothcore-wotlk.git
+                  value: https://github.com/mod-playerbots/azerothcore-wotlk.git
                 - name: ACORE_REF
-                  value: master
+                  value: Playerbot
               command:
                 - sh
                 - -lc
