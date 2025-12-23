@@ -89,14 +89,26 @@ data:
         ],
       ]);
 
-      $resp = @file_get_contents($soapUrl, false, $context);
-      if ($resp === false) {
+      $attempts = 20;
+      for ($i = 1; $i <= $attempts; $i++) {
+        $resp = @file_get_contents($soapUrl, false, $context);
+        if ($resp !== false) {
+          return $resp;
+        }
+
         $err = error_get_last();
         $msg = $err['message'] ?? 'request failed';
+
+        // Worldserver SOAP may not be ready yet right after a rollout.
+        if (strpos($msg, 'Connection refused') !== false || strpos($msg, 'Failed to open stream') !== false) {
+          usleep(500000); // 0.5s
+          continue;
+        }
+
         throw new RuntimeException("SOAP request failed: " . $msg);
       }
 
-      return $resp;
+      throw new RuntimeException("SOAP request failed: worldserver SOAP not ready (timed out).");
     }
 
     function renderPage(string $flash = '', string $flashKind = 'info'): void {
