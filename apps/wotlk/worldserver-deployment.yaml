@@ -131,9 +131,9 @@ spec:
                 set_kv "AiPlayerbot.Enabled" "1"
                 set_kv "AiPlayerbot.RandomBotAutologin" "1"
 
-                # Reduce load and chaos (500 can be very janky without perfect navmeshes).
-                set_kv "AiPlayerbot.MinRandomBots" "150"
-                set_kv "AiPlayerbot.MaxRandomBots" "150"
+                # Mid-sized server feel: increase activity without going overboard.
+                set_kv "AiPlayerbot.MinRandomBots" "250"
+                set_kv "AiPlayerbot.MaxRandomBots" "250"
 
                 # Prefer RPG / questing behavior, but with less artificial teleporting.
                 set_kv "AiPlayerbot.RandomBotRpgChance" "0.45"
@@ -178,7 +178,7 @@ spec:
                 set_kv "AiPlayerbot.DisabledWithoutRealPlayerLogoutDelay" "120"
 
                 set_kv "AiPlayerbot.EnablePeriodicOnlineOffline" "1"
-                set_kv "AiPlayerbot.PeriodicOnlineOfflineRatio" "2.5"
+                set_kv "AiPlayerbot.PeriodicOnlineOfflineRatio" "2.0"
               fi
           volumeMounts:
             - name: etc
