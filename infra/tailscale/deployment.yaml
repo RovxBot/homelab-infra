@@ -14,28 +14,64 @@ spec:
         app: tailscale-funnel
     spec:
       serviceAccountName: tailscale
+
+      # Needed so emptyDir mounts are writable for your non-root UID
+      securityContext:
+        fsGroup: 1000
+
       containers:
         - name: tailscale
           image: tailscale/tailscale:latest
           imagePullPolicy: Always
+
           env:
             - name: TS_AUTHKEY
               valueFrom:
                 secretKeyRef:
                   name: tailscale-auth
                   key: TS_AUTHKEY
+
+            # Persist node state in a K8s secret (requires your RBAC, which you have)
             - name: TS_KUBE_SECRET
               value: tailscale-state
+
+            # Userspace mode (no NET_ADMIN / no privileged)
             - name: TS_USERSPACE
               value: "true"
+
+            # Make sure state dir is writable
             - name: TS_STATE_DIR
               value: /var/lib/tailscale
+
+            # Use a stable serve config path
             - name: TS_SERVE_CONFIG
               value: /config/serve.json
+
+            # Avoid writing into an unwritable working directory
+            - name: HOME
+              value: /tmp
+
+            # Fix the default socket path problems you hit earlier
+            - name: TS_SOCKET
+              value: /var/run/tailscale/tailscaled.sock
+
+            # Strongly recommended: keep identity + tag stable across restarts
+            - name: TS_EXTRA_ARGS
+              value: "--hostname=samflix --advertise-tags=tag:samflix"
+
           volumeMounts:
             - name: serve-config
               mountPath: /config
               readOnly: true
+
+            # Writable runtime dirs for non-root
+            - name: ts-run
+              mountPath: /var/run/tailscale
+            - name: ts-state
+              mountPath: /var/lib/tailscale
+            - name: ts-tmp
+              mountPath: /tmp
+
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -45,7 +81,15 @@ spec:
             runAsUser: 1000
             seccompProfile:
               type: RuntimeDefault
+
       volumes:
         - name: serve-config
           configMap:
             name: tailscale-serve-config
+
+        - name: ts-run
+          emptyDir: {}
+        - name: ts-state
+          emptyDir: {}
+        - name: ts-tmp
+          emptyDir: {}
