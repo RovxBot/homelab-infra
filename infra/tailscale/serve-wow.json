@@ -1,0 +1,22 @@
+{
+  "TCP": {
+    "3724": {
+      "TCPForward": "192.168.1.197:3724"
+    },
+    "443": {
+      "HTTPS": true
+    },
+    "8085": {
+      "TCPForward": "192.168.1.197:8085"
+    }
+  },
+  "Web": {
+    "wow.risk-lenok.ts.net:443": {
+      "Handlers": {
+        "/": {
+          "Proxy": "http://wotlk-accountmgr.wotlk.svc.cluster.local:80"
+        }
+      }
+    }
+  }
+}
