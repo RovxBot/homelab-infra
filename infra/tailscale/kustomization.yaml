@@ -4,5 +4,9 @@ namespace: tailscale
 resources:
   - namespace.yaml
   - rbac.yaml
-  - configmap.yaml
   - deployment.yaml
+
+configMapGenerator:
+  - name: tailscale-serve-config
+    files:
+      - serve.json
