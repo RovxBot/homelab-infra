@@ -17,6 +17,13 @@
           "Proxy": "http://jellyfin.media.svc.cluster.local:8096"
         }
       }
+    },
+    "wow.risk-lenok.ts.net:443": {
+      "Handlers": {
+        "/": {
+          "Proxy": "http://wotlk-accountmgr.wotlk.svc.cluster.local:80"
+        }
+      }
     }
   },
   "AllowFunnel": {
