@@ -6,6 +6,9 @@
     "443": {
       "HTTPS": true
     },
+    "8443": {
+      "HTTPS": true
+    },
     "8085": {
       "TCPForward": "192.168.1.197:8085"
     }
@@ -18,7 +21,7 @@
         }
       }
     },
-    "wow.risk-lenok.ts.net:443": {
+    "samflix.risk-lenok.ts.net:8443": {
       "Handlers": {
         "/": {
           "Proxy": "http://wotlk-accountmgr.wotlk.svc.cluster.local:80"
