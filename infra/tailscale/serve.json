@@ -1,16 +1,7 @@
 {
   "TCP": {
-    "3724": {
-      "TCPForward": "192.168.1.197:3724"
-    },
     "443": {
       "HTTPS": true
-    },
-    "8443": {
-      "HTTPS": true
-    },
-    "8085": {
-      "TCPForward": "192.168.1.197:8085"
     }
   },
   "Web": {
@@ -18,13 +9,6 @@
       "Handlers": {
         "/": {
           "Proxy": "http://jellyfin.media.svc.cluster.local:8096"
-        }
-      }
-    },
-    "samflix.risk-lenok.ts.net:8443": {
-      "Handlers": {
-        "/": {
-          "Proxy": "http://wotlk-accountmgr.wotlk.svc.cluster.local:80"
         }
       }
     }

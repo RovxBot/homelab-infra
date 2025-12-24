@@ -5,8 +5,12 @@ resources:
   - namespace.yaml
   - rbac.yaml
   - deployment.yaml
+  - deployment-wow.yaml
 
 configMapGenerator:
   - name: tailscale-serve-config
     files:
       - serve.json
+  - name: tailscale-serve-config-wow
+    files:
+      - serve.json=serve-wow.json
