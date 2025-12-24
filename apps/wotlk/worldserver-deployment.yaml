@@ -132,8 +132,8 @@ spec:
                 set_kv "AiPlayerbot.RandomBotAutologin" "1"
 
                 # Mid-sized server feel: increase activity without going overboard.
-                set_kv "AiPlayerbot.MinRandomBots" "250"
-                set_kv "AiPlayerbot.MaxRandomBots" "250"
+                set_kv "AiPlayerbot.MinRandomBots" "300"
+                set_kv "AiPlayerbot.MaxRandomBots" "500"
 
                 # Prefer RPG / questing behavior, but with less artificial teleporting.
                 set_kv "AiPlayerbot.RandomBotRpgChance" "0.45"
@@ -165,8 +165,8 @@ spec:
                 set_kv "AiPlayerbot.AutoUpgradeEquip" "0"
 
                 # Bots shouldn't auto-queue systems unless you want them to.
-                set_kv "AiPlayerbot.RandomBotJoinLfg" "0"
-                set_kv "AiPlayerbot.RandomBotJoinBG" "0"
+                set_kv "AiPlayerbot.RandomBotJoinLfg" "1"
+                set_kv "AiPlayerbot.RandomBotJoinBG" "1"
 
                 # Add a bit of imperfection so they don't look "too optimal".
                 set_kv "AiPlayerbot.RandomGearLoweringChance" "0.25"
