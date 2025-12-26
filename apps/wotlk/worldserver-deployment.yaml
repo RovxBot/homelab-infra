@@ -325,7 +325,7 @@ spec:
           emptyDir: {}
         - name: modules
           hostPath:
-            path: /tmp/modules
+            path: /opt/homelab-modules
         - name: accountmgr-web
           configMap:
             name: wotlk-accountmgr
