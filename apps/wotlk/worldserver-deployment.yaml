@@ -49,12 +49,17 @@ spec:
               # Use local custom AOE loot module with quality filtering
               echo "Checking for modules directory..."
               ls -la /modules/ || echo "Modules directory not found"
-              if [ -d "/modules/mod-aoe-loot-quality-filter" ]; then
-                echo "Found local AOE loot module, copying..."
-                ls -la /modules/mod-aoe-loot-quality-filter/
-                cp -rv /modules/mod-aoe-loot-quality-filter /acore-src/modules/mod-aoe-loot
+              if [ -f "/modules/aoe_loot.cpp" ]; then
+                echo "Found custom AOE loot files in ConfigMap, copying..."
+                mkdir -p /acore-src/modules/mod-aoe-loot/src
+                mkdir -p /acore-src/modules/mod-aoe-loot/conf
+                cp /modules/aoe_loot.cpp /acore-src/modules/mod-aoe-loot/src/
+                cp /modules/aoe_loot.h /acore-src/modules/mod-aoe-loot/src/
+                cp /modules/aoe_loot_loader.cpp /acore-src/modules/mod-aoe-loot/src/
+                cp /modules/mod_aoe_loot.conf.dist /acore-src/modules/mod-aoe-loot/conf/
+                echo "Custom AOE loot module copied successfully"
               else
-                echo "Local AOE loot module not found at /modules/mod-aoe-loot-quality-filter, cloning from GitHub..."
+                echo "Custom AOE loot files not found in /modules/, cloning from GitHub..."
                 clone_module "https://github.com/azerothcore/mod-aoe-loot.git" "master"
               fi
           volumeMounts:
@@ -324,8 +329,8 @@ spec:
         - name: acore-src
           emptyDir: {}
         - name: modules
-          hostPath:
-            path: /var/lib/homelab-modules
+          configMap:
+            name: wotlk-aoe-loot-custom
         - name: accountmgr-web
           configMap:
             name: wotlk-accountmgr
