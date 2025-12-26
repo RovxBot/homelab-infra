@@ -55,3 +55,9 @@ See `apps/wotlk/PROGRESSION.md` for the current **Individual Progression** tier 
 If Playerbots feel janky (stuck on hills, odd movement), generate **mmaps** once. This can take hours and will use CPU heavily while it runs:
 
 - `kubectl -n wotlk create job --from=cronjob/wotlk-client-extract-mmaps wotlk-client-extract-mmaps-1`
+
+
+## Invite code:
+
+To get the code: kubectl -n wotlk get secret wotlk-accountmgr-invite -o jsonpath='{.data.INVITE_CODE}' | base64 -d; echo
+xBJLTDCmKl
