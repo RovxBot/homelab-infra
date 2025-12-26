@@ -140,8 +140,29 @@ spec:
                 set_kv "AiPlayerbot.ProbTeleToBankers" "0.05"
                 set_kv "AiPlayerbot.AutoTeleportForLevel" "0"
 
-                # Teleporting after death can place bots in bad terrain; keep it small.
-                set_kv "AiPlayerbot.RandomBotTeleportDistance" "25"
+                # Increase teleport distance to allow bots to spread out more
+                set_kv "AiPlayerbot.RandomBotTeleportDistance" "250"
+
+                # Allow more frequent teleports to different areas
+                set_kv "AiPlayerbot.MinRandomBotTeleportInterval" "1800"  # 30 minutes
+                set_kv "AiPlayerbot.MaxRandomBotTeleportInterval" "7200"  # 2 hours
+
+                # Increase RPG chance to encourage more exploration
+                set_kv "AiPlayerbot.RandomBotRpgChance" "0.60"
+
+                # Allow bots to teleport to bankers more often to visit different cities
+                set_kv "AiPlayerbot.ProbTeleToBankers" "0.35"
+
+                # Enable weighted teleportation to major cities
+                set_kv "AiPlayerbot.EnableWeightTeleToCityBankers" "1"
+
+                # Increase city teleport weights to encourage city visits
+                set_kv "AiPlayerbot.TeleToStormwindWeight" "3"
+                set_kv "AiPlayerbot.TeleToIronforgeWeight" "2"
+                set_kv "AiPlayerbot.TeleToDarnassusWeight" "2"
+                set_kv "AiPlayerbot.TeleToOrgrimmarWeight" "3"
+                set_kv "AiPlayerbot.TeleToUndercityWeight" "2"
+                set_kv "AiPlayerbot.TeleToThunderBluffWeight" "2"
 
                 # No auto-summon/port-to-player on invite.
                 set_kv "AiPlayerbot.SummonWhenGroup" "0"
