@@ -45,10 +45,23 @@ spec:
               clone_module "https://github.com/ZhengPeiRu21/mod-individual-progression.git" "master"
               clone_module "https://github.com/mod-playerbots/mod-playerbots.git" "master"
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
-              clone_module "https://github.com/azerothcore/mod-aoe-loot.git" "master"
+              
+              # Use local custom AOE loot module with quality filtering
+              echo "Checking for modules directory..."
+              ls -la /modules/ || echo "Modules directory not found"
+              if [ -d "/modules/mod-aoe-loot-quality-filter" ]; then
+                echo "Found local AOE loot module, copying..."
+                ls -la /modules/mod-aoe-loot-quality-filter/
+                cp -rv /modules/mod-aoe-loot-quality-filter /acore-src/modules/mod-aoe-loot
+              else
+                echo "Local AOE loot module not found at /modules/mod-aoe-loot-quality-filter, cloning from GitHub..."
+                clone_module "https://github.com/azerothcore/mod-aoe-loot.git" "master"
+              fi
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
+            - name: modules
+              mountPath: /modules
         - name: render-config
           image: alpine:3.20
           command:
@@ -192,11 +205,9 @@ spec:
                 # Add a bit of imperfection so they don't look "too optimal".
                 set_kv "AiPlayerbot.RandomGearLoweringChance" "0.25"
 
-                # Mid-sized server feel: bots cycle online/offline from a larger pool,
-                # and only run while at least one real player is online.
-                set_kv "AiPlayerbot.DisabledWithoutRealPlayer" "1"
-                set_kv "AiPlayerbot.DisabledWithoutRealPlayerLoginDelay" "15"
-                set_kv "AiPlayerbot.DisabledWithoutRealPlayerLogoutDelay" "120"
+                # Disable AOE loot for now to prevent conflicts with PlayerBots
+                set_kv "AOELoot.Enable" "1"
+                set_kv "AOELoot.MaxQuality" "1"
 
                 set_kv "AiPlayerbot.EnablePeriodicOnlineOffline" "1"
                 set_kv "AiPlayerbot.PeriodicOnlineOfflineRatio" "2.0"
@@ -312,6 +323,9 @@ spec:
             claimName: wotlk-data-rwx
         - name: acore-src
           emptyDir: {}
+        - name: modules
+          hostPath:
+            path: /tmp/modules
         - name: accountmgr-web
           configMap:
             name: wotlk-accountmgr
