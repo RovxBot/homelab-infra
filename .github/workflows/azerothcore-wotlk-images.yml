@@ -73,6 +73,11 @@ jobs:
                 echo "Using custom AOE loot module with quality filtering"
                 mkdir -p ".work/acore/modules/$name"
                 cp -r modules/mod-aoe-loot-quality-filter/* ".work/acore/modules/$name/"
+              # Special handling for local mod-playerbots (always use local version)
+              elif [[ "$repo" == "https://github.com/mod-playerbots/mod-playerbots@master" ]]; then
+                echo "Using local modules/mod-playerbots (custom version)"
+                mkdir -p ".work/acore/modules/mod-playerbots"
+                cp -r modules/mod-playerbots/* .work/acore/modules/mod-playerbots/
               else
                 git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
               fi
