@@ -53,9 +53,4 @@ data:
     MaxPingTime = 30
 
     # Logger settings
-    Logger.root.level = 3
-    Logger.root.appender = Console
-    Logger.server.level = 0
-    Logger.server.appender = Console
-    Appender.Console.name = Console
-    Appender.Console.type = 1
+    Logger.root = 4,Console Auth
