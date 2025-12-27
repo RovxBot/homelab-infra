@@ -923,3 +923,14 @@ data:
     Respawn.DynamicMinimumCreature = 10
     Respawn.DynamicRateGameObject = 1
     Respawn.DynamicMinimumGameObject = 10
+
+    # AOELoot settings
+    AOELoot.Enabled = 1
+    AOELoot.MaxQuality = 1
+
+    # Level threshold for stuck bot teleport (default: 6)
+    AiPlayerbot.StuckBotLevelThreshold = 6
+    # Timeout (seconds) for stuck in starting area (default: 300)
+    AiPlayerbot.StuckBotStartzoneTimeout = 300
+    # Timeout (seconds) for inactivity/movement stuck (default: 180)
+    AiPlayerbot.StuckBotInactivityTimeout = 180

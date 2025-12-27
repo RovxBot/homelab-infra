@@ -117,7 +117,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-81cc8f63d75ed699530ba89a1404a5f6c706f039
           imagePullPolicy: Always
           command:
             - bash
@@ -189,7 +189,7 @@ spec:
                 # Prefer RPG / questing behavior, but with less artificial teleporting.
                 set_kv "AiPlayerbot.RandomBotRpgChance" "0.45"
                 set_kv "AiPlayerbot.ProbTeleToBankers" "0.05"
-                set_kv "AiPlayerbot.AutoTeleportForLevel" "0"
+                set_kv "AiPlayerbot.AutoTeleportForLevel" "1"
 
                 # Increase teleport distance to allow bots to spread out more
                 set_kv "AiPlayerbot.RandomBotTeleportDistance" "250"
