@@ -118,3 +118,6 @@ data:
 
     # Calendar settings
     Calendar.Enable = 1
+
+    # Stats limits (fixes disconnection issues)
+    Stats.Limits.Enable = 0
