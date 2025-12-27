@@ -149,9 +149,8 @@ spec:
                 set_kv "AuctionHouseBot.EnableSeller" "true"
                 set_kv "AuctionHouseBot.Buyer.Enabled" "true"
                 
-                # Configure AH bot characters (will need to be updated with actual GUIDs)
-                # For now, disable specific GUIDs until characters are created
-                set_kv "AuctionHouseBot.GUIDs" "0"
+                # Configure AH bot characters with actual GUIDs
+                set_kv "AuctionHouseBot.GUIDs" "2105,2107,2106"
                 
                 # Reasonable trading cycles
                 set_kv "AuctionHouseBot.ItemsPerCycle" "50"
