@@ -13,3 +13,21 @@ data:
     # Authentication settings
     StrictVersionCheck = 0
     AllowLoggingIPAddressesInDatabase = 1
+
+    # Update settings
+    Updates.AllowRehash = 1
+    Updates.ArchivedRedundancy = 0
+    Updates.CleanDeadRefMaxCount = 3
+
+    # TOTP settings
+    TOTPMasterSecret = ""
+
+    # IP Location settings
+    IPLocationFile = ""
+
+    # Realm settings
+    RealmsStateUpdateDelay = 20
+
+    # Network settings
+    Network.UseSocketActivation = 0
+    EnableProxyProtocol = 0
