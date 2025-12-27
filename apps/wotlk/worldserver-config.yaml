@@ -83,6 +83,8 @@ data:
     Warden.NumMemChecks = 3
     Warden.NumOtherChecks = 7
     Warden.ClientResponseDelay = 30
+    Warden.ClientCheckHoldOff = 30
+    Warden.ClientCheckFailAction = 0
 
     # World scaling and population feel
     Visibility.GroupMode = 1
