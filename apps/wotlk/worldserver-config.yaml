@@ -619,13 +619,13 @@ data:
     Rate.RewardBonusMoney = 1
 
     # Creature settings
-    MonsterSight = 50.000000
+    MonsterSight = 45.000000
     Rate.Creature.Aggro = 1
-    CreatureFamilyFleeAssistanceRadius = 30
-    CreatureLeashRadius = 30
+    CreatureFamilyFleeAssistanceRadius = 25
+    CreatureLeashRadius = 25
     CreatureFamilyAssistanceRadius = 10
-    CreatureFamilyAssistanceDelay = 2000
-    CreatureFamilyAssistancePeriod = 3000
+    CreatureFamilyAssistanceDelay = 1750
+    CreatureFamilyAssistancePeriod = 2750
     CreatureFamilyFleeDelay = 7000
     WorldBossLevelDiff = 3
 
