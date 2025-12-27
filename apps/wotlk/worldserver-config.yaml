@@ -423,12 +423,12 @@ data:
     CharacterCreating.Disabled.ClassMask = 0
     CharactersPerAccount = 50
     CharactersPerRealm = 10
-    HeroicCharactersPerRealm = 5
-    CharacterCreating.MinLevelForHeroicCharacter = 20
+    HeroicCharactersPerRealm = 1
+    CharacterCreating.MinLevelForHeroicCharacter = 55
 
     # Starting level settings
     StartPlayerLevel = 1
-    StartHeroicPlayerLevel = 20
+    StartHeroicPlayerLevel = 55
     SkipCinematics = 0
 
     # Starting money settings
@@ -445,7 +445,7 @@ data:
 
     # Movement speed rates
     Rate.MoveSpeed.Player = 1
-    Rate.MoveSpeed.NPC = 1.2
+    Rate.MoveSpeed.NPC = 1
 
     # Damage rates
     Rate.Damage.Fall = 1
@@ -619,14 +619,14 @@ data:
     Rate.RewardBonusMoney = 1
 
     # Creature settings
-    MonsterSight = 25.000000
+    MonsterSight = 45.000000
     Rate.Creature.Aggro = 1
-    CreatureFamilyFleeAssistanceRadius = 20
-    CreatureLeashRadius = 15
+    CreatureFamilyFleeAssistanceRadius = 25
+    CreatureLeashRadius = 25
     CreatureFamilyAssistanceRadius = 10
-    CreatureFamilyAssistanceDelay = 1500
-    CreatureFamilyAssistancePeriod = 2500
-    CreatureFamilyFleeDelay = 5000
+    CreatureFamilyAssistanceDelay = 1750
+    CreatureFamilyAssistancePeriod = 2750
+    CreatureFamilyFleeDelay = 7000
     WorldBossLevelDiff = 3
 
     # Corpse decay settings
@@ -665,11 +665,11 @@ data:
 
     # Creature behavior settings
     Creature.RepositionAgainstNpcs = 1
-    Creature.MovingStopTimeForPlayer = 120000
-    WaypointMovementStopTimeForPlayer = 60
-    NpcEvadeIfTargetIsUnreachable = 10
-    NpcRegenHPIfTargetIsUnreachable = 0
-    NpcRegenHPTimeIfTargetIsUnreachable = 5
+    Creature.MovingStopTimeForPlayer = 180000
+    WaypointMovementStopTimeForPlayer = 120
+    NpcEvadeIfTargetIsUnreachable = 5
+    NpcRegenHPIfTargetIsUnreachable = 1
+    NpcRegenHPTimeIfTargetIsUnreachable = 10
     Creatures.CustomIDs = "190010,55005,999991,25462,98888,601014,34567,34568"
 
     # Vendor rates
