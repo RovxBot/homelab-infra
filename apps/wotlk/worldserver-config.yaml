@@ -123,3 +123,7 @@ data:
 
     # Stats limits (fixes disconnection issues)
     Stats.Limits.Enable = 0
+
+    # Network settings
+    Network.UseSocketActivation = 0
+    Network.EnableProxyProtocol = 0
