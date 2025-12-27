@@ -145,16 +145,26 @@ spec:
                   fi
                 }
 
-                # Enable AH bot buying and selling
-                set_kv "AuctionHouseBot.EnableSeller" "true"
-                set_kv "AuctionHouseBot.Buyer.Enabled" "true"
+                # Enable drop rates to make rare items appear less frequently
+                set_kv "AuctionHouseBot.AdvancedListingRules.UseDropRates.Enabled" "true"
                 
-                # Configure AH bot characters with actual GUIDs
-                set_kv "AuctionHouseBot.GUIDs" "2105,2107,2106"
+                # Reduce epic item frequency across categories
+                set_kv "AuctionHouseBot.ListProportion.CategoryWeapon.QualityEpic" "1"
+                set_kv "AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic" "2"
+                set_kv "AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic" "1"
+                set_kv "AuctionHouseBot.ListProportion.CategoryGem.QualityEpic" "1"
+                set_kv "AuctionHouseBot.ListProportion.CategoryTradeGood.QualityEpic" "1"
+                set_kv "AuctionHouseBot.ListProportion.CategoryRecipe.QualityEpic" "2"
                 
-                # Reasonable trading cycles
-                set_kv "AuctionHouseBot.ItemsPerCycle" "50"
-                set_kv "AuctionHouseBot.Buyer.BuyCandidatesPerBuyCycle" "10"
+                # Eliminate legendary items completely
+                set_kv "AuctionHouseBot.ListProportion.CategoryGeneric.QualityLegendary" "0"
+                
+                # Increase price multipliers for rare items to prevent cheap epics
+                set_kv "AuctionHouseBot.PriceMultiplier.Quality.Epic" "4.0"
+                set_kv "AuctionHouseBot.PriceMultiplier.Quality.Legendary" "10.0"
+                
+                # Make buyers more conservative to avoid driving prices down
+                set_kv "AuctionHouseBot.Buyer.AcceptablePriceModifier" "0.8"
               fi
               conf="/azerothcore/env/dist/etc/modules/playerbots.conf"
               if [ -f "$conf" ]; then
