@@ -23,6 +23,11 @@ data:
     WorldDatabaseInfo     = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_WORLD_DB}"
     CharacterDatabaseInfo = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_CHAR_DB}"
 
+    # Database worker threads
+    LoginDatabase.WorkerThreads = 1
+    WorldDatabase.WorkerThreads = 1
+    CharacterDatabase.WorkerThreads = 1
+
     # Rates for authentic server feel - normal progression
     Rate.XP.Kill = 1
     Rate.XP.Quest = 1
