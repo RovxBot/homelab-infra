@@ -41,3 +41,13 @@ data:
 
     # MySQL settings
     MySQLExecutable = ""
+
+    # Update settings
+    Updates.Redundancy = 1
+
+    # Process settings
+    UseProcessors = 0
+    ProcessPriority = 0
+
+    # Network settings
+    MaxPingTime = 30
