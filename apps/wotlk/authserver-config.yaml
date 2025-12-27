@@ -31,3 +31,13 @@ data:
     # Network settings
     Network.UseSocketActivation = 0
     EnableProxyProtocol = 0
+
+    # Process settings
+    PidFile = ""
+
+    # Database settings
+    LoginDatabase.WorkerThreads = 1
+    LoginDatabase.SynchThreads = 1
+
+    # MySQL settings
+    MySQLExecutable = ""
