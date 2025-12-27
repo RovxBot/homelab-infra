@@ -130,9 +130,31 @@ spec:
                 base="$(basename "$f" .dist)"
                 # Copy defaults once; allow user overrides via future config management.
                 cp -n "$f" "/azerothcore/env/dist/etc/modules/$base" || true
-              done
+              # Tweak AH bot defaults to enable buying and selling
+              conf="/azerothcore/env/dist/etc/modules/mod_ahbot.conf"
+              if [ -f "$conf" ]; then
+                set_kv() {
+                  k="$1"
+                  v="$2"
+                  if grep -qE "^${k}[[:space:]]*=" "$conf"; then
+                    perl -pi -e "s/^\\Q${k}\\E\\s*=.*$/${k} = ${v}/" "$conf"
+                  else
+                    echo "${k} = ${v}" >>"$conf"
+                  fi
+                }
 
-              # Tweak playerbots defaults to be more "real" (less teleport-y, fewer bots).
+                # Enable AH bot buying and selling
+                set_kv "AuctionHouseBot.EnableSeller" "true"
+                set_kv "AuctionHouseBot.Buyer.Enabled" "true"
+                
+                # Configure AH bot characters (will need to be updated with actual GUIDs)
+                # For now, disable specific GUIDs until characters are created
+                set_kv "AuctionHouseBot.GUIDs" "0"
+                
+                # Reasonable trading cycles
+                set_kv "AuctionHouseBot.ItemsPerCycle" "50"
+                set_kv "AuctionHouseBot.Buyer.BuyCandidatesPerBuyCycle" "10"
+              fi
               conf="/azerothcore/env/dist/etc/modules/playerbots.conf"
               if [ -f "$conf" ]; then
                 set_kv() {
@@ -210,7 +232,28 @@ spec:
                 # Add a bit of imperfection so they don't look "too optimal".
                 set_kv "AiPlayerbot.RandomGearLoweringChance" "0.25"
 
-                # Disable AOE loot for now to prevent conflicts with PlayerBots
+                # Enable bots to learn and use professions
+                set_kv "AiPlayerbot.AutoLearnTrainerSpells" "1"
+                set_kv "AiPlayerbot.AutoLearnQuestSpells" "1"
+                set_kv "AiPlayerbot.AutoDoQuests" "1"
+                
+                # Enable gathering activities (mining, herbalism, fishing, skinning)
+                set_kv "AiPlayerbot.GatherDistance" "50.0"
+                set_kv "AiPlayerbot.MaxGatherDistance" "100.0"
+                
+                # Enable crafting and profession usage
+                set_kv "AiPlayerbot.UseCrafting" "1"
+                set_kv "AiPlayerbot.CraftLevelLimit" "375"
+                
+                # Enable auction house trading for bots
+                set_kv "AiPlayerbot.EnableRandomBotTrading" "1"
+                set_kv "AiPlayerbot.RandomBotTradeChance" "0.15"
+                
+                # Make bots more economically active
+                set_kv "AiPlayerbot.RandomBotJoinLfg" "1"
+                set_kv "AiPlayerbot.RandomBotJoinBG" "1"
+
+                # Enable AOE loot with quality filtering
                 set_kv "AOELoot.Enable" "1"
                 set_kv "AOELoot.MaxQuality" "1"
 
