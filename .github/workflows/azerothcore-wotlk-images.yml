@@ -67,7 +67,15 @@ jobs:
 
               name="$(basename "$repo" .git)"
               echo "Adding module: $repo@$ref -> modules/$name"
-              git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
+              
+              # Special handling for AOE loot - use our custom quality-filtered version
+              if [[ "$repo" == "https://github.com/azerothcore/mod-aoe-loot" ]]; then
+                echo "Using custom AOE loot module with quality filtering"
+                mkdir -p ".work/acore/modules/$name"
+                cp -r modules/mod-aoe-loot-quality-filter/* ".work/acore/modules/$name/"
+              else
+                git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
+              fi
             done < ops/wotlk-images/modules.txt
           fi
 
