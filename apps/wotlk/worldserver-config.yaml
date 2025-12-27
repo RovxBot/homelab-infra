@@ -127,3 +127,14 @@ data:
     # Network settings
     Network.UseSocketActivation = 0
     Network.EnableProxyProtocol = 0
+    Network.Threads = 1
+    Network.TcpNodelay = 1
+    Network.OutKBuff = -1
+    Network.OutUBuff = 4096
+
+    # Performance and stability settings
+    MaxCoreStuckTime = 60
+    MinWorldUpdateTime = 1
+
+    # Remote access settings
+    Ra.Enable = 0
