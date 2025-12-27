@@ -264,12 +264,14 @@ spec:
                 set_kv "AiPlayerbot.RandomBotJoinLfg" "1"
                 set_kv "AiPlayerbot.RandomBotJoinBG" "1"
 
-                # Enable AOE loot with quality filtering
-                set_kv "AOELoot.Enable" "1"
-                set_kv "AOELoot.MaxQuality" "1"
-
+                # Enable periodic online/offline to simulate real player behavior
                 set_kv "AiPlayerbot.EnablePeriodicOnlineOffline" "1"
                 set_kv "AiPlayerbot.PeriodicOnlineOfflineRatio" "2.0"
+                
+                # More realistic bot behavior - occasional AFK/longer delays
+                set_kv "AiPlayerbot.RandomBotUpdateInterval" "5000"  # 5 second intervals
+                set_kv "AiPlayerbot.RandomBotCountChangeMinInterval" "1800"  # 30 minutes
+                set_kv "AiPlayerbot.RandomBotCountChangeMaxInterval" "7200"  # 2 hours
               fi
           volumeMounts:
             - name: etc
