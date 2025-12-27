@@ -27,6 +27,10 @@ data:
     LoginDatabase.WorkerThreads = 1
     WorldDatabase.WorkerThreads = 1
     CharacterDatabase.WorkerThreads = 1
+    WorldDatabase.SynchThreads = 1
+
+    # Update settings
+    Updates.CleanDeadRefMaxCount = 3
 
     # Rates for authentic server feel - normal progression
     Rate.XP.Kill = 1
