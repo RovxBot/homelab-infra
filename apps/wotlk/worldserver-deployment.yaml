@@ -183,8 +183,8 @@ spec:
                 set_kv "AiPlayerbot.RandomBotAutologin" "1"
 
                 # Mid-sized server feel: reduce bot population temporarily to test stability
-                set_kv "AiPlayerbot.MinRandomBots" "200"
-                set_kv "AiPlayerbot.MaxRandomBots" "300"
+                set_kv "AiPlayerbot.MinRandomBots" "550"
+                set_kv "AiPlayerbot.MaxRandomBots" "800"
 
                 # Prefer RPG / questing behavior, but with less artificial teleporting.
                 set_kv "AiPlayerbot.RandomBotRpgChance" "0.45"
