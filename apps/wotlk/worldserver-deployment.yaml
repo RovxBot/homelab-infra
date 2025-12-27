@@ -130,6 +130,8 @@ spec:
                 base="$(basename "$f" .dist)"
                 # Copy defaults once; allow user overrides via future config management.
                 cp -n "$f" "/azerothcore/env/dist/etc/modules/$base" || true
+              done
+
               # Tweak AH bot defaults to enable buying and selling
               conf="/azerothcore/env/dist/etc/modules/mod_ahbot.conf"
               if [ -f "$conf" ]; then
