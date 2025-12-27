@@ -51,7 +51,7 @@ data:
     Instance.IgnoreRaid = 0
 
     # World events and holidays
-    Event.Announce = 1
+    Event.Announce = 0
     Holiday.IgnoreHolidayRequirements = 0
 
     # Battleground settings
@@ -872,10 +872,10 @@ data:
     AllowTwoSide.Interaction.Group = 0
     AllowTwoSide.Interaction.Guild = 0
     AllowTwoSide.Interaction.Arena = 0
-    AllowTwoSide.Interaction.Auction = 0
-    AllowTwoSide.Interaction.Mail = 0
-    AllowTwoSide.WhoList = 0
-    AllowTwoSide.AddFriend = 0
+    AllowTwoSide.Interaction.Auction = 1
+    AllowTwoSide.Interaction.Mail = 1
+    AllowTwoSide.WhoList = 1
+    AllowTwoSide.AddFriend = 1
     AllowTwoSide.Trade = 0
 
     # Talent inspection
@@ -891,9 +891,6 @@ data:
 
     # Calendar settings
     Calendar.DeleteOldEventsHour = 6
-
-    # Event announcement
-    Event.Announce = 1
 
     # Holiday event settings
     Sunsreach.CounterMax = 10000
