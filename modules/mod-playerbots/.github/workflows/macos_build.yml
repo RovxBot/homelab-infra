@@ -30,7 +30,7 @@ jobs:
           repository: 'mod-playerbots/mod-playerbots'
           path: 'modules/mod-playerbots'
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
         with:
           path: ~/Library/Caches/ccache
           key: ccache:${{ matrix.os }}:${{ github.ref }}:${{ github.sha }}
