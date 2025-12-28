@@ -68,13 +68,8 @@ jobs:
               name="$(basename "$repo" .git)"
               echo "Adding module: $repo@$ref -> modules/$name"
               
-              # Special handling for AOE loot - use our custom quality-filtered version
-              if [[ "$repo" == "https://github.com/azerothcore/mod-aoe-loot" ]]; then
-                echo "Using custom AOE loot module with quality filtering"
-                mkdir -p ".work/acore/modules/$name"
-                cp -r modules/mod-aoe-loot-quality-filter/* ".work/acore/modules/$name/"
               # Special handling for local mod-playerbots (always use local version)
-              elif [[ "$repo" == "https://github.com/mod-playerbots/mod-playerbots@master" ]]; then
+              if [[ "$repo" == "https://github.com/mod-playerbots/mod-playerbots@master" ]]; then
                 echo "Using local modules/mod-playerbots (custom version)"
                 mkdir -p ".work/acore/modules/mod-playerbots"
                 cp -r modules/mod-playerbots/* .work/acore/modules/mod-playerbots/
