@@ -1913,12 +1913,12 @@ data:
     # Strategies added here are applied to all randombots, in addition (or subtraction) to spec/role-based default strategies. These rules are processed after the defaults.
     # Example: "+threat,-potions"
     AiPlayerbot.RandomBotCombatStrategies = ""
-    AiPlayerbot.RandomBotNonCombatStrategies = ""
+    AiPlayerbot.RandomBotNonCombatStrategies = "+maintenance,+gather"
     
     # Additional altbot strategies
     # Strategies added here are applied to all altbots, in addition (or subtraction) to spec/role-based default strategies. These rules are processed after the defaults.
     AiPlayerbot.CombatStrategies = ""
-    AiPlayerbot.NonCombatStrategies = ""
+    AiPlayerbot.NonCombatStrategies = "+maintenance,+gather"
     
     # Remove "healer dps" strategy on the maps specified below.
     # Default: 1 (enabled)
