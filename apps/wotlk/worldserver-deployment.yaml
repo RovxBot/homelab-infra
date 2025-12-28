@@ -58,8 +58,9 @@ spec:
             - |
               set -eu
               apk add --no-cache gettext >/dev/null
-              mkdir -p /etc-out
+              mkdir -p /etc-out/modules
               envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
+              envsubst < /etc-tpl/playerbots.conf > /etc-out/modules/playerbots.conf
           env:
             - name: DB_HOST
               value: wotlk-mariadb.wotlk.svc.cluster.local
