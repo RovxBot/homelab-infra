@@ -924,9 +924,6 @@ data:
     Respawn.DynamicRateGameObject = 1
     Respawn.DynamicMinimumGameObject = 10
 
-    # AOELoot settings
-    AOELoot.Enabled = 1
-    AOELoot.MaxQuality = 1
 
     # --- AuctionHouseBot configuration ---
     AuctionHouseBot.AdvancedListingRules.UseDropRates.Enabled = true

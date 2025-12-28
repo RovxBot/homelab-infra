@@ -46,22 +46,6 @@ spec:
               clone_module "https://github.com/mod-playerbots/mod-playerbots.git" "master"
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
               
-              # Use local custom AOE loot module with quality filtering
-              echo "Checking for modules directory..."
-              ls -la /modules/ || echo "Modules directory not found"
-              if [ -f "/modules/aoe_loot.cpp" ]; then
-                echo "Found custom AOE loot files in ConfigMap, copying..."
-                mkdir -p /acore-src/modules/mod-aoe-loot/src
-                mkdir -p /acore-src/modules/mod-aoe-loot/conf
-                cp /modules/aoe_loot.cpp /acore-src/modules/mod-aoe-loot/src/
-                cp /modules/aoe_loot.h /acore-src/modules/mod-aoe-loot/src/
-                cp /modules/aoe_loot_loader.cpp /acore-src/modules/mod-aoe-loot/src/
-                cp /modules/mod_aoe_loot.conf.dist /acore-src/modules/mod-aoe-loot/conf/
-                echo "Custom AOE loot module copied successfully"
-              else
-                echo "Custom AOE loot files not found in /modules/, cloning from GitHub..."
-                clone_module "https://github.com/azerothcore/mod-aoe-loot.git" "master"
-              fi
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
@@ -243,9 +227,6 @@ spec:
             claimName: wotlk-data-rwx
         - name: acore-src
           emptyDir: {}
-        - name: modules
-          configMap:
-            name: wotlk-aoe-loot-custom
         - name: accountmgr-web
           configMap:
             name: wotlk-accountmgr
