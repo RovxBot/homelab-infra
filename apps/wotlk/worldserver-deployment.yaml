@@ -43,7 +43,7 @@ spec:
               }
 
               clone_module "https://github.com/ZhengPeiRu21/mod-individual-progression.git" "master"
-              clone_module "https://github.com/mod-playerbots/mod-playerbots.git" "master"
+              clone_module "https://github.com/Wishmaster117/mod-playerbots.git" "Smart-Loot-System-Refactored"
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
               
