@@ -50,8 +50,6 @@ spec:
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
-            - name: modules
-              mountPath: /modules
         - name: render-config
           image: alpine:3.20
           command:
