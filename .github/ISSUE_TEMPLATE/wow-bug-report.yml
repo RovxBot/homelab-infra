@@ -1,0 +1,116 @@
+name: WoW bug report
+description: Report a gameplay/server issue (WotLK).
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues
+          required: true
+        - label: I can reproduce this on the latest deployed image
+          required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Where is the issue happening?
+      options:
+        - worldserver (gameplay / crashes / AI / maps)
+        - authserver (login / accounts / realms)
+        - accountmgr (web UI / SOAP)
+        - database (migrations / data issues)
+        - client data (maps/vmaps/mmaps/dbc)
+        - other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category (worldserver)
+      description: If this is a worldserver issue, what area?
+      options:
+        - crash / startup
+        - quest / script
+        - spell / aura / talent
+        - creature / boss / instance
+        - items / loot
+        - playerbot
+        - auction house / ah-bot
+        - performance / lag
+        - other / not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: Describe the problem you saw.
+      placeholder: "Example: Worldserver crashes when entering Icecrown Citadel..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal set of steps so we can reproduce.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "Example: Instance loads and player can move normally."
+    validations:
+      required: false
+
+  - type: input
+    id: character
+    attributes:
+      label: Character / account (optional)
+      description: Only include what you're comfortable sharing.
+      placeholder: "CharacterName (realm), level/class/faction"
+    validations:
+      required: false
+
+  - type: input
+    id: image_tag
+    attributes:
+      label: Image/tag (if known)
+      description: The deployed image tag that showed the issue.
+      placeholder: "ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-<sha>"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / errors
+      description: Paste logs or stack traces (redact passwords/tokens).
+      render: shell
+      placeholder: |
+        # worldserver logs:
+        kubectl -n wotlk logs deploy/wotlk-worldserver -c worldserver --tail=200
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Screenshots, videos, DB query results, or anything else.
+    validations:
+      required: false
+
