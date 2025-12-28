@@ -68,14 +68,7 @@ jobs:
               name="$(basename "$repo" .git)"
               echo "Adding module: $repo@$ref -> modules/$name"
               
-              # Special handling for local mod-playerbots (always use local version)
-              if [[ "$repo" == "https://github.com/mod-playerbots/mod-playerbots@master" ]]; then
-                echo "Using local modules/mod-playerbots (custom version)"
-                mkdir -p ".work/acore/modules/mod-playerbots"
-                cp -r modules/mod-playerbots/* .work/acore/modules/mod-playerbots/
-              else
-                git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
-              fi
+              git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
             done < ops/wotlk-images/modules.txt
           fi
 
