@@ -30,7 +30,7 @@ spec:
             - |
               set -eu
               rm -rf /acore-src/*
-              git clone --depth=1 --branch "Playerbot" "https://github.com/RovxBot/azerothcore-wotlk.git" /acore-src
+              git clone --depth=1 --branch "Playerbot" "https://github.com/rovxboy/azerothcore-wotlk.git" /acore-src
               mkdir -p /acore-src/modules
 
               # Clone module repos so the in-server DB updater can find their SQL folders.
