@@ -717,9 +717,9 @@ data:
     DungeonAccessRequirements.OptionalStringID = 0
 
     # LFG settings
-    JoinBGAndLFG.Enable = 0
+    JoinBGAndLFG.Enable = 1
     DungeonFinder.OptionsMask = 5
-    LFG.Location.All = 0
+    LFG.Location.All = 1
     LFG.MaxKickCount = 2
     LFG.KickPreventionTimer = 900
     DungeonAccessRequirements.LFGLevelDBCOverride = 0
@@ -928,9 +928,62 @@ data:
     AOELoot.Enabled = 1
     AOELoot.MaxQuality = 1
 
-    # Level threshold for stuck bot teleport (default: 6)
+    # --- AuctionHouseBot configuration ---
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.Enabled = true
+    AuctionHouseBot.ListProportion.CategoryWeapon.QualityEpic = 1
+    AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic = 2
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic = 1
+    AuctionHouseBot.ListProportion.CategoryGem.QualityEpic = 1
+    AuctionHouseBot.ListProportion.CategoryTradeGood.QualityEpic = 1
+    AuctionHouseBot.ListProportion.CategoryRecipe.QualityEpic = 2
+    AuctionHouseBot.ListProportion.CategoryGeneric.QualityLegendary = 0
+    AuctionHouseBot.PriceMultiplier.Quality.Epic = 4.0
+    AuctionHouseBot.PriceMultiplier.Quality.Legendary = 10.0
+    AuctionHouseBot.Buyer.AcceptablePriceModifier = 0.8
+
+
+    # --- Playerbot configuration ---
+    AiPlayerbot.Enabled = 1
+    AiPlayerbot.RandomBotAutologin = 1
+    AiPlayerbot.MinRandomBots = 550
+    AiPlayerbot.MaxRandomBots = 800
+    AiPlayerbot.RandomBotRpgChance = 0.60
+    AiPlayerbot.ProbTeleToBankers = 0.35
+    AiPlayerbot.AutoTeleportForLevel = 1
+    AiPlayerbot.RandomBotTeleportDistance = 250
+    AiPlayerbot.MinRandomBotTeleportInterval = 1800
+    AiPlayerbot.MaxRandomBotTeleportInterval = 7200
+    AiPlayerbot.EnableWeightTeleToCityBankers = 1
+    AiPlayerbot.TeleToStormwindWeight = 3
+    AiPlayerbot.TeleToIronforgeWeight = 2
+    AiPlayerbot.TeleToDarnassusWeight = 2
+    AiPlayerbot.TeleToOrgrimmarWeight = 3
+    AiPlayerbot.TeleToUndercityWeight = 2
+    AiPlayerbot.TeleToThunderBluffWeight = 2
+    AiPlayerbot.SummonWhenGroup = 0
+    AiPlayerbot.SyncLevelWithPlayers = 1
+    AiPlayerbot.MaxAddedBots = 39
+    AiPlayerbot.GearScoreCheck = 1
+    AiPlayerbot.BotCheats = "raid"
+    AiPlayerbot.AutoUpgradeEquip = 0
+    AiPlayerbot.RandomBotJoinLfg = 1
+    AiPlayerbot.RandomBotJoinBG = 1
+    AiPlayerbot.RandomGearLoweringChance = 0.25
+    AiPlayerbot.AutoLearnTrainerSpells = 1
+    AiPlayerbot.AutoLearnQuestSpells = 1
+    AiPlayerbot.AutoDoQuests = 1
+    AiPlayerbot.GatherDistance = 50.0
+    AiPlayerbot.MaxGatherDistance = 100.0
+    AiPlayerbot.UseCrafting = 1
+    AiPlayerbot.CraftLevelLimit = 375
+    AiPlayerbot.EnableRandomBotTrading = 1
+    AiPlayerbot.RandomBotTradeChance = 0.15
+    AiPlayerbot.EnablePeriodicOnlineOffline = 1
+    AiPlayerbot.PeriodicOnlineOfflineRatio = 2.0
+    AiPlayerbot.RandomBotUpdateInterval = 5000
+    AiPlayerbot.RandomBotCountChangeMinInterval = 1800
+    AiPlayerbot.RandomBotCountChangeMaxInterval = 7200
+    # Stuck bot logic
     AiPlayerbot.StuckBotLevelThreshold = 6
-    # Timeout (seconds) for stuck in starting area (default: 300)
     AiPlayerbot.StuckBotStartzoneTimeout = 300
-    # Timeout (seconds) for inactivity/movement stuck (default: 180)
     AiPlayerbot.StuckBotInactivityTimeout = 180
