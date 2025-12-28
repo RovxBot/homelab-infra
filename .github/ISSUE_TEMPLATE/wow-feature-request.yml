@@ -1,0 +1,58 @@
+name: WoW feature request
+description: Suggest an improvement or new feature (WotLK).
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - gameplay/content
+        - playerbot
+        - website/accountmgr
+        - operations/deployment
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+      placeholder: "Example: It’s hard to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: "Example: Add a config option to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+    validations:
+      required: false
+
