@@ -45,6 +45,8 @@ spec:
               clone_module "https://github.com/ZhengPeiRu21/mod-individual-progression.git" "master"
               clone_module "https://github.com/mod-playerbots/mod-playerbots.git" "master"
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
+              clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
+              
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
@@ -120,7 +122,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-cf39da084df66280ba3c98473293b522d0cb22a4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot
           imagePullPolicy: Always
           env:
             - name: AC_UPDATES_ENABLE_DATABASES
@@ -226,9 +228,6 @@ spec:
             claimName: wotlk-data-rwx
         - name: acore-src
           emptyDir: {}
-        - name: modules
-          configMap:
-            name: wotlk-aoe-loot-custom
         - name: accountmgr-web
           configMap:
             name: wotlk-accountmgr
