@@ -8,7 +8,6 @@
 https://github.com/ZhengPeiRu21/mod-individual-progression@master
 https://github.com/mod-playerbots/mod-playerbots@master
 https://github.com/NathanHandley/mod-ah-bot-plus@master
-https://github.com/azerothcore/mod-aoe-loot@master
 # NOTE: This repo is NOT a standard AzerothCore "module" (no `src/` module layout).
 # It requires manual client DBC replacements + Patch MPQ + SQL + core source edits (+ likely mod-eluna).
 # Leaving it commented out so the image build doesn't give a false sense that it's enabled.
