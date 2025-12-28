@@ -61,6 +61,7 @@ spec:
               mkdir -p /etc-out/modules
               envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
               envsubst < /etc-tpl/playerbots.conf > /etc-out/modules/playerbots.conf
+              chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
               value: wotlk-mariadb.wotlk.svc.cluster.local
@@ -115,6 +116,7 @@ spec:
                 # Copy defaults once; allow user overrides via future config management.
                 cp -n "$f" "/azerothcore/env/dist/etc/modules/$base" || true
               done
+              chmod -R a+rwX /azerothcore/env/dist/etc
 
           volumeMounts:
             - name: etc
