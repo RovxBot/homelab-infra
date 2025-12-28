@@ -3086,10 +3086,10 @@ data:
     AiPlayerbot.BroadcastChanceSuggestSomething = 30000
     #
     # Bots will say very rude things
-    AiPlayerbot.BroadcastChanceSuggestSomethingToxic = 0
+    AiPlayerbot.BroadcastChanceSuggestSomethingToxic = 1
     #
     # Specifically for "<word> [item link]"
-    AiPlayerbot.BroadcastChanceSuggestToxicLinks = 0
+    AiPlayerbot.BroadcastChanceSuggestToxicLinks = 1
     #
     # Prefix is used as a word in "<word> [item link]"
     AiPlayerbot.ToxicLinksPrefix = gnomes
