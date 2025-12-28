@@ -122,7 +122,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-cf39da084df66280ba3c98473293b522d0cb22a4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-cf39da084df66280ba3c98473293b522d0cb22a4
           imagePullPolicy: Always
           env:
             - name: AC_UPDATES_ENABLE_DATABASES
