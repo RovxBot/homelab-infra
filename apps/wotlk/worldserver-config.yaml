@@ -924,21 +924,67 @@ data:
     Respawn.DynamicRateGameObject = 1
     Respawn.DynamicMinimumGameObject = 10
 
-    # AOELoot settings
-    AOELoot.Enabled = 1
-    AOELoot.MaxQuality = 1
 
     # --- AuctionHouseBot configuration ---
+    AuctionHouseBot.Seller.Enabled = 1
+    AuctionHouseBot.Seller.PostInterval = 120
+    AuctionHouseBot.Seller.MaxItemsPerCycle = 200
     AuctionHouseBot.AdvancedListingRules.UseDropRates.Enabled = true
     AuctionHouseBot.ListProportion.CategoryWeapon.QualityEpic = 1
     AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic = 2
     AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic = 1
     AuctionHouseBot.ListProportion.CategoryGem.QualityEpic = 1
-    AuctionHouseBot.ListProportion.CategoryTradeGood.QualityEpic = 1
-    AuctionHouseBot.ListProportion.CategoryRecipe.QualityEpic = 2
+    AuctionHouseBot.ListProportion.CategoryTradeGood.QualityEpic = 5  # Increased for materials
+    AuctionHouseBot.ListProportion.CategoryRecipe.QualityEpic = 5  # Increased for glyphs/enchants
+    AuctionHouseBot.ListProportion.CategoryGeneric.QualityEpic = 5  # Increased for potions/consumables
     AuctionHouseBot.ListProportion.CategoryGeneric.QualityLegendary = 0
     AuctionHouseBot.PriceMultiplier.Quality.Epic = 4.0
     AuctionHouseBot.PriceMultiplier.Quality.Legendary = 10.0
+
+    # Unobtainable items with ultra rare chance and high price
+    AuctionHouseBot.ItemSpecific.28936.Chance = 0.0001  # Spectral Tiger
+    AuctionHouseBot.ItemSpecific.28936.MinPrice = 100000000  # 10k gold
+    AuctionHouseBot.ItemSpecific.28936.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.37719.Chance = 0.0001  # Swift Zhevra
+    AuctionHouseBot.ItemSpecific.37719.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.37719.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.39315.Chance = 0.0001  # White Kodo
+    AuctionHouseBot.ItemSpecific.39315.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.39315.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.29466.Chance = 0.0001  # Black War Kodo
+    AuctionHouseBot.ItemSpecific.29466.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.29466.MaxPrice = 100000000
+    # TCG Items
+    AuctionHouseBot.ItemSpecific.38576.Chance = 0.0001  # Big Battle Bear
+    AuctionHouseBot.ItemSpecific.38576.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.38576.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.19054.Chance = 0.0001  # Magic Rooster Egg
+    AuctionHouseBot.ItemSpecific.19054.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.19054.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.30480.Chance = 0.0001  # Blazing Hippogryph
+    AuctionHouseBot.ItemSpecific.30480.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.30480.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49285.Chance = 0.0001  # X-51 Nether-Rocket
+    AuctionHouseBot.ItemSpecific.49285.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49285.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49286.Chance = 0.0001  # X-51 Nether-Rocket X-TREME
+    AuctionHouseBot.ItemSpecific.49286.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49286.MaxPrice = 100000000
+    # TCG Pets
+    AuctionHouseBot.ItemSpecific.34425.Chance = 0.0001  # Clockwork Rocket Bot
+    AuctionHouseBot.ItemSpecific.34425.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.34425.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.11826.Chance = 0.0001  # Lil' Smoky
+    AuctionHouseBot.ItemSpecific.11826.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.11826.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.8494.Chance = 0.0001  # Pet Bombling
+    AuctionHouseBot.ItemSpecific.8494.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.8494.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.4055.Chance = 0.0001  # Mechanical Squirrel Box
+    AuctionHouseBot.ItemSpecific.4055.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.4055.MaxPrice = 100000000
+    AuctionHouseBot.Buyer.Enabled = 1
+    AuctionHouseBot.Buyer.BuyInterval = 300
     AuctionHouseBot.Buyer.AcceptablePriceModifier = 0.8
 
 
@@ -961,6 +1007,14 @@ data:
     AiPlayerbot.TeleToUndercityWeight = 2
     AiPlayerbot.TeleToThunderBluffWeight = 2
     AiPlayerbot.SummonWhenGroup = 0
+    # Sell to Auction House settings
+    AiPlayerbot.SellToAuctionHouse.Enabled = 1
+    AiPlayerbot.SellToAuctionHouse.MinDelay = 300
+    AiPlayerbot.SellToAuctionHouse.MaxDelay = 1800
+    AiPlayerbot.SellToAuctionHouse.MinItemLevel = 1
+    AiPlayerbot.SellToAuctionHouse.MaxItemLevel = 1000
+    AiPlayerbot.SellToAuctionHouse.MinPrice = 100
+    AiPlayerbot.SellToAuctionHouse.MaxPrice = 10000000
     AiPlayerbot.SyncLevelWithPlayers = 1
     AiPlayerbot.MaxAddedBots = 39
     AiPlayerbot.GearScoreCheck = 1
