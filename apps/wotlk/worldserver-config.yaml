@@ -1007,6 +1007,14 @@ data:
     AiPlayerbot.TeleToUndercityWeight = 2
     AiPlayerbot.TeleToThunderBluffWeight = 2
     AiPlayerbot.SummonWhenGroup = 0
+    # Sell to Auction House settings
+    AiPlayerbot.SellToAuctionHouse.Enabled = 1
+    AiPlayerbot.SellToAuctionHouse.MinDelay = 300
+    AiPlayerbot.SellToAuctionHouse.MaxDelay = 1800
+    AiPlayerbot.SellToAuctionHouse.MinItemLevel = 1
+    AiPlayerbot.SellToAuctionHouse.MaxItemLevel = 1000
+    AiPlayerbot.SellToAuctionHouse.MinPrice = 100
+    AiPlayerbot.SellToAuctionHouse.MaxPrice = 10000000
     AiPlayerbot.SyncLevelWithPlayers = 1
     AiPlayerbot.MaxAddedBots = 39
     AiPlayerbot.GearScoreCheck = 1
