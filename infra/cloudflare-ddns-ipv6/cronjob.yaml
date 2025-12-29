@@ -40,7 +40,7 @@ spec:
 
                   ip6_src=""
                   for _ in $(seq 1 30); do
-                    ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i==\"src\") {print $(i+1); exit}}' || true)"
+                    ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i ~ /^src$/) {print $(i+1); exit}}' 2>/dev/null || true)"
                     if [ -n "${ip6_src}" ]; then
                       break
                     fi
