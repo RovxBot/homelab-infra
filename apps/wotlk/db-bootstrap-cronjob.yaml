@@ -74,7 +74,7 @@ spec:
                 - name: REALM_NAME
                   value: "Grim Guzzler"
                 - name: REALM_ADDRESS
-                  value: "192.168.1.197"
+                  value: "wow.risk-lenok.ts.net"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT

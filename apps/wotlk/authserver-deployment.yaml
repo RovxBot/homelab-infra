@@ -19,6 +19,10 @@ spec:
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      hostAliases:
+        - ip: "192.168.1.197"
+          hostnames:
+            - "wow.risk-lenok.ts.net"
       nodeSelector:
         kubernetes.io/hostname: metal7
       initContainers:
