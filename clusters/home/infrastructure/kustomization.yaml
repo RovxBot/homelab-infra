@@ -5,7 +5,6 @@ resources:
   - ../../../infra/metrics-server
   - ../../../infra/pod-report
   - ../../../infra/cloudflared
-  - ../../../infra/cloudflare-ddns-ipv6
   - ../../../infra/tailscale
   - ../../../infra/backups
   - ../../../infra/observability
@@ -15,4 +14,3 @@ resources:
   - ../../../secrets/restic-b2-photos.enc.yaml
   - ../../../secrets/grafana-admin.enc.yaml
   - ../../../secrets/wotlk-mariadb-auth.enc.yaml
-  - ../../../secrets/cloudflare-api-token.enc.yaml
