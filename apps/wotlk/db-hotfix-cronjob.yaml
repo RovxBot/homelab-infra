@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-db-hotfix
+  namespace: wotlk
+spec:
+  # Suspended by default; run manually when needed:
+  # kubectl -n wotlk create job --from=cronjob/wotlk-db-hotfix wotlk-db-hotfix-1
+  suspend: true
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: mariadb-client
+              image: mysql:8.0
+              env:
+                - name: DB_HOST
+                  value: wotlk-mariadb.wotlk.svc.cluster.local
+                - name: DB_PORT
+                  value: "3306"
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+                - name: ACORE_WORLD_DB
+                  value: acore_world
+              command:
+                - sh
+                - -lc
+                - |
+                  set -euo pipefail
+
+                  db() {
+                    command mysql \
+                      --protocol=tcp \
+                      --host "${DB_HOST}" \
+                      --port "${DB_PORT}" \
+                      --user root \
+                      --password="${DB_ROOT_PASSWORD}" \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
+                      "$@"
+                  }
+
+                  echo "Applying world DB hotfixes..."
+
+                  # Razormane Water Seeker (entry 3267) stops at spell max range and doesn't commit to melee.
+                  # Force default melee AI by removing SmartAI scripts and clearing AIName/ScriptName.
+                  db --database "${ACORE_WORLD_DB}" --execute "
+                    START TRANSACTION;
+                    UPDATE creature_template
+                      SET AIName = '', ScriptName = ''
+                      WHERE entry = 3267;
+                    DELETE FROM smart_scripts
+                      WHERE entryorguid = 3267 AND source_type = 0;
+                    DELETE FROM creature_template_spell
+                      WHERE CreatureID = 3267;
+                    COMMIT;
+                  "

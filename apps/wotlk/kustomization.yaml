@@ -9,6 +9,7 @@ resources:
   - mariadb-statefulset.yaml
   - data-pvc-rwx.yaml
   - db-bootstrap-cronjob.yaml
+  - db-hotfix-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
   - client-extract-mmaps-cronjob.yaml

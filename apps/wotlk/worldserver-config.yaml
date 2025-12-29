@@ -2099,8 +2099,9 @@ data:
     AiPlayerbot.RandomBotJoinBG = 1
     
     # Enable auto-joining of battlegrounds - have bots start battlegrounds and arenas on their own
-    # This is required for players to reliably get BG pops on a low-pop server.
-    AiPlayerbot.RandomBotAutoJoinBG = 1
+    # Note: This can starve LFG queueing (bots stay in BG queues), so keep it disabled unless you
+    # explicitly want bots to start BGs without a player.
+    AiPlayerbot.RandomBotAutoJoinBG = 0
     
     # Required Configuration for RandomBotAutoJoinBG
     #
@@ -2191,7 +2192,7 @@ data:
     
     # How often (in seconds) the random bot manager runs its main update loop
     # Default: 20
-    AiPlayerbot.RandomBotUpdateInterval = 5000
+    AiPlayerbot.RandomBotUpdateInterval = 20
     
     # Minimum and maximum seconds before the manager re-evaluates and adjusts total random bot count
     # Defaults: 1800 (min), 7200 (max)
@@ -3345,12 +3346,6 @@ data:
     AuctionHouseBot.PriceMultiplier.Quality.Legendary = 40.0
     AuctionHouseBot.PriceMultiplier.Quality.Heirloom = 25.0
 
-  # AoE Loot (mod-aoe-loot) module configuration.
-  # Rendered into `/azerothcore/env/dist/etc/modules/mod_aoe_loot.conf` by the `render-config` initContainer.
-  mod_aoe_loot.conf: |
-    [worldserver]
-    AOELoot.Enable = 0
-
     # Unobtainable items with ultra rare chance and high price
     AuctionHouseBot.ItemSpecific.28936.Chance = 0.0001
     AuctionHouseBot.ItemSpecific.28936.MinPrice = 100000000
@@ -3397,3 +3392,9 @@ data:
     AuctionHouseBot.ItemSpecific.4055.MaxPrice = 100000000
 
     AuctionHouseBot.Buyer.AcceptablePriceModifier = 0.8
+
+  # AoE Loot (mod-aoe-loot) module configuration.
+  # Rendered into `/azerothcore/env/dist/etc/modules/mod_aoe_loot.conf` by the `render-config` initContainer.
+  mod_aoe_loot.conf: |
+    [worldserver]
+    AOELoot.Enable = 0
