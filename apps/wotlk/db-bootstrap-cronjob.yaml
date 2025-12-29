@@ -72,9 +72,9 @@ spec:
                 - name: REALM_ID
                   value: "1"
                 - name: REALM_NAME
-                  value: "cooked.beer (WotLK)"
-	                - name: REALM_ADDRESS
-	                  value: "grimguzzler.cooked.beer"
+                  value: "Grim Guzzler"
+                - name: REALM_ADDRESS
+                  value: "grimguzzler.cooked.beer"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT
