@@ -3142,13 +3142,35 @@ data:
     # WARNING: Do not use random bots / playerbots characters here.
     AuctionHouseBot.GUIDs = 1004,2108
 
+    AuctionHouseBot.DEBUG = false
+    AuctionHouseBot.DEBUG_FILTERS = false
+
     AuctionHouseBot.EnableSeller = true
     AuctionHouseBot.Buyer.Enabled = true
     AuctionHouseBot.ItemsPerCycle = 200
     AuctionHouseBot.MinutesBetweenSellCycle = 1
     AuctionHouseBot.MinutesBetweenBuyCycle = 1
+    AuctionHouseBot.ReturnExpiredAuctionItemsToBot = false
+    AuctionHouseBot.ListingExpireTimeInSecondsMin = 900
+    AuctionHouseBot.ListingExpireTimeInSecondsMax = 86400
 
     AuctionHouseBot.AdvancedListingRules.UseDropRates.Enabled = true
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.Weapon = true
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.Armor = true
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.Recipe = true
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.Weapon.AffectedQualities = 2,3,4,5
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.Armor.AffectedQualities = 2,3,4,5
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.Recipe.AffectedQualities = 2,3,4,5
+    AuctionHouseBot.AdvancedListingRules.UseDropRates.MinDropRate = 0.005
+
+    AuctionHouseBot.MaxBuyoutPriceInCopper = 1000000000
+    AuctionHouseBot.BuyoutVariationReducePercent = 0.15
+    AuctionHouseBot.BuyoutVariationAddPercent = 0.25
+    AuctionHouseBot.BidVariationHighReducePercent = 0
+    AuctionHouseBot.BidVariationLowReducePercent = 0.25
+    AuctionHouseBot.BuyoutBelowVendorVariationAddPercentEnabled = true
+    AuctionHouseBot.BuyoutBelowVendorVariationAddPercent = 0.25
+
     AuctionHouseBot.ListProportion.CategoryWeapon.QualityEpic = 1
     AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic = 2
     AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic = 1
