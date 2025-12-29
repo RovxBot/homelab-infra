@@ -3171,6 +3171,12 @@ data:
     AuctionHouseBot.BuyoutBelowVendorVariationAddPercentEnabled = true
     AuctionHouseBot.BuyoutBelowVendorVariationAddPercent = 0.25
 
+    # Pricing: by default the bot heavily anchors to `item_template.SellPrice`, which makes many WotLK epics
+    # show up around vendor-price ranges (e.g. ~20–40g). Prefer item-level pricing for gear instead.
+    AuctionHouseBot.PriceMinimumCenterBase.UseItemSellPriceIfHigher = false
+    AuctionHouseBot.PriceMultiplier.ItemLevel.Category.Weapon = 1.0
+    AuctionHouseBot.PriceMultiplier.ItemLevel.Category.Armor = 1.0
+
     AuctionHouseBot.ListProportion.CategoryWeapon.QualityEpic = 1
     AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic = 2
     AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic = 1
