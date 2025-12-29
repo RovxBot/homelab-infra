@@ -2099,7 +2099,8 @@ data:
     AiPlayerbot.RandomBotJoinBG = 1
     
     # Enable auto-joining of battlegrounds - have bots start battlegrounds and arenas on their own
-    AiPlayerbot.RandomBotAutoJoinBG = 0
+    # This is required for players to reliably get BG pops on a low-pop server.
+    AiPlayerbot.RandomBotAutoJoinBG = 1
     
     # Required Configuration for RandomBotAutoJoinBG
     #
@@ -2130,11 +2131,12 @@ data:
     # AiPlayerbot.RandomBotAutoJoinABBrackets = 0,1,2,3,4,5,6
     # AiPlayerbot.RandomBotAutoJoinWSBrackets = 0,1,2,3,4,5,6,7
     
-    AiPlayerbot.RandomBotAutoJoinICBrackets = 1
-    AiPlayerbot.RandomBotAutoJoinEYBrackets = 2
-    AiPlayerbot.RandomBotAutoJoinAVBrackets = 3
-    AiPlayerbot.RandomBotAutoJoinABBrackets = 6
-    AiPlayerbot.RandomBotAutoJoinWSBrackets = 7
+    # Enable all brackets so bots can fill queues at any level range.
+    AiPlayerbot.RandomBotAutoJoinICBrackets = 0,1
+    AiPlayerbot.RandomBotAutoJoinEYBrackets = 0,1,2
+    AiPlayerbot.RandomBotAutoJoinAVBrackets = 0,1,2,3
+    AiPlayerbot.RandomBotAutoJoinABBrackets = 0,1,2,3,4,5,6
+    AiPlayerbot.RandomBotAutoJoinWSBrackets = 0,1,2,3,4,5,6,7
     
     # Battlegrounds count (per bracket!):
     AiPlayerbot.RandomBotAutoJoinBGICCount = 0
