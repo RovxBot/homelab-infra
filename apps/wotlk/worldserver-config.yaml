@@ -6,7 +6,7 @@ data:
   worldserver.conf: |
     [worldserver]
     LogsDir = ""
-    BindIP = "0.0.0.0"
+    BindIP = "::"
     WorldServerPort = 8085
     RealmID = 1
     Console.Enable = 0

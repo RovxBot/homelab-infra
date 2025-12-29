@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cloudflare-ddns-ipv6
+  namespace: cloudflare-ddns
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          nodeSelector:
+            kubernetes.io/hostname: metal7
+          containers:
+            - name: ddns
+              image: alpine:3.20
+              env:
+                - name: CF_API_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudflare-api-token
+                      key: token
+                - name: CF_ZONE_NAME
+                  value: cooked.beer
+                - name: CF_RECORD_NAME
+                  value: grimguzzler.cooked.beer
+                - name: CF_TTL
+                  value: "300"
+              command: ["/bin/sh", "-lc"]
+              args:
+                - |
+                  set -euo pipefail
+                  apk add --no-cache curl jq iproute2 >/dev/null
+
+                  ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* src \\([^ ]*\\).*/\\1/p' | head -n1)"
+                  if [ -z "${ip6_src}" ]; then
+                    echo "ERROR: Unable to determine IPv6 source address (no default IPv6 route?)" >&2
+                    exit 1
+                  fi
+                  echo "Detected IPv6: ${ip6_src}"
+
+                  api="https://api.cloudflare.com/client/v4"
+                  authH="Authorization: Bearer ${CF_API_TOKEN}"
+                  jsonH="Content-Type: application/json"
+
+                  zone_id="$(curl -fsS -H "${authH}" "${api}/zones?name=${CF_ZONE_NAME}" | jq -r '.result[0].id // empty')"
+                  if [ -z "${zone_id}" ]; then
+                    echo "ERROR: Could not find zone id for ${CF_ZONE_NAME}" >&2
+                    exit 1
+                  fi
+
+                  record_id="$(curl -fsS -H "${authH}" "${api}/zones/${zone_id}/dns_records?type=AAAA&name=${CF_RECORD_NAME}" | jq -r '.result[0].id // empty')"
+                  if [ -z "${record_id}" ]; then
+                    echo "Creating AAAA record ${CF_RECORD_NAME} -> ${ip6_src}"
+                    curl -fsS -X POST -H "${authH}" -H "${jsonH}" \
+                      --data "{\"type\":\"AAAA\",\"name\":\"${CF_RECORD_NAME}\",\"content\":\"${ip6_src}\",\"ttl\":${CF_TTL},\"proxied\":false}" \
+                      "${api}/zones/${zone_id}/dns_records" >/dev/null
+                    exit 0
+                  fi
+
+                  current="$(curl -fsS -H "${authH}" "${api}/zones/${zone_id}/dns_records/${record_id}" | jq -r '.result.content // empty')"
+                  if [ "${current}" = "${ip6_src}" ]; then
+                    echo "No change (AAAA already ${current})"
+                    exit 0
+                  fi
+
+                  echo "Updating AAAA ${CF_RECORD_NAME}: ${current} -> ${ip6_src}"
+                  curl -fsS -X PUT -H "${authH}" -H "${jsonH}" \
+                    --data "{\"type\":\"AAAA\",\"name\":\"${CF_RECORD_NAME}\",\"content\":\"${ip6_src}\",\"ttl\":${CF_TTL},\"proxied\":false}" \
+                    "${api}/zones/${zone_id}/dns_records/${record_id}" >/dev/null

@@ -6,7 +6,7 @@ data:
   authserver.conf: |
     [authserver]
     LogsDir = ""
-    BindIP = "0.0.0.0"
+    BindIP = "::"
     RealmServerPort = 3724
     LoginDatabaseInfo = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_AUTH_DB}"
 

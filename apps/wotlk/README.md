@@ -9,6 +9,24 @@ This is a **suspended-by-default** GitOps scaffold for a private, LAN-only **3.3
 Auth **must** listen on TCP `3724` (the client cannot specify a custom port), so we use `hostNetwork: true` on `metal7`.
 That conflicts with the existing `apps/wow` (1.12) stack if it’s running.
 
+## IPv6 + Cloudflare DNS (WoW Realm)
+
+Cloudflare can be used for DNS (AAAA) but cannot proxy WoW traffic (non-HTTP). For WoW ports, Cloudflare must be **DNS-only**.
+
+Recommended setup:
+- **Account creation page**: expose via the existing `cloudflared` tunnel (HTTPS), not via public WAN ports.
+- **WoW game traffic**: publish an AAAA record to a routable IPv6 address and allow only the required ports on the UDM Pro.
+
+This repo includes a `cloudflare-ddns-ipv6` CronJob (`infra/cloudflare-ddns-ipv6/cronjob.yaml`) that:
+- runs on node `metal7` using `hostNetwork`
+- detects the node's preferred outbound IPv6 source address
+- creates/updates an AAAA record in Cloudflare for `grimguzzler.cooked.beer` (DNS-only)
+
+To use it:
+- Set the Cloudflare API token in `secrets/cloudflare-api-token.enc.yaml` (replace `REPLACE_ME` and re-encrypt with `sops`).
+- Confirm your Cloudflare zone name and record name in `infra/cloudflare-ddns-ipv6/cronjob.yaml` (`CF_ZONE_NAME` / `CF_RECORD_NAME`).
+- On the UDM Pro: allow inbound IPv6 to the node IPv6 for WoW ports only (typically `TCP 3724` and `TCP 8085`).
+
 ## Build images
 
 This repo includes a manual GitHub Actions workflow:
