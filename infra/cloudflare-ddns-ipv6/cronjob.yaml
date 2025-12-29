@@ -26,6 +26,10 @@ spec:
                     secretKeyRef:
                       name: cloudflare-api-token
                       key: token
+                # Optional: set to a fixed IPv6 if you assign a static address to `metal7`.
+                # If unset/empty, the job auto-detects the node's global IPv6.
+                - name: CF_IPV6_OVERRIDE
+                  value: ""
                 - name: CF_ZONE_NAME
                   value: cooked.beer
                 - name: CF_RECORD_NAME
@@ -38,8 +42,16 @@ spec:
                   set -euo pipefail
                   apk add --no-cache curl jq iproute2 >/dev/null
 
-                  ip6_src=""
+                  ip6_src="${CF_IPV6_OVERRIDE:-}"
+                  if [ -n "${ip6_src}" ]; then
+                    echo "Using override IPv6: ${ip6_src}"
+                  fi
+
                   for _ in $(seq 1 30); do
+                    if [ -n "${ip6_src}" ]; then
+                      break
+                    fi
+
                     ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i ~ /^src$/) {print $(i+1); exit}}' 2>/dev/null || true)"
                     if [ -n "${ip6_src}" ]; then
                       break
