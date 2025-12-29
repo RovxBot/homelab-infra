@@ -38,7 +38,20 @@ spec:
                   set -euo pipefail
                   apk add --no-cache curl jq iproute2 >/dev/null
 
-                  ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* src \\([^ ]*\\).*/\\1/p' | head -n1)"
+                  ip6_src=""
+                  for _ in $(seq 1 30); do
+                    ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* src \\([^ ]*\\).*/\\1/p' | head -n1 || true)"
+                    if [ -n "${ip6_src}" ]; then
+                      break
+                    fi
+
+                    ip6_src="$(ip -6 addr show scope global 2>/dev/null | sed -n 's/.* inet6 \\([^/]*\\)\\/.* scope global.*/\\1/p' | head -n1 || true)"
+                    if [ -n "${ip6_src}" ]; then
+                      break
+                    fi
+
+                    sleep 2
+                  done
                   if [ -z "${ip6_src}" ]; then
                     echo "ERROR: Unable to determine IPv6 source address (no default IPv6 route?)" >&2
                     exit 1
