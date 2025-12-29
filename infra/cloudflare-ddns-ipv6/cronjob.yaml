@@ -40,12 +40,12 @@ spec:
 
                   ip6_src=""
                   for _ in $(seq 1 30); do
-                    ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | sed -n 's/.* src \\([^ ]*\\).*/\\1/p' | head -n1 || true)"
+                    ip6_src="$(ip -6 route get 2606:4700:4700::1111 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i==\"src\") {print $(i+1); exit}}' || true)"
                     if [ -n "${ip6_src}" ]; then
                       break
                     fi
 
-                    ip6_src="$(ip -6 addr show scope global 2>/dev/null | sed -n 's/.* inet6 \\([^/]*\\)\\/.* scope global.*/\\1/p' | head -n1 || true)"
+                    ip6_src="$(ip -6 -o addr show scope global 2>/dev/null | awk '{print $4}' | awk -F/ 'NR==1{print $1}' || true)"
                     if [ -n "${ip6_src}" ]; then
                       break
                     fi
