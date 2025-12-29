@@ -3140,7 +3140,7 @@ data:
 
     # NOTE: This module requires at least one *non-playerbot* character GUID (from `acore_characters.characters.guid`).
     # WARNING: Do not use random bots / playerbots characters here.
-    AuctionHouseBot.GUIDs = 1004,2108
+    AuctionHouseBot.GUIDs = 2105,2106,2107,2109,2110,2111,2112,2113,2114,2115
 
     AuctionHouseBot.DEBUG = false
     AuctionHouseBot.DEBUG_FILTERS = false
