@@ -3345,6 +3345,12 @@ data:
     AuctionHouseBot.PriceMultiplier.Quality.Legendary = 40.0
     AuctionHouseBot.PriceMultiplier.Quality.Heirloom = 25.0
 
+  # AoE Loot (mod-aoe-loot) module configuration.
+  # Rendered into `/azerothcore/env/dist/etc/modules/mod_aoe_loot.conf` by the `render-config` initContainer.
+  mod_aoe_loot.conf: |
+    [worldserver]
+    AOELoot.Enable = 0
+
     # Unobtainable items with ultra rare chance and high price
     AuctionHouseBot.ItemSpecific.28936.Chance = 0.0001
     AuctionHouseBot.ItemSpecific.28936.MinPrice = 100000000

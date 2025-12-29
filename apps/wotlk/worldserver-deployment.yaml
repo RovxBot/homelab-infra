@@ -62,6 +62,7 @@ spec:
               envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
               envsubst < /etc-tpl/playerbots.conf > /etc-out/modules/playerbots.conf
               envsubst < /etc-tpl/mod_ahbot.conf > /etc-out/modules/mod_ahbot.conf
+              envsubst < /etc-tpl/mod_aoe_loot.conf > /etc-out/modules/mod_aoe_loot.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
