@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-stats-snapshot
+spec:
+  # Hourly upsert into a small stats table used by the account portal.
+  schedule: "7 * * * *"
+  suspend: false
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: mariadb-client
+              image: mysql:8.0
+              env:
+                - name: DB_HOST
+                  value: wotlk-mariadb.wotlk.svc.cluster.local
+                - name: DB_PORT
+                  value: "3306"
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+                - name: DB_CHAR_DB
+                  value: acore_characters
+              command:
+                - sh
+                - -lc
+                - |
+                  set -eu
+
+                  db() {
+                    command mysql \
+                      --protocol=tcp \
+                      --host "${DB_HOST}" \
+                      --port "${DB_PORT}" \
+                      --user root \
+                      --password="${DB_ROOT_PASSWORD}" \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
+                      "$@"
+                  }
+
+                  echo "Ensuring stats table exists..."
+                  db --database "${DB_CHAR_DB}" --execute "
+                    CREATE TABLE IF NOT EXISTS web_stats_daily (
+                      snapshot_date DATE NOT NULL,
+                      guid INT UNSIGNED NOT NULL,
+                      name VARCHAR(12) NOT NULL,
+                      level TINYINT UNSIGNED NOT NULL,
+                      total_kills INT UNSIGNED NOT NULL,
+                      PRIMARY KEY (snapshot_date, guid),
+                      KEY guid_idx (guid),
+                      KEY date_idx (snapshot_date)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                  "
+
+                  echo "Upserting daily snapshot..."
+                  db --database "${DB_CHAR_DB}" --execute "
+                    INSERT INTO web_stats_daily (snapshot_date, guid, name, level, total_kills)
+                    SELECT CURRENT_DATE(), guid, name, level, totalKills
+                    FROM characters
+                    ON DUPLICATE KEY UPDATE
+                      name = VALUES(name),
+                      level = VALUES(level),
+                      total_kills = VALUES(total_kills);
+                  "
+
+                  echo "Done."

@@ -22,138 +22,40 @@ data:
       if ($invite === '') {
         throw new RuntimeException("Server misconfigured: INVITE_CODE not set.");
       }
-      if (!hash_equals($invite, $provided)) {
+      if (!hash_equals($invite, trim($provided))) {
         throw new RuntimeException("Invalid invite code.");
       }
     }
 
-    function checkBasicAuth(): bool {
-      $user = envOrDefault('BASIC_AUTH_USER');
-      $pass = envOrDefault('BASIC_AUTH_PASSWORD');
-      if ($user === '' || $pass === '') {
-        http_response_code(500);
-        echo "Server misconfigured: BASIC_AUTH_USER/BASIC_AUTH_PASSWORD not set.";
-        exit;
+    function requirePhpExt(string $ext): void {
+      if (!extension_loaded($ext)) {
+        throw new RuntimeException("Server misconfigured: missing PHP extension '{$ext}'.");
       }
-
-      if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-      }
-
-      // If already logged in via session, allow.
-      if (!empty($_SESSION['auth_ok'])) {
-        return true;
-      }
-
-      // Allow HTTP Basic Auth too (curl-friendly), but don't rely on the browser prompt.
-      $providedUser = $_SERVER['PHP_AUTH_USER'] ?? '';
-      $providedPass = $_SERVER['PHP_AUTH_PW'] ?? '';
-
-      if ($providedUser === '' && $providedPass === '') {
-        return false;
-      }
-
-      if (!hash_equals($user, $providedUser) || !hash_equals($pass, $providedPass)) {
-        return false;
-      }
-
-      $_SESSION['auth_ok'] = true;
-      return true;
     }
 
-    function renderLogin(string $flash = '', string $flashKind = 'info'): void {
-      $title = 'WotLK Account Manager';
-      $flashHtml = '';
-      if ($flash !== '') {
-        $flashHtml = '<div class="flash ' . htmlspecialchars($flashKind) . '">' . htmlspecialchars($flash) . '</div>';
+    function wowUpper(string $s): string {
+      // AzerothCore SRP expects username/password already uppercased (latin only).
+      // Keep this strict to avoid subtle mismatches with non-ASCII characters.
+      if (preg_match('/[^\\x20-\\x7E]/', $s)) {
+        throw new RuntimeException("Only ASCII characters are supported for login on this portal.");
       }
-
-      $signupHint = isSignupEnabled() ? 'Sign up is enabled (invite code required).' : 'Sign up is disabled.';
-      $signupCard = '';
-      if (isSignupEnabled()) {
-        $signupCard = <<<HTML
-        <div class="card" style="margin-top:14px;">
-          <form method="post">
-            <input type="hidden" name="action" value="signup" />
-            <label>New username</label>
-            <input name="username" autocomplete="username" required />
-            <label>New password (max 16 chars)</label>
-            <input name="password" type="password" autocomplete="new-password" required />
-            <label>Email</label>
-            <input name="email" type="email" autocomplete="email" required />
-            <label>Invite code</label>
-            <input name="invite" required />
-            <button type="submit">Create account</button>
-          </form>
-        </div>
-        HTML;
-      }
-
-      echo <<<HTML
-    <!doctype html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>{$title}</title>
-      <style>
-        :root { color-scheme: dark; }
-        body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1020; color: #e9ecff; }
-        .wrap { max-width: 540px; margin: 0 auto; padding: 28px 16px 56px; }
-        h1 { margin: 0 0 8px; font-size: 22px; letter-spacing: .2px; }
-        .hint { opacity: .75; font-size: 13px; margin-bottom: 16px; }
-        .card { background: rgba(255,255,255,.06); border: 1px solid rgba(165,180,252,.22); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.35); }
-        label { display:block; font-size: 12px; opacity: .8; margin: 10px 0 6px; }
-        input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.25); color: #fff; }
-        button { margin-top: 12px; width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(124,58,237,.45); background: linear-gradient(135deg, rgba(124,58,237,.8), rgba(168,85,247,.6)); color: #fff; font-weight: 700; cursor: pointer; }
-        .flash { border-radius: 14px; padding: 10px 12px; margin: 12px 0 18px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); }
-        .flash.ok { border-color: rgba(34,197,94,.45); }
-        .flash.err { border-color: rgba(239,68,68,.45); }
-      </style>
-    </head>
-    <body>
-      <div class="wrap">
-        <h1>{$title}</h1>
-        <div class="hint">{$signupHint}</div>
-        {$flashHtml}
-        <div class="card">
-          <form method="post">
-            <input type="hidden" name="action" value="login" />
-            <label>Username</label>
-            <input name="login_user" autocomplete="username" required />
-            <label>Password</label>
-            <input name="login_pass" type="password" autocomplete="current-password" required />
-            <button type="submit">Login</button>
-          </form>
-        </div>
-        {$signupCard}
-      </div>
-    </body>
-    </html>
-    HTML;
-      exit;
+      return strtoupper($s);
     }
 
     function normalizeUsername(string $username): string {
       $username = trim($username);
-      if ($username === '') {
-        throw new RuntimeException("Username is required.");
-      }
       if (!preg_match('/^[A-Za-z0-9_]{3,32}$/', $username)) {
         throw new RuntimeException("Username must be 3-32 chars and only A-Z, 0-9, underscore.");
       }
-      return $username;
+      return wowUpper($username);
     }
 
     function validatePassword(string $password): string {
       if ($password === '') {
         throw new RuntimeException("Password is required.");
       }
-      if (strlen($password) < 8) {
-        throw new RuntimeException("Password must be at least 8 characters.");
-      }
       if (strlen($password) > 16) {
-        // WoW client limit (keeps signup compatible).
+        // WoW client limit
         throw new RuntimeException("Password must be 16 characters or less.");
       }
       return $password;
@@ -161,9 +63,6 @@ data:
 
     function validateEmail(string $email): string {
       $email = trim($email);
-      if ($email === '') {
-        throw new RuntimeException("Email is required.");
-      }
       if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         throw new RuntimeException("Email is invalid.");
       }
@@ -171,6 +70,100 @@ data:
         throw new RuntimeException("Email is too long.");
       }
       return $email;
+    }
+
+    function db(): PDO {
+      requirePhpExt('pdo');
+      requirePhpExt('pdo_mysql');
+
+      $host = envOrDefault('DB_HOST');
+      $port = envOrDefault('DB_PORT', '3306');
+      $user = envOrDefault('DB_USER');
+      $pass = envOrDefault('DB_PASSWORD');
+
+      if ($host === '' || $user === '') {
+        throw new RuntimeException("Server misconfigured: DB_HOST/DB_USER not set.");
+      }
+
+      $dsn = "mysql:host={$host};port={$port};charset=utf8mb4";
+      return new PDO($dsn, $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+      ]);
+    }
+
+    function dbName(string $envKey, string $fallback): string {
+      $v = envOrDefault($envKey, $fallback);
+      if (!preg_match('/^[A-Za-z0-9_]+$/', $v)) {
+        throw new RuntimeException("Server misconfigured: invalid {$envKey}.");
+      }
+      return $v;
+    }
+
+    function gmpFromLE(string $bytes): GMP {
+      requirePhpExt('gmp');
+      // word_size=1 + LSW_FIRST == little-endian bytes
+      /** @var GMP $n */
+      $n = gmp_import($bytes, 1, GMP_LSW_FIRST);
+      return $n;
+    }
+
+    function gmpToLE(GMP $n, int $padLen): string {
+      $b = gmp_export($n, 1, GMP_LSW_FIRST);
+      if ($b === false) {
+        $b = '';
+      }
+      if (strlen($b) > $padLen) {
+        $b = substr($b, 0, $padLen);
+      }
+      return str_pad($b, $padLen, "\0", STR_PAD_RIGHT);
+    }
+
+    function srp6Verifier(string $usernameUpper, string $passwordUpper, string $salt32): string {
+      // Matches AzerothCore SRP6::CalculateVerifier (little-endian BigNumber bytes in DB).
+      // N (hex) is big-endian; AzerothCore stores it reversed in SRP6.cpp.
+      $Nhex = '894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7';
+      $N = gmpFromLE(strrev(hex2bin($Nhex)));
+      $g = gmp_init(7, 10);
+
+      $inner = sha1($usernameUpper . ':' . $passwordUpper, true);
+      $x = sha1($salt32 . $inner, true); // 20 bytes
+      $xInt = gmpFromLE($x);
+
+      /** @var GMP $v */
+      $v = gmp_powm($g, $xInt, $N);
+      return gmpToLE($v, 32);
+    }
+
+    function tryLogin(string $username, string $password): array {
+      $usernameUpper = normalizeUsername($username);
+      $passwordUpper = wowUpper(validatePassword($password));
+
+      $pdo = db();
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare("SELECT id, username, salt, verifier FROM {$authDb}.account WHERE username = :u LIMIT 1");
+      $stmt->execute([':u' => $usernameUpper]);
+      $row = $stmt->fetch();
+      if (!$row) {
+        throw new RuntimeException("Invalid username or password.");
+      }
+
+      $salt = (string)$row['salt'];
+      $verifier = (string)$row['verifier'];
+      if (strlen($salt) !== 32 || strlen($verifier) !== 32) {
+        throw new RuntimeException("Server misconfigured: SRP fields have unexpected lengths.");
+      }
+
+      $calc = srp6Verifier($usernameUpper, $passwordUpper, $salt);
+      if (!hash_equals($verifier, $calc)) {
+        throw new RuntimeException("Invalid username or password.");
+      }
+
+      return [
+        'account_id' => (int)$row['id'],
+        'username' => (string)$row['username'],
+      ];
     }
 
     function soapExecute(string $command): string {
@@ -218,9 +211,8 @@ data:
         $err = error_get_last();
         $msg = $err['message'] ?? 'request failed';
 
-        // Worldserver SOAP may not be ready yet right after a rollout.
         if (strpos($msg, 'Connection refused') !== false) {
-          usleep(500000); // 0.5s
+          usleep(500000);
           continue;
         }
 
@@ -230,33 +222,65 @@ data:
       throw new RuntimeException("SOAP request failed: worldserver SOAP not ready (timed out).");
     }
 
-    function renderPage(string $flash = '', string $flashKind = 'info'): void {
-      $title = 'WotLK Account Manager';
+    function ensureSession(): void {
+      if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+      }
+      if (empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(16));
+      }
+    }
+
+    function csrfToken(): string {
+      ensureSession();
+      return (string)$_SESSION['csrf'];
+    }
+
+    function requireCsrf(): void {
+      ensureSession();
+      $sent = (string)($_POST['csrf'] ?? '');
+      if ($sent === '' || !hash_equals((string)$_SESSION['csrf'], $sent)) {
+        throw new RuntimeException("Invalid CSRF token. Refresh and try again.");
+      }
+    }
+
+    function isLoggedIn(): bool {
+      ensureSession();
+      return !empty($_SESSION['account_id']) && !empty($_SESSION['username']);
+    }
+
+    function currentAccountId(): int {
+      ensureSession();
+      return (int)($_SESSION['account_id'] ?? 0);
+    }
+
+    function currentUsername(): string {
+      ensureSession();
+      return (string)($_SESSION['username'] ?? '');
+    }
+
+    function logout(): void {
+      ensureSession();
+      $_SESSION = [];
+      if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+      }
+      session_destroy();
+    }
+
+    function render(string $bodyHtml, string $flash = '', string $flashKind = 'info'): void {
+      $title = 'Battle.net Account Management';
       $flashHtml = '';
       if ($flash !== '') {
         $flashHtml = '<div class="flash ' . htmlspecialchars($flashKind) . '">' . htmlspecialchars($flash) . '</div>';
       }
-      $signupCard = '';
-      if (isSignupEnabled()) {
-        $signupCard = <<<HTML
-          <div class="card">
-            <h2>Create account (public)</h2>
-            <form method="post">
-              <input type="hidden" name="action" value="signup" />
-              <label>Username</label>
-              <input name="username" placeholder="Rov" autocomplete="username" required />
-              <label>Password (max 16 chars)</label>
-              <input name="password" type="password" autocomplete="new-password" required />
-              <label>Email</label>
-              <input name="email" type="email" autocomplete="email" required />
-              <label>Invite code</label>
-              <input name="invite" placeholder="Ask Sam for the code" required />
-              <button type="submit">Sign up</button>
-              <div class="small">Uses <code>account create USER PASS EMAIL</code></div>
-            </form>
-          </div>
-        HTML;
+
+      $userChip = '';
+      if (isLoggedIn()) {
+        $userChip = '<div class="user">Signed in as <strong>' . htmlspecialchars(currentUsername()) . '</strong></div>';
       }
+
       echo <<<HTML
     <!doctype html>
     <html lang="en">
@@ -266,133 +290,531 @@ data:
       <title>{$title}</title>
       <style>
         :root { color-scheme: dark; }
-        body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1020; color: #e9ecff; }
-        .wrap { max-width: 920px; margin: 0 auto; padding: 28px 16px 56px; }
-        .hero { display:flex; align-items:flex-end; justify-content:space-between; gap: 16px; margin-bottom: 18px; }
-        h1 { margin: 0; font-size: 26px; letter-spacing: .2px; }
-        .hint { opacity: .75; font-size: 13px; }
-        .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-        @media (min-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
-        .card { background: rgba(255,255,255,.06); border: 1px solid rgba(165,180,252,.22); border-radius: 16px; padding: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.35); }
-        .card h2 { margin: 0 0 10px; font-size: 16px; }
-        label { display:block; font-size: 12px; opacity: .8; margin: 10px 0 6px; }
-        input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.25); color: #fff; }
-        input::placeholder { color: rgba(255,255,255,.5); }
-        button { margin-top: 12px; width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(124,58,237,.45); background: linear-gradient(135deg, rgba(124,58,237,.8), rgba(168,85,247,.6)); color: #fff; font-weight: 700; cursor: pointer; }
-        button:hover { filter: brightness(1.05); }
-        .flash { border-radius: 14px; padding: 10px 12px; margin: 12px 0 18px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); }
-        .flash.ok { border-color: rgba(34,197,94,.45); }
-        .flash.err { border-color: rgba(239,68,68,.45); }
-        .small { font-size: 12px; opacity: .75; margin-top: 10px; line-height: 1.35; }
-        code { background: rgba(0,0,0,.3); padding: 1px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,.10); }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          font-family: "Trebuchet MS", Verdana, Arial, sans-serif;
+          color: #e6f2ff;
+          background:
+            radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .22), rgba(0,0,0,0)),
+            radial-gradient(900px 500px at 30% 10%, rgba(255, 205, 105, .12), rgba(0,0,0,0)),
+            linear-gradient(180deg, #081428, #02060c);
+        }
+        .noise:before {
+          content:"";
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          background-image:
+            repeating-linear-gradient(0deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px);
+          mix-blend-mode: overlay;
+          opacity: .12;
+        }
+        a { color: #8fd2ff; }
+        .wrap { max-width: 980px; margin: 0 auto; padding: 20px 14px 56px; }
+        .topbar {
+          display: flex; align-items: center; justify-content: space-between; gap: 10px;
+          border: 1px solid rgba(255, 221, 148, .25);
+          border-radius: 14px;
+          background: linear-gradient(180deg, rgba(18, 55, 96, .72), rgba(7, 18, 35, .72));
+          box-shadow: 0 24px 50px rgba(0,0,0,.45);
+          padding: 12px 14px;
+        }
+        .brand {
+          display:flex; align-items:center; gap: 12px;
+        }
+        .logo {
+          width: 36px; height: 36px; border-radius: 10px;
+          border: 1px solid rgba(255, 221, 148, .35);
+          background:
+            radial-gradient(circle at 30% 30%, rgba(255, 221, 148, .35), rgba(0,0,0,0) 55%),
+            radial-gradient(circle at 60% 60%, rgba(56, 189, 248, .25), rgba(0,0,0,0) 65%),
+            linear-gradient(180deg, rgba(16, 36, 64, 1), rgba(8, 16, 30, 1));
+          box-shadow: 0 10px 24px rgba(0,0,0,.5);
+        }
+        .brand h1 { margin: 0; font-size: 16px; letter-spacing: .4px; }
+        .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; }
+        .user { font-size: 12px; opacity: .85; text-align: right; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
+        @media (min-width: 920px) { .grid { grid-template-columns: 1.25fr .75fr; } }
+        .panel {
+          border: 1px solid rgba(255, 221, 148, .22);
+          border-radius: 14px;
+          background: linear-gradient(180deg, rgba(10, 24, 45, .86), rgba(4, 10, 18, .86));
+          box-shadow: 0 24px 55px rgba(0,0,0,.48);
+          overflow: hidden;
+        }
+        .panel .hd {
+          padding: 12px 14px;
+          border-bottom: 1px solid rgba(255, 221, 148, .16);
+          background: linear-gradient(180deg, rgba(22, 55, 96, .85), rgba(10, 24, 45, .25));
+        }
+        .panel .hd h2 { margin: 0; font-size: 14px; letter-spacing: .3px; color: #ffe1a3; }
+        .panel .bd { padding: 14px; }
+        .flash {
+          margin-top: 12px;
+          border-radius: 12px;
+          padding: 10px 12px;
+          border: 1px solid rgba(255,255,255,.12);
+          background: rgba(255,255,255,.06);
+        }
+        .flash.ok { border-color: rgba(34,197,94,.4); }
+        .flash.err { border-color: rgba(239,68,68,.4); }
+        label { display:block; margin: 10px 0 6px; font-size: 12px; opacity: .85; }
+        input, select {
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,.12);
+          background: rgba(0,0,0,.25);
+          color: #e6f2ff;
+        }
+        .btn {
+          display:inline-flex; align-items:center; justify-content:center;
+          gap: 8px;
+          padding: 9px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 221, 148, .25);
+          background: linear-gradient(180deg, rgba(30, 111, 183, .75), rgba(12, 41, 73, .75));
+          color: #e6f2ff;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .btn:hover { filter: brightness(1.05); }
+        .btn.secondary { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); font-weight: 600; }
+        .btn.danger { background: linear-gradient(180deg, rgba(185, 28, 28, .75), rgba(88, 13, 13, .75)); border-color: rgba(239, 68, 68, .35); }
+        .row { display:flex; gap: 10px; align-items: center; }
+        .row > * { flex: 1; }
+        .table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .table th, .table td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,.08); vertical-align: top; }
+        .table th { text-align: left; color: #ffe1a3; font-weight: 700; }
+        .muted { opacity: .75; }
+        .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); }
+        .kpi { display:flex; gap: 10px; flex-wrap: wrap; }
+        .kpi .card { flex: 1; min-width: 160px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255, 221, 148, .18); background: rgba(0,0,0,.18); }
+        .kpi .val { font-size: 20px; font-weight: 800; color: #8fd2ff; margin-top: 4px; }
+        .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
       </style>
     </head>
-    <body>
+    <body class="noise">
       <div class="wrap">
-        <div class="hero">
-          <div>
-            <h1>{$title}</h1>
-            <div class="hint">Talks to the worldserver SOAP interface inside the cluster.</div>
+        <div class="topbar">
+          <div class="brand">
+            <div class="logo"></div>
+            <div>
+              <h1>{$title}</h1>
+              <div class="sub">Grim Guzzler • Wrath 3.3.5a</div>
+            </div>
           </div>
+          {$userChip}
         </div>
         {$flashHtml}
-        <div style="display:flex;justify-content:flex-end;margin: 0 0 10px;">
-          <form method="post">
-            <input type="hidden" name="action" value="logout" />
-            <button type="submit" style="width:auto;padding:8px 12px;border-radius:12px;font-weight:700;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);">Logout</button>
-          </form>
-        </div>
-        <div class="grid">
-          {$signupCard}
-          <div class="card">
-            <h2>Change password</h2>
-            <form method="post">
-              <input type="hidden" name="action" value="passwd" />
-              <label>Username</label>
-              <input name="username" placeholder="Rov" autocomplete="username" required />
-              <label>New password</label>
-              <input name="password" type="password" autocomplete="new-password" required />
-              <button type="submit">Update password</button>
-              <div class="small">Uses <code>account set password USER PASS PASS</code></div>
-            </form>
-          </div>
-        </div>
+        {$bodyHtml}
+        <div class="foot">Tip: characters must be offline for rename/race change/unstuck to apply safely.</div>
       </div>
     </body>
     </html>
     HTML;
+      exit;
     }
 
-    // Handle login/logout before requiring auth for other actions.
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-      session_start();
+    function ensureStatsTable(PDO $pdo): void {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS {$charDb}.web_stats_daily (" .
+        "snapshot_date DATE NOT NULL," .
+        "guid INT UNSIGNED NOT NULL," .
+        "name VARCHAR(12) NOT NULL," .
+        "level TINYINT UNSIGNED NOT NULL," .
+        "total_kills INT UNSIGNED NOT NULL," .
+        "PRIMARY KEY (snapshot_date, guid)," .
+        "KEY guid_idx (guid)," .
+        "KEY date_idx (snapshot_date)" .
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+      );
     }
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'login') {
-      $user = envOrDefault('BASIC_AUTH_USER');
-      $pass = envOrDefault('BASIC_AUTH_PASSWORD');
-      $u = (string)($_POST['login_user'] ?? '');
-      $p = (string)($_POST['login_pass'] ?? '');
-      if (hash_equals($user, $u) && hash_equals($pass, $p)) {
-        $_SESSION['auth_ok'] = true;
-        header('Location: /');
-        exit;
+    function getStats(PDO $pdo): array {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      ensureStatsTable($pdo);
+
+      $playersOnline = (int)$pdo->query("SELECT COUNT(*) AS c FROM {$charDb}.characters WHERE online = 1")->fetch()['c'];
+
+      $topKills = [];
+      $topLevels = [];
+
+      // These depend on the periodic snapshot job. If it hasn't run yet, tables will be empty.
+      $topKillsStmt = $pdo->query(
+        "SELECT MAX(name) AS name, (MAX(total_kills) - MIN(total_kills)) AS gained " .
+        "FROM {$charDb}.web_stats_daily " .
+        "WHERE snapshot_date >= (CURRENT_DATE - INTERVAL 7 DAY) " .
+        "GROUP BY guid " .
+        "HAVING gained > 0 " .
+        "ORDER BY gained DESC " .
+        "LIMIT 10"
+      );
+      $topKills = $topKillsStmt->fetchAll();
+
+      $topLevelsStmt = $pdo->query(
+        "SELECT MAX(name) AS name, (MAX(level) - MIN(level)) AS gained " .
+        "FROM {$charDb}.web_stats_daily " .
+        "WHERE snapshot_date >= (CURRENT_DATE - INTERVAL 7 DAY) " .
+        "GROUP BY guid " .
+        "HAVING gained > 0 " .
+        "ORDER BY gained DESC " .
+        "LIMIT 10"
+      );
+      $topLevels = $topLevelsStmt->fetchAll();
+
+      return [
+        'players_online' => $playersOnline,
+        'top_kills' => $topKills,
+        'top_levels' => $topLevels,
+      ];
+    }
+
+    function listCharacters(PDO $pdo, int $accountId): array {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $stmt = $pdo->prepare(
+        "SELECT guid, name, race, class, level, online, at_login, zone, map " .
+        "FROM {$charDb}.characters WHERE account = :a ORDER BY level DESC, name ASC"
+      );
+      $stmt->execute([':a' => $accountId]);
+      return $stmt->fetchAll();
+    }
+
+    function characterBelongsTo(PDO $pdo, int $accountId, int $guid): array {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $stmt = $pdo->prepare(
+        "SELECT guid, account, name, race, class, level, online, at_login, zone, map " .
+        "FROM {$charDb}.characters WHERE guid = :g LIMIT 1"
+      );
+      $stmt->execute([':g' => $guid]);
+      $row = $stmt->fetch();
+      if (!$row || (int)$row['account'] !== $accountId) {
+        throw new RuntimeException("Character not found.");
       }
-      renderLogin('Invalid credentials', 'err');
+      return $row;
     }
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'logout') {
-      $_SESSION = [];
-      if (ini_get('session.use_cookies')) {
-        $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+    function setAtLoginFlag(PDO $pdo, int $guid, int $bit): void {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $stmt = $pdo->prepare("UPDATE {$charDb}.characters SET at_login = (at_login | :bit) WHERE guid = :g");
+      $stmt->execute([':bit' => $bit, ':g' => $guid]);
+    }
+
+    function getTeamFactionForRace(int $race): int {
+      // AzerothCore: graveyard_zone.Faction is 469 (Alliance), 67 (Horde), 0 (any)
+      $alliance = [1, 3, 4, 7, 11];
+      return in_array($race, $alliance, true) ? 469 : 67;
+    }
+
+    function unstuckToGraveyard(PDO $pdo, array $char): void {
+      $worldDb = dbName('DB_WORLD_DB', 'acore_world');
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+
+      $zone = (int)$char['zone'];
+      $race = (int)$char['race'];
+      $guid = (int)$char['guid'];
+      $faction = getTeamFactionForRace($race);
+
+      $stmt = $pdo->prepare(
+        "SELECT g.Map AS map, g.x, g.y, g.z " .
+        "FROM {$worldDb}.graveyard_zone gz " .
+        "JOIN {$worldDb}.game_graveyard g ON g.ID = gz.ID " .
+        "WHERE gz.GhostZone = :z AND (gz.Faction = 0 OR gz.Faction = :f) " .
+        "ORDER BY (gz.Faction = 0) ASC, gz.ID ASC " .
+        "LIMIT 1"
+      );
+      $stmt->execute([':z' => $zone, ':f' => $faction]);
+      $gy = $stmt->fetch();
+      if (!$gy) {
+        throw new RuntimeException("No graveyard mapping found for zone {$zone}.");
       }
-      session_destroy();
-      renderLogin('Logged out', 'ok');
+
+      $upd = $pdo->prepare(
+        "UPDATE {$charDb}.characters " .
+        "SET map = :map, position_x = :x, position_y = :y, position_z = :z, " .
+        "trans_x = 0, trans_y = 0, trans_z = 0, trans_o = 0, transguid = 0 " .
+        "WHERE guid = :g"
+      );
+      $upd->execute([
+        ':map' => (int)$gy['map'],
+        ':x' => (float)$gy['x'],
+        ':y' => (float)$gy['y'],
+        ':z' => (float)$gy['z'],
+        ':g' => $guid,
+      ]);
     }
 
-    $isAuthed = checkBasicAuth() || !empty($_SESSION['auth_ok']);
+    function renderLoginPage(array $stats, string $flash = '', string $flashKind = 'info'): void {
+      $csrf = htmlspecialchars(csrfToken());
+      $online = (int)$stats['players_online'];
+
+      $topKillsRows = '';
+      foreach ($stats['top_kills'] as $r) {
+        $topKillsRows .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+      }
+      if ($topKillsRows === '') {
+        $topKillsRows = '<tr><td colspan="2" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
+      }
+
+      $topLevelsRows = '';
+      foreach ($stats['top_levels'] as $r) {
+        $topLevelsRows .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+      }
+      if ($topLevelsRows === '') {
+        $topLevelsRows = '<tr><td colspan="2" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
+      }
+
+      $signup = '';
+      if (isSignupEnabled()) {
+        $signup = <<<HTML
+        <div class="panel">
+          <div class="hd"><h2>Create Account (Invite)</h2></div>
+          <div class="bd">
+            <form method="post">
+              <input type="hidden" name="csrf" value="{$csrf}" />
+              <input type="hidden" name="action" value="signup" />
+              <label>Username</label>
+              <input name="username" autocomplete="username" required />
+              <label>Password (max 16 chars)</label>
+              <input name="password" type="password" autocomplete="new-password" required />
+              <label>Email</label>
+              <input name="email" type="email" autocomplete="email" required />
+              <label>Invite code</label>
+              <input name="invite" required />
+              <div style="margin-top:12px;">
+                <button class="btn" type="submit">Create account</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        HTML;
+      }
+
+      $body = <<<HTML
+      <div class="grid">
+        <div class="panel">
+          <div class="hd"><h2>Sign In</h2></div>
+          <div class="bd">
+            <div class="kpi">
+              <div class="card">
+                <div class="muted">Players online</div>
+                <div class="val">{$online}</div>
+              </div>
+            </div>
+            <form method="post" style="margin-top:14px;">
+              <input type="hidden" name="csrf" value="{$csrf}" />
+              <input type="hidden" name="action" value="login" />
+              <label>Account name</label>
+              <input name="login_user" autocomplete="username" required />
+              <label>Password</label>
+              <input name="login_pass" type="password" autocomplete="current-password" required />
+              <div style="margin-top:12px;">
+                <button class="btn" type="submit">Log In</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="hd"><h2>Weekly Stats</h2></div>
+          <div class="bd">
+            <div class="muted" style="margin-bottom: 10px;">Last 7 days (best effort).</div>
+            <div class="row" style="align-items:flex-start;">
+              <div>
+                <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
+                <table class="table">
+                  <thead><tr><th>Character</th><th>+Kills</th></tr></thead>
+                  <tbody>{$topKillsRows}</tbody>
+                </table>
+              </div>
+              <div>
+                <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
+                <table class="table">
+                  <thead><tr><th>Character</th><th>+Levels</th></tr></thead>
+                  <tbody>{$topLevelsRows}</tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        {$signup}
+      </div>
+      HTML;
+
+      render($body, $flash, $flashKind);
+    }
+
+    function renderPortal(PDO $pdo, array $stats, array $chars, string $flash = '', string $flashKind = 'info'): void {
+      $csrf = htmlspecialchars(csrfToken());
+      $online = (int)$stats['players_online'];
+
+      $rows = '';
+      foreach ($chars as $c) {
+        $guid = (int)$c['guid'];
+        $name = htmlspecialchars((string)$c['name']);
+        $level = (int)$c['level'];
+        $isOnline = (int)$c['online'] === 1;
+        $state = $isOnline ? '<span class="pill">Online</span>' : '<span class="pill">Offline</span>';
+        $disabled = $isOnline ? 'disabled' : '';
+
+        $rows .= <<<HTML
+        <tr>
+          <td><strong>{$name}</strong><div class="muted">GUID {$guid}</div></td>
+          <td>{$level}</td>
+          <td>{$state}</td>
+          <td>
+            <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="hidden" name="csrf" value="{$csrf}" />
+              <input type="hidden" name="guid" value="{$guid}" />
+              <button class="btn secondary" type="submit" name="action" value="rename" {$disabled}>Rename</button>
+              <button class="btn secondary" type="submit" name="action" value="race_change" {$disabled}>Race Change</button>
+              <button class="btn danger" type="submit" name="action" value="unstuck" {$disabled}>Unstuck</button>
+            </form>
+          </td>
+        </tr>
+        HTML;
+      }
+      if ($rows === '') {
+        $rows = '<tr><td colspan="4" class="muted">No characters found.</td></tr>';
+      }
+
+      $body = <<<HTML
+      <div class="grid">
+        <div class="panel">
+          <div class="hd"><h2>Account Overview</h2></div>
+          <div class="bd">
+            <div class="kpi">
+              <div class="card"><div class="muted">Players online</div><div class="val">{$online}</div></div>
+            </div>
+            <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+              <form method="post">
+                <input type="hidden" name="csrf" value="{$csrf}" />
+                <button class="btn secondary" type="submit" name="action" value="logout">Log Out</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="hd"><h2>Account Actions</h2></div>
+          <div class="bd">
+            <form method="post">
+              <input type="hidden" name="csrf" value="{$csrf}" />
+              <input type="hidden" name="action" value="change_password" />
+              <label>New password (max 16 chars)</label>
+              <input name="new_password" type="password" autocomplete="new-password" required />
+              <div style="margin-top:12px;">
+                <button class="btn" type="submit">Change Password</button>
+              </div>
+              <div class="muted" style="margin-top:10px;">Applies to your game account.</div>
+            </form>
+          </div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1;">
+          <div class="hd"><h2>Characters</h2></div>
+          <div class="bd">
+            <table class="table">
+              <thead><tr><th>Character</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>{$rows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      HTML;
+
+      render($body, $flash, $flashKind);
+    }
+
+    ensureSession();
 
     $flash = '';
     $flashKind = 'info';
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-      try {
-        $action = $_POST['action'] ?? '';
-        if ($action === 'login' || $action === 'logout') {
-          throw new RuntimeException("Invalid action.");
+
+    try {
+      $pdo = db();
+      $stats = getStats($pdo);
+
+      if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = (string)($_POST['action'] ?? '');
+        requireCsrf();
+
+        if ($action === 'logout') {
+          logout();
+          header('Location: /');
+          exit;
         }
+
+        if ($action === 'login') {
+          $loginUser = (string)($_POST['login_user'] ?? '');
+          $loginPass = (string)($_POST['login_pass'] ?? '');
+          $res = tryLogin($loginUser, $loginPass);
+          $_SESSION['account_id'] = $res['account_id'];
+          $_SESSION['username'] = $res['username'];
+          header('Location: /');
+          exit;
+        }
+
         if ($action === 'signup') {
           if (!isSignupEnabled()) {
             throw new RuntimeException("Sign up is disabled.");
           }
-          $username = normalizeUsername($_POST['username'] ?? '');
-          $password = validatePassword($_POST['password'] ?? '');
-          $email = validateEmail($_POST['email'] ?? '');
+          $username = normalizeUsername((string)($_POST['username'] ?? ''));
+          $password = validatePassword((string)($_POST['password'] ?? ''));
+          $email = validateEmail((string)($_POST['email'] ?? ''));
           requireInviteCode((string)($_POST['invite'] ?? ''));
           soapExecute('account create ' . $username . ' ' . $password . ' ' . $email);
-          $flash = "Created account: " . $username;
+          $flash = "Created account: {$username}";
           $flashKind = 'ok';
-          renderLogin($flash, $flashKind);
-        } elseif ($action === 'passwd') {
-          if (!$isAuthed) {
-            renderLogin('Login required for this action.', 'err');
+        } elseif ($action === 'change_password') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
           }
-          $username = normalizeUsername($_POST['username'] ?? '');
-          $password = validatePassword($_POST['password'] ?? '');
-          // AzerothCore expects password confirmation, so pass it twice.
-          soapExecute('account set password ' . $username . ' ' . $password . ' ' . $password);
-          $flash = "Updated password for: " . $username;
+          $newPass = validatePassword((string)($_POST['new_password'] ?? ''));
+          $u = currentUsername();
+          soapExecute('account set password ' . $u . ' ' . $newPass . ' ' . $newPass);
+          $flash = "Password updated.";
           $flashKind = 'ok';
-        } else {
+        } elseif ($action === 'rename' || $action === 'race_change' || $action === 'unstuck') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          $guid = (int)($_POST['guid'] ?? 0);
+          if ($guid <= 0) {
+            throw new RuntimeException("Invalid character.");
+          }
+
+          $char = characterBelongsTo($pdo, currentAccountId(), $guid);
+          if ((int)$char['online'] === 1) {
+            throw new RuntimeException("Character must be offline.");
+          }
+
+          if ($action === 'rename') {
+            setAtLoginFlag($pdo, $guid, 0x01);
+            $flash = "Rename queued for {$char['name']}.";
+            $flashKind = 'ok';
+          } elseif ($action === 'race_change') {
+            setAtLoginFlag($pdo, $guid, 0x80);
+            $flash = "Race change queued for {$char['name']}.";
+            $flashKind = 'ok';
+          } else {
+            unstuckToGraveyard($pdo, $char);
+            $flash = "Moved {$char['name']} to the nearest graveyard.";
+            $flashKind = 'ok';
+          }
+        } elseif ($action !== '') {
           throw new RuntimeException("Unknown action.");
         }
-      } catch (Throwable $e) {
-        $flash = $e->getMessage();
-        $flashKind = 'err';
       }
-    }
 
-    if (!$isAuthed) {
-      renderLogin($flash, $flashKind);
+      if (!isLoggedIn()) {
+        renderLoginPage($stats, $flash, $flashKind);
+      }
+
+      $chars = listCharacters($pdo, currentAccountId());
+      renderPortal($pdo, $stats, $chars, $flash, $flashKind);
+    } catch (Throwable $e) {
+      // If DB is down or extensions missing, render a simple page.
+      $msg = $e->getMessage();
+      render('<div class="panel"><div class="hd"><h2>Portal Error</h2></div><div class="bd"><div class="flash err">' . htmlspecialchars($msg) . '</div><div class="muted">If this is new, wait a minute after a rollout and refresh.</div></div></div>', 'Portal error', 'err');
     }
-    renderPage($flash, $flashKind);
