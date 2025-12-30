@@ -82,10 +82,10 @@ spec:
                 - name: REALM_ADDRESS
                   # Public (tailnet) address clients should connect to.
                   # Use the Tailscale IP to avoid requiring MagicDNS on clients.
-                  value: "wow.risk-lenok.ts.net"
+                  value: "100.82.107.43"
                 - name: REALM_LOCAL_ADDRESS
                   # LAN address for clients on the 192.168.1.0/24 subnet.
-                  value: "wow.risk-lenok.ts.net"
+                  value: "192.168.1.197"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT
