@@ -75,6 +75,10 @@ spec:
                   value: acore_world
                 - name: ACORE_PLAYERBOTS_DB
                   value: acore_playerbots
+                - name: DB_RECREATE_CONFIRM
+                  # Safety latch to prevent accidental data loss.
+                  # Set to YES_WIPE_DATABASES to actually DROP/CREATE and re-import base DBs.
+                  value: "NO"
                 - name: REALM_ID
                   value: "1"
                 - name: REALM_NAME
@@ -150,16 +154,21 @@ spec:
 
                   ensure_user
 
-                  recreate_db "${ACORE_AUTH_DB}"
-                  recreate_db "${ACORE_CHAR_DB}"
-                  recreate_db "${ACORE_WORLD_DB}"
-                  recreate_db "${ACORE_PLAYERBOTS_DB}"
+                  if [ "${DB_RECREATE_CONFIRM:-}" = "YES_WIPE_DATABASES" ]; then
+                    echo "DB_RECREATE_CONFIRM=YES_WIPE_DATABASES set; recreating and importing base DBs..."
+                    recreate_db "${ACORE_AUTH_DB}"
+                    recreate_db "${ACORE_CHAR_DB}"
+                    recreate_db "${ACORE_WORLD_DB}"
+                    recreate_db "${ACORE_PLAYERBOTS_DB}"
 
-                  apply_dir "${ACORE_AUTH_DB}" /work/acore/data/sql/base/db_auth
+                    apply_dir "${ACORE_AUTH_DB}" /work/acore/data/sql/base/db_auth
 
-                  apply_dir "${ACORE_CHAR_DB}" /work/acore/data/sql/base/db_characters
+                    apply_dir "${ACORE_CHAR_DB}" /work/acore/data/sql/base/db_characters
 
-                  apply_dir "${ACORE_WORLD_DB}" /work/acore/data/sql/base/db_world
+                    apply_dir "${ACORE_WORLD_DB}" /work/acore/data/sql/base/db_world
+                  else
+                    echo "DB_RECREATE_CONFIRM not set; skipping DB recreation/import (no data loss)."
+                  fi
 
                   echo "Upserting realm row..."
                   db --database "${ACORE_AUTH_DB}" --execute "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, flag, timezone, allowedSecurityLevel, population, gamebuild) VALUES (${REALM_ID}, '${REALM_NAME}', '${REALM_ADDRESS}', '${REALM_LOCAL_ADDRESS}', '${REALM_LOCAL_SUBNET}', ${REALM_WORLD_PORT}, ${REALM_FLAG}, 1, 0, 0, ${REALM_GAMEBUILD}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), localAddress=VALUES(localAddress), localSubnetMask=VALUES(localSubnetMask), port=VALUES(port), flag=VALUES(flag), gamebuild=VALUES(gamebuild);"

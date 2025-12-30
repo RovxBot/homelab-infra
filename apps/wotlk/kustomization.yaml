@@ -10,6 +10,7 @@ resources:
   - data-pvc-rwx.yaml
   - acore-source-configmap.yaml
   - db-bootstrap-cronjob.yaml
+  - realm-upsert-cronjob.yaml
   - db-hotfix-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml

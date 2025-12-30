@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-realm-upsert
+spec:
+  # Suspended by default; run manually when you need to change advertised realm address.
+  schedule: "0 4 * * *"
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: mariadb-client
+              image: mysql:8.0
+              env:
+                - name: DB_HOST
+                  value: wotlk-mariadb.wotlk.svc.cluster.local
+                - name: DB_PORT
+                  value: "3306"
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+                - name: REALM_ID
+                  value: "1"
+                - name: REALM_NAME
+                  value: "Grim Guzzler"
+                - name: REALM_ADDRESS
+                  value: "100.82.107.43"
+                - name: REALM_LOCAL_ADDRESS
+                  value: "100.82.107.43"
+                - name: REALM_LOCAL_SUBNET
+                  value: "255.255.255.0"
+                - name: REALM_WORLD_PORT
+                  value: "8085"
+                - name: REALM_FLAG
+                  value: "0"
+                - name: REALM_GAMEBUILD
+                  value: "12340"
+              command:
+                - sh
+                - -lc
+                - |
+                  set -eu
+
+                  db() {
+                    command mysql \
+                      --protocol=tcp \
+                      --host "${DB_HOST}" \
+                      --port "${DB_PORT}" \
+                      --user root \
+                      --password="${DB_ROOT_PASSWORD}" \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
+                      "$@"
+                  }
+
+                  echo "Waiting for MySQL at ${DB_HOST}:${DB_PORT}..."
+                  for _ in $(seq 1 240); do
+                    if db --execute "SELECT 1" >/dev/null 2>&1; then
+                      break
+                    fi
+                    sleep 2
+                  done
+
+                  echo "Upserting realm row (no DB wipe)..."
+                  db --database "acore_auth" --execute "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, flag, timezone, allowedSecurityLevel, population, gamebuild) VALUES (${REALM_ID}, '${REALM_NAME}', '${REALM_ADDRESS}', '${REALM_LOCAL_ADDRESS}', '${REALM_LOCAL_SUBNET}', ${REALM_WORLD_PORT}, ${REALM_FLAG}, 1, 0, 0, ${REALM_GAMEBUILD}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), localAddress=VALUES(localAddress), localSubnetMask=VALUES(localSubnetMask), port=VALUES(port), flag=VALUES(flag), gamebuild=VALUES(gamebuild);"
+
+                  db --database "acore_auth" --execute "SELECT id,name,address,localAddress,localSubnetMask,port,gamebuild FROM realmlist WHERE id=${REALM_ID};"
