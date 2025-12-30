@@ -80,7 +80,12 @@ spec:
                 - name: REALM_NAME
                   value: "Grim Guzzler"
                 - name: REALM_ADDRESS
-                  value: "wow.risk-lenok.ts.net"
+                  # Public (tailnet) address clients should connect to.
+                  # Use the Tailscale IP to avoid requiring MagicDNS on clients.
+                  value: "100.82.107.43"
+                - name: REALM_LOCAL_ADDRESS
+                  # LAN address for clients on the 192.168.1.0/24 subnet.
+                  value: "192.168.1.197"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT
@@ -155,7 +160,7 @@ spec:
                   apply_dir "${ACORE_WORLD_DB}" /work/acore/data/sql/base/db_world
 
                   echo "Upserting realm row..."
-                  db --database "${ACORE_AUTH_DB}" --execute "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, flag, timezone, allowedSecurityLevel, population, gamebuild) VALUES (${REALM_ID}, '${REALM_NAME}', '${REALM_ADDRESS}', '${REALM_ADDRESS}', '${REALM_LOCAL_SUBNET}', ${REALM_WORLD_PORT}, ${REALM_FLAG}, 1, 0, 0, ${REALM_GAMEBUILD}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), localAddress=VALUES(localAddress), localSubnetMask=VALUES(localSubnetMask), port=VALUES(port), flag=VALUES(flag), gamebuild=VALUES(gamebuild);"
+                  db --database "${ACORE_AUTH_DB}" --execute "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, flag, timezone, allowedSecurityLevel, population, gamebuild) VALUES (${REALM_ID}, '${REALM_NAME}', '${REALM_ADDRESS}', '${REALM_LOCAL_ADDRESS}', '${REALM_LOCAL_SUBNET}', ${REALM_WORLD_PORT}, ${REALM_FLAG}, 1, 0, 0, ${REALM_GAMEBUILD}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), localAddress=VALUES(localAddress), localSubnetMask=VALUES(localSubnetMask), port=VALUES(port), flag=VALUES(flag), gamebuild=VALUES(gamebuild);"
               volumeMounts:
                 - name: work
                   mountPath: /work
