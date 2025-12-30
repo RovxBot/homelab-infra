@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="MariaDB">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2d7ff9"/>
+      <stop offset="1" stop-color="#0b2f7d"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#f7d66a"/>
+      <stop offset="1" stop-color="#c08a2a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="url(#bg)"/>
+  <path d="M32 44c0-10 14-18 32-18s32 8 32 18-14 18-32 18-32-8-32-18Z" fill="rgba(255,255,255,.92)"/>
+  <path d="M32 44v40c0 10 14 18 32 18s32-8 32-18V44" fill="rgba(255,255,255,.82)"/>
+  <path d="M32 64c0 10 14 18 32 18s32-8 32-18" fill="rgba(0,0,0,.10)"/>
+  <path d="M32 84c0 10 14 18 32 18s32-8 32-18" fill="rgba(0,0,0,.10)"/>
+  <circle cx="64" cy="64" r="52" fill="none" stroke="url(#gold)" stroke-width="8"/>
+</svg>
