@@ -190,8 +190,41 @@ spec:
             - -lc
             - |
               set -eu
+              # Install required PHP extensions at runtime (keeps this repo image-less).
+              # If this ever becomes too slow on restarts, build a small custom image with these enabled.
+              if ! php -m | grep -qi '^pdo_mysql$'; then
+                jobs="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+                apk add --no-cache \
+                  gmp \
+                  gmp-dev \
+                  mariadb-connector-c \
+                  mariadb-connector-c-dev \
+                  ${PHPIZE_DEPS} >/dev/null
+                docker-php-ext-install -j"${jobs}" gmp pdo_mysql >/dev/null
+                apk del --no-network gmp-dev mariadb-connector-c-dev ${PHPIZE_DEPS} >/dev/null || true
+              fi
               php -S 0.0.0.0:8088 -t /app
           env:
+            - name: DB_HOST
+              value: wotlk-mariadb.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_AUTH_DB
+              value: acore_auth
+            - name: DB_CHAR_DB
+              value: acore_characters
+            - name: DB_WORLD_DB
+              value: acore_world
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
             - name: SOAP_URL
               value: http://127.0.0.1:7878/
             - name: SOAP_USERNAME
@@ -204,16 +237,6 @@ spec:
                 secretKeyRef:
                   name: wotlk-soap-auth
                   key: SOAP_PASSWORD
-            - name: BASIC_AUTH_USER
-              valueFrom:
-                secretKeyRef:
-                  name: wotlk-accountmgr-auth
-                  key: BASIC_AUTH_USER
-            - name: BASIC_AUTH_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: wotlk-accountmgr-auth
-                  key: BASIC_AUTH_PASSWORD
             - name: ALLOW_SIGNUP
               value: "true"
             - name: INVITE_CODE

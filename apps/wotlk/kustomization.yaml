@@ -12,6 +12,7 @@ resources:
   - db-bootstrap-cronjob.yaml
   - realm-upsert-cronjob.yaml
   - db-hotfix-cronjob.yaml
+  - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
   - client-extract-mmaps-cronjob.yaml
