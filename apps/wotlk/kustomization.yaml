@@ -8,6 +8,7 @@ resources:
   - mariadb-service.yaml
   - mariadb-statefulset.yaml
   - data-pvc-rwx.yaml
+  - acore-source-configmap.yaml
   - db-bootstrap-cronjob.yaml
   - db-hotfix-cronjob.yaml
   - mmaps-config-configmap.yaml

@@ -4,7 +4,7 @@
         href: https://homepage.cooked.beer
         siteMonitor: http://homepage.homepage.svc.cluster.local:3000
         description: Dashboard
-        icon: mdi-home-analytics
+        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/dashboard-icons.svg
         target: _blank
         widget:
           type: kubernetes
@@ -13,9 +13,9 @@
           podSelector: app=homepage
     - Immich:
         href: https://immich.cooked.beer
-        siteMonitor: http://immich-server.immich.svc.cluster.local:2283/api/server-info/ping
+        siteMonitor: http://immich-server.immich.svc.cluster.local:2283/api/server/ping
         description: Photos
-        icon: mdi-camera
+        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/immich.svg
         target: _blank
         widget:
           type: kubernetes
@@ -24,36 +24,47 @@
           podSelector: app=immich-server
 
 - Games:
-    - WoW Login (realmd):
-        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wow
-        description: Auth / realm list (TCP 3724)
-        icon: mdi-account-key
+    - WotLK Authserver:
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
+        description: Auth / realm list (TCP 3724 on metal7)
+        icon: /icons/wotlk.svg
         target: _blank
         widget:
           type: kubernetes
-          namespace: wow
-          app: wow-realmd
-          podSelector: app=wow-realmd
-    - WoW World (mangosd):
-        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wow
-        description: World server (TCP 8085)
-        icon: mdi-sword-cross
+          namespace: wotlk
+          app: wotlk-authserver
+          podSelector: app=wotlk-authserver
+    - WotLK Worldserver:
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
+        description: World server (TCP 8085 on metal7)
+        icon: /icons/wotlk.svg
         target: _blank
         widget:
           type: kubernetes
-          namespace: wow
-          app: wow-mangosd
-          podSelector: app=wow-mangosd
-    - WoW DB (MariaDB):
-        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wow
-        description: Database
-        icon: mdi-database
+          namespace: wotlk
+          app: wotlk-worldserver
+          podSelector: app=wotlk-worldserver
+    - WotLK Account Manager (LAN):
+        href: http://192.168.1.197:8088
+        siteMonitor: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
+        description: Account creation / invites
+        icon: /icons/accountmgr.svg
         target: _blank
         widget:
           type: kubernetes
-          namespace: wow
-          app: wow-mariadb
-          podSelector: app=wow-mariadb
+          namespace: wotlk
+          app: wotlk-worldserver
+          podSelector: app=wotlk-worldserver
+    - WoW Proxy (Tailscale):
+        href: https://wow.risk-lenok.ts.net
+        description: WoW access via Tailscale serve
+        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/tailscale.svg
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: tailscale
+          app: tailscale-wow
+          podSelector: app=tailscale-wow
 
 - Media:
     - Radarr:
@@ -150,7 +161,7 @@
         href: https://alertmanager.cooked.beer
         siteMonitor: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/-/ready
         description: Alert routing
-        icon: mdi-bell-alert
+        icon: alertmanager
         target: _blank
         widget:
           type: kubernetes

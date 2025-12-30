@@ -20,6 +20,10 @@ configMapGenerator:
       - config/widgets.yaml
       - config/kubernetes.yaml
       - config/custom.css
+  - name: homepage-public-icons
+    files:
+      - config/icons/wotlk.svg
+      - config/icons/accountmgr.svg
 
 generatorOptions:
   disableNameSuffixHash: false

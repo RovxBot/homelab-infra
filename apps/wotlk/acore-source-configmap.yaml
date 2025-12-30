@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wotlk-acore-source
+data:
+  # AzerothCore fork + ref used by:
+  # - GitHub Actions image builds (via ops/wotlk-images/*)
+  # - worldserver initContainer clone (DB updater context)
+  # - db-bootstrap initContainer clone (bootstrap schema/data)
+  #
+  # If you maintain your own fork/branch that periodically merges upstream AzerothCore fixes
+  # into the Playerbot branch, update these two values.
+  ACORE_REPO: https://github.com/mod-playerbots/azerothcore-wotlk.git
+  ACORE_REF: Playerbot
