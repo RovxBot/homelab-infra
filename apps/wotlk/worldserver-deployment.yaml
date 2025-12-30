@@ -24,13 +24,24 @@ spec:
       initContainers:
         - name: clone-acore
           image: alpine/git:2.47.2
+          env:
+            - name: ACORE_REPO
+              valueFrom:
+                configMapKeyRef:
+                  name: wotlk-acore-source
+                  key: ACORE_REPO
+            - name: ACORE_REF
+              valueFrom:
+                configMapKeyRef:
+                  name: wotlk-acore-source
+                  key: ACORE_REF
           command:
             - sh
             - -lc
             - |
               set -eu
               rm -rf /acore-src/*
-              git clone --depth=1 --branch "Playerbot" "https://github.com/mod-playerbots/azerothcore-wotlk.git" /acore-src
+              git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" /acore-src
               mkdir -p /acore-src/modules
 
               # Clone module repos so the in-server DB updater can find their SQL folders.

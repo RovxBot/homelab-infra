@@ -136,6 +136,9 @@ spec:
             - name: public-assets
               mountPath: /app/public/assets
               readOnly: true
+            - name: public-icons
+              mountPath: /app/public/icons
+              readOnly: true
       volumes:
         - name: config
           persistentVolumeClaim:
@@ -145,5 +148,8 @@ spec:
         - name: app-config
           configMap:
             name: homepage-app-config
+        - name: public-icons
+          configMap:
+            name: homepage-public-icons
         - name: public-assets
           emptyDir: {}
