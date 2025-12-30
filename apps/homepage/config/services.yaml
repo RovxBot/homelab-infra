@@ -45,16 +45,21 @@
           app: wotlk-worldserver
           podSelector: app=wotlk-worldserver
     - WotLK Account Manager (LAN):
-        href: http://192.168.1.197:8088
+        href: https://wow.risk-lenok.ts.net/
         siteMonitor: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
         description: Account creation / invites
         icon: /icons/accountmgr.svg
         target: _blank
+    - WotLK DB (MariaDB):
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
+        description: Characters / world DB
+        icon: /icons/mariadb.svg
+        target: _blank
         widget:
           type: kubernetes
           namespace: wotlk
-          app: wotlk-worldserver
-          podSelector: app=wotlk-worldserver
+          app: wotlk-mariadb
+          podSelector: app=wotlk-mariadb
     - WoW Proxy (Tailscale):
         href: https://wow.risk-lenok.ts.net
         description: WoW access via Tailscale serve

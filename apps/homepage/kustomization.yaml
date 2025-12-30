@@ -24,6 +24,7 @@ configMapGenerator:
     files:
       - config/icons/wotlk.svg
       - config/icons/accountmgr.svg
+      - config/icons/mariadb.svg
 
 generatorOptions:
   disableNameSuffixHash: false
