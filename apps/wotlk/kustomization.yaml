@@ -16,6 +16,8 @@ resources:
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
   - client-extract-mmaps-cronjob.yaml
+  - restart-rbac.yaml
+  - restart-cronjob.yaml
   - accountmgr-configmap.yaml
   - accountmgr-service.yaml
   - authserver-config.yaml

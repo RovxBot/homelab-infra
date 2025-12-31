@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wotlk-restart
+  namespace: wotlk
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wotlk-restart
+  namespace: wotlk
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wotlk-restart
+  namespace: wotlk
+subjects:
+  - kind: ServiceAccount
+    name: wotlk-restart
+    namespace: wotlk
+roleRef:
+  kind: Role
+  name: wotlk-restart
+  apiGroup: rbac.authorization.k8s.io
