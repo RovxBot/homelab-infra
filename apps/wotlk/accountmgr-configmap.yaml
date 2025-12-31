@@ -309,6 +309,7 @@ data:
             'characters' => 'Characters',
             'services' => 'Services',
             'stats' => 'Stats',
+            'arena' => 'Arena',
           ]
         : [
             'home' => 'Home',
@@ -456,6 +457,35 @@ data:
         .btn.secondary { background: rgba(0,0,0,.18); border-color: rgba(255, 221, 148, .14); font-weight: 600; color: #efe2c1; }
         .btn.danger { background: linear-gradient(180deg, rgba(160, 22, 22, .75), rgba(80, 12, 12, .75)); border-color: rgba(239, 68, 68, .35); color: #ffe1a3; }
         .btn svg { width: 14px; height: 14px; opacity: .95; }
+        .classpill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
+          border-radius: 6px;
+          border: 1px solid rgba(255, 221, 148, .18);
+          background:
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,.18), rgba(0,0,0,0) 60%),
+            linear-gradient(180deg, color-mix(in srgb, var(--c) 55%, #000 45%), rgba(0,0,0,.55));
+          color: #fff;
+          font-weight: 900;
+          font-size: 11px;
+          text-shadow: 0 1px 2px rgba(0,0,0,.6);
+          vertical-align: middle;
+          margin-right: 6px;
+        }
+        .classpill.unk { --c: #64748b; }
+        .classpill.war { --c: #C79C6E; }  /* Warrior */
+        .classpill.pal { --c: #F58CBA; }  /* Paladin */
+        .classpill.hun { --c: #ABD473; }  /* Hunter */
+        .classpill.rog { --c: #FFF569; }  /* Rogue */
+        .classpill.pri { --c: #FFFFFF; }  /* Priest */
+        .classpill.dkn { --c: #C41F3B; }  /* Death Knight */
+        .classpill.sha { --c: #0070DE; }  /* Shaman */
+        .classpill.mag { --c: #69CCF0; }  /* Mage */
+        .classpill.wlk { --c: #9482C9; }  /* Warlock */
+        .classpill.dru { --c: #FF7D0A; }  /* Druid */
         .row { display:flex; gap: 10px; align-items: center; }
         .row > * { flex: 1; }
         .table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -476,7 +506,7 @@ data:
             <div class="logo">{$orbSvg}</div>
             <div>
               <h1>{$title}</h1>
-              <div class="sub">Grim Guzzler • Wrath 3.3.5a • 2004-era theme</div>
+              <div class="sub">Grim Guzzler • Wrath 3.3.5a</div>
             </div>
           </div>
           {$userChip}
@@ -501,6 +531,7 @@ data:
         "snapshot_date DATE NOT NULL," .
         "guid INT UNSIGNED NOT NULL," .
         "name VARCHAR(12) NOT NULL," .
+        "class TINYINT UNSIGNED NOT NULL," .
         "level TINYINT UNSIGNED NOT NULL," .
         "total_kills INT UNSIGNED NOT NULL," .
         "PRIMARY KEY (snapshot_date, guid)," .
@@ -508,6 +539,33 @@ data:
         "KEY date_idx (snapshot_date)" .
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
       );
+      // Migrate older table versions (MySQL compatibility: avoid ADD COLUMN IF NOT EXISTS).
+      $stmt = $pdo->prepare(
+        "SELECT COUNT(*) AS c FROM information_schema.COLUMNS " .
+        "WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'web_stats_daily' AND COLUMN_NAME = 'class'"
+      );
+      $stmt->execute([':db' => $charDb]);
+      $has = (int)$stmt->fetch()['c'];
+      if ($has === 0) {
+        $pdo->exec("ALTER TABLE {$charDb}.web_stats_daily ADD COLUMN class TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER name");
+      }
+    }
+
+    function classPill(int $class): string {
+      $map = [
+        1 => ['war', 'W'],
+        2 => ['pal', 'P'],
+        3 => ['hun', 'H'],
+        4 => ['rog', 'R'],
+        5 => ['pri', 'P'],
+        6 => ['dkn', 'D'],
+        7 => ['sha', 'S'],
+        8 => ['mag', 'M'],
+        9 => ['wlk', 'W'],
+        11 => ['dru', 'D'],
+      ];
+      $m = $map[$class] ?? ['unk', '?'];
+      return '<span class="classpill ' . $m[0] . '">' . $m[1] . '</span>';
     }
 
     function getRealmInfo(PDO $pdo): array {
@@ -551,7 +609,7 @@ data:
 
       // These depend on the periodic snapshot job. If it hasn't run yet, tables will be empty.
       $topKillsStmt = $pdo->query(
-        "SELECT MAX(name) AS name, (MAX(total_kills) - MIN(total_kills)) AS gained " .
+        "SELECT MAX(name) AS name, MAX(class) AS class, MAX(level) AS level, (MAX(total_kills) - MIN(total_kills)) AS gained " .
         "FROM {$charDb}.web_stats_daily " .
         "WHERE snapshot_date >= (CURRENT_DATE - INTERVAL 7 DAY) " .
         "GROUP BY guid " .
@@ -562,7 +620,7 @@ data:
       $topKills = $topKillsStmt->fetchAll();
 
       $topLevelsStmt = $pdo->query(
-        "SELECT MAX(name) AS name, (MAX(level) - MIN(level)) AS gained " .
+        "SELECT MAX(name) AS name, MAX(class) AS class, MAX(level) AS level, (MAX(level) - MIN(level)) AS gained " .
         "FROM {$charDb}.web_stats_daily " .
         "WHERE snapshot_date >= (CURRENT_DATE - INTERVAL 7 DAY) " .
         "GROUP BY guid " .
@@ -738,18 +796,26 @@ data:
 
       $topKillsRows = '';
       foreach ($stats['top_kills'] as $r) {
-        $topKillsRows .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+        $name = htmlspecialchars((string)($r['name'] ?? ''));
+        $class = (int)($r['class'] ?? 0);
+        $level = (int)($r['level'] ?? 0);
+        $gained = (int)($r['gained'] ?? 0);
+        $topKillsRows .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">' . $gained . '</span></td></tr>';
       }
       if ($topKillsRows === '') {
-        $topKillsRows = '<tr><td colspan="2" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
+        $topKillsRows = '<tr><td colspan="3" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
       }
 
       $topLevelsRows = '';
       foreach ($stats['top_levels'] as $r) {
-        $topLevelsRows .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+        $name = htmlspecialchars((string)($r['name'] ?? ''));
+        $class = (int)($r['class'] ?? 0);
+        $level = (int)($r['level'] ?? 0);
+        $gained = (int)($r['gained'] ?? 0);
+        $topLevelsRows .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">+' . $gained . '</span></td></tr>';
       }
       if ($topLevelsRows === '') {
-        $topLevelsRows = '<tr><td colspan="2" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
+        $topLevelsRows = '<tr><td colspan="3" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
       }
 
       $signup = '';
@@ -800,14 +866,14 @@ data:
                 <div>
                   <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
                   <table class="table">
-                    <thead><tr><th>Character</th><th>+Kills</th></tr></thead>
+                    <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
                     <tbody>{$topKillsRows}</tbody>
                   </table>
                 </div>
                 <div>
                   <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
                   <table class="table">
-                    <thead><tr><th>Character</th><th>+Levels</th></tr></thead>
+                    <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
                     <tbody>{$topLevelsRows}</tbody>
                   </table>
                 </div>
@@ -858,7 +924,7 @@ data:
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
       $tab = (string)($_GET['tab'] ?? 'overview');
-      if (!in_array($tab, ['overview', 'characters', 'services', 'stats'], true)) {
+      if (!in_array($tab, ['overview', 'characters', 'services', 'stats', 'arena'], true)) {
         $tab = 'overview';
       }
 
@@ -939,21 +1005,74 @@ data:
           </div>
           <div class="muted" style="margin-top:12px;">Go to the Characters tab and use the buttons next to a character.</div>
         HTML;
+      } elseif ($tab === 'arena') {
+        $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+
+        $teamStmt = $pdo->prepare(
+          "SELECT t.name AS team, t.type, t.rating, t.weekGames, t.weekWins, t.seasonGames, t.seasonWins, " .
+          "c.name AS captain, c.class AS captainClass, c.level AS captainLevel " .
+          "FROM {$charDb}.arena_team t " .
+          "LEFT JOIN {$charDb}.characters c ON c.guid = t.captainGuid " .
+          "WHERE t.type = :type " .
+          "ORDER BY t.rating DESC, t.rank ASC, t.arenaTeamId ASC " .
+          "LIMIT 10"
+        );
+
+        $brackets = [
+          2 => '2v2',
+          3 => '3v3',
+          5 => '5v5',
+        ];
+
+        $sections = '';
+        foreach ($brackets as $type => $label) {
+          $teamStmt->execute([':type' => $type]);
+          $teams = $teamStmt->fetchAll();
+          $rows = '';
+          foreach ($teams as $t) {
+            $team = htmlspecialchars((string)($t['team'] ?? ''));
+            $rating = (int)($t['rating'] ?? 0);
+            $wg = (int)($t['weekGames'] ?? 0);
+            $ww = (int)($t['weekWins'] ?? 0);
+            $sg = (int)($t['seasonGames'] ?? 0);
+            $sw = (int)($t['seasonWins'] ?? 0);
+            $capt = htmlspecialchars((string)($t['captain'] ?? ''));
+            $cClass = (int)($t['captainClass'] ?? 0);
+            $cLevel = (int)($t['captainLevel'] ?? 0);
+            $captCell = $capt !== '' ? (classPill($cClass) . $capt . ' <span class="pill">' . $cLevel . '</span>') : '<span class="muted">—</span>';
+            $rows .= '<tr><td><strong>' . $team . '</strong></td><td><span class="pill">' . $rating . '</span></td><td>' . $captCell . '</td><td><span class="pill">' . $ww . '/' . $wg . '</span></td><td><span class="pill">' . $sw . '/' . $sg . '</span></td></tr>';
+          }
+          if ($rows === '') {
+            $rows = '<tr><td colspan="5" class="muted">No teams found for this bracket.</td></tr>';
+          }
+          $sections .= '<div class="panel" style="margin-top:14px;"><div class="hd"><h2>Arena Ladder ' . htmlspecialchars($label) . '</h2></div><div class="bd"><table class="table"><thead><tr><th>Team</th><th>Rating</th><th>Captain</th><th>Week</th><th>Season</th></tr></thead><tbody>' . $rows . '</tbody></table></div></div>';
+        }
+
+        $mainTitle = 'Arena';
+        $mainBody = '<div class="muted">Current arena ladder snapshot from the characters database.</div>' . $sections;
       } else {
         $mainTitle = 'Stats';
         $topKills = '';
         foreach ($stats['top_kills'] as $r) {
-          $topKills .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+          $name = htmlspecialchars((string)($r['name'] ?? ''));
+          $class = (int)($r['class'] ?? 0);
+          $level = (int)($r['level'] ?? 0);
+          $gained = (int)($r['gained'] ?? 0);
+          $topKills .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">' . $gained . '</span></td></tr>';
         }
         if ($topKills === '') {
-          $topKills = '<tr><td colspan="2" class="muted">Not enough data yet.</td></tr>';
+          $topKills = '<tr><td colspan="3" class="muted">Not enough data yet.</td></tr>';
         }
         $topLv = '';
         foreach ($stats['top_levels'] as $r) {
-          $topLv .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+          $name = htmlspecialchars((string)($r['name'] ?? ''));
+          $class = (int)($r['class'] ?? 0);
+          $level = (int)($r['level'] ?? 0);
+          $gained = (int)($r['gained'] ?? 0);
+          $topLv .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">+' . $gained . '</span></td></tr>';
         }
         if ($topLv === '') {
-          $topLv = '<tr><td colspan="2" class="muted">Not enough data yet.</td></tr>';
+          $topLv = '<tr><td colspan="3" class="muted">Not enough data yet.</td></tr>';
         }
         $mainBody = <<<HTML
           <div class="muted">Last 7 days (based on daily snapshots).</div>
@@ -961,14 +1080,14 @@ data:
             <div>
               <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
               <table class="table">
-                <thead><tr><th>Character</th><th>+Kills</th></tr></thead>
+                <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
                 <tbody>{$topKills}</tbody>
               </table>
             </div>
             <div>
               <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
               <table class="table">
-                <thead><tr><th>Character</th><th>+Levels</th></tr></thead>
+                <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
                 <tbody>{$topLv}</tbody>
               </table>
             </div>
