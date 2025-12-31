@@ -270,7 +270,8 @@ data:
     }
 
     function render(string $bodyHtml, string $flash = '', string $flashKind = 'info'): void {
-      $title = 'Battle.net Account Management';
+      // We intentionally avoid using Blizzard trademarks/logos. This is a "2004-era Battle.net inspired" theme.
+      $title = 'Account Management';
       $flashHtml = '';
       if ($flash !== '') {
         $flashHtml = '<div class="flash ' . htmlspecialchars($flashKind) . '">' . htmlspecialchars($flash) . '</div>';
@@ -280,6 +281,26 @@ data:
       if (isLoggedIn()) {
         $userChip = '<div class="user">Signed in as <strong>' . htmlspecialchars(currentUsername()) . '</strong></div>';
       }
+
+      $orbSvg = <<<SVG
+      <svg viewBox="0 0 64 64" width="36" height="36" aria-hidden="true" focusable="false">
+        <defs>
+          <radialGradient id="g1" cx="30%" cy="28%" r="70%">
+            <stop offset="0%" stop-color="#ffe7b0" stop-opacity="0.35"/>
+            <stop offset="55%" stop-color="#4fc3f7" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#061225" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1b3e6a"/>
+            <stop offset="100%" stop-color="#081428"/>
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="28" fill="url(#g2)" stroke="#f0cf84" stroke-opacity="0.55" stroke-width="1.5"/>
+        <circle cx="32" cy="32" r="26" fill="url(#g1)" />
+        <path d="M18 35c4 8 20 11 28 2" fill="none" stroke="#8fd2ff" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/>
+        <path d="M22 28c6-10 20-12 24-2" fill="none" stroke="#ffe1a3" stroke-opacity="0.35" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      SVG;
 
       echo <<<HTML
     <!doctype html>
@@ -293,12 +314,12 @@ data:
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          font-family: "Trebuchet MS", Verdana, Arial, sans-serif;
-          color: #e6f2ff;
+          font-family: Tahoma, Verdana, Arial, sans-serif;
+          color: #efe2c1;
           background:
-            radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .22), rgba(0,0,0,0)),
-            radial-gradient(900px 500px at 30% 10%, rgba(255, 205, 105, .12), rgba(0,0,0,0)),
-            linear-gradient(180deg, #081428, #02060c);
+            radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .18), rgba(0,0,0,0)),
+            radial-gradient(900px 500px at 30% 10%, rgba(255, 205, 105, .10), rgba(0,0,0,0)),
+            linear-gradient(180deg, #0a1630, #02060c);
         }
         .noise:before {
           content:"";
@@ -310,89 +331,88 @@ data:
           mix-blend-mode: overlay;
           opacity: .12;
         }
-        a { color: #8fd2ff; }
+        a { color: #9bd7ff; }
         .wrap { max-width: 980px; margin: 0 auto; padding: 20px 14px 56px; }
         .topbar {
           display: flex; align-items: center; justify-content: space-between; gap: 10px;
-          border: 1px solid rgba(255, 221, 148, .25);
-          border-radius: 14px;
-          background: linear-gradient(180deg, rgba(18, 55, 96, .72), rgba(7, 18, 35, .72));
+          border: 1px solid rgba(255, 221, 148, .22);
+          border-radius: 12px;
+          background:
+            linear-gradient(180deg, rgba(44, 29, 14, .55), rgba(12, 8, 4, .75)),
+            linear-gradient(180deg, rgba(18, 55, 96, .35), rgba(7, 18, 35, .35));
           box-shadow: 0 24px 50px rgba(0,0,0,.45);
           padding: 12px 14px;
         }
         .brand {
           display:flex; align-items:center; gap: 12px;
         }
-        .logo {
-          width: 36px; height: 36px; border-radius: 10px;
-          border: 1px solid rgba(255, 221, 148, .35);
-          background:
-            radial-gradient(circle at 30% 30%, rgba(255, 221, 148, .35), rgba(0,0,0,0) 55%),
-            radial-gradient(circle at 60% 60%, rgba(56, 189, 248, .25), rgba(0,0,0,0) 65%),
-            linear-gradient(180deg, rgba(16, 36, 64, 1), rgba(8, 16, 30, 1));
-          box-shadow: 0 10px 24px rgba(0,0,0,.5);
-        }
-        .brand h1 { margin: 0; font-size: 16px; letter-spacing: .4px; }
-        .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; }
-        .user { font-size: 12px; opacity: .85; text-align: right; }
+        .logo { width: 36px; height: 36px; display:flex; align-items:center; justify-content:center; }
+        .brand h1 { margin: 0; font-size: 15px; letter-spacing: .3px; color: #ffe1a3; }
+        .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; color: #cbb58f; }
+        .user { font-size: 12px; opacity: .85; text-align: right; color: #d7c6a6; }
         .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
         @media (min-width: 920px) { .grid { grid-template-columns: 1.25fr .75fr; } }
         .panel {
-          border: 1px solid rgba(255, 221, 148, .22);
-          border-radius: 14px;
-          background: linear-gradient(180deg, rgba(10, 24, 45, .86), rgba(4, 10, 18, .86));
+          border: 1px solid rgba(255, 221, 148, .18);
+          border-radius: 12px;
+          background:
+            linear-gradient(180deg, rgba(38, 26, 14, .92), rgba(10, 7, 4, .92));
           box-shadow: 0 24px 55px rgba(0,0,0,.48);
           overflow: hidden;
         }
         .panel .hd {
           padding: 12px 14px;
-          border-bottom: 1px solid rgba(255, 221, 148, .16);
-          background: linear-gradient(180deg, rgba(22, 55, 96, .85), rgba(10, 24, 45, .25));
+          border-bottom: 1px solid rgba(255, 221, 148, .14);
+          background:
+            linear-gradient(180deg, rgba(20, 60, 108, .35), rgba(10, 24, 45, .10)),
+            linear-gradient(180deg, rgba(60, 40, 18, .55), rgba(20, 14, 7, .35));
         }
-        .panel .hd h2 { margin: 0; font-size: 14px; letter-spacing: .3px; color: #ffe1a3; }
+        .panel .hd h2 { margin: 0; font-size: 13px; letter-spacing: .35px; color: #ffe1a3; text-transform: uppercase; }
         .panel .bd { padding: 14px; }
         .flash {
           margin-top: 12px;
-          border-radius: 12px;
+          border-radius: 10px;
           padding: 10px 12px;
-          border: 1px solid rgba(255,255,255,.12);
-          background: rgba(255,255,255,.06);
+          border: 1px solid rgba(255, 221, 148, .14);
+          background: rgba(0,0,0,.18);
         }
         .flash.ok { border-color: rgba(34,197,94,.4); }
         .flash.err { border-color: rgba(239,68,68,.4); }
-        label { display:block; margin: 10px 0 6px; font-size: 12px; opacity: .85; }
+        label { display:block; margin: 10px 0 6px; font-size: 12px; opacity: .9; color: #d7c6a6; }
         input, select {
           width: 100%;
           padding: 10px 12px;
-          border-radius: 12px;
-          border: 1px solid rgba(255,255,255,.12);
-          background: rgba(0,0,0,.25);
-          color: #e6f2ff;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 221, 148, .16);
+          background: rgba(0,0,0,.28);
+          color: #efe2c1;
         }
         .btn {
           display:inline-flex; align-items:center; justify-content:center;
           gap: 8px;
           padding: 9px 12px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 221, 148, .25);
-          background: linear-gradient(180deg, rgba(30, 111, 183, .75), rgba(12, 41, 73, .75));
-          color: #e6f2ff;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 221, 148, .22);
+          background:
+            linear-gradient(180deg, rgba(22, 86, 142, .70), rgba(10, 34, 60, .75));
+          color: #ffe7b0;
           font-weight: 700;
           cursor: pointer;
         }
         .btn:hover { filter: brightness(1.05); }
-        .btn.secondary { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); font-weight: 600; }
-        .btn.danger { background: linear-gradient(180deg, rgba(185, 28, 28, .75), rgba(88, 13, 13, .75)); border-color: rgba(239, 68, 68, .35); }
+        .btn.secondary { background: rgba(0,0,0,.18); border-color: rgba(255, 221, 148, .14); font-weight: 600; color: #efe2c1; }
+        .btn.danger { background: linear-gradient(180deg, rgba(160, 22, 22, .75), rgba(80, 12, 12, .75)); border-color: rgba(239, 68, 68, .35); color: #ffe1a3; }
+        .btn svg { width: 14px; height: 14px; opacity: .95; }
         .row { display:flex; gap: 10px; align-items: center; }
         .row > * { flex: 1; }
         .table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .table th, .table td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,.08); vertical-align: top; }
-        .table th { text-align: left; color: #ffe1a3; font-weight: 700; }
-        .muted { opacity: .75; }
-        .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); }
+        .table th { text-align: left; color: #ffe1a3; font-weight: 700; letter-spacing: .25px; }
+        .muted { opacity: .75; color: #cbb58f; }
+        .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255, 221, 148, .14); background: rgba(0,0,0,.18); }
         .kpi { display:flex; gap: 10px; flex-wrap: wrap; }
-        .kpi .card { flex: 1; min-width: 160px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255, 221, 148, .18); background: rgba(0,0,0,.18); }
-        .kpi .val { font-size: 20px; font-weight: 800; color: #8fd2ff; margin-top: 4px; }
+        .kpi .card { flex: 1; min-width: 160px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 221, 148, .14); background: rgba(0,0,0,.18); }
+        .kpi .val { font-size: 20px; font-weight: 800; color: #9bd7ff; margin-top: 4px; }
         .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
       </style>
     </head>
@@ -400,10 +420,10 @@ data:
       <div class="wrap">
         <div class="topbar">
           <div class="brand">
-            <div class="logo"></div>
+            <div class="logo">{$orbSvg}</div>
             <div>
               <h1>{$title}</h1>
-              <div class="sub">Grim Guzzler • Wrath 3.3.5a</div>
+              <div class="sub">Grim Guzzler • Wrath 3.3.5a • 2004-era theme</div>
             </div>
           </div>
           {$userChip}
@@ -551,6 +571,8 @@ data:
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
 
+      $iconLogin = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21 12H11m0 0 3-3m-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
       $topKillsRows = '';
       foreach ($stats['top_kills'] as $r) {
         $topKillsRows .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
@@ -612,7 +634,7 @@ data:
               <label>Password</label>
               <input name="login_pass" type="password" autocomplete="current-password" required />
               <div style="margin-top:12px;">
-                <button class="btn" type="submit">Log In</button>
+                <button class="btn" type="submit">{$iconLogin}Log In</button>
               </div>
             </form>
           </div>
@@ -650,6 +672,12 @@ data:
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
 
+      $iconLogout = '<svg viewBox="0 0 24 24" fill="none"><path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 12h10m0 0-3-3m3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      $iconKey = '<svg viewBox="0 0 24 24" fill="none"><path d="M7.5 14.5a5.5 5.5 0 1 1 4.9-8H22v4h-2v2h-2v2h-2.6A5.5 5.5 0 0 1 7.5 14.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7.5 10.5h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+      $iconQuill = '<svg viewBox="0 0 24 24" fill="none"><path d="M20 4c-7 2-12 7-14 14l-2 2 4-1c7-2 12-7 14-14-1-1-1-1-2-1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15l-1 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      $iconMask = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7c4-3 12-3 16 0v6c0 4-4 8-8 8s-8-4-8-8V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 12h.01M16 12h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+      $iconGrave = '<svg viewBox="0 0 24 24" fill="none"><path d="M7 21V9a5 5 0 0 1 10 0v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
       $rows = '';
       foreach ($chars as $c) {
         $guid = (int)$c['guid'];
@@ -668,9 +696,9 @@ data:
             <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;">
               <input type="hidden" name="csrf" value="{$csrf}" />
               <input type="hidden" name="guid" value="{$guid}" />
-              <button class="btn secondary" type="submit" name="action" value="rename" {$disabled}>Rename</button>
-              <button class="btn secondary" type="submit" name="action" value="race_change" {$disabled}>Race Change</button>
-              <button class="btn danger" type="submit" name="action" value="unstuck" {$disabled}>Unstuck</button>
+              <button class="btn secondary" type="submit" name="action" value="rename" {$disabled}>{$iconQuill}Rename</button>
+              <button class="btn secondary" type="submit" name="action" value="race_change" {$disabled}>{$iconMask}Race Change</button>
+              <button class="btn danger" type="submit" name="action" value="unstuck" {$disabled}>{$iconGrave}Unstuck</button>
             </form>
           </td>
         </tr>
@@ -691,7 +719,7 @@ data:
             <div style="margin-top:12px; display:flex; justify-content:flex-end;">
               <form method="post">
                 <input type="hidden" name="csrf" value="{$csrf}" />
-                <button class="btn secondary" type="submit" name="action" value="logout">Log Out</button>
+                <button class="btn secondary" type="submit" name="action" value="logout">{$iconLogout}Log Out</button>
               </form>
             </div>
           </div>
@@ -705,7 +733,7 @@ data:
               <label>New password (max 16 chars)</label>
               <input name="new_password" type="password" autocomplete="new-password" required />
               <div style="margin-top:12px;">
-                <button class="btn" type="submit">Change Password</button>
+                <button class="btn" type="submit">{$iconKey}Change Password</button>
               </div>
               <div class="muted" style="margin-top:10px;">Applies to your game account.</div>
             </form>

@@ -204,6 +204,26 @@ spec:
                 apk del --no-network gmp-dev mariadb-connector-c-dev ${PHPIZE_DEPS} >/dev/null || true
               fi
               php -S 0.0.0.0:8088 -t /app
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8088
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8088
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8088
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
           env:
             - name: DB_HOST
               value: wotlk-mariadb.wotlk.svc.cluster.local
