@@ -302,6 +302,25 @@ data:
       </svg>
       SVG;
 
+      $tab = (string)($_GET['tab'] ?? (isLoggedIn() ? 'overview' : 'home'));
+      $tabs = isLoggedIn()
+        ? [
+            'overview' => 'My Account',
+            'characters' => 'Characters',
+            'services' => 'Services',
+            'stats' => 'Stats',
+          ]
+        : [
+            'home' => 'Home',
+            'stats' => 'Stats',
+          ];
+
+      $tabLinks = '';
+      foreach ($tabs as $k => $label) {
+        $active = $k === $tab ? ' active' : '';
+        $tabLinks .= '<a class="tab' . $active . '" href="/?tab=' . urlencode($k) . '">' . htmlspecialchars($label) . '</a>';
+      }
+
       echo <<<HTML
     <!doctype html>
     <html lang="en">
@@ -317,9 +336,10 @@ data:
           font-family: Tahoma, Verdana, Arial, sans-serif;
           color: #efe2c1;
           background:
-            radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .18), rgba(0,0,0,0)),
-            radial-gradient(900px 500px at 30% 10%, rgba(255, 205, 105, .10), rgba(0,0,0,0)),
-            linear-gradient(180deg, #0a1630, #02060c);
+            radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .22), rgba(0,0,0,0)),
+            radial-gradient(900px 500px at 30% 10%, rgba(255, 205, 105, .14), rgba(0,0,0,0)),
+            radial-gradient(900px 600px at 70% 15%, rgba(255, 255, 255, .06), rgba(0,0,0,0)),
+            linear-gradient(180deg, #091328, #02060c);
         }
         .noise:before {
           content:"";
@@ -350,6 +370,39 @@ data:
         .brand h1 { margin: 0; font-size: 15px; letter-spacing: .3px; color: #ffe1a3; }
         .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; color: #cbb58f; }
         .user { font-size: 12px; opacity: .85; text-align: right; color: #d7c6a6; }
+        .tabs {
+          margin-top: 10px;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          padding: 8px;
+          border: 1px solid rgba(255, 221, 148, .14);
+          border-radius: 12px;
+          background:
+            linear-gradient(180deg, rgba(42, 28, 14, .70), rgba(12, 8, 4, .70));
+          box-shadow: 0 20px 45px rgba(0,0,0,.35);
+        }
+        .tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 221, 148, .12);
+          background: rgba(0,0,0,.18);
+          color: #efe2c1;
+          text-decoration: none;
+          font-weight: 700;
+          letter-spacing: .15px;
+          font-size: 12px;
+        }
+        .tab:hover { filter: brightness(1.05); }
+        .tab.active {
+          border-color: rgba(255, 221, 148, .28);
+          background:
+            linear-gradient(180deg, rgba(22, 86, 142, .50), rgba(10, 34, 60, .45));
+          color: #ffe7b0;
+        }
         .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
         @media (min-width: 920px) { .grid { grid-template-columns: 1.25fr .75fr; } }
         .panel {
@@ -428,6 +481,9 @@ data:
           </div>
           {$userChip}
         </div>
+        <nav class="tabs" aria-label="Primary">
+          {$tabLinks}
+        </nav>
         {$flashHtml}
         {$bodyHtml}
         <div class="foot">Tip: characters must be offline for rename/race change/unstuck to apply safely.</div>
@@ -452,6 +508,36 @@ data:
         "KEY date_idx (snapshot_date)" .
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
       );
+    }
+
+    function getRealmInfo(PDO $pdo): array {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $realmId = (int)envOrDefault('REALM_ID', '1');
+      $stmt = $pdo->prepare("SELECT id, name, address, port FROM {$authDb}.realmlist WHERE id = :id LIMIT 1");
+      $stmt->execute([':id' => $realmId]);
+      $row = $stmt->fetch();
+      if (!$row) {
+        return ['name' => 'Unknown', 'address' => '', 'port' => 0];
+      }
+      return [
+        'name' => (string)$row['name'],
+        'address' => (string)$row['address'],
+        'port' => (int)$row['port'],
+      ];
+    }
+
+    function getSnapshotInfo(PDO $pdo): array {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      ensureStatsTable($pdo);
+      $last = $pdo->query("SELECT MAX(snapshot_date) AS d FROM {$charDb}.web_stats_daily")->fetch();
+      $d = $last && $last['d'] ? (string)$last['d'] : '';
+      $rows = 0;
+      if ($d !== '') {
+        $stmt = $pdo->prepare("SELECT COUNT(*) AS c FROM {$charDb}.web_stats_daily WHERE snapshot_date = :d");
+        $stmt->execute([':d' => $d]);
+        $rows = (int)$stmt->fetch()['c'];
+      }
+      return ['date' => $d, 'rows' => $rows];
     }
 
     function getStats(PDO $pdo): array {
@@ -567,11 +653,19 @@ data:
       ]);
     }
 
-    function renderLoginPage(array $stats, string $flash = '', string $flashKind = 'info'): void {
+    function renderLoginPage(array $stats, array $realm, array $snap, string $flash = '', string $flashKind = 'info'): void {
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
 
       $iconLogin = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21 12H11m0 0 3-3m-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+      $ann = trim(envOrDefault('PORTAL_ANNOUNCEMENTS', 'Welcome to Grim Guzzler.'));
+      $annHtml = nl2br(htmlspecialchars($ann));
+      $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
+      $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
+      $realmPort = (int)($realm['port'] ?? 0);
+      $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
+      $snapshotRows = (int)($snap['rows'] ?? 0);
 
       $topKillsRows = '';
       foreach ($stats['top_kills'] as $r) {
@@ -639,24 +733,41 @@ data:
             </form>
           </div>
         </div>
-        <div class="panel">
-          <div class="hd"><h2>Weekly Stats</h2></div>
-          <div class="bd">
-            <div class="muted" style="margin-bottom: 10px;">Last 7 days (best effort).</div>
-            <div class="row" style="align-items:flex-start;">
-              <div>
-                <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
-                <table class="table">
-                  <thead><tr><th>Character</th><th>+Kills</th></tr></thead>
-                  <tbody>{$topKillsRows}</tbody>
-                </table>
-              </div>
-              <div>
-                <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
-                <table class="table">
-                  <thead><tr><th>Character</th><th>+Levels</th></tr></thead>
-                  <tbody>{$topLevelsRows}</tbody>
-                </table>
+        <div>
+          <div class="panel">
+            <div class="hd"><h2>Realm Status</h2></div>
+            <div class="bd">
+              <div><strong>{$realmName}</strong></div>
+              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+              <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="hd"><h2>Announcements</h2></div>
+            <div class="bd">
+              <div class="muted">Latest</div>
+              <div style="margin-top:8px;">{$annHtml}</div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:14px;">
+            <div class="hd"><h2>Weekly Stats</h2></div>
+            <div class="bd">
+              <div class="muted" style="margin-bottom: 10px;">Last 7 days (best effort).</div>
+              <div class="row" style="align-items:flex-start;">
+                <div>
+                  <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
+                  <table class="table">
+                    <thead><tr><th>Character</th><th>+Kills</th></tr></thead>
+                    <tbody>{$topKillsRows}</tbody>
+                  </table>
+                </div>
+                <div>
+                  <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
+                  <table class="table">
+                    <thead><tr><th>Character</th><th>+Levels</th></tr></thead>
+                    <tbody>{$topLevelsRows}</tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -668,15 +779,25 @@ data:
       render($body, $flash, $flashKind);
     }
 
-    function renderPortal(PDO $pdo, array $stats, array $chars, string $flash = '', string $flashKind = 'info'): void {
+    function renderPortal(PDO $pdo, array $stats, array $realm, array $snap, array $chars, string $flash = '', string $flashKind = 'info'): void {
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
+      $tab = (string)($_GET['tab'] ?? 'overview');
+      if (!in_array($tab, ['overview', 'characters', 'services', 'stats'], true)) {
+        $tab = 'overview';
+      }
 
       $iconLogout = '<svg viewBox="0 0 24 24" fill="none"><path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 12h10m0 0-3-3m3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       $iconKey = '<svg viewBox="0 0 24 24" fill="none"><path d="M7.5 14.5a5.5 5.5 0 1 1 4.9-8H22v4h-2v2h-2v2h-2.6A5.5 5.5 0 0 1 7.5 14.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7.5 10.5h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
       $iconQuill = '<svg viewBox="0 0 24 24" fill="none"><path d="M20 4c-7 2-12 7-14 14l-2 2 4-1c7-2 12-7 14-14-1-1-1-1-2-1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 15l-1 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       $iconMask = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7c4-3 12-3 16 0v6c0 4-4 8-8 8s-8-4-8-8V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 12h.01M16 12h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
       $iconGrave = '<svg viewBox="0 0 24 24" fill="none"><path d="M7 21V9a5 5 0 0 1 10 0v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 21h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+      $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
+      $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
+      $realmPort = (int)($realm['port'] ?? 0);
+      $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
+      $snapshotRows = (int)($snap['rows'] ?? 0);
 
       $rows = '';
       foreach ($chars as $c) {
@@ -708,44 +829,108 @@ data:
         $rows = '<tr><td colspan="4" class="muted">No characters found.</td></tr>';
       }
 
+      $mainTitle = 'My Account';
+      $mainBody = '';
+
+      if ($tab === 'overview') {
+        $mainTitle = 'My Account';
+        $mainBody = <<<HTML
+          <div class="kpi">
+            <div class="card"><div class="muted">Players online</div><div class="val">{$online}</div></div>
+          </div>
+          <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+            <form method="post">
+              <input type="hidden" name="csrf" value="{$csrf}" />
+              <button class="btn secondary" type="submit" name="action" value="logout">{$iconLogout}Log Out</button>
+            </form>
+          </div>
+        HTML;
+      } elseif ($tab === 'characters') {
+        $mainTitle = 'Characters';
+        $mainBody = <<<HTML
+          <table class="table">
+            <thead><tr><th>Character</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>{$rows}</tbody>
+          </table>
+        HTML;
+      } elseif ($tab === 'services') {
+        $mainTitle = 'Services';
+        $mainBody = <<<HTML
+          <div class="muted">Character services are applied on next login (and require the character to be offline).</div>
+          <div style="margin-top:12px;">
+            <div class="pill">Rename</div>
+            <div class="pill">Race Change</div>
+            <div class="pill">Unstuck to Graveyard</div>
+          </div>
+          <div class="muted" style="margin-top:12px;">Go to the Characters tab and use the buttons next to a character.</div>
+        HTML;
+      } else {
+        $mainTitle = 'Stats';
+        $topKills = '';
+        foreach ($stats['top_kills'] as $r) {
+          $topKills .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+        }
+        if ($topKills === '') {
+          $topKills = '<tr><td colspan="2" class="muted">Not enough data yet.</td></tr>';
+        }
+        $topLv = '';
+        foreach ($stats['top_levels'] as $r) {
+          $topLv .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
+        }
+        if ($topLv === '') {
+          $topLv = '<tr><td colspan="2" class="muted">Not enough data yet.</td></tr>';
+        }
+        $mainBody = <<<HTML
+          <div class="muted">Last 7 days (based on daily snapshots).</div>
+          <div class="row" style="align-items:flex-start;margin-top:10px;">
+            <div>
+              <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
+              <table class="table">
+                <thead><tr><th>Character</th><th>+Kills</th></tr></thead>
+                <tbody>{$topKills}</tbody>
+              </table>
+            </div>
+            <div>
+              <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
+              <table class="table">
+                <thead><tr><th>Character</th><th>+Levels</th></tr></thead>
+                <tbody>{$topLv}</tbody>
+              </table>
+            </div>
+          </div>
+        HTML;
+      }
+
       $body = <<<HTML
       <div class="grid">
         <div class="panel">
-          <div class="hd"><h2>Account Overview</h2></div>
+          <div class="hd"><h2>{$mainTitle}</h2></div>
           <div class="bd">
-            <div class="kpi">
-              <div class="card"><div class="muted">Players online</div><div class="val">{$online}</div></div>
+            {$mainBody}
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="hd"><h2>Realm</h2></div>
+            <div class="bd">
+              <div><strong>{$realmName}</strong></div>
+              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+              <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span>)</div>
             </div>
-            <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+          </div>
+          <div class="panel" style="margin-top:14px;">
+            <div class="hd"><h2>Password</h2></div>
+            <div class="bd">
               <form method="post">
                 <input type="hidden" name="csrf" value="{$csrf}" />
-                <button class="btn secondary" type="submit" name="action" value="logout">{$iconLogout}Log Out</button>
+                <input type="hidden" name="action" value="change_password" />
+                <label>New password (max 16 chars)</label>
+                <input name="new_password" type="password" autocomplete="new-password" required />
+                <div style="margin-top:12px;">
+                  <button class="btn" type="submit">{$iconKey}Change Password</button>
+                </div>
               </form>
             </div>
-          </div>
-        </div>
-        <div class="panel">
-          <div class="hd"><h2>Account Actions</h2></div>
-          <div class="bd">
-            <form method="post">
-              <input type="hidden" name="csrf" value="{$csrf}" />
-              <input type="hidden" name="action" value="change_password" />
-              <label>New password (max 16 chars)</label>
-              <input name="new_password" type="password" autocomplete="new-password" required />
-              <div style="margin-top:12px;">
-                <button class="btn" type="submit">{$iconKey}Change Password</button>
-              </div>
-              <div class="muted" style="margin-top:10px;">Applies to your game account.</div>
-            </form>
-          </div>
-        </div>
-        <div class="panel" style="grid-column: 1 / -1;">
-          <div class="hd"><h2>Characters</h2></div>
-          <div class="bd">
-            <table class="table">
-              <thead><tr><th>Character</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>{$rows}</tbody>
-            </table>
           </div>
         </div>
       </div>
@@ -762,6 +947,8 @@ data:
     try {
       $pdo = db();
       $stats = getStats($pdo);
+      $realm = getRealmInfo($pdo);
+      $snap = getSnapshotInfo($pdo);
 
       if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = (string)($_POST['action'] ?? '');
@@ -836,11 +1023,11 @@ data:
       }
 
       if (!isLoggedIn()) {
-        renderLoginPage($stats, $flash, $flashKind);
+        renderLoginPage($stats, $realm, $snap, $flash, $flashKind);
       }
 
       $chars = listCharacters($pdo, currentAccountId());
-      renderPortal($pdo, $stats, $chars, $flash, $flashKind);
+      renderPortal($pdo, $stats, $realm, $snap, $chars, $flash, $flashKind);
     } catch (Throwable $e) {
       // If DB is down or extensions missing, render a simple page.
       $msg = $e->getMessage();
