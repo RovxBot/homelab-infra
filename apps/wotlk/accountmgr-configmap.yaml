@@ -13,6 +13,36 @@ data:
       return $val === false ? $default : $val;
     }
 
+    function requestHeader(string $name): string {
+      $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+      return (string)($_SERVER[$key] ?? '');
+    }
+
+    function isHttpsRequest(): bool {
+      // Behind Cloudflare Tunnel we’ll usually see HTTP at origin, with forwarded proto headers.
+      $xfp = strtolower(requestHeader('X-Forwarded-Proto'));
+      if ($xfp === 'https') return true;
+
+      $cfv = requestHeader('CF-Visitor'); // e.g. {"scheme":"https"}
+      if ($cfv !== '' && stripos($cfv, '"scheme":"https"') !== false) return true;
+
+      $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
+      return $https === 'on' || $https === '1';
+    }
+
+    function requireCloudflareAccessIfEnabled(): void {
+      // Cloudflare Tunnel alone does NOT authenticate; Cloudflare Access does.
+      // If enabled, require the Access JWT header to be present.
+      if (envOrDefault('PORTAL_REQUIRE_CF_ACCESS', 'false') !== 'true') {
+        return;
+      }
+      if (requestHeader('Cf-Access-Jwt-Assertion') === '') {
+        http_response_code(403);
+        echo "Forbidden (Cloudflare Access required).";
+        exit;
+      }
+    }
+
     function isSignupEnabled(): bool {
       return envOrDefault('ALLOW_SIGNUP', 'false') === 'true';
     }
@@ -224,6 +254,13 @@ data:
 
     function ensureSession(): void {
       if (session_status() !== PHP_SESSION_ACTIVE) {
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.cookie_httponly', '1');
+        ini_set('session.cookie_samesite', 'Lax');
+        if (isHttpsRequest()) {
+          ini_set('session.cookie_secure', '1');
+        }
         session_start();
       }
       if (empty($_SESSION['csrf'])) {
@@ -1134,6 +1171,7 @@ data:
     }
 
     ensureSession();
+    requireCloudflareAccessIfEnabled();
 
     $flash = '';
     $flashKind = 'info';
@@ -1158,6 +1196,7 @@ data:
           $loginUser = (string)($_POST['login_user'] ?? '');
           $loginPass = (string)($_POST['login_pass'] ?? '');
           $res = tryLogin($loginUser, $loginPass);
+          session_regenerate_id(true);
           $_SESSION['account_id'] = $res['account_id'];
           $_SESSION['username'] = $res['username'];
           header('Location: /');

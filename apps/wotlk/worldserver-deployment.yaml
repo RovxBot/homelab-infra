@@ -258,12 +258,20 @@ spec:
                   name: wotlk-soap-auth
                   key: SOAP_PASSWORD
             - name: ALLOW_SIGNUP
-              value: "true"
+              # Exposing the portal publicly? Keep signup off and use Cloudflare Access for allowlisting.
+              value: "false"
             - name: INVITE_CODE
               valueFrom:
                 secretKeyRef:
                   name: wotlk-accountmgr-invite
                   key: INVITE_CODE
+            - name: PORTAL_REQUIRE_CF_ACCESS
+              # When true, portal requires Cloudflare Access header (`Cf-Access-Jwt-Assertion`).
+              value: "false"
+            - name: PORTAL_GITHUB_REPO
+              value: "RovxBot/homelab-infra"
+            - name: PORTAL_GITHUB_BRANCH
+              value: "main"
           ports:
             - name: accountmgr
               containerPort: 8088

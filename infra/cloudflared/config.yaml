@@ -29,6 +29,8 @@ ingress:
     service: http://homepage-assets.homepage.svc.cluster.local:80
   - hostname: homepage.cooked.beer
     service: http://homepage.homepage.svc.cluster.local:3000
+  - hostname: grimguzzler.cooked.beer
+    service: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
   - hostname: assets.cooked.beer
     service: http://homepage-assets.homepage.svc.cluster.local:80
   - service: http_status:404
