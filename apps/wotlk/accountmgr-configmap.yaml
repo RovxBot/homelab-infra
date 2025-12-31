@@ -667,6 +667,75 @@ data:
       $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
       $snapshotRows = (int)($snap['rows'] ?? 0);
 
+      $githubRepo = envOrDefault('PORTAL_GITHUB_REPO', 'RovxBot/homelab-infra');
+      $githubBranch = envOrDefault('PORTAL_GITHUB_BRANCH', 'main');
+      $githubRepoSafe = preg_match('/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/', $githubRepo) ? $githubRepo : 'RovxBot/homelab-infra';
+      $githubBranchSafe = preg_match('/^[A-Za-z0-9_.\\/-]+$/', $githubBranch) ? $githubBranch : 'main';
+      $commitsPage = 'https://github.com/' . $githubRepoSafe . '/commits/' . rawurlencode($githubBranchSafe);
+
+      $commits = [];
+      try {
+        ensureSession();
+        $cacheKey = 'commits_cache';
+        $cacheAtKey = 'commits_cache_at';
+        $cacheTtl = 60; // seconds
+
+        $now = time();
+        if (!empty($_SESSION[$cacheKey]) && !empty($_SESSION[$cacheAtKey]) && ($now - (int)$_SESSION[$cacheAtKey]) < $cacheTtl) {
+          $commits = (array)$_SESSION[$cacheKey];
+        } else {
+          $api = 'https://api.github.com/repos/' . $githubRepoSafe . '/commits?per_page=6&sha=' . rawurlencode($githubBranchSafe);
+          $ctx = stream_context_create([
+            'http' => [
+              'method' => 'GET',
+              'timeout' => 2,
+              'header' => implode("\r\n", [
+                'Accept: application/vnd.github+json',
+                'User-Agent: grimguzzler-portal',
+              ]),
+            ],
+          ]);
+          $json = @file_get_contents($api, false, $ctx);
+          if ($json !== false) {
+            $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            if (is_array($data)) {
+              foreach ($data as $c) {
+                if (!is_array($c)) continue;
+                $sha = (string)($c['sha'] ?? '');
+                $htmlUrl = (string)($c['html_url'] ?? '');
+                $msg = (string)($c['commit']['message'] ?? '');
+                $date = (string)($c['commit']['committer']['date'] ?? '');
+                if ($sha === '' || $htmlUrl === '' || $msg === '') continue;
+                $firstLine = trim(explode("\n", $msg, 2)[0]);
+                $commits[] = [
+                  'sha' => substr($sha, 0, 7),
+                  'url' => $htmlUrl,
+                  'msg' => $firstLine,
+                  'date' => $date,
+                ];
+              }
+            }
+          }
+          $_SESSION[$cacheKey] = $commits;
+          $_SESSION[$cacheAtKey] = $now;
+        }
+      } catch (Throwable $e) {
+        $commits = [];
+      }
+
+      $commitsRows = '';
+      foreach ($commits as $c) {
+        $msg = htmlspecialchars((string)($c['msg'] ?? ''));
+        $sha = htmlspecialchars((string)($c['sha'] ?? ''));
+        $url = htmlspecialchars((string)($c['url'] ?? ''));
+        $date = htmlspecialchars((string)($c['date'] ?? ''));
+        if ($msg === '' || $sha === '' || $url === '') continue;
+        $commitsRows .= '<tr><td><a href="' . $url . '" target="_blank" rel="noreferrer">' . $msg . '</a><div class="muted" style="margin-top:4px;"><span class="pill">' . $sha . '</span> <span class="pill">' . $date . '</span></div></td></tr>';
+      }
+      if ($commitsRows === '') {
+        $commitsRows = '<tr><td class="muted">Unable to load recent commits right now. <a href="' . htmlspecialchars($commitsPage) . '" target="_blank" rel="noreferrer">View commit history</a>.</td></tr>';
+      }
+
       $topKillsRows = '';
       foreach ($stats['top_kills'] as $r) {
         $topKillsRows .= '<tr><td>' . htmlspecialchars((string)$r['name']) . '</td><td><span class="pill">' . (int)$r['gained'] . '</span></td></tr>';
@@ -711,42 +780,16 @@ data:
 
       $body = <<<HTML
       <div class="grid">
-        <div class="panel">
-          <div class="hd"><h2>Sign In</h2></div>
-          <div class="bd">
-            <div class="kpi">
-              <div class="card">
-                <div class="muted">Players online</div>
-                <div class="val">{$online}</div>
-              </div>
-            </div>
-            <form method="post" style="margin-top:14px;">
-              <input type="hidden" name="csrf" value="{$csrf}" />
-              <input type="hidden" name="action" value="login" />
-              <label>Account name</label>
-              <input name="login_user" autocomplete="username" required />
-              <label>Password</label>
-              <input name="login_pass" type="password" autocomplete="current-password" required />
-              <div style="margin-top:12px;">
-                <button class="btn" type="submit">{$iconLogin}Log In</button>
-              </div>
-            </form>
-          </div>
-        </div>
         <div>
-          <div class="panel">
-            <div class="hd"><h2>Realm Status</h2></div>
-            <div class="bd">
-              <div><strong>{$realmName}</strong></div>
-              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
-              <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
-            </div>
-          </div>
           <div class="panel">
             <div class="hd"><h2>Announcements</h2></div>
             <div class="bd">
-              <div class="muted">Latest</div>
-              <div style="margin-top:8px;">{$annHtml}</div>
+              <div style="margin-top:2px;">{$annHtml}</div>
+              <div class="muted" style="margin-top:12px;">Recent updates</div>
+              <table class="table" style="margin-top:6px;">
+                <tbody>{$commitsRows}</tbody>
+              </table>
+              <div class="muted" style="margin-top:10px;"><a href="{$commitsPage}" target="_blank" rel="noreferrer">View all commits</a></div>
             </div>
           </div>
           <div class="panel" style="margin-top:14px;">
@@ -772,7 +815,39 @@ data:
             </div>
           </div>
         </div>
-        {$signup}
+        <div>
+          <div class="panel">
+            <div class="hd"><h2>Sign In</h2></div>
+            <div class="bd">
+              <div class="kpi">
+                <div class="card">
+                  <div class="muted">Players online</div>
+                  <div class="val">{$online}</div>
+                </div>
+              </div>
+              <form method="post" style="margin-top:14px;">
+                <input type="hidden" name="csrf" value="{$csrf}" />
+                <input type="hidden" name="action" value="login" />
+                <label>Account name</label>
+                <input name="login_user" autocomplete="username" required />
+                <label>Password</label>
+                <input name="login_pass" type="password" autocomplete="current-password" required />
+                <div style="margin-top:12px;">
+                  <button class="btn" type="submit">{$iconLogin}Log In</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:14px;">
+            <div class="hd"><h2>Realm Status</h2></div>
+            <div class="bd">
+              <div><strong>{$realmName}</strong></div>
+              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+              <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
+            </div>
+          </div>
+          {$signup}
+        </div>
       </div>
       HTML;
 
