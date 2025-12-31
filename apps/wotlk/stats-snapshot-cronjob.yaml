@@ -53,6 +53,7 @@ spec:
                       snapshot_date DATE NOT NULL,
                       guid INT UNSIGNED NOT NULL,
                       name VARCHAR(12) NOT NULL,
+                      class TINYINT UNSIGNED NOT NULL,
                       level TINYINT UNSIGNED NOT NULL,
                       total_kills INT UNSIGNED NOT NULL,
                       PRIMARY KEY (snapshot_date, guid),
@@ -62,12 +63,19 @@ spec:
                   "
 
                   echo "Upserting daily snapshot..."
+                  has_class="$(db --database information_schema --skip-column-names --execute "SELECT COUNT(*) FROM COLUMNS WHERE TABLE_SCHEMA='${DB_CHAR_DB}' AND TABLE_NAME='web_stats_daily' AND COLUMN_NAME='class';" 2>/dev/null || echo 0)"
+                  if [ "${has_class}" = "0" ]; then
+                    echo "Migrating web_stats_daily: adding class column..."
+                    db --database "${DB_CHAR_DB}" --execute "ALTER TABLE web_stats_daily ADD COLUMN class TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER name;"
+                  fi
+
                   db --database "${DB_CHAR_DB}" --execute "
-                    INSERT INTO web_stats_daily (snapshot_date, guid, name, level, total_kills)
-                    SELECT CURRENT_DATE(), guid, name, level, totalKills
+                    INSERT INTO web_stats_daily (snapshot_date, guid, name, class, level, total_kills)
+                    SELECT CURRENT_DATE(), guid, name, class, level, totalKills
                     FROM characters
                     ON DUPLICATE KEY UPDATE
                       name = VALUES(name),
+                      class = VALUES(class),
                       level = VALUES(level),
                       total_kills = VALUES(total_kills);
                   "
