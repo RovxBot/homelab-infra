@@ -347,10 +347,11 @@ data:
             'services' => 'Services',
             'stats' => 'Stats',
             'arena' => 'Arena',
+            'about' => 'About',
           ]
         : [
             'home' => 'Home',
-            'stats' => 'Stats',
+            'about' => 'About',
           ];
 
       $tabLinks = '';
@@ -957,11 +958,62 @@ data:
       render($body, $flash, $flashKind);
     }
 
+    function renderAboutPage(array $realm, string $flash = '', string $flashKind = 'info'): void {
+      $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
+      $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
+      $realmPort = (int)($realm['port'] ?? 0);
+
+      $body = <<<HTML
+      <div class="panel">
+        <div class="hd"><h2>About Grim Guzzler</h2></div>
+        <div class="bd">
+          <div class="row" style="align-items:flex-start;">
+            <div style="flex: 1;">
+              <div class="muted" style="margin-bottom:8px;">Server info</div>
+              <ul class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
+                <li><strong>Expansion:</strong> Wrath of the Lich King (3.3.5a)</li>
+                <li><strong>Rates:</strong> Blizzlike (XP/Loot/Gold/Rep/Honor = x1)</li>
+                <li><strong>Bots:</strong> Playerbots enabled (party-friendly world population)</li>
+                <li><strong>Progression:</strong> Slow-and-steady; no instant max level</li>
+              </ul>
+              <div class="muted" style="margin-top:12px;">
+                Realm: <strong>{$realmName}</strong> — <span class="pill">{$realmAddr}:{$realmPort}</span>
+              </div>
+            </div>
+            <div style="flex: 1;">
+              <div class="muted" style="margin-bottom:8px;">Project</div>
+              <div class="row" style="gap: 12px; align-items:center;">
+                <img src="https://www.azerothcore.org/images/logo.png" alt="AzerothCore logo" style="width: 150px; height:auto; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35));" />
+                <div class="muted">
+                  Built on <a href="https://www.azerothcore.org/" target="_blank" rel="noreferrer">AzerothCore</a> and deployed on Kubernetes.
+                  <div style="margin-top:6px;">This portal talks to the realm databases and uses SOAP for account management actions.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="muted" style="margin-bottom:8px;">How to connect</div>
+          <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
+            <li>Ask an admin for an <strong>invite</strong> (account creation is invite-only).</li>
+            <li>Download a 3.3.5a client: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
+            <li>Install Tailscale: <a href="https://tailscale.com/download" target="_blank" rel="noreferrer">Tailscale Downloads</a></li>
+            <li>Get access to the tailnet (admin will approve your device).</li>
+            <li>Set realmlist to: <span class="pill">wow.risk-lenok.ts.net</span></li>
+          </ol>
+        </div>
+      </div>
+      HTML;
+
+      render($body, $flash, $flashKind);
+    }
+
     function renderPortal(PDO $pdo, array $stats, array $realm, array $snap, array $chars, string $flash = '', string $flashKind = 'info'): void {
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
       $tab = (string)($_GET['tab'] ?? 'overview');
-      if (!in_array($tab, ['overview', 'characters', 'services', 'stats', 'arena'], true)) {
+      if (!in_array($tab, ['overview', 'characters', 'services', 'stats', 'arena', 'about'], true)) {
         $tab = 'overview';
       }
 
@@ -1087,6 +1139,39 @@ data:
 
         $mainTitle = 'Arena';
         $mainBody = '<div class="muted">Current arena ladder snapshot from the characters database.</div>' . $sections;
+      } elseif ($tab === 'about') {
+        $mainTitle = 'About';
+        $mainBody = <<<HTML
+          <div class="muted">Realm: <strong>{$realmName}</strong> — <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+          <div class="divider"></div>
+          <div class="row" style="align-items:flex-start;">
+            <div>
+              <div class="muted" style="margin-bottom:8px;">Server</div>
+              <ul class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
+                <li><strong>Expansion:</strong> Wrath of the Lich King (3.3.5a)</li>
+                <li><strong>Rates:</strong> Blizzlike (x1)</li>
+                <li><strong>Bots:</strong> Playerbots enabled</li>
+              </ul>
+            </div>
+            <div>
+              <div class="muted" style="margin-bottom:8px;">Project</div>
+              <div class="row" style="gap: 12px; align-items:center;">
+                <img src="https://www.azerothcore.org/images/logo.png" alt="AzerothCore logo" style="width: 140px; height:auto; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35));" />
+                <div class="muted">
+                  Powered by <a href="https://www.azerothcore.org/" target="_blank" rel="noreferrer">AzerothCore</a> and running on Kubernetes.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="muted" style="margin-bottom:8px;">Connect</div>
+          <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
+            <li>Invite required (ask an admin).</li>
+            <li>Client download: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
+            <li>Tailscale: <a href="https://tailscale.com/download" target="_blank" rel="noreferrer">Install Tailscale</a></li>
+            <li>Set realmlist: <span class="pill">wow.risk-lenok.ts.net</span></li>
+          </ol>
+        HTML;
       } else {
         $mainTitle = 'Stats';
         $topKills = '';
@@ -1256,6 +1341,10 @@ data:
       }
 
       if (!isLoggedIn()) {
+        $tab = (string)($_GET['tab'] ?? 'home');
+        if ($tab === 'about') {
+          renderAboutPage($realm, $flash, $flashKind);
+        }
         renderLoginPage($stats, $realm, $snap, $flash, $flashKind);
       }
 
