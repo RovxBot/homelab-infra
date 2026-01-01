@@ -1,0 +1,82 @@
+Nubmage:
+Map: 1 (Kalimdor) Zone: 1637 (Orgrimmar) Area: 1637 (Orgrimmar) Phase: 4294967295
+X: 1611.2494 Y: -4388.468 Z: 10.524337 Orientation: 3.6819048
+grid[28,40]cell[7,1] InstanceID: 0
+ ZoneX: 50.468018 ZoneY: 70.83772
+GroundZ: -2.8321037 FloorZ: 10.524439 Have height data (Map: 1 VMap: 1 MMap: 1)
+
+
+
+Dresk:
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7692.569 Y: -1087.0372 Z: 217.71353 Orientation: 1.190926
+grid[46,34]cell[3,0] InstanceID: 0
+ ZoneX: -7692.569 ZoneY: -1087.0372
+GroundZ: 411.07962 FloorZ: 217.71255 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7662.738 Y: -1041.3998 Z: 225.61966 Orientation: 0.77859175
+grid[46,33]cell[2,7] InstanceID: 0
+ ZoneX: -7662.738 ZoneY: -1041.3998
+GroundZ: 589.5358 FloorZ: 225.61845 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7609.157 Y: -1017.90125 Z: 240.53793 Orientation: 0.1541996
+grid[46,33]cell[2,7] InstanceID: 0
+ ZoneX: -7609.157 ZoneY: -1017.90125
+GroundZ: 734.01764 FloorZ: 240.53755 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7546.7495 Y: -1027.6194 Z: 255.44817 Orientation: 5.78553
+grid[46,33]cell[1,7] InstanceID: 0
+ ZoneX: -7546.7495 ZoneY: -1027.6194
+GroundZ: 773.05756 FloorZ: 255.44818 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7498.7217 Y: -1081.6483 Z: 264.92593 Orientation: 5.0904827
+grid[46,34]cell[0,0] InstanceID: 0
+ ZoneX: -7498.7217 ZoneY: -1081.6483
+GroundZ: 789.8501 FloorZ: 264.92636 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7490.6772 Y: -1143.7604 Z: 264.803 Orientation: 4.740995
+grid[46,34]cell[0,1] InstanceID: 0
+ ZoneX: -7490.6772 ZoneY: -1143.7604
+GroundZ: 765.3291 FloorZ: 264.80246 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7521.422 Y: -1186.595 Z: 256.97855 Orientation: 3.9830983
+grid[46,34]cell[0,1] InstanceID: 0
+ ZoneX: -7521.422 ZoneY: -1186.595
+GroundZ: 587.47485 FloorZ: 256.97815 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7568.829 Y: -1217.5265 Z: 244.40808 Orientation: 3.4608083
+grid[46,34]cell[1,2] InstanceID: 0
+ ZoneX: -7568.829 ZoneY: -1217.5265
+GroundZ: 690.48474 FloorZ: 244.4068 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7617.334 Y: -1217.7589 Z: 232.1768 Orientation: 2.9895692
+grid[46,34]cell[2,2] InstanceID: 0
+ ZoneX: -7617.334 ZoneY: -1217.7589
+GroundZ: 492.26166 FloorZ: 232.17674 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7668.8916 Y: -1183.1165 Z: 218.79893 Orientation: 2.2866375
+grid[46,34]cell[3,1] InstanceID: 0
+ ZoneX: -7668.8916 ZoneY: -1183.1165
+GroundZ: 439.02728 FloorZ: 218.79869 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7696.596 Y: -1128.0096 Z: 215.45802 Orientation: 1.7957635
+grid[46,34]cell[3,0] InstanceID: 0
+ ZoneX: -7696.596 ZoneY: -1128.0096
+GroundZ: 415.10477 FloorZ: 215.45898 Have height data (Map: 1 VMap: 1 MMap: 1)
+You are outdoors
+Map: 0 (Eastern Kingdoms) Zone: 25 (Blackrock Mountain) Area: 25 (Blackrock Mountain) Phase: 4294967295
+X: -7693.8057 Y: -1089.9984 Z: 217.5328 Orientation: 1.3284514
+grid[46,34]cell[3,0] InstanceID: 0
+ ZoneX: -7693.8057 ZoneY: -1089.9984
+GroundZ: 410.6822 FloorZ: 217.53322 Have height data (Map: 1 VMap: 1 MMap: 1)
+
