@@ -974,7 +974,8 @@ data:
                 <li><strong>Expansion:</strong> Wrath of the Lich King (3.3.5a)</li>
                 <li><strong>Rates:</strong> Blizzlike (XP/Loot/Gold/Rep/Honor = x1)</li>
                 <li><strong>Bots:</strong> Playerbots enabled (party-friendly world population)</li>
-                <li><strong>Progression:</strong> Slow-and-steady; no instant max level</li>
+                <li><strong>Progression:</strong> Is gated so all content must be cleared before moving onto the next phase. This is done per character.</li>
+                <li><strong>Shop/Donations:</strong> No pay to win, or donation mechanics. Play the game as it was meant to be played.</li>
               </ul>
               <div class="muted" style="margin-top:12px;">
                 Realm: <strong>{$realmName}</strong> — <span class="pill">{$realmAddr}:{$realmPort}</span>
@@ -986,7 +987,9 @@ data:
                 <img src="https://www.azerothcore.org/images/logo.png" alt="AzerothCore logo" style="width: 150px; height:auto; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35));" />
                 <div class="muted">
                   Built on <a href="https://www.azerothcore.org/" target="_blank" rel="noreferrer">AzerothCore</a> and deployed on Kubernetes.
-                  <div style="margin-top:6px;">This portal talks to the realm databases and uses SOAP for account management actions.</div>
+                  <div style="margin-top:6px;">This server was set up and deployed as a learning project. It is in no way a production or commercial server.</div>
+                  <div style="margin-top:6px;">This project is not affiliated with or endorsed by Blizzard Entertainment. All trademarks and copyrights belong to their respective owners.</div>
+                  <div style="margin-top:6px;">I will continue to improve and maintaine this server for as long as it remains utilised, or until I am asked to stop by the rightful owners.</div>
                 </div>
               </div>
             </div>

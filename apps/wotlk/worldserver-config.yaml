@@ -1504,11 +1504,12 @@ data:
     
     # Enable/Disable autogear command, which automatically upgrades bots' gear; the quality is limited by AutoGearQualityLimit and AutoGearScoreLimit
     # Default: 1 (enabled)
-    AiPlayerbot.AutoGearCommand = 1
+    # Set to 0 to prevent players using autogear to power up bots (and indirectly exploit money/items).
+    AiPlayerbot.AutoGearCommand = 0
     
     # Enable/Disable autogear command on altbots
     # Default: 1 (enabled)
-    AiPlayerbot.AutoGearCommandAltBots = 1
+    AiPlayerbot.AutoGearCommandAltBots = 0
     
     # Equipment quality limitation for autogear command (1 = normal, 2 = uncommon, 3 = rare, 4 = epic, 5 = legendary)
     # Default: 3 (rare)
@@ -1537,6 +1538,7 @@ data:
     # "raid" (bots use cheats implemented into raid strategies (currently only for Ulduar))
     # To use multiple cheats, separate them by commas below (e.g., to enable all, use "gold,health,mana,power,raid,taxi")
     # Default: food, taxi, and raid are enabled
+    # Keep "gold" disabled to avoid any possibility of bots handing out unlimited money.
     AiPlayerbot.BotCheats = "raid"
     
     #
@@ -1623,8 +1625,9 @@ data:
     AiPlayerbot.LimitTalentsExpansion = 0
     
     # Configure randombots and addClass bot trading (0: Disabled, 1: Enabled, 2: Only Buy, 3: Only Sell)
+    # Set to 3 to prevent players from selling items to bots (avoids gold exploits where bots pay players).
     # Default: 1 (enabled)
-    AiPlayerbot.EnableRandomBotTrading = 1
+    AiPlayerbot.EnableRandomBotTrading = 3
     
     # Configure message prefixes which will be excluded in analysis in trade action to open trade window
     AiPlayerbot.TradeActionExcludedPrefixes = "RPLL_H_,DBMv4,{звезда} Questie,{rt1} Questie"
