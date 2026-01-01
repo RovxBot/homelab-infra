@@ -1894,13 +1894,13 @@ data:
     # DoQuest       (Default: 60  Select quest from the quest log and head to the location to attempt completion​)
     # TravelFlight  (Default: 15  Go to the nearest flightmaster and fly to a level-appropriate area)
     # Rest          (Default: 5   Take a break for a while and do nothing)
-    AiPlayerbot.RpgStatusProbWeight.WanderRandom = 15
+    AiPlayerbot.RpgStatusProbWeight.WanderRandom = 5
     AiPlayerbot.RpgStatusProbWeight.WanderNpc = 20
-    AiPlayerbot.RpgStatusProbWeight.GoGrind = 15
-    AiPlayerbot.RpgStatusProbWeight.GoCamp = 10
+    AiPlayerbot.RpgStatusProbWeight.GoGrind = 10
+    AiPlayerbot.RpgStatusProbWeight.GoCamp = 15
     AiPlayerbot.RpgStatusProbWeight.DoQuest = 60
-    AiPlayerbot.RpgStatusProbWeight.TravelFlight = 15
-    AiPlayerbot.RpgStatusProbWeight.Rest = 5
+    AiPlayerbot.RpgStatusProbWeight.TravelFlight = 30
+    AiPlayerbot.RpgStatusProbWeight.Rest = 10
     
     # Bots' minimum and maximum level when teleporting in and out of a zone, according to the new RPG strategy
     # Format: AiPlayerbot.ZoneBracket.zoneID = minLevel,maxLevel
@@ -2053,21 +2053,23 @@ data:
     
     # Probabilty bots teleport to banker (city)
     # Default: 0.25
-    AiPlayerbot.ProbTeleToBankers = 0.35
+    # Higher value biases bots to spend time in capital cities (bank/vendor loops).
+    AiPlayerbot.ProbTeleToBankers = 0.60
     
     # Control probability weights for bots teleporting to Capital city bankers
     # Sum of weights need not be 100. Set to 0 to disable teleporting to the city.
     AiPlayerbot.EnableWeightTeleToCityBankers = 1
-    AiPlayerbot.TeleToStormwindWeight = 3
+    # Bias towards the main cities you care about.
+    AiPlayerbot.TeleToStormwindWeight = 8
     AiPlayerbot.TeleToIronforgeWeight = 2
     AiPlayerbot.TeleToDarnassusWeight = 2
     AiPlayerbot.TeleToExodarWeight = 1
-    AiPlayerbot.TeleToOrgrimmarWeight = 3
+    AiPlayerbot.TeleToOrgrimmarWeight = 8
     AiPlayerbot.TeleToUndercityWeight = 2
     AiPlayerbot.TeleToThunderBluffWeight = 2
     AiPlayerbot.TeleToSilvermoonCityWeight = 1
     AiPlayerbot.TeleToShattrathCityWeight = 1
-    AiPlayerbot.TeleToDalaranWeight = 1
+    AiPlayerbot.TeleToDalaranWeight = 8
     
     # How far randombots are teleported after death
     AiPlayerbot.RandomBotTeleportDistance = 250
@@ -2221,8 +2223,9 @@ data:
     
     # Minimum and maximum seconds between bot teleports to new areas or zones
     # Defaults: 3600 (min), 18000 (max)
-    AiPlayerbot.MinRandomBotTeleportInterval = 1800
-    AiPlayerbot.MaxRandomBotTeleportInterval = 7200
+    # Shorter intervals = bots migrate between level-appropriate zones sooner.
+    AiPlayerbot.MinRandomBotTeleportInterval = 900
+    AiPlayerbot.MaxRandomBotTeleportInterval = 3600
     
     # Number of seconds bots flagged as permanent stay in the world (31,104,000 ≈ 1 year)
     # Default: 31104000
