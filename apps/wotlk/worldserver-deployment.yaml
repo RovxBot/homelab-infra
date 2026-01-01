@@ -258,8 +258,9 @@ spec:
                   name: wotlk-soap-auth
                   key: SOAP_PASSWORD
             - name: ALLOW_SIGNUP
-              # Exposing the portal publicly? Keep signup off and use Cloudflare Access for allowlisting.
-              value: "false"
+              # Invite-only signup for friends. If exposing publicly, strongly consider enabling
+              # Cloudflare Access (`PORTAL_REQUIRE_CF_ACCESS=true`) to prevent invite-code brute force.
+              value: "true"
             - name: INVITE_CODE
               valueFrom:
                 secretKeyRef:
