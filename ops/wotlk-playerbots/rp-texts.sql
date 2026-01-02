@@ -307,3 +307,81 @@ VALUES
   ('suggest_something_toxic', 'I’ve seen better teamwork from the Scourge.', 0, 0, '', '', '', '', '', '', '', '');
 
 COMMIT;
+
+-- -------------------------------------------------------------------------------------------------
+-- MEME CHATTER (more light-weight WoW-style general chat lines)
+-- These go in the same "suggest_something" pool that feeds generic chatter.
+-- Keep it playful; avoid real-person harassment, slurs, or anything beyond mild PG-13 banter.
+-- -------------------------------------------------------------------------------------------------
+
+START TRANSACTION;
+
+INSERT INTO ai_playerbot_texts
+  (name, text, say_type, reply_type, text_loc1, text_loc2, text_loc3, text_loc4, text_loc5, text_loc6, text_loc7, text_loc8)
+VALUES
+  ('suggest_something', 'LF1M healer, we promise we know the way.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'LFM DPS. Bring damage, not excuses.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Anyone want to do “just one quick run”?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I can’t believe it’s not butter… it’s lag.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My inventory is full and so is my heart.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Somebody said “pull more”? I heard “pull carefully”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m here for a good time, not a long corpse run.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If it’s not upgraded, it’s vendor food.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I swear the mobs in %zone_name are respawning out of spite.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Do we have a strategy? Or are we doing interpretive combat?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', '“It’ll be fine” is not a mitigation cooldown.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My %my_role senses are tingling. This is going to hurt.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If we wipe, we wipe together. Team spirit.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I have exactly two moods: full send and hearth.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m not lost. I’m doing… scenic routing.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Brb, negotiating with my repair bill.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'There’s always time for one more quest. This is a lie.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Someone roll need on a new map for %zone_name.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m pretty sure my mount is judging my life choices.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you see me AFK, I’m probably alt-tabbed to a snack.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Need water. Not the wet kind—the mage kind.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Is it a bug, or is it “classic gameplay”?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to ping the minimap aggressively until something happens.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I was going to be productive, but then I got quest markers.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Everyone stay calm. I’m definitely calm.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If I die, tell my gold I loved it.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'How many mobs is “too many”? Asking for a friend.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I feel a big pull coming… I fear it.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Loot gods, I offer you my dignity. Please respond.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If it drops, it’s mine. If it doesn’t, it’s still mine spiritually.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’d like to file a complaint with the %zone_name wildlife.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'In %zone_name we trust. Actually… maybe not.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If we’re not stopping at the inn, are we even adventuring?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m the %my_class. I do things. Sometimes even correctly.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My plan is simple: don’t die. I’m flexible.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Someone said “respect the pull”. I felt that.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to need a /dance break after this.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m here to chew bubblegum and grind mobs. And I’m all out of bubblegum.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I tried to be efficient. %zone_name took that personally.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to pretend that was intended pathing.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If we don’t talk about it, it didn’t happen.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My bags are full, my will is weak.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', '“You are not prepared”… neither am I.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'More dots? I can do more dots.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you can’t find the quest giver, become the quest giver.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m just saying… that pull was ambitious.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'It’s fine. The healer has mana. Probably.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I could use a portal. Or a nap.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you see a chest, no you didn’t.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My favorite spec is “surviving”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I am once again asking for bag space.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'We ride at dawn. Or whenever hearth cooldown is up.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Can we stop somewhere safe? I need to reorganize my chaos.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m in %zone_name for the vibes. The vibes are hostile.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to do the thing. You know, the thing. %my_role things.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If there’s a patrol, it’s already behind us.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I like my pulls like I like my coffee: not on the floor.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'This server has everything: friends, foes, and questionable decisions.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I would like to unsubscribe from %zone_name’s violence newsletter.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My DPS is like my jokes: inconsistent but enthusiastic.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If we’re wiping, at least make it cinematic.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I love it when a plan comes together. We do not have a plan.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'We should start a guild called “Accidental Pull”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to hearth soon. Emotionally, if not physically.', 0, 0, '', '', '', '', '', '', '', '');
+
+COMMIT;
