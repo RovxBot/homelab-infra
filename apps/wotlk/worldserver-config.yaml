@@ -1018,8 +1018,8 @@ data:
     AiPlayerbot.RandomBotAutologin = 1
     
     # Randombot count
-    AiPlayerbot.MinRandomBots = 550
-    AiPlayerbot.MaxRandomBots = 800
+    AiPlayerbot.MinRandomBots = 800
+    AiPlayerbot.MaxRandomBots = 1200
     
     # Randombot accounts
     # If you are not using any expansion at all, you may have to set this manually, in which case please ensure that RandomBotAccountCount is at least greater than (MaxRandomBots / 10 + AddClassAccountPoolSize)
@@ -1164,17 +1164,17 @@ data:
     # Defines at what level a bot will naturally use its 60% ground mount
     # Note: was level 20 during WotLK, 30 during TBC, 40 during Vanilla
     # Default: 20
-    AiPlayerbot.UseGroundMountAtMinLevel = 20
+    AiPlayerbot.UseGroundMountAtMinLevel = 40
     
     # Defines at what level a bot will naturally use its 100% fast ground mount
     # Note: was level 40 during WotLK, 60 during Vanilla
     # Default: 40
-    AiPlayerbot.UseFastGroundMountAtMinLevel = 40
+    AiPlayerbot.UseFastGroundMountAtMinLevel = 60
     
     # Defines at what level a bot will naturally use its 150% flying mount
     # Note: was level 60 during WotLK, 70 during TBC
     # Default: 60
-    AiPlayerbot.UseFlyMountAtMinLevel = 60
+    AiPlayerbot.UseFlyMountAtMinLevel = 70
     
     # Defines at what level a bot will naturally use its 280% fast flying mount
     # Note: was level 70 during WotLK and TBC
