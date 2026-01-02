@@ -1,6 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: wotlk
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: wotlk-realmfirst-sql
+    files:
+      - realmfirst.sql=realmfirst.sql
 resources:
   - namespace.yaml
   - client-files-pv.yaml
@@ -12,6 +20,7 @@ resources:
   - db-bootstrap-cronjob.yaml
   - realm-upsert-cronjob.yaml
   - db-hotfix-cronjob.yaml
+  - bot-realmfirst-cleanup-cronjob.yaml
   - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
