@@ -203,3 +203,68 @@ VALUES
   ('broadcast_guild_demotion', 'Oof. Demotion stings. Learn and move on.', 0, 0, '', '', '', '', '', '', '', '');
 
 COMMIT;
+
+-- -------------------------------------------------------------------------------------------------
+-- GENERIC CHATTER (the "suggest_something" pool used by RandomBotTalk/broadcast suggestions)
+-- Placeholders commonly used by existing lines: %zone_name %my_role %my_race %my_class %my_level
+-- -------------------------------------------------------------------------------------------------
+
+START TRANSACTION;
+
+INSERT INTO ai_playerbot_texts
+  (name, text, say_type, reply_type, text_loc1, text_loc2, text_loc3, text_loc4, text_loc5, text_loc6, text_loc7, text_loc8)
+VALUES
+  ('suggest_something', 'Anyone else questing in %zone_name?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I could go for a dungeon run soon.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you need a %my_role, I’m around.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'What’s everyone working on today?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Feels like a good day to farm some mats.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I keep running in circles in %zone_name.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Is %zone_name always this dangerous?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I swear I just saw something move over there…', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Where do you all keep finding bags? I need more space.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I should probably go train skills again.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I miss the city. %zone_name is a bit much.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If I vanish for a minute, I’m just repairing.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I wonder what the Auction House looks like right now.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Anyone need a hand with elites in %zone_name?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I feel like %zone_name has a story. Most of it is pain.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’ve got a bad feeling about this place.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I could use a drink. Preferably not water.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m level %my_level and still learning. Be gentle.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Somewhere out there is loot with my name on it.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'We should group up in %zone_name sometime.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m just here for the adventure.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Does anyone else get jumpy in %zone_name at night?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I heard %zone_name has good loot… I heard wrong.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My %my_class legs are tired. Too much running.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I wonder what’s happening in Dalaran right now.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I could use a hearthstone cooldown refresh.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you see me wandering, I’m probably “exploring”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m convinced %zone_name is cursed.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m starting to respect the wildlife in %zone_name.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I could really use a mailbox right now.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'At this point I’m just collecting stories… and bruises.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I have a plan. Step one: survive %zone_name.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m enjoying %zone_name. I think. Maybe.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If anyone asks, I was never here.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I should stop staring at the map and start moving.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m pretty sure %zone_name is bigger every time I visit.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'What’s the best inn in %zone_name?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My bags are full again. How does that keep happening?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you need me, I’ll be nearby… probably.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I wonder if the gryphon masters ever sleep.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Sometimes I think my %my_role job is just “panic politely”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m not lost. I’m scouting.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to pretend that last pull was intentional.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'There’s a strange peace to %zone_name… between fights.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you hear screaming, it’s probably fine.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I should have brought more food.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I wonder what level %my_level will feel like. Oh wait.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Some days you win, some days %zone_name wins.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'One more quest, then I’m hearthstoning. Probably.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Is it just me, or is the air different in %zone_name?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m trying to stay focused… but the scenery in %zone_name is wild.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you find a spare mount, let me know.', 0, 0, '', '', '', '', '', '', '', '');
+
+COMMIT;
