@@ -385,3 +385,90 @@ VALUES
   ('suggest_something', 'I’m going to hearth soon. Emotionally, if not physically.', 0, 0, '', '', '', '', '', '', '', '');
 
 COMMIT;
+
+-- -------------------------------------------------------------------------------------------------
+-- EXTRA MEME CHATTER (pop culture references + more WoW banter + 3rd-person trash talk)
+-- Important: these are *original* lines that reference vibes/themes; avoid quoting copyrighted dialogue verbatim.
+-- -------------------------------------------------------------------------------------------------
+
+START TRANSACTION;
+
+INSERT INTO ai_playerbot_texts
+  (name, text, say_type, reply_type, text_loc1, text_loc2, text_loc3, text_loc4, text_loc5, text_loc6, text_loc7, text_loc8)
+VALUES
+  -- Simpsons-ish vibes (no direct quotes)
+  ('suggest_something', 'I would like to file a complaint with the management of %zone_name.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If this goes wrong, I was never here. Allegedly.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I have a bad feeling… and it’s spelled %zone_name.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m doing science in %zone_name. The results are screaming.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'This dungeon feels like it was designed by someone who hates joy.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to do something extremely questionable for a very small upgrade.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My strategy is 90% hope and 10% running away.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If anyone needs me, I’ll be in town pretending I’m organized.', 0, 0, '', '', '', '', '', '', '', ''),
+
+  -- Futurama-ish vibes (no direct quotes)
+  ('suggest_something', 'Shiny loot? Shut up and take my gold.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Good news, everyone: I found more mobs!', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m 40% bag space and 60% regret.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If we wipe, I’m blaming time travel paradoxes.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to press buttons and hope it counts as a plan.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'This place is giving me “future problem” energy.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I have discovered a new emotion: dungeon fatigue.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I came here for adventure. I stayed for repair bills.', 0, 0, '', '', '', '', '', '', '', ''),
+
+  -- Uncle Roger-ish cooking meme vibes (no direct quotes, keep mild)
+  ('suggest_something', 'Haiyaa… who pull that many in %zone_name?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Fuiyoh! That was clean. Do it again.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Too much spice, not enough heals. Haiyaa.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'MSG (More Survival, Guild). I could use some.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'This pull needs more “rest”, less “stress”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Healer busy? Then you no pull, okay?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Tank confidence: fuiyoh. Tank positioning: haiyaa.', 0, 0, '', '', '', '', '', '', '', ''),
+
+  -- WoW banter memes
+  ('suggest_something', 'LF1M: knows fights, brings snacks.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', '“Just one more” is how you end up in %zone_name at 3AM.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Can someone ping the boss? I need to feel something.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If it’s a patrol, it’s already in my personal space.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m not overpulling. I’m speed-learning.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My %my_role job description is “panic, but professionally”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If I stop moving, it’s because my map is arguing with me.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I would like to report a crime: my cooldowns are gone.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'Do we have interrupts? Asking for my remaining HP.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m in %zone_name for “character growth”. Mostly falling damage.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If you need me, I’ll be pretending my hearth is off cooldown.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m ready to do the mechanic. I’m not ready to explain it.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'This is fine. Everything is definitely fine.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I fear no boss. But I fear random trash pulls.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'My bags are full. My optimism is empty.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'If we wipe, we call it “practice”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m farming reputation with my repair vendor.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something', 'I’m going to need a mount that flies over embarrassment.', 0, 0, '', '', '', '', '', '', '', ''),
+
+  -- Third-person shit-talking (keep it mild)
+  ('suggest_something_toxic', 'Nubmage voice: Nubmage sees the plan. Nubmage laughs.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Nubmage voice: Nubmage would help… but Nubmage is entertained.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Nubmage voice: Nubmage rates that pull 2/10. Points for confidence.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This %my_class watches you pull and wonders… why.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This %my_role has seen chaos. Today is a new record.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot has two rules: 1) survive, 2) judge.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot observed “strategy” and found none.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot will remember this wipe. This bot will bring it up later.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot would like to congratulate you on discovering new ways to die.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot says: mark skull next time. Or keep donating durability.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot requests: less confidence, more interrupts.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot heard “big pull” and filed for hazard pay.', 0, 0, '', '', '', '', '', '', '', ''),
+
+  -- Extra toxic-but-meme (still mild)
+  ('suggest_something_toxic', 'I respect the attempt. I disrespect the execution.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Your pathing is a work of abstract art.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If confusion was a buff, you’d be fully raid-buffed.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’ve seen better positioning from a boar in Durotar.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'That pull had the energy of a bad idea winning.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I am once again asking for basic mechanics.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you’re going to be fearless, at least be useful.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'We are not speedrunning. We are speed-accumulating shame.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m not mad. I’m just… impressed in a negative way.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This group has the coordination of a loot council at 2AM.', 0, 0, '', '', '', '', '', '', '', '');
+
+COMMIT;
