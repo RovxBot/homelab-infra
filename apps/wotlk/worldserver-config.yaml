@@ -3155,6 +3155,12 @@ data:
     AuctionHouseBot.DEBUG = false
     AuctionHouseBot.DEBUG_FILTERS = false
 
+    # Filters: keep obvious broken/test/quest items off the AH.
+    # (We intentionally do NOT wholesale-copy the module's default "invalid IDs" list, since it can also suppress
+    # enchant scroll items depending on the branch/version.)
+    AuctionHouseBot.DisabledItemTextFilter = true
+    AuctionHouseBot.DisabledCustomItemIDs = 11111,16645,16646,16647,16648,16649,16650,16651,16652,16653,16654,16655,16656,34735,34737,34739,34740,34741,34742,34743,34744,34745,34746,42953,43614,43620,43621,49334
+
     AuctionHouseBot.EnableSeller = true
     AuctionHouseBot.Buyer.Enabled = true
     AuctionHouseBot.ItemsPerCycle = 200
@@ -3174,10 +3180,10 @@ data:
     AuctionHouseBot.AdvancedListingRules.UseDropRates.MinDropRate = 0.005
 
     AuctionHouseBot.MaxBuyoutPriceInCopper = 1000000000
-    AuctionHouseBot.BuyoutVariationReducePercent = 0.15
-    AuctionHouseBot.BuyoutVariationAddPercent = 0.25
+    AuctionHouseBot.BuyoutVariationReducePercent = 0.05
+    AuctionHouseBot.BuyoutVariationAddPercent = 0.30
     AuctionHouseBot.BidVariationHighReducePercent = 0
-    AuctionHouseBot.BidVariationLowReducePercent = 0.25
+    AuctionHouseBot.BidVariationLowReducePercent = 0.15
     AuctionHouseBot.BuyoutBelowVendorVariationAddPercentEnabled = true
     AuctionHouseBot.BuyoutBelowVendorVariationAddPercent = 0.25
 
@@ -3319,16 +3325,19 @@ data:
     AuctionHouseBot.ListProportion.CategoryGlyph.QualityHeirloom = 0
     
     # Bias common mats/potions so the AH feels "alive" at all levels.
-    AuctionHouseBot.ListProportion.ListMultipliedItemIDs = 2589:10,2592:10,4306:10,4338:10,14047:10,21877:10,33470:10,2318:10,2319:10,4234:10,4304:10,8170:10,21887:10,33568:10,2770:10,2771:10,2772:10,2775:10,2776:10,3858:10,7911:10,10620:10,23424:10,23425:10,23426:10,23427:10,36909:10,36912:10,36910:10,2835:10,2836:10,2838:10,12365:10,7912:10,765:10,785:10,2447:10,2449:10,2450:10,2452:10,2453:10,3355:10,3356:10,3357:10,3358:10,3369:10,3818:10,3819:10,3820:10,3821:10,4625:10,8153:10,8831:10,8836:10,8838:10,8839:10,8845:10,8846:10,13463:10,13464:10,13465:10,13466:10,13467:10,13468:10,22785:10,22786:10,22787:10,22789:10,22790:10,22791:10,22792:10,22793:10,22794:10,22795:10,36901:10,36902:10,36903:10,36904:10,36905:10,36906:10,36907:10,36908:10,37921:10,10938:10,10939:10,10940:10,10978:10,10998:10,11082:10,11084:10,11128:10,11134:10,11135:10,11138:10,11139:10,11174:10,11175:10,11177:10,11178:10,14343:10,16202:10,16203:10,16204:10,22445:10,22446:10,22447:10,22448:10,22449:10,34052:10,34053:10,34054:10,34055:10,34056:10,774:10,818:10,1206:10,1210:10,1529:10,1705:10,3864:10,7909:10,7910:10,12361:10,12364:10,12799:10,12800:10,21929:10,23077:10,23079:10,23107:10,23112:10,23117:10,23436:10,23437:10,23438:10,23439:10,23440:10,23441:10,36917:10,36918:10,36919:10,36920:10,36921:10,36922:10,36923:10,36924:10,36925:10,36926:10,36927:10,36928:10,36929:10,36930:10,36931:10,36932:10,36933:10,36934:10,118:5,858:5,929:5,2455:5,2456:5,3827:5,3928:5,6149:5,13443:5,13446:5,18253:5,22829:5,22832:5,22850:5,33447:5,33448:5,39671:5,40067:5,43569:5,43570:5
+    AuctionHouseBot.ListProportion.ListMultipliedItemIDs = 2589:10,2592:10,4306:10,4338:10,14047:10,21877:10,33470:10,2318:10,2319:10,4234:10,4304:10,8170:10,21887:10,33568:10,2770:10,2771:10,2772:10,2775:10,2776:10,3858:10,7911:10,10620:10,23424:10,23425:10,23426:10,23427:10,36909:10,36912:10,36910:10,2835:10,2836:10,2838:10,12365:10,7912:10,765:10,785:10,2447:10,2449:10,2450:10,2452:10,2453:10,3355:10,3356:10,3357:10,3358:10,3369:10,3818:10,3819:10,3820:10,3821:10,4625:10,8153:10,8831:10,8836:10,8838:10,8839:10,8845:10,8846:10,13463:10,13464:10,13465:10,13466:10,13467:10,13468:10,22785:10,22786:10,22787:10,22789:10,22790:10,22791:10,22792:10,22793:10,22794:10,22795:10,36901:10,36902:10,36903:10,36904:10,36905:10,36906:10,36907:10,36908:10,37921:10,10938:10,10939:10,10940:10,10978:10,10998:10,11082:10,11084:10,11128:10,11134:10,11135:10,11138:10,11139:10,11174:10,11175:10,11177:10,11178:10,14343:10,16202:10,16203:10,16204:10,22445:10,22446:10,22447:10,22448:10,22449:10,34052:10,34053:10,34054:10,34055:10,34056:10,774:10,818:10,1206:10,1210:10,1529:10,1705:10,3864:10,7909:10,7910:10,12361:10,12364:10,12799:10,12800:10,21929:10,23077:10,23079:10,23107:10,23112:10,23117:10,23436:10,23437:10,23438:10,23439:10,23440:10,23441:10,36917:10,36918:10,36919:10,36920:10,36921:10,36922:10,36923:10,36924:10,36925:10,36926:10,36927:10,36928:10,36929:10,36930:10,36931:10,36932:10,36933:10,36934:10,118:5,858:5,929:5,2455:5,2456:5,3827:5,3928:5,6149:5,13443:5,13446:5,18253:5,22829:5,22832:5,22850:5,33447:5,33448:5,39671:5,40067:5,43569:5,43570:5,44493:20,43987:20,46026:15,46098:15,44946:15,44463:15,44466:15,44467:15,45056:10,45060:10,38972:15,38991:15,38992:15,38986:15,39006:15,38925:12,38873:12,38871:10,38870:10,38838:10,38868:10,38848:10,38845:10,38863:10,38844:10,38837:10,45628:10,50816:5
     
-    # Pricing: avoid vendor-price anchoring and tune to a more "player-like" floor.
+    # Pricing: keep low-level gear affordable while still scaling high-level gear up.
     # Note: importing real pricing history (e.g. Arugal economy) would require an external price dataset.
+    # Important: we do NOT anchor on vendor sell price at the start, because many high-end/crafted items have
+    # weird/zero sell prices and because multiplying a high vendor price can overflow into absurd listings.
+    # Vendor sell price is still enforced as a *floor* later by the module (see BuyoutBelowVendorVariation*).
     AuctionHouseBot.PriceMinimumCenterBase.UseItemSellPriceIfHigher = false
     AuctionHouseBot.PriceMinimumCenterBase.Consumable = 5000
     AuctionHouseBot.PriceMinimumCenterBase.Container = 7500
-    AuctionHouseBot.PriceMinimumCenterBase.Weapon = 7500
+    AuctionHouseBot.PriceMinimumCenterBase.Weapon = 100
     AuctionHouseBot.PriceMinimumCenterBase.Gem = 7500
-    AuctionHouseBot.PriceMinimumCenterBase.Armor = 7500
+    AuctionHouseBot.PriceMinimumCenterBase.Armor = 100
     AuctionHouseBot.PriceMinimumCenterBase.Reagent = 5000
     AuctionHouseBot.PriceMinimumCenterBase.Projectile = 25
     AuctionHouseBot.PriceMinimumCenterBase.TradeGood = 5000
@@ -3340,18 +3349,24 @@ data:
     AuctionHouseBot.PriceMinimumCenterBase.Misc = 5000
     AuctionHouseBot.PriceMinimumCenterBase.Glyph = 5000
     
-    # Gear pricing: prefer item-level pricing for weapons/armor.
-    AuctionHouseBot.PriceMultiplier.ItemLevel.Category.Weapon = 1.25
-    AuctionHouseBot.PriceMultiplier.ItemLevel.Category.Armor = 1.25
+    # Gear pricing: item-level scaling is multiplicative (price *= ItemLevel * multiplier),
+    # so keep these small to avoid low-level greens becoming absurd.
+    AuctionHouseBot.PriceMultiplier.ItemLevel.Category.Weapon = 0.25
+    AuctionHouseBot.PriceMultiplier.ItemLevel.Category.Armor = 0.25
     
     # Broad quality multipliers.
     AuctionHouseBot.PriceMultiplier.Quality.Poor = 1.0
-    AuctionHouseBot.PriceMultiplier.Quality.Normal = 1.5
-    AuctionHouseBot.PriceMultiplier.Quality.Uncommon = 2.5
-    AuctionHouseBot.PriceMultiplier.Quality.Rare = 6.0
-    AuctionHouseBot.PriceMultiplier.Quality.Epic = 15.0
-    AuctionHouseBot.PriceMultiplier.Quality.Legendary = 40.0
-    AuctionHouseBot.PriceMultiplier.Quality.Heirloom = 25.0
+    AuctionHouseBot.PriceMultiplier.Quality.Normal = 1.0
+    AuctionHouseBot.PriceMultiplier.Quality.Uncommon = 1.2
+    AuctionHouseBot.PriceMultiplier.Quality.Rare = 1.9
+    AuctionHouseBot.PriceMultiplier.Quality.Epic = 2.2
+    AuctionHouseBot.PriceMultiplier.Quality.Legendary = 3.0
+    AuctionHouseBot.PriceMultiplier.Quality.Heirloom = 3.0
+
+    # Make high-level epics (especially crafted) expensive without inflating epic gems/trade goods:
+    # apply the big multipliers only to Armor/Weapon by using CategoryQuality multipliers.
+    AuctionHouseBot.PriceMultiplier.CategoryWeapon.QualityEpic = 2000.0
+    AuctionHouseBot.PriceMultiplier.CategoryArmor.QualityEpic = 2000.0
 
     # Unobtainable items with ultra rare chance and high price
     AuctionHouseBot.ItemSpecific.28936.Chance = 0.0001
