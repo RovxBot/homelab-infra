@@ -268,3 +268,42 @@ VALUES
   ('suggest_something', 'If you find a spare mount, let me know.', 0, 0, '', '', '', '', '', '', '', '');
 
 COMMIT;
+
+-- -------------------------------------------------------------------------------------------------
+-- VERY RUDE CHATTER (the "suggest_something_toxic" pool)
+-- Keep it "WoW banter" rude (salt/insults), but avoid slurs/hate speech.
+-- Placeholders commonly used: %zone_name %my_role %my_class %my_level
+-- -------------------------------------------------------------------------------------------------
+
+START TRANSACTION;
+
+INSERT INTO ai_playerbot_texts
+  (name, text, say_type, reply_type, text_loc1, text_loc2, text_loc3, text_loc4, text_loc5, text_loc6, text_loc7, text_loc8)
+VALUES
+  ('suggest_something_toxic', 'If you’re going to pull like that, at least commit to it.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'That was a “plan”? I’ve seen better plans in a murloc camp.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'We’re in %zone_name, not a petting zoo. Pay attention.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m not saying you’re lost, but %zone_name is laughing at you.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If we wipe, I’m logging it as “educational”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I swear some of you are roleplaying as target dummies.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Please stop testing your durability on my time.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You’re standing in the bad. Again. Impressively consistent.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m a %my_role, not a miracle worker.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If we had a copper for every mistake, we could buy %zone_name.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Mark targets? No? Cool. Let’s just freestyle death.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you body-pull one more pack, I’m letting it be “your moment”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’ve met mobs with better situational awareness.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m starting to think your keyboard has only W and spacebar.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'We can do this the easy way… or whatever way you’re doing.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You’re level %my_level and still pulling like it’s your first day.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I love surprises. Said no tank ever.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you want to tank, say so. Otherwise stop auditioning.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'My patience has a cooldown and it’s almost up.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This group has the coordination of a drunk kodo.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If “confidence” did damage, you’d be top DPS.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'We’re not speedrunning. We’re just slow-wiping.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Imagine using interrupts. Wild concept, I know.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you’re going to be reckless, at least be effective.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’ve seen better teamwork from the Scourge.', 0, 0, '', '', '', '', '', '', '', '');
+
+COMMIT;
