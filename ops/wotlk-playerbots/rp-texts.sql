@@ -111,6 +111,74 @@ VALUES
 COMMIT;
 
 -- -------------------------------------------------------------------------------------------------
+-- EXTRA TOXIC TRASH TALK (still no slurs/hate speech; keep it game-related)
+-- -------------------------------------------------------------------------------------------------
+
+START TRANSACTION;
+
+INSERT INTO ai_playerbot_texts
+  (name, text, say_type, reply_type, text_loc1, text_loc2, text_loc3, text_loc4, text_loc5, text_loc6, text_loc7, text_loc8)
+VALUES
+  ('suggest_something_toxic', 'This is not a strategy. This is a cry for help.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’ve seen training dummies with better movement.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You’re not “speedrunning”. You’re speed-feeding.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Congrats on pulling the whole room. Again. Outstanding.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If panic was DPS, you’d be world first.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m watching this and losing IQ in real time.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You’re playing like your keyboard is optional.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m not mad. I’m just aggressively disappointed.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'At this point, the mobs deserve the win.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m going to start charging gold per mistake.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'That was so scuffed it should come with a warning label.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Please stop “experimenting” on live targets.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you pull that again, at least ping it so I can laugh sooner.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m begging you to use your eyes.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Standing in fire is not a flex.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Your situational awareness is in another instance.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If this was a test, you failed it loudly.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You’re allergic to interrupts, huh?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This pull has “wipe” written all over it. In caps.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I would ask what the plan is, but I know the answer.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'My patience just crit-failed.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m impressed. Not in a good way.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You have the confidence of a raid boss and the output of a critter.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'We’re in %zone_name and you’re still surprised by mobs. Fascinating.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Please stop pulling like you’re immortal. You’re not even durable.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This group is a public durability donation.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'We have healers, not necromancers.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Do you want a tank, or do you want chaos? Pick one.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you’re going to ignore mechanics, at least do it quietly.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’ve met NPCs with more personality and better threat management.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You’re making %zone_name look smart.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Stop face-tanking reality.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m going to need a second healer for your ego.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I want to help, but you’re making it so entertaining to watch.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This is a dungeon, not a guided tour of every patrol.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m not wiping. I’m strategically resetting your expectations.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Your threat is everywhere except on the right target.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you die again, I’m writing it down as a hobby.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I would say “nice try”, but let’s not lie to each other.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'That was a pull. It just wasn’t a good one.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m going to AFK to preserve my sanity.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If embarrassment did damage, we’d be clearing heroic.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This is why repair vendors stay in business.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You’re not unlucky. You’re just careless.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m watching you and reconsidering optimism as a concept.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'That was so bad it should award an achievement.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m going to start rolling “need” on silence.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you pull like that again, I’m pulling the plug.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This is a masterclass in “what not to do”.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'Do you want advice, or do you want to keep being wrong in peace?', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'My %my_class is tired. Your decisions are heavy.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This bot is going to /ignore the concept of teamwork.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'If you can’t dodge it, don’t stand in it. Revolutionary, I know.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'I’m out of mana and out of sympathy.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'You play like you have an addon that deletes awareness.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'We’re not struggling. We’re just committing to failure.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', 'This is the worst “plan” I’ve seen today, and I’ve seen a lot.', 0, 0, '', '', '', '', '', '', '', '');
+
+COMMIT;
+-- -------------------------------------------------------------------------------------------------
 -- BROADCASTS (server-wide flavor lines triggered by playerbots broadcasts system)
 -- These are NOT the same as SayStrategy lines; they go through the broadcast logic.
 -- -------------------------------------------------------------------------------------------------
@@ -446,9 +514,9 @@ VALUES
   ('suggest_something', 'I’m going to need a mount that flies over embarrassment.', 0, 0, '', '', '', '', '', '', '', ''),
 
   -- Third-person shit-talking (keep it mild)
-  ('suggest_something_toxic', 'Nubmage voice: Nubmage sees the plan. Nubmage laughs.', 0, 0, '', '', '', '', '', '', '', ''),
-  ('suggest_something_toxic', 'Nubmage voice: Nubmage would help… but Nubmage is entertained.', 0, 0, '', '', '', '', '', '', '', ''),
-  ('suggest_something_toxic', 'Nubmage voice: Nubmage rates that pull 2/10. Points for confidence.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', '%s sees the plan. %s laughs.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', '%s would help… but %s is entertained.', 0, 0, '', '', '', '', '', '', '', ''),
+  ('suggest_something_toxic', '%s rates that pull 2/10. Points for confidence.', 0, 0, '', '', '', '', '', '', '', ''),
   ('suggest_something_toxic', 'This %my_class watches you pull and wonders… why.', 0, 0, '', '', '', '', '', '', '', ''),
   ('suggest_something_toxic', 'This %my_role has seen chaos. Today is a new record.', 0, 0, '', '', '', '', '', '', '', ''),
   ('suggest_something_toxic', 'This bot has two rules: 1) survive, 2) judge.', 0, 0, '', '', '', '', '', '', '', ''),
