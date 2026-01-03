@@ -1,0 +1,4 @@
+.work/
+
+# Never commit private keys
+secrets/*.key
