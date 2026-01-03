@@ -84,14 +84,12 @@ spec:
                 - name: REALM_NAME
                   value: "Grim Guzzler"
                 - name: REALM_ADDRESS
-                  # Public (tailnet) address clients should connect to.
-                  # Use the Tailscale IP to avoid requiring MagicDNS on clients.
-                  value: "100.82.107.43"
+                  # Public address clients should connect to.
+                  value: "grim.cooked.beer"
                 - name: REALM_LOCAL_ADDRESS
                   # Local address for clients on the "local subnet".
-                  # Keep it the same as REALM_ADDRESS so all clients (LAN + tailnet)
-                  # connect via Tailscale consistently.
-                  value: "100.82.107.43"
+                  # Keep it the same as REALM_ADDRESS for consistent client config.
+                  value: "grim.cooked.beer"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT

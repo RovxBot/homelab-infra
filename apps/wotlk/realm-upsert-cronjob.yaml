@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: wotlk-realm-upsert
+  namespace: wotlk
 spec:
   # Suspended by default; run manually when you need to change advertised realm address.
   schedule: "0 4 * * *"
@@ -30,9 +31,9 @@ spec:
                 - name: REALM_NAME
                   value: "Grim Guzzler"
                 - name: REALM_ADDRESS
-                  value: "100.82.107.43"
+                  value: "grim.cooked.beer"
                 - name: REALM_LOCAL_ADDRESS
-                  value: "100.82.107.43"
+                  value: "grim.cooked.beer"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT
