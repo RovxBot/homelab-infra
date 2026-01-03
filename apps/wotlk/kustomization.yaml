@@ -9,6 +9,9 @@ configMapGenerator:
   - name: wotlk-realmfirst-sql
     files:
       - realmfirst.sql=realmfirst.sql
+  - name: wotlk-playerbots-normalize-ascii-sql
+    files:
+      - playerbots-normalize-ascii.sql=playerbots-normalize-ascii.sql
 resources:
   - namespace.yaml
   - client-files-pv.yaml
@@ -21,6 +24,7 @@ resources:
   - realm-upsert-cronjob.yaml
   - db-hotfix-cronjob.yaml
   - bot-realmfirst-cleanup-cronjob.yaml
+  - playerbots-normalize-ascii-cronjob.yaml
   - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
