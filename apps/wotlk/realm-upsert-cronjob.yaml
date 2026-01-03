@@ -37,7 +37,7 @@ spec:
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT
-                  value: "8085"
+                  value: "443"
                 - name: REALM_FLAG
                   value: "0"
                 - name: REALM_GAMEBUILD
