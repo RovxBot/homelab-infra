@@ -1,0 +1,17 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: wotlk-critical
+value: 100000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: Keep WotLK core services running under node pressure.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: media-low
+value: 1000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: Media apps are ok to evict/restart first under node pressure.

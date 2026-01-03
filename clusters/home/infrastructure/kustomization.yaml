@@ -9,6 +9,7 @@ resources:
   - ../../../infra/wireguard
   - ../../../infra/backups
   - ../../../infra/observability
+  - ../../../infra/priorityclasses
   - ../../../infra/namespaces/wotlk.yaml
   - ../../../infra/namespaces/wireguard.yaml
   - ../../../secrets/tailscale-auth.enc.yaml

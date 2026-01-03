@@ -13,9 +13,17 @@ spec:
       labels:
         app: wotlk-mariadb
     spec:
+      priorityClassName: wotlk-critical
       containers:
         - name: mysql
           image: mysql:8.0
+          resources:
+            requests:
+              cpu: 200m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 6Gi
           ports:
             - name: mysql
               containerPort: 3306

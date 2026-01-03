@@ -13,6 +13,22 @@ spec:
       labels:
         app: sonarr
     spec:
+      priorityClassName: media-low
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - metal5
       containers:
         - name: sonarr
           image: linuxserver/sonarr:latest
@@ -27,6 +43,13 @@ spec:
               value: "1000"
             - name: TZ
               value: Australia/Melbourne
+          resources:
+            requests:
+              cpu: 50m
+              memory: 300Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           volumeMounts:
             - name: config
               mountPath: /config
