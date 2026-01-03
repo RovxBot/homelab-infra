@@ -15,6 +15,7 @@ set -euo pipefail
 # - DNATs public traffic on the VPS to metal7 via wg0 (world is exposed on 443)
 # - SNATs (MASQUERADE) so replies return through the VPS (no asymmetric routing)
 # - Inserts FORWARD allows before Oracle's default REJECT
+# - Clamps TCP MSS on forwarded SYN packets to avoid MTU issues over WireGuard
 
 PUB_IFACE="${PUB_IFACE:-ens3}"
 WG_IFACE="${WG_IFACE:-wg0}"
@@ -49,6 +50,14 @@ cleanup_8085() {
 }
 
 cleanup_8085
+
+# Clamp MSS to PMTU for forwarded TCP SYN packets (helps with some mobile/ISP paths).
+if ! iptables -t mangle -C FORWARD -o "$WG_IFACE" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null; then
+  iptables -t mangle -I FORWARD 1 -o "$WG_IFACE" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+fi
+if ! iptables -t mangle -C FORWARD -i "$WG_IFACE" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null; then
+  iptables -t mangle -I FORWARD 1 -i "$WG_IFACE" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+fi
 
 for mapping in "${PORT_MAP[@]}"; do
   p="${mapping%%:*}"
