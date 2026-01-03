@@ -45,7 +45,7 @@
           app: wotlk-worldserver
           podSelector: app=wotlk-worldserver
     - WotLK Account Manager (LAN):
-        href: https://wow.risk-lenok.ts.net/
+        href: https://grimguzzler.cooked.beer/
         siteMonitor: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
         description: Account creation / invites
         icon: /icons/accountmgr.svg
@@ -60,17 +60,6 @@
           namespace: wotlk
           app: wotlk-mariadb
           podSelector: app=wotlk-mariadb
-    - WoW Proxy (Tailscale):
-        href: https://wow.risk-lenok.ts.net
-        description: WoW access via Tailscale serve
-        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/tailscale.svg
-        target: _blank
-        widget:
-          type: kubernetes
-          namespace: tailscale
-          app: tailscale-wow
-          podSelector: app=tailscale-wow
-
 - Media:
     - Radarr:
         href: https://radarr.cooked.beer

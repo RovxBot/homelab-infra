@@ -6,7 +6,6 @@ resources:
   - namespace.yaml
   - rbac.yaml
   - deployment.yaml
-  - deployment-wow.yaml
 
 # IMPORTANT: keep ConfigMap names stable so the Deployment mount always matches
 generatorOptions:
@@ -16,6 +15,3 @@ configMapGenerator:
   - name: tailscale-serve-config
     files:
       - serve.json
-  - name: tailscale-serve-config-wow
-    files:
-      - serve.json=serve-wow.json
