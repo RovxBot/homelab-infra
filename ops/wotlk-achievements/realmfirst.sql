@@ -4,6 +4,8 @@
 -- - You cannot create brand new achievements without client DBC changes.
 -- - This file only adjusts rewards for existing achievements and revokes them from bot accounts.
 
+USE acore_world;
+
 -- --- Reward titles (existing CharTitles.dbc IDs) -----------------------------
 -- These are the WotLK "realm first raid" achievements that already have
 -- corresponding title strings in CharTitles.dbc.
@@ -41,16 +43,20 @@ ON DUPLICATE KEY UPDATE
 -- Realm-first achievement IDs extracted from Achievement.dbc (title contains "Realm First"):
 -- 456,457,458,459,460,461,462,463,464,465,466,467,959,1400,1402,1404,1405,1406,1407,1408,1409,1410,1411,1412,1413,1414,1415,1416,1417,1418,1419,1420,1421,1422,1423,1424,1425,1426,1427,1463,3117,3259,4078,4576
 
-DELETE ca
-FROM acore_characters.character_achievement ca
-JOIN acore_characters.characters c ON c.guid = ca.guid
-JOIN acore_playerbots.playerbots_account_type p
-  ON p.account_id = c.account AND p.account_type = 1
-WHERE ca.achievement IN (
+DELETE FROM acore_characters.character_achievement
+WHERE achievement IN (
   456,457,458,459,460,461,462,463,464,465,466,467,959,
   1400,1402,1404,1405,1406,1407,1408,1409,1410,1411,1412,1413,
   1414,1415,1416,1417,1418,1419,1420,1421,1422,1423,1424,1425,1426,1427,
   1463,3117,3259,4078,4576
+)
+AND guid IN (
+  SELECT guid FROM (
+    SELECT c.guid
+    FROM acore_characters.characters c
+    JOIN acore_playerbots.playerbots_account_type p
+      ON p.account_id = c.account AND p.account_type = 1
+  ) bot_guids
 );
 
 UPDATE acore_characters.characters c
@@ -58,4 +64,3 @@ JOIN acore_playerbots.playerbots_account_type p
   ON p.account_id = c.account AND p.account_type = 1
 SET c.chosenTitle = 0
 WHERE c.chosenTitle IN (120, 122, 139, 158, 159, 170, 174);
-
