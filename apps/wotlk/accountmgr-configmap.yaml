@@ -1001,9 +1001,7 @@ data:
           <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
             <li>Ask an admin for an <strong>invite</strong> (account creation is invite-only).</li>
             <li>Download a 3.3.5a client: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
-            <li>Install Tailscale: <a href="https://tailscale.com/download" target="_blank" rel="noreferrer">Tailscale Downloads</a></li>
-            <li>Get access to the tailnet (admin will approve your device).</li>
-            <li>Set realmlist to: <span class="pill">wow.risk-lenok.ts.net</span></li>
+            <li>Set realmlist to: <span class="pill">grim.cooked.beer</span></li>
           </ol>
         </div>
       </div>
@@ -1171,8 +1169,7 @@ data:
           <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
             <li>Invite required (ask an admin).</li>
             <li>Client download: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
-            <li>Tailscale: <a href="https://tailscale.com/download" target="_blank" rel="noreferrer">Install Tailscale</a></li>
-            <li>Set realmlist: <span class="pill">wow.risk-lenok.ts.net</span></li>
+            <li>Set realmlist: <span class="pill">grim.cooked.beer</span></li>
           </ol>
         HTML;
       } else {
