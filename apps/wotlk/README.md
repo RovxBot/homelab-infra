@@ -36,7 +36,7 @@ It builds and pushes these images to GHCR:
 - `data/sql/base/db_characters` → `acore_characters`
 - `data/sql/base/db_world` → `acore_world` (large import)
 
-It also upserts the realm row to `grim.cooked.beer:8085` and marks it online.
+It also upserts the realm row to `grim.cooked.beer:443` and marks it online.
 
 Run once when ready:
 
