@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wireguard-client
+  labels:
+    app: wireguard-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wireguard-client
+  template:
+    metadata:
+      labels:
+        app: wireguard-client
+    spec:
+      # Pin to a single node so we only have one tunnel + NAT gateway.
+      nodeSelector:
+        kubernetes.io/hostname: metal7
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: config
+          emptyDir: {}
+        - name: wgconfs
+          secret:
+            secretName: wireguard-client-conf
+            items:
+              - key: wg0.conf
+                path: vps.conf
+      containers:
+        - name: wireguard
+          image: lscr.io/linuxserver/wireguard:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: Australia/Adelaide
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: wgconfs
+              mountPath: /config/wg_confs
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -lc
+                - "wg show vps >/dev/null 2>&1"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 6

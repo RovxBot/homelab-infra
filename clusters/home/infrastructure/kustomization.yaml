@@ -6,9 +6,11 @@ resources:
   - ../../../infra/pod-report
   - ../../../infra/cloudflared
   - ../../../infra/tailscale
+  - ../../../infra/wireguard
   - ../../../infra/backups
   - ../../../infra/observability
   - ../../../infra/namespaces/wotlk.yaml
+  - ../../../infra/namespaces/wireguard.yaml
   - ../../../secrets/tailscale-auth.enc.yaml
   - ../../../secrets/longhorn-b2-credentials.enc.yaml
   - ../../../secrets/restic-b2-photos.enc.yaml
