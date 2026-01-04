@@ -281,11 +281,17 @@ spec:
                       'Acquire a Faction Service Mark.'
                       )
                     ON DUPLICATE KEY UPDATE
+                      QuestLevel = VALUES(QuestLevel),
+                      MinLevel = VALUES(MinLevel),
                       RewardItem1 = VALUES(RewardItem1),
                       RewardAmount1 = VALUES(RewardAmount1),
                       RequiredItemId1 = VALUES(RequiredItemId1),
                       RequiredItemCount1 = VALUES(RequiredItemCount1),
                       Flags = VALUES(Flags),
+                      LogTitle = VALUES(LogTitle),
+                      LogDescription = VALUES(LogDescription),
+                      QuestDescription = VALUES(QuestDescription),
+                      QuestCompletionLog = VALUES(QuestCompletionLog),
                       ObjectiveText1 = VALUES(ObjectiveText1);
                   "
 
