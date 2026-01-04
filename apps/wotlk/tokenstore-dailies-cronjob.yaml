@@ -56,6 +56,14 @@ spec:
 
                   DUTY_NPC_ALLIANCE="${DUTY_NPC_ALLIANCE:-900100}"
                   DUTY_NPC_HORDE="${DUTY_NPC_HORDE:-900101}"
+                  SW_X="${SW_X:--8787.976}"
+                  SW_Y="${SW_Y:-640.2761}"
+                  SW_Z="${SW_Z:-69.12814}"
+                  SW_O="${SW_O:-3.0963876}"
+                  SW_ZONE="${SW_ZONE:-11519}"
+                  SW_AREA="${SW_AREA:-1519}"
+                  SW_PHASEMASK="${SW_PHASEMASK:-1}"
+                  SW_GUARD_TEMPLATE="${SW_GUARD_TEMPLATE:-1423}" # Stormwind Guard
                   ORG_X="${ORG_X:-1651.4655}"
                   ORG_Y="${ORG_Y:--4434.145}"
                   ORG_Z="${ORG_Z:-17.602255}"
@@ -149,6 +157,15 @@ spec:
                       AND NOT EXISTS (SELECT 1 FROM creature_template WHERE entry = ${DUTY_NPC_HORDE});
                   "
 
+                  echo "Applying Stormwind Guard model to SW envoy..."
+                  db --database acore_world --execute "
+                    DELETE FROM creature_template_model WHERE CreatureID = ${DUTY_NPC_ALLIANCE};
+                    INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability, VerifiedBuild)
+                    SELECT ${DUTY_NPC_ALLIANCE}, Idx, CreatureDisplayID, DisplayScale, Probability, VerifiedBuild
+                    FROM creature_template_model
+                    WHERE CreatureID = ${SW_GUARD_TEMPLATE};
+                  "
+
                   echo "Applying Orgrimmar Grunt model to Org envoy..."
                   db --database acore_world --execute "
                     DELETE FROM creature_template_model WHERE CreatureID = ${DUTY_NPC_HORDE};
@@ -165,8 +182,8 @@ spec:
                        spawntimesecs, wander_distance, currentwaypoint,
                        curhealth, curmana, MovementType, npcflag, unit_flags, dynamicflags, ScriptName, VerifiedBuild, CreateObject, Comment)
                     SELECT
-                      ${DUTY_NPC_ALLIANCE}, id2, id3, map, zoneId, areaId, spawnMask, phaseMask, equipment_id,
-                      position_x + 2.0, position_y + 0.5, position_z, orientation,
+                      ${DUTY_NPC_ALLIANCE}, id2, id3, 0, ${SW_ZONE}, ${SW_AREA}, spawnMask, ${SW_PHASEMASK}, equipment_id,
+                      ${SW_X}, ${SW_Y}, ${SW_Z}, ${SW_O},
                       spawntimesecs, 0, currentwaypoint,
                       curhealth, curmana, MovementType, 0, unit_flags, dynamicflags, ScriptName, VerifiedBuild, CreateObject, 'Grim token questgiver (SW)'
                     FROM creature
@@ -174,6 +191,18 @@ spec:
                       AND NOT EXISTS (SELECT 1 FROM creature WHERE id1 = ${DUTY_NPC_ALLIANCE})
                     ORDER BY guid
                     LIMIT 1;
+
+                    UPDATE creature
+                      SET map = 0,
+                          zoneId = ${SW_ZONE},
+                          areaId = ${SW_AREA},
+                          phaseMask = ${SW_PHASEMASK},
+                          position_x = ${SW_X},
+                          position_y = ${SW_Y},
+                          position_z = ${SW_Z},
+                          orientation = ${SW_O},
+                          wander_distance = 0
+                      WHERE id1 = ${DUTY_NPC_ALLIANCE};
 
                     INSERT INTO creature
                       (id1, id2, id3, map, zoneId, areaId, spawnMask, phaseMask, equipment_id,
@@ -216,7 +245,7 @@ spec:
                       (
                       ${QUEST_CLASSIC_ID},
                       2,
-                      60,
+                      -1,
                       15,
                       0,
                       0,
@@ -235,7 +264,7 @@ spec:
                       (
                       ${QUEST_TBC_ID},
                       2,
-                      70,
+                      -1,
                       61,
                       0,
                       0,
