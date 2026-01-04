@@ -4,6 +4,7 @@
     "config:recommended",
     ":dependencyDashboard",
     ":enableVulnerabilityAlerts",
+    "docker:pinDigests",
     "helpers:pinGitHubActionDigests"
   ],
   "timezone": "Australia/Melbourne",
