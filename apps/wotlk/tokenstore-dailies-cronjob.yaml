@@ -18,7 +18,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: tokenstore-dailies
-              image: alpine:3.20
+              image: mysql:8.0
               env:
                 - name: DB_HOST
                   value: wotlk-mariadb.wotlk.svc.cluster.local
@@ -34,8 +34,6 @@ spec:
                 - -lc
                 - |
                   set -euo pipefail
-
-                  apk add --no-cache mariadb-client >/dev/null
 
                   db() {
                     command mysql \
