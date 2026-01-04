@@ -56,6 +56,14 @@ spec:
 
                   DUTY_NPC_ALLIANCE="${DUTY_NPC_ALLIANCE:-900100}"
                   DUTY_NPC_HORDE="${DUTY_NPC_HORDE:-900101}"
+                  ORG_X="${ORG_X:-1651.4655}"
+                  ORG_Y="${ORG_Y:--4434.145}"
+                  ORG_Z="${ORG_Z:-17.602255}"
+                  ORG_O="${ORG_O:-1.7898299}"
+                  ORG_ZONE="${ORG_ZONE:-1637}"
+                  ORG_AREA="${ORG_AREA:-1637}"
+                  ORG_PHASEMASK="${ORG_PHASEMASK:-4294967295}"
+                  ORG_GRUNT_TEMPLATE="${ORG_GRUNT_TEMPLATE:-3296}" # Orgrimmar Grunt
 
                   # Existing auctioneers used previously as quest givers (we remove any quest links from them).
                   AUCTIONEER_ALLIANCE="${AUCTIONEER_ALLIANCE:-15659}" # Auctioneer Jaxon (Stormwind)
@@ -141,6 +149,15 @@ spec:
                       AND NOT EXISTS (SELECT 1 FROM creature_template WHERE entry = ${DUTY_NPC_HORDE});
                   "
 
+                  echo "Applying Orgrimmar Grunt model to Org envoy..."
+                  db --database acore_world --execute "
+                    DELETE FROM creature_template_model WHERE CreatureID = ${DUTY_NPC_HORDE};
+                    INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability, VerifiedBuild)
+                    SELECT ${DUTY_NPC_HORDE}, Idx, CreatureDisplayID, DisplayScale, Probability, VerifiedBuild
+                    FROM creature_template_model
+                    WHERE CreatureID = ${ORG_GRUNT_TEMPLATE};
+                  "
+
                   db --database acore_world --execute "
                     INSERT INTO creature
                       (id1, id2, id3, map, zoneId, areaId, spawnMask, phaseMask, equipment_id,
@@ -164,8 +181,8 @@ spec:
                        spawntimesecs, wander_distance, currentwaypoint,
                        curhealth, curmana, MovementType, npcflag, unit_flags, dynamicflags, ScriptName, VerifiedBuild, CreateObject, Comment)
                     SELECT
-                      ${DUTY_NPC_HORDE}, id2, id3, map, zoneId, areaId, spawnMask, phaseMask, equipment_id,
-                      position_x + 2.0, position_y + 0.5, position_z, orientation,
+                      ${DUTY_NPC_HORDE}, id2, id3, 1, ${ORG_ZONE}, ${ORG_AREA}, spawnMask, ${ORG_PHASEMASK}, equipment_id,
+                      ${ORG_X}, ${ORG_Y}, ${ORG_Z}, ${ORG_O},
                       spawntimesecs, 0, currentwaypoint,
                       curhealth, curmana, MovementType, 0, unit_flags, dynamicflags, ScriptName, VerifiedBuild, CreateObject, 'Grim token questgiver (Org)'
                     FROM creature
@@ -173,6 +190,18 @@ spec:
                       AND NOT EXISTS (SELECT 1 FROM creature WHERE id1 = ${DUTY_NPC_HORDE})
                     ORDER BY guid
                     LIMIT 1;
+
+                    UPDATE creature
+                      SET map = 1,
+                          zoneId = ${ORG_ZONE},
+                          areaId = ${ORG_AREA},
+                          phaseMask = ${ORG_PHASEMASK},
+                          position_x = ${ORG_X},
+                          position_y = ${ORG_Y},
+                          position_z = ${ORG_Z},
+                          orientation = ${ORG_O},
+                          wander_distance = 0
+                      WHERE id1 = ${DUTY_NPC_HORDE};
                   "
 
                   echo "Upserting bracket dailies (classic + Outland)..."
