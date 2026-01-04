@@ -26,6 +26,7 @@ resources:
   - db-hotfix-cronjob.yaml
   - bot-realmfirst-cleanup-cronjob.yaml
   - playerbots-normalize-ascii-cronjob.yaml
+  - tokenstore-dailies-cronjob.yaml
   - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml

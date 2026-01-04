@@ -1,0 +1,249 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-tokenstore-dailies
+  namespace: wotlk
+spec:
+  # Runs daily to (re)ensure token item + quest/event wiring exists.
+  # Rotation itself is handled by game_event recurrence; this job is safe to re-run.
+  schedule: "0 0 * * *"
+  timeZone: Australia/Adelaide
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: mariadb-client
+              image: mysql:8.0
+              env:
+                - name: DB_HOST
+                  value: wotlk-mariadb.wotlk.svc.cluster.local
+                - name: DB_PORT
+                  value: "3306"
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+              command:
+                - sh
+                - -lc
+                - |
+                  set -euo pipefail
+
+                  db() {
+                    command mysql \
+                      --protocol=tcp \
+                      --host "${DB_HOST}" \
+                      --port "${DB_PORT}" \
+                      --user root \
+                      --password="${DB_ROOT_PASSWORD}" \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
+                      "$@"
+                  }
+
+                  TOKEN_ITEM_ID="${TOKEN_ITEM_ID:-90000}"
+                  QUEST_CLASSIC_BASE="${QUEST_CLASSIC_BASE:-210000}"
+                  CLASSIC_EVENT_BASE="${CLASSIC_EVENT_BASE:-200}"
+                  HEROIC_EVENT_BASE="${HEROIC_EVENT_BASE:-230}"
+
+                  CLASSIC_NPC_ALLIANCE="${CLASSIC_NPC_ALLIANCE:-15659}" # Auctioneer Jaxon (Stormwind)
+                  CLASSIC_NPC_HORDE="${CLASSIC_NPC_HORDE:-8724}"       # Auctioneer Wabang (Orgrimmar)
+
+                  # Exclude known classic raid end-bosses (exp=0 but not a 5-man dungeon).
+                  # These values match instance_encounters.lastEncounterDungeon in your DB.
+                  EXCLUDE_CLASSIC_RAID_DUNGEON_IDS="42,48,50,160,161"
+
+                  # WotLK heroic "Proof of Demise" quest IDs (end-boss daily series).
+                  # These already exist in the DB; we only add token rewards and rotate them via game_event.
+                  HEROIC_PROOF_QUESTS="13245,13246,13247,13248,13249,13250,13251,13252,13253,13254,13255,13256,14199"
+
+                  echo "Ensuring token item exists..."
+                  db --database acore_world --execute "
+                    INSERT IGNORE INTO item_template
+                      (entry, class, subclass, name, displayid, Quality, Flags, stackable, maxcount, description)
+                    VALUES
+                      (${TOKEN_ITEM_ID}, 10, 0, 'Grim Token', 64062, 2, 2048, 1000, 0, 'Earned from daily dungeon quests. Used for vanity rewards in the portal store.');
+                  "
+
+                  echo "Ensuring heroic proof quests reward 5 tokens..."
+                  db --database acore_world --execute "
+                    UPDATE quest_template
+                      SET RewardItem1 = ${TOKEN_ITEM_ID}, RewardAmount1 = 5
+                      WHERE ID IN (${HEROIC_PROOF_QUESTS});
+                  "
+
+                  echo "Building classic dungeon candidate list from instance_encounters..."
+                  db --database acore_world --execute "
+                    CREATE TABLE IF NOT EXISTS grim_token_daily_classic (
+                      boss_entry INT UNSIGNED NOT NULL PRIMARY KEY,
+                      boss_name VARCHAR(255) NOT NULL,
+                      instance_script VARCHAR(128) NOT NULL,
+                      quest_id INT UNSIGNED NOT NULL,
+                      event_id TINYINT UNSIGNED NOT NULL,
+                      UNIQUE KEY uq_quest_id (quest_id),
+                      UNIQUE KEY uq_event_id (event_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS grim_token_daily_heroic (
+                      quest_id INT UNSIGNED NOT NULL PRIMARY KEY,
+                      event_id TINYINT UNSIGNED NOT NULL,
+                      UNIQUE KEY uq_event_id (event_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                  "
+
+                  # Populate classic mapping (stable quest id = base + boss entry).
+                  # Assign event IDs in a stable order by (instance_script, boss_name, boss_entry).
+                  db --database acore_world --execute "
+                    WITH boss_map AS (
+                      SELECT id1 AS boss_entry, MIN(map) AS map_id
+                      FROM creature
+                      GROUP BY id1
+                    ),
+                    classic AS (
+                      SELECT
+                        ie.creditEntry AS boss_entry,
+                        ie.comment AS boss_name,
+                        it.script AS instance_script
+                      FROM instance_encounters ie
+                      JOIN creature_template ct ON ct.entry = ie.creditEntry
+                      JOIN boss_map bm ON bm.boss_entry = ie.creditEntry
+                      JOIN instance_template it ON it.map = bm.map_id
+                      WHERE ie.lastEncounterDungeon != 0
+                        AND ie.creditType = 0
+                        AND ct.exp = 0
+                        AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_CLASSIC_RAID_DUNGEON_IDS})
+                    ),
+                    ordered AS (
+                      SELECT
+                        boss_entry,
+                        boss_name,
+                        instance_script,
+                        (${QUEST_CLASSIC_BASE} + boss_entry) AS quest_id,
+                        (${CLASSIC_EVENT_BASE} + ROW_NUMBER() OVER (ORDER BY instance_script, boss_name, boss_entry) - 1) AS event_id
+                      FROM classic
+                      GROUP BY boss_entry, boss_name, instance_script
+                    )
+                    INSERT IGNORE INTO grim_token_daily_classic (boss_entry, boss_name, instance_script, quest_id, event_id)
+                    SELECT boss_entry, boss_name, instance_script, quest_id, event_id FROM ordered;
+                  "
+
+                  echo "Upserting classic quests..."
+                  db --database acore_world --execute "
+                    INSERT INTO quest_template
+                      (ID, QuestType, QuestLevel, MinLevel, QuestSortID, QuestInfoID, SuggestedGroupNum, Flags,
+                       RewardItem1, RewardAmount1,
+                       LogTitle, LogDescription, QuestDescription, QuestCompletionLog,
+                       RequiredNpcOrGo1, RequiredNpcOrGoCount1, ObjectiveText1)
+                    SELECT
+                      c.quest_id,
+                      2,
+                      80,
+                      15,
+                      0,
+                      0,
+                      5,
+                      4224,
+                      ${TOKEN_ITEM_ID},
+                      1,
+                      CONCAT('Daily Dungeon: ', REPLACE(REPLACE(c.instance_script, 'instance_', ''), '_', ' ')),
+                      'Complete today\\'s dungeon challenge to earn a Grim Token.',
+                      CONCAT('Travel to ', REPLACE(REPLACE(c.instance_script, 'instance_', ''), '_', ' '), ' and defeat its final boss.'),
+                      'Daily dungeon complete.',
+                      c.boss_entry,
+                      1,
+                      CONCAT('Defeat ', c.boss_name, '.')
+                    FROM grim_token_daily_classic c
+                    ON DUPLICATE KEY UPDATE
+                      RewardItem1 = VALUES(RewardItem1),
+                      RewardAmount1 = VALUES(RewardAmount1),
+                      Flags = VALUES(Flags),
+                      RequiredNpcOrGo1 = VALUES(RequiredNpcOrGo1),
+                      RequiredNpcOrGoCount1 = VALUES(RequiredNpcOrGoCount1),
+                      ObjectiveText1 = VALUES(ObjectiveText1);
+                  "
+
+                  echo "Upserting game events for classic rotation..."
+                  # Rotate classic: one quest per day, cycle length = number of classic quests.
+                  db --database acore_world --execute "
+                    SET @classic_n := (SELECT COUNT(*) FROM grim_token_daily_classic);
+                    INSERT INTO game_event (eventEntry, start_time, end_time, occurence, length, holiday, holidayStage, description, world_event, announce)
+                    SELECT
+                      c.event_id,
+                      TIMESTAMP('2026-01-04 13:30:00') + INTERVAL (c.event_id - ${CLASSIC_EVENT_BASE}) DAY,
+                      TIMESTAMP('2036-01-01 00:00:00'),
+                      @classic_n * 86400,
+                      86400,
+                      0,
+                      0,
+                      CONCAT('Grim Token Classic Daily: ', c.instance_script),
+                      0,
+                      0
+                    FROM grim_token_daily_classic c
+                    ON DUPLICATE KEY UPDATE
+                      occurence = VALUES(occurence),
+                      length = VALUES(length),
+                      description = VALUES(description),
+                      announce = VALUES(announce);
+                  "
+
+                  echo "Upserting game events for heroic rotation..."
+                  # Map heroic proof quests to a fixed event range (230+).
+                  db --database acore_world --execute "
+                    WITH hero AS (
+                      SELECT
+                        q.ID AS quest_id,
+                        (${HEROIC_EVENT_BASE} + ROW_NUMBER() OVER (ORDER BY q.ID) - 1) AS event_id,
+                        q.LogTitle AS title
+                      FROM quest_template q
+                      WHERE q.ID IN (${HEROIC_PROOF_QUESTS})
+                    )
+                    INSERT INTO grim_token_daily_heroic (quest_id, event_id)
+                    SELECT quest_id, event_id FROM hero
+                    ON DUPLICATE KEY UPDATE event_id = VALUES(event_id);
+
+                    SET @hero_n := (SELECT COUNT(*) FROM grim_token_daily_heroic);
+                    INSERT INTO game_event (eventEntry, start_time, end_time, occurence, length, holiday, holidayStage, description, world_event, announce)
+                    SELECT
+                      h.event_id,
+                      TIMESTAMP('2026-01-04 13:30:00') + INTERVAL (h.event_id - ${HEROIC_EVENT_BASE}) DAY,
+                      TIMESTAMP('2036-01-01 00:00:00'),
+                      @hero_n * 86400,
+                      86400,
+                      0,
+                      0,
+                      CONCAT('Grim Token Heroic Daily: quest ', h.quest_id),
+                      0,
+                      0
+                    FROM grim_token_daily_heroic h
+                    ON DUPLICATE KEY UPDATE
+                      occurence = VALUES(occurence),
+                      length = VALUES(length),
+                      description = VALUES(description),
+                      announce = VALUES(announce);
+                  "
+
+                  echo "Linking events to quest givers (SW/Org auctioneers)..."
+                  db --database acore_world --execute "
+                    INSERT IGNORE INTO game_event_creature_quest (eventEntry, id, quest)
+                    SELECT event_id, ${CLASSIC_NPC_ALLIANCE}, quest_id FROM grim_token_daily_classic;
+                    INSERT IGNORE INTO game_event_creature_quest (eventEntry, id, quest)
+                    SELECT event_id, ${CLASSIC_NPC_HORDE}, quest_id FROM grim_token_daily_classic;
+
+                    INSERT IGNORE INTO game_event_creature_quest (eventEntry, id, quest)
+                    SELECT event_id, ${CLASSIC_NPC_ALLIANCE}, quest_id FROM grim_token_daily_heroic;
+                    INSERT IGNORE INTO game_event_creature_quest (eventEntry, id, quest)
+                    SELECT event_id, ${CLASSIC_NPC_HORDE}, quest_id FROM grim_token_daily_heroic;
+                  "
+
+                  echo "Done. Counts:"
+                  db --database acore_world --execute "
+                    SELECT 'classic_quests' AS k, COUNT(*) AS v FROM grim_token_daily_classic
+                    UNION ALL SELECT 'heroic_quests' AS k, COUNT(*) AS v FROM grim_token_daily_heroic;
+                  "

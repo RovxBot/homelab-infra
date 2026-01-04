@@ -345,6 +345,7 @@ data:
             'overview' => 'My Account',
             'characters' => 'Characters',
             'services' => 'Services',
+            'store' => 'Store',
             'stats' => 'Stats',
             'arena' => 'Arena',
             'about' => 'About',
@@ -620,6 +621,80 @@ data:
         'address' => (string)$row['address'],
         'port' => (int)$row['port'],
       ];
+    }
+
+    function storeTokenItemId(): int {
+      return (int)envOrDefault('STORE_TOKEN_ITEM_ID', '90000');
+    }
+
+    function storeItems(): array {
+      // Extend this list with more vanity items as needed.
+      return [
+        ['id' => 35227, 'name' => 'Goblin Weather Machine', 'cost' => 15, 'note' => 'Vanity toy.'],
+        ['id' => 33219, 'name' => 'Goblin Gumbo Kettle', 'cost' => 10, 'note' => 'Fun/cosmetic.'],
+        ['id' => 32542, 'name' => 'Imp in a Ball', 'cost' => 20, 'note' => 'Vanity.'],
+      ];
+    }
+
+    function isBotCharacter(PDO $pdo, string $charName): bool {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $stmt = $pdo->prepare("SELECT 1 FROM {$charDb}.playerbots_names WHERE UPPER(name) = UPPER(:n) LIMIT 1");
+      $stmt->execute([':n' => $charName]);
+      return (bool)$stmt->fetchColumn();
+    }
+
+    function tokenCount(PDO $pdo, int $charGuid): int {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $tokenId = storeTokenItemId();
+      $stmt = $pdo->prepare(
+        "SELECT COALESCE(SUM(ii.count), 0) AS c " .
+        "FROM {$charDb}.character_inventory ci " .
+        "JOIN {$charDb}.item_instance ii ON ii.guid = ci.item " .
+        "WHERE ci.guid = :g AND ii.itemEntry = :e"
+      );
+      $stmt->execute([':g' => $charGuid, ':e' => $tokenId]);
+      return (int)$stmt->fetchColumn();
+    }
+
+    function deductTokens(PDO $pdo, int $charGuid, int $amount): void {
+      if ($amount <= 0) return;
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $tokenId = storeTokenItemId();
+
+      $stmt = $pdo->prepare(
+        "SELECT ii.guid, ii.count " .
+        "FROM {$charDb}.character_inventory ci " .
+        "JOIN {$charDb}.item_instance ii ON ii.guid = ci.item " .
+        "WHERE ci.guid = :g AND ii.itemEntry = :e " .
+        "ORDER BY ii.count DESC, ii.guid ASC"
+      );
+      $stmt->execute([':g' => $charGuid, ':e' => $tokenId]);
+      $rows = $stmt->fetchAll();
+
+      $remaining = $amount;
+      foreach ($rows as $r) {
+        if ($remaining <= 0) break;
+        $itemGuid = (int)$r['guid'];
+        $count = (int)$r['count'];
+        if ($count <= 0) continue;
+
+        if ($count > $remaining) {
+          $upd = $pdo->prepare("UPDATE {$charDb}.item_instance SET count = count - :d WHERE guid = :i");
+          $upd->execute([':d' => $remaining, ':i' => $itemGuid]);
+          $remaining = 0;
+          break;
+        }
+
+        $delInv = $pdo->prepare("DELETE FROM {$charDb}.character_inventory WHERE item = :i");
+        $delInv->execute([':i' => $itemGuid]);
+        $delItem = $pdo->prepare("DELETE FROM {$charDb}.item_instance WHERE guid = :i");
+        $delItem->execute([':i' => $itemGuid]);
+        $remaining -= $count;
+      }
+
+      if ($remaining > 0) {
+        throw new RuntimeException("Insufficient tokens.");
+      }
     }
 
     function getSnapshotInfo(PDO $pdo): array {
@@ -1014,7 +1089,7 @@ data:
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
       $tab = (string)($_GET['tab'] ?? 'overview');
-      if (!in_array($tab, ['overview', 'characters', 'services', 'stats', 'arena', 'about'], true)) {
+      if (!in_array($tab, ['overview', 'characters', 'services', 'store', 'stats', 'arena', 'about'], true)) {
         $tab = 'overview';
       }
 
@@ -1094,6 +1169,82 @@ data:
             <div class="pill">Unstuck to Graveyard</div>
           </div>
           <div class="muted" style="margin-top:12px;">Go to the Characters tab and use the buttons next to a character.</div>
+        HTML;
+      } elseif ($tab === 'store') {
+        $mainTitle = 'Store';
+
+        $selectedGuid = (int)($_GET['guid'] ?? 0);
+        if ($selectedGuid <= 0 && !empty($chars[0]['guid'])) {
+          $selectedGuid = (int)$chars[0]['guid'];
+        }
+
+        $selected = null;
+        foreach ($chars as $c) {
+          if ((int)$c['guid'] === $selectedGuid) {
+            $selected = $c;
+            break;
+          }
+        }
+
+        $selector = '<div class="muted">Select a character to view token balance.</div>';
+        $balance = 0;
+        $disabledNote = '';
+        if ($selected) {
+          $charNameRaw = (string)$selected['name'];
+          $isOnline = (int)$selected['online'] === 1;
+          $isBot = isBotCharacter($pdo, $charNameRaw);
+          $balance = tokenCount($pdo, (int)$selected['guid']);
+
+          $selector = '<form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' .
+            '<input type="hidden" name="tab" value="store" />' .
+            '<label style="margin:0;">Character</label>' .
+            '<select name="guid" onchange="this.form.submit()">';
+          foreach ($chars as $c) {
+            $g = (int)$c['guid'];
+            $n = htmlspecialchars((string)$c['name']);
+            $sel = $g === (int)$selected['guid'] ? ' selected' : '';
+            $selector .= '<option value="' . $g . '"' . $sel . '>' . $n . '</option>';
+          }
+          $selector .= '</select></form>';
+
+          if ($isBot) {
+            $disabledNote = '<div class="flash warn" style="margin-top:10px;">Bot characters cannot use the store.</div>';
+          } elseif ($isOnline) {
+            $disabledNote = '<div class="flash warn" style="margin-top:10px;">Character must be offline to purchase.</div>';
+          }
+        }
+
+        $itemsRows = '';
+        foreach (storeItems() as $it) {
+          $id = (int)$it['id'];
+          $name = htmlspecialchars((string)$it['name']);
+          $cost = (int)$it['cost'];
+          $note = htmlspecialchars((string)($it['note'] ?? ''));
+
+          $canBuy = $selected && $disabledNote === '' && $balance >= $cost;
+          $btnDisabled = $canBuy ? '' : 'disabled';
+
+          $itemsRows .= '<tr><td><strong>' . $name . '</strong><div class="muted">Item ' . $id . '</div><div class="muted">' . $note . '</div></td><td><span class="pill">' . $cost . '</span></td><td>' .
+            '<form method="post" style="margin:0;display:flex;gap:8px;justify-content:flex-end;align-items:center;">' .
+            '<input type="hidden" name="csrf" value="' . $csrf . '" />' .
+            '<input type="hidden" name="action" value="store_purchase" />' .
+            '<input type="hidden" name="guid" value="' . (int)($selected['guid'] ?? 0) . '" />' .
+            '<input type="hidden" name="item_id" value="' . $id . '" />' .
+            '<button class="btn" type="submit" ' . $btnDisabled . '>Buy</button>' .
+            '</form></td></tr>';
+        }
+
+        $mainBody = <<<HTML
+          {$selector}
+          <div class="kpi" style="margin-top:12px;">
+            <div class="card"><div class="muted">Grim Tokens</div><div class="val">{$balance}</div></div>
+          </div>
+          {$disabledNote}
+          <div class="muted" style="margin-top:14px;">Purchases are delivered via in-game mail.</div>
+          <table class="table" style="margin-top:10px;">
+            <thead><tr><th>Item</th><th>Cost</th><th></th></tr></thead>
+            <tbody>{$itemsRows}</tbody>
+          </table>
         HTML;
       } elseif ($tab === 'arena') {
         $charDb = dbName('DB_CHAR_DB', 'acore_characters');
@@ -1335,6 +1486,53 @@ data:
             $flash = "Moved {$char['name']} to the nearest graveyard.";
             $flashKind = 'ok';
           }
+        } elseif ($action === 'store_purchase') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          $guid = (int)($_POST['guid'] ?? 0);
+          $itemId = (int)($_POST['item_id'] ?? 0);
+          if ($guid <= 0 || $itemId <= 0) {
+            throw new RuntimeException("Invalid purchase request.");
+          }
+
+          $catalog = [];
+          foreach (storeItems() as $it) {
+            $catalog[(int)$it['id']] = $it;
+          }
+          if (empty($catalog[$itemId])) {
+            throw new RuntimeException("Unknown store item.");
+          }
+          $cost = (int)$catalog[$itemId]['cost'];
+
+          $char = characterBelongsTo($pdo, currentAccountId(), $guid);
+          if ((int)$char['online'] === 1) {
+            throw new RuntimeException("Character must be offline.");
+          }
+          $charName = (string)$char['name'];
+          if (isBotCharacter($pdo, $charName)) {
+            throw new RuntimeException("Bot characters cannot use the store.");
+          }
+
+          $pdo->beginTransaction();
+          try {
+            $bal = tokenCount($pdo, $guid);
+            if ($bal < $cost) {
+              throw new RuntimeException("Not enough tokens.");
+            }
+            deductTokens($pdo, $guid, $cost);
+            $pdo->commit();
+          } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+          }
+
+          $subject = 'Grim Token Store';
+          $body = 'Thanks for supporting the realm. Enjoy!';
+          soapExecute('send items ' . $charName . ' "' . $subject . '" "' . $body . '" ' . $itemId . ':1');
+
+          $flash = "Purchase delivered to {$charName}.";
+          $flashKind = 'ok';
         } elseif ($action !== '') {
           throw new RuntimeException("Unknown action.");
         }
