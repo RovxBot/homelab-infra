@@ -1,0 +1,95 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wotlk-ahbot-cleanup
+  namespace: wotlk
+spec:
+  # Suspended by default; run manually when needed:
+  # kubectl -n wotlk create job --from=cronjob/wotlk-ahbot-cleanup wotlk-ahbot-cleanup-1
+  suspend: true
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: mariadb-client
+              image: mysql:8.0
+              env:
+                - name: DB_HOST
+                  value: wotlk-mariadb.wotlk.svc.cluster.local
+                - name: DB_PORT
+                  value: "3306"
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+              command:
+                - sh
+                - -lc
+                - |
+                  set -euo pipefail
+
+                  db() {
+                    command mysql \
+                      --protocol=tcp \
+                      --host "${DB_HOST}" \
+                      --port "${DB_PORT}" \
+                      --user root \
+                      --password="${DB_ROOT_PASSWORD}" \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
+                      "$@"
+                  }
+
+                  BOT_GUIDS="2105,2106,2107,2109,2110,2111,2112,2113,2114,2115"
+
+                  # Lockboxes + sacks of gems (exploited containers)
+                  CONTAINER_ITEM_IDS="4632,4633,4634,4636,4637,4638,5758,5759,5760,7869,7870,12191,12192,16068,16069,16070,16071,16074,16075,16076,16077,16078,16079,16080,16081,16109,16173,16174,16175,16176,16177,16178,16179,16180,16181,16182,16183,16184,16185,16186,16187,16188,17910,17911,19425,20364,21930,22045,30429,30454,30646,31952,43622,43624,45986,11938,17962,17963,17964,17965,17969,25422,34846,49294"
+
+                  # TCG mounts: enforce 10,000g minimum by removing any already-posted cheap listings.
+                  TCG_ITEM_IDS="33224,33225,49283,49284,35225,35226,49285,49286"
+
+                  echo "Counting targeted bot auctions..."
+                  db --database acore_characters --execute "
+                    SELECT 'container_items' AS kind, COUNT(*) AS auctions
+                      FROM auctionhouse a
+                      JOIN item_instance ii ON ii.guid = a.itemguid
+                      WHERE a.itemowner IN (${BOT_GUIDS}) AND ii.itemEntry IN (${CONTAINER_ITEM_IDS});
+                    SELECT 'tcg_mounts' AS kind, COUNT(*) AS auctions
+                      FROM auctionhouse a
+                      JOIN item_instance ii ON ii.guid = a.itemguid
+                      WHERE a.itemowner IN (${BOT_GUIDS}) AND ii.itemEntry IN (${TCG_ITEM_IDS}) AND a.buyoutprice < 100000000;
+                  "
+
+                  echo "Deleting targeted bot auctions (and their auction items)..."
+                  db --database acore_characters --execute "
+                    START TRANSACTION;
+                    DELETE a, ii
+                      FROM auctionhouse a
+                      JOIN item_instance ii ON ii.guid = a.itemguid
+                      WHERE a.itemowner IN (${BOT_GUIDS}) AND ii.itemEntry IN (${CONTAINER_ITEM_IDS});
+                    DELETE a, ii
+                      FROM auctionhouse a
+                      JOIN item_instance ii ON ii.guid = a.itemguid
+                      WHERE a.itemowner IN (${BOT_GUIDS}) AND ii.itemEntry IN (${TCG_ITEM_IDS}) AND a.buyoutprice < 100000000;
+                    COMMIT;
+                  "
+
+                  echo "Remaining targeted bot auctions (should be 0):"
+                  db --database acore_characters --execute "
+                    SELECT 'container_items' AS kind, COUNT(*) AS auctions
+                      FROM auctionhouse a
+                      JOIN item_instance ii ON ii.guid = a.itemguid
+                      WHERE a.itemowner IN (${BOT_GUIDS}) AND ii.itemEntry IN (${CONTAINER_ITEM_IDS});
+                    SELECT 'tcg_mounts_below_10k' AS kind, COUNT(*) AS auctions
+                      FROM auctionhouse a
+                      JOIN item_instance ii ON ii.guid = a.itemguid
+                      WHERE a.itemowner IN (${BOT_GUIDS}) AND ii.itemEntry IN (${TCG_ITEM_IDS}) AND a.buyoutprice < 100000000;
+                  "

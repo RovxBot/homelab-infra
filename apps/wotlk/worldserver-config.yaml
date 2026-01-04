@@ -3159,7 +3159,8 @@ data:
     # (We intentionally do NOT wholesale-copy the module's default "invalid IDs" list, since it can also suppress
     # enchant scroll items depending on the branch/version.)
     AuctionHouseBot.DisabledItemTextFilter = true
-    AuctionHouseBot.DisabledCustomItemIDs = 11111,16645,16646,16647,16648,16649,16650,16651,16652,16653,16654,16655,16656,34735,34737,34739,34740,34741,34742,34743,34744,34745,34746,42953,43614,43620,43621,49334
+    # Explicitly block lockboxes + "sacks of gems" style containers (commonly exploited when mass-listed by bots).
+    AuctionHouseBot.DisabledCustomItemIDs = 11111,16645,16646,16647,16648,16649,16650,16651,16652,16653,16654,16655,16656,34735,34737,34739,34740,34741,34742,34743,34744,34745,34746,42953,43614,43620,43621,49334,4632,4633,4634,4636,4637,4638,5758,5759,5760,7869,7870,12191,12192,16068,16069,16070,16071,16074,16075,16076,16077,16078,16079,16080,16081,16109,16173,16174,16175,16176,16177,16178,16179,16180,16181,16182,16183,16184,16185,16186,16187,16188,17910,17911,19425,20364,21930,22045,30429,30454,30646,31952,43622,43624,45986,11938,17962,17963,17964,17965,17969,25422,34846,49294
 
     AuctionHouseBot.EnableSeller = true
     AuctionHouseBot.Buyer.Enabled = true
@@ -3199,10 +3200,11 @@ data:
     AuctionHouseBot.ListProportion.CategoryConsumable.QualityHeirloom = 0
     
     AuctionHouseBot.ListProportion.CategoryContainer.QualityPoor = 0
-    AuctionHouseBot.ListProportion.CategoryContainer.QualityNormal = 25
-    AuctionHouseBot.ListProportion.CategoryContainer.QualityUncommon = 10
-    AuctionHouseBot.ListProportion.CategoryContainer.QualityRare = 6
-    AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic = 2
+    # Disable container category listings (lockboxes / sacks / similar) to prevent common exploit vectors.
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityNormal = 0
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityUncommon = 0
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityRare = 0
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic = 0
     AuctionHouseBot.ListProportion.CategoryContainer.QualityLegendary = 0
     AuctionHouseBot.ListProportion.CategoryContainer.QualityArtifact = 0
     AuctionHouseBot.ListProportion.CategoryContainer.QualityHeirloom = 0
@@ -3386,12 +3388,30 @@ data:
     AuctionHouseBot.ItemSpecific.38576.Chance = 0.0001
     AuctionHouseBot.ItemSpecific.38576.MinPrice = 100000000
     AuctionHouseBot.ItemSpecific.38576.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.33224.Chance = 0.0001
+    AuctionHouseBot.ItemSpecific.33224.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.33224.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.33225.Chance = 0.0001
+    AuctionHouseBot.ItemSpecific.33225.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.33225.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49283.Chance = 0.0001
+    AuctionHouseBot.ItemSpecific.49283.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49283.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49284.Chance = 0.0001
+    AuctionHouseBot.ItemSpecific.49284.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.49284.MaxPrice = 100000000
     AuctionHouseBot.ItemSpecific.19054.Chance = 0.0001
     AuctionHouseBot.ItemSpecific.19054.MinPrice = 100000000
     AuctionHouseBot.ItemSpecific.19054.MaxPrice = 100000000
     AuctionHouseBot.ItemSpecific.30480.Chance = 0.0001
     AuctionHouseBot.ItemSpecific.30480.MinPrice = 100000000
     AuctionHouseBot.ItemSpecific.30480.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.35225.Chance = 0.0001
+    AuctionHouseBot.ItemSpecific.35225.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.35225.MaxPrice = 100000000
+    AuctionHouseBot.ItemSpecific.35226.Chance = 0.0001
+    AuctionHouseBot.ItemSpecific.35226.MinPrice = 100000000
+    AuctionHouseBot.ItemSpecific.35226.MaxPrice = 100000000
     AuctionHouseBot.ItemSpecific.49285.Chance = 0.0001
     AuctionHouseBot.ItemSpecific.49285.MinPrice = 100000000
     AuctionHouseBot.ItemSpecific.49285.MaxPrice = 100000000

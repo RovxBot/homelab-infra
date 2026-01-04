@@ -21,6 +21,7 @@ resources:
   - data-pvc-rwx.yaml
   - acore-source-configmap.yaml
   - db-bootstrap-cronjob.yaml
+  - ahbot-cleanup-cronjob.yaml
   - realm-upsert-cronjob.yaml
   - db-hotfix-cronjob.yaml
   - bot-realmfirst-cleanup-cronjob.yaml
