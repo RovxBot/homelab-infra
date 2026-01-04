@@ -255,37 +255,47 @@ spec:
 
                   echo "Ensuring final bosses drop duty marks (quest-required loot)..."
                   db --database acore_world --execute "
-                    WITH classic AS (
-                      SELECT DISTINCT ie.creditEntry AS boss_entry
-                      FROM instance_encounters ie
-                      JOIN creature_template ct ON ct.entry = ie.creditEntry
-                      WHERE ie.lastEncounterDungeon != 0
-                        AND ie.creditType = 0
-                        AND ct.exp = 0
-                        AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_CLASSIC_RAID_DUNGEON_IDS})
-                    )
                     INSERT IGNORE INTO creature_loot_template
                       (Entry, Item, Reference, Chance, QuestRequired, LootMode, GroupId, MinCount, MaxCount, Comment)
                     SELECT
-                      boss_entry, ${CLASSIC_DUTY_ITEM_ID}, 0, 100, 1, 1, 0, 1, 1, 'Grim classic duty mark'
-                    FROM classic;
+                      DISTINCT ie.creditEntry AS boss_entry,
+                      ${CLASSIC_DUTY_ITEM_ID},
+                      0,
+                      100,
+                      1,
+                      1,
+                      0,
+                      1,
+                      1,
+                      'Grim classic duty mark'
+                    FROM instance_encounters ie
+                    JOIN creature_template ct ON ct.entry = ie.creditEntry
+                    WHERE ie.lastEncounterDungeon != 0
+                      AND ie.creditType = 0
+                      AND ct.exp = 0
+                      AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_CLASSIC_RAID_DUNGEON_IDS});
                   "
 
                   db --database acore_world --execute "
-                    WITH tbc AS (
-                      SELECT DISTINCT ie.creditEntry AS boss_entry
-                      FROM instance_encounters ie
-                      JOIN creature_template ct ON ct.entry = ie.creditEntry
-                      WHERE ie.lastEncounterDungeon != 0
-                        AND ie.creditType = 0
-                        AND ct.exp = 1
-                        AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_TBC_RAID_DUNGEON_IDS})
-                    )
                     INSERT IGNORE INTO creature_loot_template
                       (Entry, Item, Reference, Chance, QuestRequired, LootMode, GroupId, MinCount, MaxCount, Comment)
                     SELECT
-                      boss_entry, ${TBC_DUTY_ITEM_ID}, 0, 100, 1, 1, 0, 1, 1, 'Grim TBC duty mark'
-                    FROM tbc;
+                      DISTINCT ie.creditEntry AS boss_entry,
+                      ${TBC_DUTY_ITEM_ID},
+                      0,
+                      100,
+                      1,
+                      1,
+                      0,
+                      1,
+                      1,
+                      'Grim TBC duty mark'
+                    FROM instance_encounters ie
+                    JOIN creature_template ct ON ct.entry = ie.creditEntry
+                    WHERE ie.lastEncounterDungeon != 0
+                      AND ie.creditType = 0
+                      AND ct.exp = 1
+                      AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_TBC_RAID_DUNGEON_IDS});
                   "
 
                   echo "Done. Counts:"
