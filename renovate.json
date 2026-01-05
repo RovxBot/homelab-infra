@@ -62,14 +62,14 @@
       "groupName": "flux-helm-charts"
     },
     {
-      "description": "Group Kubernetes image updates together.",
+      "description": "Kubernetes image updates (pin digests).",
       "matchManagers": [
         "kubernetes"
       ],
       "matchDatasources": [
         "docker"
       ],
-      "groupName": "kubernetes-images"
+      "pinDigests": true
     },
     {
       "description": "Disable WoW-related updates.",
