@@ -26,6 +26,14 @@
     "github-actions",
     "custom.regex"
   ],
+  "kubernetes": {
+    "fileMatch": [
+      "^apps/.+\\.ya?ml$",
+      "^infra/.+\\.ya?ml$",
+      "^clusters/.+\\.ya?ml$",
+      "^ops/.+\\.ya?ml$"
+    ]
+  },
   "ignorePaths": [
     "**/*.b64",
     "age-key.txt",
@@ -65,7 +73,7 @@
     },
     {
       "description": "Disable WoW-related updates.",
-      "matchPaths": [
+      "matchFileNames": [
         "apps/wotlk/**",
         "apps/wow/**",
         "ops/wotlk-images/**",
