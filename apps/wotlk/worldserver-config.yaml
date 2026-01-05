@@ -927,7 +927,7 @@ data:
 
     # AuctionHouseBot is configured via `mod_ahbot.conf` (module config).
 
-  # Full Playerbots module configuration (Smart-Loot-System-Refactored).
+  # Full Playerbots module configuration (mod-playerbots upstream).
   # This file is rendered into `/azerothcore/env/dist/etc/modules/playerbots.conf` by the `render-config` initContainer.
   playerbots.conf: |
     ##################################################
