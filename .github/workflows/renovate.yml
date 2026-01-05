@@ -1,0 +1,31 @@
+name: Renovate
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Run during your Renovate schedule window (Australia/Melbourne after 8pm).
+    # These times cover both AEST (UTC+10) and AEDT (UTC+11).
+    - cron: "30 9 * * *"
+    - cron: "30 10 * * *"
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@v41.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          configurationFile: renovate.json
