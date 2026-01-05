@@ -34,8 +34,8 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^ops/wow-images/mangoszero\\.ref$/"
+      "fileMatch": [
+        "^ops/wow-images/mangoszero\\.ref$"
       ],
       "matchStrings": [
         "^(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\s*$"
@@ -46,9 +46,9 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^apps/wow/(realmd|mangosd)-deployment\\.yaml$/",
-        "/^apps/wow/client-extract-cronjob\\.yaml$/"
+      "fileMatch": [
+        "^apps/wow/(realmd|mangosd)-deployment\\.yaml$",
+        "^apps/wow/client-extract-cronjob\\.yaml$"
       ],
       "matchStrings": [
         "ghcr\\.io/rovxbot/mangoszero:server-(?<currentValue>v\\d+\\.\\d+\\.\\d+)"

@@ -20,6 +20,10 @@ permissions:
 jobs:
   renovate:
     runs-on: ubuntu-latest
+    env:
+      LOG_LEVEL: info
+      RENOVATE_AUTODISCOVER: "true"
+      RENOVATE_AUTODISCOVER_FILTER: ${{ github.repository }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
