@@ -23,7 +23,7 @@ spec:
       serviceAccountName: homepage
       initContainers:
         - name: sync-config
-          image: alpine:3.20
+          image: alpine:3.20@sha256:765942a4039992336de8dd5db680586e1a206607dd06170ff0a37267a9e01958
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -40,7 +40,7 @@ spec:
               mountPath: /src
               readOnly: true
         - name: sync-background
-          image: bitnami/kubectl:latest
+          image: bitnami/kubectl:latest@sha256:554ab88b1858e8424c55de37ad417b16f2a0e65d1607aa0f3fe3ce9b9f10b131
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsUser: 0
@@ -92,7 +92,7 @@ spec:
               mountPath: /work
       containers:
         - name: homepage
-          image: ghcr.io/gethomepage/homepage:latest
+          image: ghcr.io/gethomepage/homepage:latest@sha256:7dc099d5c6ec7fc945d858218565925b01ff8a60bcbfda990fc680a8b5cd0b6e
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
