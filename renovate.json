@@ -29,35 +29,11 @@
   "ignorePaths": [
     "**/*.b64",
     "age-key.txt",
+    "apps/wotlk/**",
+    "apps/wow/**",
     "immich_backup_*.sql"
   ],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "fileMatch": [
-        "^ops/wow-images/mangoszero\\.ref$"
-      ],
-      "matchStrings": [
-        "^(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\s*$"
-      ],
-      "depNameTemplate": "mangoszero/server",
-      "datasourceTemplate": "github-tags",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "fileMatch": [
-        "^apps/wow/(realmd|mangosd)-deployment\\.yaml$",
-        "^apps/wow/client-extract-cronjob\\.yaml$"
-      ],
-      "matchStrings": [
-        "ghcr\\.io/rovxbot/mangoszero:server-(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
-      ],
-      "depNameTemplate": "mangoszero/server",
-      "datasourceTemplate": "github-tags",
-      "versioningTemplate": "semver"
-    }
-  ],
+  "customManagers": [],
   "packageRules": [
     {
       "description": "Auto-merge patch updates (safe defaults).",
@@ -86,6 +62,16 @@
         "docker"
       ],
       "groupName": "kubernetes-images"
+    },
+    {
+      "description": "Disable WoW-related updates.",
+      "matchPaths": [
+        "apps/wotlk/**",
+        "apps/wow/**",
+        "ops/wotlk-images/**",
+        "ops/wow-images/**"
+      ],
+      "enabled": false
     },
     {
       "description": "Don't auto-merge major updates.",
