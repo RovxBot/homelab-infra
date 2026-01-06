@@ -4,9 +4,6 @@ kind: Kustomization
 namespace: sparkyfitness
 
 resources:
-  - namespace.yaml
   - postgres.yaml
   - server.yaml
   - frontend.yaml
-  - ../../secrets/sparkyfitness.enc.yaml
-
