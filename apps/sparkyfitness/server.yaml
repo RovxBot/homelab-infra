@@ -52,6 +52,11 @@ spec:
               value: INFO
             - name: SPARKY_FITNESS_FRONTEND_URL
               value: https://fit.cooked.beer
+            - name: SPARKY_FITNESS_SERVER_PORT
+              value: "3010"
+            # Common convention; harmless if unused by the image.
+            - name: PORT
+              value: "3010"
 
             - name: SPARKY_FITNESS_DB_HOST
               value: sparkyfitness-postgres
@@ -67,13 +72,14 @@ spec:
                   name: sparkyfitness-secrets
                   key: SPARKY_FITNESS_DB_PASSWORD
 
+            # Use the same DB user for the "app" DB settings to avoid requiring extra DB user provisioning.
             - name: SPARKY_FITNESS_APP_DB_USER
-              value: sparkyapp
+              value: sparky
             - name: SPARKY_FITNESS_APP_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: sparkyfitness-secrets
-                  key: SPARKY_FITNESS_APP_DB_PASSWORD
+                  key: SPARKY_FITNESS_DB_PASSWORD
 
             - name: SPARKY_FITNESS_API_ENCRYPTION_KEY
               valueFrom:
@@ -121,4 +127,3 @@ spec:
     - name: http
       port: 3010
       targetPort: 3010
-
