@@ -16,6 +16,11 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  # Needed if Renovate updates GitHub Actions workflow files (e.g. pinning action digests).
+  workflows: write
+  # Needed for checking existing branch/PR status and required checks.
+  statuses: read
+  checks: read
 
 jobs:
   renovate:
