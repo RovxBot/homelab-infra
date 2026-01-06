@@ -7,10 +7,6 @@
     "docker:pinDigests"
   ],
   "timezone": "Australia/Melbourne",
-  "schedule": [
-    "after 8pm",
-    "before 6am"
-  ],
   "labels": [
     "dependencies"
   ],
