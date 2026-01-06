@@ -19,9 +19,6 @@ ingress:
   - hostname: immich.cooked.beer
     service: http://immich-server.immich.svc.cluster.local:2283
   - hostname: fit.cooked.beer
-    path: /api/*
-    service: http://sparkyfitness-server.sparkyfitness.svc.cluster.local:3010
-  - hostname: fit.cooked.beer
     service: http://sparkyfitness-frontend.sparkyfitness.svc.cluster.local:80
   - hostname: grafana.cooked.beer
     service: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80

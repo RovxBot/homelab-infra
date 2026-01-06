@@ -19,6 +19,11 @@ spec:
         - name: sparkyfitness-frontend
           image: codewithcj/sparkyfitness:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: SPARKY_FITNESS_SERVER_HOST
+              value: sparkyfitness-server
+            - name: SPARKY_FITNESS_SERVER_PORT
+              value: "3010"
           ports:
             - name: http
               containerPort: 80
@@ -43,4 +48,3 @@ spec:
     - name: http
       port: 80
       targetPort: 80
-
