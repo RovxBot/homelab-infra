@@ -25,6 +25,23 @@ spec:
           ports:
             - containerPort: 8096
               name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           env:
             - name: TZ
               value: Australia/Melbourne
@@ -41,6 +58,10 @@ spec:
             - name: emby-media
               mountPath: /media/emby
               readOnly: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 2Gi
       volumes:
         - name: config
           persistentVolumeClaim:

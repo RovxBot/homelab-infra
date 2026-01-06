@@ -58,3 +58,19 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -lc
+                - "wg show vps >/dev/null 2>&1"
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

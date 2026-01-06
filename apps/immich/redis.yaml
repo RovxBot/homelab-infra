@@ -28,9 +28,34 @@ spec:
             - "no"
           ports:
             - containerPort: 6379
+              name: redis
+          startupProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           volumeMounts:
             - name: redis-data
               mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
       volumes:
         - name: redis-data
           emptyDir: {}

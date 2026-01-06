@@ -25,6 +25,25 @@ spec:
           ports:
             - containerPort: 5055
               name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           env:
             - name: TZ
               value: Australia/Melbourne
@@ -33,6 +52,13 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
       volumes:
         - name: config
           persistentVolumeClaim:

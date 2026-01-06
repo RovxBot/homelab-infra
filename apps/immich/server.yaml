@@ -21,6 +21,23 @@ spec:
           ports:
             - containerPort: 2283
               name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           envFrom:
             - configMapRef:
                 name: immich-config
@@ -33,6 +50,13 @@ spec:
           volumeMounts:
             - name: uploads
               mountPath: /usr/src/app/upload
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
       volumes:
         - name: uploads
           persistentVolumeClaim:

@@ -18,9 +18,7 @@
   "dependencyDashboardTitle": "Renovate Dependency Dashboard",
   "enabledManagers": [
     "flux",
-    "kubernetes",
-    "helm-values",
-    "custom.regex"
+    "kubernetes"
   ],
   "kubernetes": {
     "managerFilePatterns": [
@@ -66,6 +64,43 @@
         "docker"
       ],
       "pinDigests": true
+    },
+    {
+      "description": "Group Immich image updates together.",
+      "matchPaths": [
+        "apps/immich/**"
+      ],
+      "groupName": "immich"
+    },
+    {
+      "description": "Group media stack image updates together.",
+      "matchPaths": [
+        "apps/jellyfin/**",
+        "apps/jellyseerr/**",
+        "apps/prowlarr/**",
+        "apps/radarr/**",
+        "apps/sonarr/**",
+        "apps/sabnzbd/**"
+      ],
+      "groupName": "media-stack"
+    },
+    {
+      "description": "Group homepage-related updates together.",
+      "matchPaths": [
+        "apps/homepage/**",
+        "infra/pod-report/**"
+      ],
+      "groupName": "homepage"
+    },
+    {
+      "description": "Group tunnel/VPN updates together.",
+      "matchPaths": [
+        "infra/cloudflared/**",
+        "infra/tailscale/**",
+        "infra/wireguard/**",
+        "ops/wireguard/**"
+      ],
+      "groupName": "tunnels"
     },
     {
       "description": "Disable WoW-related updates.",
