@@ -41,6 +41,10 @@ spec:
                 secretKeyRef:
                   name: sparkyfitness-secrets
                   key: SPARKY_FITNESS_DB_PASSWORD
+            # Longhorn volumes are mounted as an ext4 root that includes lost+found,
+            # so use a subdirectory for PGDATA to avoid initdb "not empty" errors.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           ports:
             - name: postgres
               containerPort: 5432
@@ -72,4 +76,3 @@ spec:
     - name: postgres
       port: 5432
       targetPort: 5432
-
