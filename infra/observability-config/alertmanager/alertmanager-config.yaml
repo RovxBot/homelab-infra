@@ -23,6 +23,9 @@ stringData:
         - receiver: blackhole
           matchers:
             - alertname="Watchdog"
+        - receiver: blackhole
+          matchers:
+            - alertname="InfoInhibitor"
 
     receivers:
       - name: blackhole
