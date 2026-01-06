@@ -6,6 +6,8 @@ metadata:
     app: wireguard-client
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: wireguard-client
