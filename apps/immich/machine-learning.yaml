@@ -16,7 +16,7 @@ spec:
         app: immich-machine-learning
     spec:
       nodeSelector:
-        kubernetes.io/hostname: metal3
+        node-role.kubernetes.io/worker: ""
       containers:
         - name: machine-learning
           image: ghcr.io/immich-app/immich-machine-learning:v2.4.1@sha256:b3deefd1826f113824e9d7bc30d905e7f823535887d03f869330946b6db3b44a
@@ -31,7 +31,7 @@ spec:
       volumes:
         - name: model-cache
           persistentVolumeClaim:
-            claimName: nfs-immich-model-cache
+            claimName: immich-model-cache
 ---
 apiVersion: v1
 kind: Service

@@ -6,7 +6,6 @@ namespace: immich
 resources:
   - namespace.yaml
   - nfs-pv-uploads.yaml
-  - nfs-pv-model-cache.yaml
   - pvc.yaml
   - configmap.yaml
   - postgres.yaml
