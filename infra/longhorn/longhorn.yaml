@@ -4260,7 +4260,7 @@ spec:
         - --support-bundle-manager-image
         - "longhornio/support-bundle-kit:v0.0.71"
         - --manager-image
-        - "longhornio/longhorn-manager:v1.10.1"
+        - "longhornio/longhorn-manager:v1.10.1@sha256:afda26c16e7ab106f94dbc11da1bc91f410487d2e66609ebd126f0d908f7243a"
         - --service-account
         - longhorn-service-account
         - --upgrade-version-check
@@ -4376,7 +4376,7 @@ spec:
           - -d
           - deploy-driver
           - --manager-image
-          - "longhornio/longhorn-manager:v1.10.1"
+          - "longhornio/longhorn-manager:v1.10.1@sha256:afda26c16e7ab106f94dbc11da1bc91f410487d2e66609ebd126f0d908f7243a"
           - --manager-url
           - http://longhorn-backend:9500/v1
           env:
