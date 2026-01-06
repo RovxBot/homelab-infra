@@ -32,7 +32,7 @@ spec:
               mountPath: /downloads
       containers:
         - name: sabnzbd
-          image: linuxserver/sabnzbd:latest@sha256:ed10a7e9fc019aded46f1591f236e9be6d75c99e7017b897b502667cd65afc4c
+          image: linuxserver/sabnzbd:4.5.5-ls239@sha256:ed10a7e9fc019aded46f1591f236e9be6d75c99e7017b897b502667cd65afc4c
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
