@@ -55,7 +55,6 @@ spec:
                 git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name" || true
               }
 
-              clone_module "https://github.com/ZhengPeiRu21/mod-individual-progression.git" "master"
               clone_module "https://github.com/mod-playerbots/mod-playerbots.git" "master"
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
