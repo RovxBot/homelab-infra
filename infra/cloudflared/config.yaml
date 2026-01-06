@@ -18,6 +18,8 @@ ingress:
     service: http://jellyseerr.media.svc.cluster.local:5055
   - hostname: immich.cooked.beer
     service: http://immich-server.immich.svc.cluster.local:2283
+  - hostname: fit.cooked.beer
+    service: http://sparkyfitness-frontend.sparkyfitness.svc.cluster.local:80
   - hostname: grafana.cooked.beer
     service: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80
   - hostname: prometheus.cooked.beer

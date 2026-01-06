@@ -7,5 +7,6 @@ resources:
   - apps/apps-kustomization.yaml
   - apps/arr-kustomization.yaml
   - apps/homepage-kustomization.yaml
+  - apps/sparkyfitness-kustomization.yaml
   - apps/wotlk-kustomization.yaml
   - infrastructure/longhorn-node-disks-kustomization.yaml

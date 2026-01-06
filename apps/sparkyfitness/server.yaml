@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sparkyfitness-uploads
+  namespace: sparkyfitness
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sparkyfitness-backups
+  namespace: sparkyfitness
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sparkyfitness-server
+  namespace: sparkyfitness
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sparkyfitness-server
+  template:
+    metadata:
+      labels:
+        app: sparkyfitness-server
+    spec:
+      containers:
+        - name: sparkyfitness-server
+          image: codewithcj/sparkyfitness_server:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: TZ
+              value: Australia/Adelaide
+            - name: SPARKY_FITNESS_LOG_LEVEL
+              value: INFO
+            - name: SPARKY_FITNESS_FRONTEND_URL
+              value: https://fit.cooked.beer
+
+            - name: SPARKY_FITNESS_DB_HOST
+              value: sparkyfitness-postgres
+            - name: SPARKY_FITNESS_DB_PORT
+              value: "5432"
+            - name: SPARKY_FITNESS_DB_NAME
+              value: sparkyfitness_db
+            - name: SPARKY_FITNESS_DB_USER
+              value: sparky
+            - name: SPARKY_FITNESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sparkyfitness-secrets
+                  key: SPARKY_FITNESS_DB_PASSWORD
+
+            - name: SPARKY_FITNESS_APP_DB_USER
+              value: sparkyapp
+            - name: SPARKY_FITNESS_APP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sparkyfitness-secrets
+                  key: SPARKY_FITNESS_APP_DB_PASSWORD
+
+            - name: SPARKY_FITNESS_API_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sparkyfitness-secrets
+                  key: SPARKY_FITNESS_API_ENCRYPTION_KEY
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sparkyfitness-secrets
+                  key: JWT_SECRET
+          ports:
+            - name: http
+              containerPort: 3010
+              protocol: TCP
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/SparkyFitnessServer/uploads
+            - name: backups
+              mountPath: /app/SparkyFitnessServer/backup
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: sparkyfitness-uploads
+        - name: backups
+          persistentVolumeClaim:
+            claimName: sparkyfitness-backups
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sparkyfitness-server
+  namespace: sparkyfitness
+spec:
+  selector:
+    app: sparkyfitness-server
+  ports:
+    - name: http
+      port: 3010
+      targetPort: 3010
+
