@@ -16,6 +16,8 @@ spec:
     metadata:
       labels:
         app: wotlk-worldserver
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-01-06T00:27:35Z"
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
