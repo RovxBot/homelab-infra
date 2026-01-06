@@ -238,7 +238,7 @@ data:
     # Logger settings (updated for proper logging)
     Appender.Console=1,4,0,"1 9 3 6 5 8"
     Appender.Server=2,5,0,Server.log,w
-    Appender.Playerbots=2,5,0,Playerbots.log,w
+    Appender.Playerbots=2,3,0,Playerbots.log,w
     Appender.Errors=2,2,0,Errors.log,w
     Logger.root=2,Console Server
     Logger.diff=3,Console Server
@@ -251,7 +251,7 @@ data:
     Logger.time.update=4,Console Server
     Logger.module=4,Console Server
     Logger.spells.scripts=2,Console Errors
-    Logger.playerbots=5,Console Playerbots
+    Logger.playerbots=3,Console Playerbots
 
     # Async logging
     Log.Async.Enable = 0
