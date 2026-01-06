@@ -6,8 +6,9 @@ spec:
   # Hourly upsert into a small stats table used by the account portal.
   schedule: "7 * * * *"
   suspend: false
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
-  failedJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       backoffLimit: 1
