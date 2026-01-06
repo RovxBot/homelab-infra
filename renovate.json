@@ -4,8 +4,7 @@
     "config:recommended",
     ":dependencyDashboard",
     ":enableVulnerabilityAlerts",
-    "docker:pinDigests",
-    "helpers:pinGitHubActionDigests"
+    "docker:pinDigests"
   ],
   "timezone": "Australia/Melbourne",
   "schedule": [
@@ -23,7 +22,6 @@
     "flux",
     "kubernetes",
     "helm-values",
-    "github-actions",
     "custom.regex"
   ],
   "kubernetes": {
