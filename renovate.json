@@ -21,11 +21,11 @@
     "custom.regex"
   ],
   "kubernetes": {
-    "fileMatch": [
-      "^apps/.+\\.ya?ml$",
-      "^infra/.+\\.ya?ml$",
-      "^clusters/.+\\.ya?ml$",
-      "^ops/.+\\.ya?ml$"
+    "managerFilePatterns": [
+      "/^apps/.+\\.ya?ml$/",
+      "/^infra/.+\\.ya?ml$/",
+      "/^clusters/.+\\.ya?ml$/",
+      "/^ops/.+\\.ya?ml$/"
     ]
   },
   "ignorePaths": [
