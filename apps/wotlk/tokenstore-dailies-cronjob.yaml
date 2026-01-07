@@ -237,6 +237,7 @@ spec:
                   db --database acore_world --execute "
                     INSERT INTO quest_template
                       (ID, QuestType, QuestLevel, MinLevel, QuestSortID, QuestInfoID, SuggestedGroupNum, Flags,
+                       RewardXPDifficulty, RewardMoney,
                        RewardItem1, RewardAmount1,
                        RequiredItemId1, RequiredItemCount1,
                        LogTitle, LogDescription, QuestDescription, QuestCompletionLog,
@@ -247,42 +248,50 @@ spec:
                       2,
                       -1,
                       15,
-                      0,
-                      0,
+                      206,
+                      85,
                       5,
-                      4224,
+                      4232,
+                      8,
+                      0,
                       ${TOKEN_ITEM_ID},
                       1,
                       ${CLASSIC_DUTY_ITEM_ID},
                       1,
                       'Doing Your Duty',
-                      'Complete any classic dungeon via the Dungeon Finder and claim your daily token.',
-                      'Enter any classic dungeon and defeat its final boss. Loot a Dungeon Duty Mark as proof, then return for your reward.',
-                      'Duty complete.',
-                      'Acquire a Dungeon Duty Mark.'
+                      'The Grim Token Envoy has a daily task for you: clear a classic dungeon and bring back proof of victory.',
+                      'The Envoy keeps the realm safe by marking the deeds of its champions. Join a Dungeon Finder run for a classic dungeon, defeat the final boss, and recover a Dungeon Duty Mark as proof. Return to claim your reward.',
+                      'Well done. The Envoy marks your service to the realm.',
+                      'Recover a Dungeon Duty Mark from a classic dungeon''s final boss.'
                       ),
                       (
                       ${QUEST_TBC_ID},
                       2,
                       -1,
                       61,
-                      0,
-                      0,
+                      206,
+                      85,
                       5,
-                      4224,
+                      4232,
+                      8,
+                      0,
                       ${TOKEN_ITEM_ID},
                       2,
                       ${TBC_DUTY_ITEM_ID},
                       1,
                       'Service to Your Faction',
-                      'Complete any Outland dungeon via the Dungeon Finder and claim your daily tokens.',
-                      'Enter any Outland dungeon and defeat its final boss. Loot a Faction Service Mark as proof, then return for your reward.',
-                      'Service complete.',
-                      'Acquire a Faction Service Mark.'
+                      'The Envoy calls for Outland veterans to prove their service and earn their tokens.',
+                      'The armies of Outland still need stalwart allies. Enter any Outland dungeon via the Dungeon Finder, defeat the final boss, and recover a Faction Service Mark as proof. Return to claim your reward.',
+                      'Your service brings honor to your faction.',
+                      'Recover a Faction Service Mark from an Outland dungeon''s final boss.'
                       )
                     ON DUPLICATE KEY UPDATE
                       QuestLevel = VALUES(QuestLevel),
                       MinLevel = VALUES(MinLevel),
+                      QuestSortID = VALUES(QuestSortID),
+                      QuestInfoID = VALUES(QuestInfoID),
+                      RewardXPDifficulty = VALUES(RewardXPDifficulty),
+                      RewardMoney = VALUES(RewardMoney),
                       RewardItem1 = VALUES(RewardItem1),
                       RewardAmount1 = VALUES(RewardAmount1),
                       RequiredItemId1 = VALUES(RequiredItemId1),
@@ -319,7 +328,7 @@ spec:
 
                   echo "Ensuring final bosses drop duty marks (quest-required loot)..."
                   db --database acore_world --execute "
-                    INSERT IGNORE INTO creature_loot_template
+                    INSERT INTO creature_loot_template
                       (Entry, Item, Reference, Chance, QuestRequired, LootMode, GroupId, MinCount, MaxCount, Comment)
                     SELECT
                       DISTINCT ie.creditEntry AS boss_entry,
@@ -337,11 +346,19 @@ spec:
                     WHERE ie.lastEncounterDungeon != 0
                       AND ie.creditType = 0
                       AND ct.exp = 0
-                      AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_CLASSIC_RAID_DUNGEON_IDS});
+                      AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_CLASSIC_RAID_DUNGEON_IDS})
+                    ON DUPLICATE KEY UPDATE
+                      Chance = VALUES(Chance),
+                      QuestRequired = VALUES(QuestRequired),
+                      LootMode = VALUES(LootMode),
+                      GroupId = VALUES(GroupId),
+                      MinCount = VALUES(MinCount),
+                      MaxCount = VALUES(MaxCount),
+                      Comment = VALUES(Comment);
                   "
 
                   db --database acore_world --execute "
-                    INSERT IGNORE INTO creature_loot_template
+                    INSERT INTO creature_loot_template
                       (Entry, Item, Reference, Chance, QuestRequired, LootMode, GroupId, MinCount, MaxCount, Comment)
                     SELECT
                       DISTINCT ie.creditEntry AS boss_entry,
@@ -359,7 +376,15 @@ spec:
                     WHERE ie.lastEncounterDungeon != 0
                       AND ie.creditType = 0
                       AND ct.exp = 1
-                      AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_TBC_RAID_DUNGEON_IDS});
+                      AND ie.lastEncounterDungeon NOT IN (${EXCLUDE_TBC_RAID_DUNGEON_IDS})
+                    ON DUPLICATE KEY UPDATE
+                      Chance = VALUES(Chance),
+                      QuestRequired = VALUES(QuestRequired),
+                      LootMode = VALUES(LootMode),
+                      GroupId = VALUES(GroupId),
+                      MinCount = VALUES(MinCount),
+                      MaxCount = VALUES(MaxCount),
+                      Comment = VALUES(Comment);
                   "
 
                   echo "Done. Counts:"
