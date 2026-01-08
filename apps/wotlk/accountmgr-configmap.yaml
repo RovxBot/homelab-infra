@@ -47,6 +47,44 @@ data:
       return envOrDefault('ALLOW_SIGNUP', 'false') === 'true';
     }
 
+    function findPatchPath(): string {
+      $candidates = [
+        '/client/Data/patch-S.mpq',
+        '/client/data/patch-S.mpq',
+      ];
+      foreach ($candidates as $path) {
+        if (is_file($path)) {
+          return $path;
+        }
+      }
+      return '';
+    }
+
+    function handlePatchDownload(): void {
+      $download = (string)($_GET['download'] ?? '');
+      if ($download !== 'patch-s') {
+        return;
+      }
+
+      requireCloudflareAccessIfEnabled();
+
+      $path = findPatchPath();
+      if ($path === '') {
+        http_response_code(404);
+        echo "Patch not available.";
+        exit;
+      }
+
+      $size = filesize($path);
+      header('Content-Type: application/octet-stream');
+      header('Content-Disposition: attachment; filename=\"patch-S.mpq\"');
+      if ($size !== false) {
+        header('Content-Length: ' . (string)$size);
+      }
+      readfile($path);
+      exit;
+    }
+
     function requireInviteCode(string $provided): void {
       $invite = envOrDefault('INVITE_CODE');
       if ($invite === '') {
@@ -295,6 +333,8 @@ data:
       ensureSession();
       return (string)($_SESSION['username'] ?? '');
     }
+
+    handlePatchDownload();
 
     function logout(): void {
       ensureSession();
@@ -1321,6 +1361,7 @@ data:
             <li>Invite required (ask an admin).</li>
             <li>Client download: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
             <li>Set realmlist: <span class="pill">grim.cooked.beer</span></li>
+            <li>Optional progression patch (WotLK mana costs): <a href="/?download=patch-s">patch-S.mpq</a></li>
           </ol>
         HTML;
       } else {

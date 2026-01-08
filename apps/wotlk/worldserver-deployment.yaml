@@ -282,6 +282,9 @@ spec:
             - name: accountmgr-web
               mountPath: /app/index.php
               subPath: index.php
+            - name: client
+              mountPath: /client
+              readOnly: true
       volumes:
         - name: config-tpl
           configMap:
@@ -298,3 +301,6 @@ spec:
         - name: accountmgr-web
           configMap:
             name: wotlk-accountmgr
+        - name: client
+          persistentVolumeClaim:
+            claimName: wotlk-client-files
