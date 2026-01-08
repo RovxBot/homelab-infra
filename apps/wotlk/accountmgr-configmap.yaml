@@ -383,6 +383,8 @@ data:
       $tabs = isLoggedIn()
         ? [
             'overview' => 'My Account',
+            'announcements' => 'Announcements',
+            'server' => 'Server Info',
             'characters' => 'Characters',
             'services' => 'Services',
             'store' => 'Store',
@@ -392,6 +394,8 @@ data:
           ]
         : [
             'home' => 'Home',
+            'announcements' => 'Announcements',
+            'server' => 'Server Info',
             'about' => 'About',
           ];
 
@@ -400,6 +404,8 @@ data:
         $active = $k === $tab ? ' active' : '';
         $tabLinks .= '<a class="tab' . $active . '" href="/?tab=' . urlencode($k) . '">' . htmlspecialchars($label) . '</a>';
       }
+
+      $masthead = '<div class="masthead"><h2>Grim Guzzler Battle.net</h2><p>Wrath-era portal for accounts, realm news, and community.</p></div>';
 
       echo <<<HTML
     <!doctype html>
@@ -413,7 +419,7 @@ data:
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          font-family: Tahoma, Verdana, Arial, sans-serif;
+          font-family: "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif;
           color: #efe2c1;
           background:
             radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .22), rgba(0,0,0,0)),
@@ -443,11 +449,23 @@ data:
           box-shadow: 0 24px 50px rgba(0,0,0,.45);
           padding: 12px 14px;
         }
+        .masthead {
+          margin-top: 12px;
+          border-radius: 14px;
+          padding: 18px 16px;
+          border: 1px solid rgba(255, 221, 148, .18);
+          background:
+            linear-gradient(180deg, rgba(19, 52, 88, .55), rgba(9, 24, 44, .65)),
+            linear-gradient(90deg, rgba(75, 48, 18, .35), rgba(20, 14, 7, .35));
+          box-shadow: 0 22px 50px rgba(0,0,0,.45);
+        }
+        .masthead h2 { margin: 0; font-size: 18px; letter-spacing: .5px; color: #ffe1a3; font-family: "Georgia", "Times New Roman", serif; }
+        .masthead p { margin: 6px 0 0; opacity: .8; font-size: 13px; }
         .brand {
           display:flex; align-items:center; gap: 12px;
         }
         .logo { width: 36px; height: 36px; display:flex; align-items:center; justify-content:center; }
-        .brand h1 { margin: 0; font-size: 15px; letter-spacing: .3px; color: #ffe1a3; }
+        .brand h1 { margin: 0; font-size: 15px; letter-spacing: .3px; color: #ffe1a3; font-family: "Georgia", "Times New Roman", serif; }
         .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; color: #cbb58f; }
         .user { font-size: 12px; opacity: .85; text-align: right; color: #d7c6a6; }
         .tabs {
@@ -500,7 +518,7 @@ data:
             linear-gradient(180deg, rgba(20, 60, 108, .35), rgba(10, 24, 45, .10)),
             linear-gradient(180deg, rgba(60, 40, 18, .55), rgba(20, 14, 7, .35));
         }
-        .panel .hd h2 { margin: 0; font-size: 13px; letter-spacing: .35px; color: #ffe1a3; text-transform: uppercase; }
+        .panel .hd h2 { margin: 0; font-size: 13px; letter-spacing: .35px; color: #ffe1a3; text-transform: uppercase; font-family: "Georgia", "Times New Roman", serif; }
         .panel .bd { padding: 14px; }
         .flash {
           margin-top: 12px;
@@ -512,7 +530,7 @@ data:
         .flash.ok { border-color: rgba(34,197,94,.4); }
         .flash.err { border-color: rgba(239,68,68,.4); }
         label { display:block; margin: 10px 0 6px; font-size: 12px; opacity: .9; color: #d7c6a6; }
-        input, select {
+        input, select, textarea {
           width: 100%;
           padding: 10px 12px;
           border-radius: 10px;
@@ -520,6 +538,7 @@ data:
           background: rgba(0,0,0,.28);
           color: #efe2c1;
         }
+        textarea { min-height: 140px; resize: vertical; }
         .btn {
           display:inline-flex; align-items:center; justify-content:center;
           gap: 8px;
@@ -572,9 +591,62 @@ data:
         .table th { text-align: left; color: #ffe1a3; font-weight: 700; letter-spacing: .25px; }
         .muted { opacity: .75; color: #cbb58f; }
         .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255, 221, 148, .14); background: rgba(0,0,0,.18); }
+        .divider { height: 1px; background: rgba(255, 221, 148, .12); margin: 16px 0; }
         .kpi { display:flex; gap: 10px; flex-wrap: wrap; }
         .kpi .card { flex: 1; min-width: 160px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 221, 148, .14); background: rgba(0,0,0,.18); }
         .kpi .val { font-size: 20px; font-weight: 800; color: #9bd7ff; margin-top: 4px; }
+        .post { border: 1px solid rgba(255, 221, 148, .14); border-radius: 10px; padding: 10px 12px; background: rgba(0,0,0,.18); margin-bottom: 10px; }
+        .post-title { font-weight: 700; color: #ffe1a3; }
+        .post-meta { font-size: 11px; opacity: .7; margin-top: 4px; }
+        .post-body { margin-top: 8px; line-height: 1.6; }
+        .post.admin {
+          border-color: rgba(90, 200, 255, .55);
+          background:
+            linear-gradient(180deg, rgba(16, 65, 104, .55), rgba(8, 24, 44, .55)),
+            rgba(0,0,0,.18);
+          box-shadow: 0 12px 28px rgba(0,0,0,.35);
+        }
+        .badge {
+          display:inline-block;
+          padding: 2px 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 221, 148, .14);
+          background: rgba(0,0,0,.18);
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .badge.admin {
+          border-color: rgba(90, 200, 255, .6);
+          color: #bfe6ff;
+          background: rgba(12, 38, 64, .55);
+        }
+        .forum-grid { display: grid; gap: 12px; }
+        .forum-item {
+          border: 1px solid rgba(255, 221, 148, .14);
+          border-radius: 10px;
+          padding: 10px 12px;
+          background: rgba(0,0,0,.18);
+        }
+        .forum-title { font-weight: 700; color: #ffe1a3; }
+        .forum-meta { font-size: 11px; opacity: .7; margin-top: 4px; }
+        .forum-row { display: grid; grid-template-columns: 1fr 120px 140px; gap: 10px; align-items: center; }
+        .forum-cell { font-size: 12px; }
+        .forum-cell.right { text-align: right; }
+        .avatar {
+          width: 34px; height: 34px; border-radius: 50%;
+          display: inline-flex; align-items: center; justify-content: center;
+          background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.2), rgba(0,0,0,.2)),
+                      linear-gradient(180deg, rgba(80, 120, 170, .6), rgba(20, 40, 70, .6));
+          border: 1px solid rgba(255, 221, 148, .22);
+          color: #ffe1a3; font-weight: 700; font-size: 12px;
+          margin-right: 10px;
+        }
+        .post-row { display: flex; gap: 10px; align-items: flex-start; }
+        .post-content { flex: 1; }
+        @media (max-width: 780px) {
+          .forum-row { grid-template-columns: 1fr; }
+          .forum-cell.right { text-align: left; }
+        }
         .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
       </style>
     </head>
@@ -590,6 +662,7 @@ data:
           </div>
           {$userChip}
         </div>
+        {$masthead}
         <nav class="tabs" aria-label="Primary">
           {$tabLinks}
         </nav>
@@ -661,6 +734,423 @@ data:
         'address' => (string)$row['address'],
         'port' => (int)$row['port'],
       ];
+    }
+
+    function ensureForumTables(PDO $pdo): void {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS {$authDb}.web_forum_categories (" .
+        "id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
+        "name VARCHAR(80) NOT NULL," .
+        "description VARCHAR(255) NOT NULL," .
+        "sort_order INT NOT NULL DEFAULT 0," .
+        "is_locked TINYINT(1) NOT NULL DEFAULT 0," .
+        "is_hidden TINYINT(1) NOT NULL DEFAULT 0," .
+        "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        "PRIMARY KEY (id)," .
+        "KEY sort_idx (sort_order)" .
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+      );
+      $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS {$authDb}.web_forum_threads (" .
+        "id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
+        "category_id INT UNSIGNED NOT NULL," .
+        "title VARCHAR(140) NOT NULL," .
+        "author VARCHAR(32) NOT NULL," .
+        "author_account_id INT UNSIGNED NOT NULL," .
+        "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        "is_locked TINYINT(1) NOT NULL DEFAULT 0," .
+        "is_pinned TINYINT(1) NOT NULL DEFAULT 0," .
+        "is_deleted TINYINT(1) NOT NULL DEFAULT 0," .
+        "PRIMARY KEY (id)," .
+        "KEY cat_idx (category_id, updated_at)," .
+        "KEY pinned_idx (category_id, is_pinned, updated_at)" .
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+      );
+      $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS {$authDb}.web_forum_posts (" .
+        "id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
+        "thread_id INT UNSIGNED NOT NULL," .
+        "author VARCHAR(32) NOT NULL," .
+        "author_account_id INT UNSIGNED NOT NULL," .
+        "body TEXT NOT NULL," .
+        "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        "is_deleted TINYINT(1) NOT NULL DEFAULT 0," .
+        "PRIMARY KEY (id)," .
+        "KEY thread_idx (thread_id, created_at)" .
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+      );
+    }
+
+    function seedForumCategories(PDO $pdo): void {
+      ensureForumTables($pdo);
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $count = (int)$pdo->query("SELECT COUNT(*) AS c FROM {$authDb}.web_forum_categories")->fetch()['c'];
+      if ($count > 0) {
+        return;
+      }
+      $defaults = [
+        ['name' => 'General Discussion', 'description' => 'Talk about the realm, stories, and raids.', 'sort' => 10],
+        ['name' => 'Bug Reports', 'description' => 'Report issues and odd behavior you notice.', 'sort' => 20],
+        ['name' => 'Guild & LFG', 'description' => 'Find groups, guilds, and arena partners.', 'sort' => 30],
+      ];
+      $stmt = $pdo->prepare(
+        "INSERT INTO {$authDb}.web_forum_categories (name, description, sort_order) VALUES (:n, :d, :s)"
+      );
+      foreach ($defaults as $d) {
+        $stmt->execute([':n' => $d['name'], ':d' => $d['description'], ':s' => $d['sort']]);
+      }
+    }
+
+    function listForumCategories(PDO $pdo): array {
+      seedForumCategories($pdo);
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->query(
+        "SELECT c.id, c.name, c.description, c.sort_order, c.is_locked, c.is_hidden, " .
+        "(SELECT COUNT(*) FROM {$authDb}.web_forum_threads t WHERE t.category_id = c.id AND t.is_deleted = 0) AS threads, " .
+        "(SELECT COUNT(*) FROM {$authDb}.web_forum_posts p " .
+          "JOIN {$authDb}.web_forum_threads t2 ON t2.id = p.thread_id " .
+          "WHERE t2.category_id = c.id AND p.is_deleted = 0 AND t2.is_deleted = 0) AS posts " .
+        "FROM {$authDb}.web_forum_categories c " .
+        "WHERE c.is_hidden = 0 " .
+        "ORDER BY c.sort_order ASC, c.id ASC"
+      );
+      return $stmt->fetchAll();
+    }
+
+    function getForumCategory(PDO $pdo, int $categoryId): array {
+      seedForumCategories($pdo);
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT id, name, description, is_locked, is_hidden FROM {$authDb}.web_forum_categories WHERE id = :id LIMIT 1"
+      );
+      $stmt->execute([':id' => $categoryId]);
+      $row = $stmt->fetch();
+      if (!$row || (int)$row['is_hidden'] === 1) {
+        throw new RuntimeException("Forum category not found.");
+      }
+      return $row;
+    }
+
+    function countForumThreads(PDO $pdo, int $categoryId, string $query = ''): int {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $sql = "SELECT COUNT(*) AS c FROM {$authDb}.web_forum_threads t " .
+        "WHERE t.category_id = :c AND t.is_deleted = 0";
+      $params = [':c' => $categoryId];
+      if ($query !== '') {
+        $sql .= " AND t.title LIKE :q";
+        $params[':q'] = '%' . $query . '%';
+      }
+      $stmt = $pdo->prepare($sql);
+      $stmt->execute($params);
+      $row = $stmt->fetch();
+      return $row ? (int)$row['c'] : 0;
+    }
+
+    function listForumThreadsPage(PDO $pdo, int $categoryId, int $limit, int $offset, string $query = ''): array {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $sql =
+        "SELECT t.id, t.title, t.author, t.author_account_id, t.created_at, t.updated_at, t.is_locked, t.is_pinned, " .
+        "(SELECT COUNT(*) FROM {$authDb}.web_forum_posts p WHERE p.thread_id = t.id AND p.is_deleted = 0) AS replies, " .
+        "(SELECT p2.author FROM {$authDb}.web_forum_posts p2 WHERE p2.thread_id = t.id AND p2.is_deleted = 0 ORDER BY p2.created_at DESC, p2.id DESC LIMIT 1) AS last_author, " .
+        "(SELECT p2.created_at FROM {$authDb}.web_forum_posts p2 WHERE p2.thread_id = t.id AND p2.is_deleted = 0 ORDER BY p2.created_at DESC, p2.id DESC LIMIT 1) AS last_post_at " .
+        "FROM {$authDb}.web_forum_threads t " .
+        "WHERE t.category_id = :c AND t.is_deleted = 0";
+      $params = [':c' => $categoryId];
+      if ($query !== '') {
+        $sql .= " AND t.title LIKE :q";
+        $params[':q'] = '%' . $query . '%';
+      }
+      $sql .= " ORDER BY t.is_pinned DESC, t.updated_at DESC, t.id DESC LIMIT :l OFFSET :o";
+      $stmt = $pdo->prepare($sql);
+      foreach ($params as $k => $v) {
+        $stmt->bindValue($k, $v, PDO::PARAM_STR);
+      }
+      $stmt->bindValue(':l', $limit, PDO::PARAM_INT);
+      $stmt->bindValue(':o', $offset, PDO::PARAM_INT);
+      $stmt->execute();
+      return $stmt->fetchAll();
+    }
+
+    function getForumThread(PDO $pdo, int $threadId): array {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT t.id, t.category_id, t.title, t.author, t.author_account_id, t.created_at, t.updated_at, t.is_locked, t.is_pinned " .
+        "FROM {$authDb}.web_forum_threads t WHERE t.id = :id AND t.is_deleted = 0 LIMIT 1"
+      );
+      $stmt->execute([':id' => $threadId]);
+      $row = $stmt->fetch();
+      if (!$row) {
+        throw new RuntimeException("Thread not found.");
+      }
+      return $row;
+    }
+
+    function countForumPosts(PDO $pdo, int $threadId): int {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT COUNT(*) AS c FROM {$authDb}.web_forum_posts WHERE thread_id = :t AND is_deleted = 0"
+      );
+      $stmt->execute([':t' => $threadId]);
+      $row = $stmt->fetch();
+      return $row ? (int)$row['c'] : 0;
+    }
+
+    function listForumPostsPage(PDO $pdo, int $threadId, int $limit, int $offset): array {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT id, author, author_account_id, body, created_at, updated_at " .
+        "FROM {$authDb}.web_forum_posts " .
+        "WHERE thread_id = :t AND is_deleted = 0 " .
+        "ORDER BY created_at ASC, id ASC " .
+        "LIMIT :l OFFSET :o"
+      );
+      $stmt->bindValue(':t', $threadId, PDO::PARAM_INT);
+      $stmt->bindValue(':l', $limit, PDO::PARAM_INT);
+      $stmt->bindValue(':o', $offset, PDO::PARAM_INT);
+      $stmt->execute();
+      return $stmt->fetchAll();
+    }
+
+    function adminAccountIds(PDO $pdo): array {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $minLevel = (int)envOrDefault('PORTAL_ADMIN_GMLEVEL', '3');
+      $stmt = $pdo->prepare("SELECT id FROM {$authDb}.account_access WHERE gmlevel >= :g");
+      $stmt->execute([':g' => $minLevel]);
+      $ids = [];
+      foreach ($stmt->fetchAll() as $r) {
+        $ids[(int)$r['id']] = true;
+      }
+      return $ids;
+    }
+
+    function getAccountProfile(PDO $pdo, int $accountId): array {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $stmt = $pdo->prepare(
+        "SELECT name, class, level FROM {$charDb}.characters WHERE account = :a ORDER BY level DESC, name ASC LIMIT 1"
+      );
+      $stmt->execute([':a' => $accountId]);
+      $top = $stmt->fetch() ?: ['name' => '', 'class' => 0, 'level' => 0];
+      $countStmt = $pdo->prepare("SELECT COUNT(*) AS c FROM {$charDb}.characters WHERE account = :a");
+      $countStmt->execute([':a' => $accountId]);
+      $count = (int)$countStmt->fetch()['c'];
+      return [
+        'top_name' => (string)$top['name'],
+        'top_class' => (int)$top['class'],
+        'top_level' => (int)$top['level'],
+        'total_chars' => $count,
+      ];
+    }
+
+    function countForumSearchAll(PDO $pdo, string $query): int {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT COUNT(DISTINCT t.id) AS c " .
+        "FROM {$authDb}.web_forum_threads t " .
+        "LEFT JOIN {$authDb}.web_forum_posts p ON p.thread_id = t.id AND p.is_deleted = 0 " .
+        "WHERE t.is_deleted = 0 AND (t.title LIKE :q OR p.body LIKE :q)"
+      );
+      $stmt->execute([':q' => '%' . $query . '%']);
+      $row = $stmt->fetch();
+      return $row ? (int)$row['c'] : 0;
+    }
+
+    function listForumSearchAll(PDO $pdo, string $query, int $limit, int $offset): array {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT t.id, t.category_id, t.title, t.author, t.updated_at, t.is_locked, t.is_pinned, " .
+        "(SELECT COUNT(*) FROM {$authDb}.web_forum_posts p2 WHERE p2.thread_id = t.id AND p2.is_deleted = 0) AS replies, " .
+        "(SELECT p2.author FROM {$authDb}.web_forum_posts p2 WHERE p2.thread_id = t.id AND p2.is_deleted = 0 ORDER BY p2.created_at DESC, p2.id DESC LIMIT 1) AS last_author, " .
+        "(SELECT p2.created_at FROM {$authDb}.web_forum_posts p2 WHERE p2.thread_id = t.id AND p2.is_deleted = 0 ORDER BY p2.created_at DESC, p2.id DESC LIMIT 1) AS last_post_at " .
+        "FROM {$authDb}.web_forum_threads t " .
+        "LEFT JOIN {$authDb}.web_forum_posts p ON p.thread_id = t.id AND p.is_deleted = 0 " .
+        "WHERE t.is_deleted = 0 AND (t.title LIKE :q OR p.body LIKE :q) " .
+        "GROUP BY t.id " .
+        "ORDER BY t.is_pinned DESC, t.updated_at DESC, t.id DESC " .
+        "LIMIT :l OFFSET :o"
+      );
+      $stmt->bindValue(':q', '%' . $query . '%', PDO::PARAM_STR);
+      $stmt->bindValue(':l', $limit, PDO::PARAM_INT);
+      $stmt->bindValue(':o', $offset, PDO::PARAM_INT);
+      $stmt->execute();
+      return $stmt->fetchAll();
+    }
+
+    function createForumThread(PDO $pdo, int $categoryId, string $title, string $body, string $author, int $authorId): void {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $pdo->beginTransaction();
+      try {
+        $stmt = $pdo->prepare(
+          "INSERT INTO {$authDb}.web_forum_threads (category_id, title, author, author_account_id) " .
+          "VALUES (:c, :t, :a, :id)"
+        );
+        $stmt->execute([':c' => $categoryId, ':t' => $title, ':a' => $author, ':id' => $authorId]);
+        $threadId = (int)$pdo->lastInsertId();
+        $stmt2 = $pdo->prepare(
+          "INSERT INTO {$authDb}.web_forum_posts (thread_id, author, author_account_id, body) " .
+          "VALUES (:t, :a, :id, :b)"
+        );
+        $stmt2->execute([':t' => $threadId, ':a' => $author, ':id' => $authorId, ':b' => $body]);
+        $pdo->commit();
+      } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+      }
+    }
+
+    function replyToForumThread(PDO $pdo, int $threadId, string $body, string $author, int $authorId): void {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $pdo->beginTransaction();
+      try {
+        $stmt = $pdo->prepare(
+          "INSERT INTO {$authDb}.web_forum_posts (thread_id, author, author_account_id, body) " .
+          "VALUES (:t, :a, :id, :b)"
+        );
+        $stmt->execute([':t' => $threadId, ':a' => $author, ':id' => $authorId, ':b' => $body]);
+        $stmt2 = $pdo->prepare("UPDATE {$authDb}.web_forum_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = :t");
+        $stmt2->execute([':t' => $threadId]);
+        $pdo->commit();
+      } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+      }
+    }
+
+    function setForumThreadFlag(PDO $pdo, int $threadId, string $field, int $value): void {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $allowed = ['is_locked', 'is_pinned', 'is_deleted'];
+      if (!in_array($field, $allowed, true)) {
+        throw new RuntimeException("Invalid moderation action.");
+      }
+      $stmt = $pdo->prepare("UPDATE {$authDb}.web_forum_threads SET {$field} = :v WHERE id = :t");
+      $stmt->execute([':v' => $value, ':t' => $threadId]);
+    }
+
+    function deleteForumPost(PDO $pdo, int $postId): void {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare("UPDATE {$authDb}.web_forum_posts SET is_deleted = 1 WHERE id = :p");
+      $stmt->execute([':p' => $postId]);
+    }
+
+    function validateForumTitle(string $title): string {
+      $title = trim($title);
+      if ($title === '' || strlen($title) < 3) {
+        throw new RuntimeException("Thread title is too short.");
+      }
+      if (strlen($title) > 140) {
+        throw new RuntimeException("Thread title is too long.");
+      }
+      return $title;
+    }
+
+    function validateForumBody(string $body): string {
+      $body = trim($body);
+      if ($body === '' || strlen($body) < 3) {
+        throw new RuntimeException("Post body is too short.");
+      }
+      if (strlen($body) > 8000) {
+        throw new RuntimeException("Post body is too long.");
+      }
+      return $body;
+    }
+
+    function ensureAnnouncementsTable(PDO $pdo): void {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS {$authDb}.web_announcements (" .
+        "id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
+        "title VARCHAR(140) NOT NULL," .
+        "body TEXT NOT NULL," .
+        "author VARCHAR(32) NOT NULL," .
+        "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," .
+        "PRIMARY KEY (id)," .
+        "KEY created_idx (created_at)" .
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+      );
+    }
+
+    function isAdmin(PDO $pdo, int $accountId): bool {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $minLevel = (int)envOrDefault('PORTAL_ADMIN_GMLEVEL', '3');
+      $stmt = $pdo->prepare("SELECT MAX(gmlevel) AS gm FROM {$authDb}.account_access WHERE id = :id");
+      $stmt->execute([':id' => $accountId]);
+      $row = $stmt->fetch();
+      $gm = $row ? (int)$row['gm'] : 0;
+      return $gm >= $minLevel;
+    }
+
+    function listAnnouncements(PDO $pdo, int $limit = 10): array {
+      ensureAnnouncementsTable($pdo);
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT id, title, body, author, created_at, updated_at " .
+        "FROM {$authDb}.web_announcements " .
+        "ORDER BY created_at DESC, id DESC " .
+        "LIMIT :l"
+      );
+      $stmt->bindValue(':l', $limit, PDO::PARAM_INT);
+      $stmt->execute();
+      return $stmt->fetchAll();
+    }
+
+    function renderAnnouncementsList(array $announcements, string $emptyText): string {
+      if (!$announcements) {
+        return '<div class="muted">' . htmlspecialchars($emptyText) . '</div>';
+      }
+      $out = '';
+      foreach ($announcements as $a) {
+        $title = htmlspecialchars((string)($a['title'] ?? ''));
+        $body = nl2br(htmlspecialchars((string)($a['body'] ?? '')));
+        $author = htmlspecialchars((string)($a['author'] ?? ''));
+        $created = htmlspecialchars((string)($a['created_at'] ?? ''));
+        $out .= '<div class="post">' .
+          '<div class="post-title">' . $title . '</div>' .
+          '<div class="post-meta">Posted by ' . $author . ' • ' . $created . '</div>' .
+          '<div class="post-body">' . $body . '</div>' .
+          '</div>';
+      }
+      return $out;
+    }
+
+    function validateAnnouncementTitle(string $title): string {
+      $title = trim($title);
+      if ($title === '' || strlen($title) < 3) {
+        throw new RuntimeException("Announcement title is too short.");
+      }
+      if (strlen($title) > 140) {
+        throw new RuntimeException("Announcement title is too long.");
+      }
+      return $title;
+    }
+
+    function validateAnnouncementBody(string $body): string {
+      $body = trim($body);
+      if ($body === '' || strlen($body) < 3) {
+        throw new RuntimeException("Announcement body is too short.");
+      }
+      if (strlen($body) > 4000) {
+        throw new RuntimeException("Announcement body is too long.");
+      }
+      return $body;
+    }
+
+    function createAnnouncement(PDO $pdo, string $title, string $body, string $author): void {
+      ensureAnnouncementsTable($pdo);
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "INSERT INTO {$authDb}.web_announcements (title, body, author) VALUES (:t, :b, :a)"
+      );
+      $stmt->execute([':t' => $title, ':b' => $body, ':a' => $author]);
+    }
+
+    function deleteAnnouncement(PDO $pdo, int $id): void {
+      ensureAnnouncementsTable($pdo);
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare("DELETE FROM {$authDb}.web_announcements WHERE id = :id");
+      $stmt->execute([':id' => $id]);
     }
 
     function storeTokenItemId(): int {
@@ -864,14 +1354,15 @@ data:
       ]);
     }
 
-    function renderLoginPage(array $stats, array $realm, array $snap, string $flash = '', string $flashKind = 'info'): void {
+    function renderLoginPage(array $stats, array $realm, array $snap, array $announcements, string $flash = '', string $flashKind = 'info'): void {
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
 
       $iconLogin = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21 12H11m0 0 3-3m-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-      $ann = trim(envOrDefault('PORTAL_ANNOUNCEMENTS', 'Welcome to Grim Guzzler.'));
-      $annHtml = nl2br(htmlspecialchars($ann));
+      $annLead = trim(envOrDefault('PORTAL_ANNOUNCEMENTS', 'Welcome to Grim Guzzler.'));
+      $annLeadHtml = nl2br(htmlspecialchars($annLead));
+      $announcementsHtml = renderAnnouncementsList($announcements, 'No announcements yet.');
       $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
       $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
       $realmPort = (int)($realm['port'] ?? 0);
@@ -1003,7 +1494,8 @@ data:
           <div class="panel">
             <div class="hd"><h2>Announcements</h2></div>
             <div class="bd">
-              <div style="margin-top:2px;">{$annHtml}</div>
+              <div style="margin-top:2px;">{$annLeadHtml}</div>
+              <div style="margin-top:12px;">{$announcementsHtml}</div>
               <div class="muted" style="margin-top:12px;">Recent updates</div>
               <table class="table" style="margin-top:6px;">
                 <tbody>{$commitsRows}</tbody>
@@ -1125,11 +1617,361 @@ data:
       render($body, $flash, $flashKind);
     }
 
-    function renderPortal(PDO $pdo, array $stats, array $realm, array $snap, array $chars, string $flash = '', string $flashKind = 'info'): void {
+    function renderServerInfoPage(array $realm, string $flash = '', string $flashKind = 'info'): void {
+      $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
+      $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
+      $realmPort = (int)($realm['port'] ?? 0);
+      $patchNote = '<a href="/?download=patch-s">patch-S.mpq</a>';
+
+      $body = <<<HTML
+      <div class="panel">
+        <div class="hd"><h2>Server Information</h2></div>
+        <div class="bd">
+          <div class="row" style="align-items:flex-start;">
+            <div style="flex:1;">
+              <div class="muted" style="margin-bottom:8px;">Realm status</div>
+              <div><strong>{$realmName}</strong></div>
+              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+              <div class="muted" style="margin-top:12px;">Expansion: Wrath of the Lich King (3.3.5a)</div>
+              <div class="muted" style="margin-top:6px;">Rates: Blizzlike (x1)</div>
+              <div class="muted" style="margin-top:6px;">Progression: Individual per character, content gated by raid clears.</div>
+              <div class="muted" style="margin-top:6px;">Bots: Playerbots enabled to keep the world alive.</div>
+            </div>
+            <div style="flex:1;">
+              <div class="muted" style="margin-bottom:8px;">Rules & notes</div>
+              <ul class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
+                <li>Invite-only accounts. Ask an admin for access.</li>
+                <li>No pay-to-win or donations.</li>
+                <li>Use common sense and respect other players.</li>
+                <li>Raid/instance progress is tracked per character.</li>
+              </ul>
+              <div class="muted" style="margin-top:12px;">Optional progression patch: {$patchNote}</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="muted" style="margin-bottom:8px;">How to connect</div>
+          <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
+            <li>Install a 3.3.5a client from <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a>.</li>
+            <li>Set realmlist to: <span class="pill">grim.cooked.beer</span></li>
+            <li>Apply the optional patch if you want classic reagent behavior.</li>
+          </ol>
+        </div>
+      </div>
+      HTML;
+
+      render($body, $flash, $flashKind);
+    }
+
+    function renderForumPage(PDO $pdo, bool $allowPosting, string $flash = '', string $flashKind = 'info'): void {
+      $csrf = htmlspecialchars(csrfToken());
+      $categoryId = (int)($_GET['f'] ?? 0);
+      $threadId = (int)($_GET['t'] ?? 0);
+      $query = trim((string)($_GET['q'] ?? ''));
+      $queryEsc = htmlspecialchars($query);
+      $isAdminUser = $allowPosting && isAdmin($pdo, currentAccountId());
+      $adminIds = $allowPosting ? adminAccountIds($pdo) : [];
+
+      $breadcrumb = '<a href="/?tab=forum">Forum Home</a>';
+      $body = '';
+
+      if ($threadId > 0) {
+        $thread = getForumThread($pdo, $threadId);
+        $category = getForumCategory($pdo, (int)$thread['category_id']);
+        $page = max(1, (int)($_GET['p'] ?? 1));
+        $limit = 15;
+        $offset = ($page - 1) * $limit;
+        $totalPosts = countForumPosts($pdo, $threadId);
+        $posts = listForumPostsPage($pdo, $threadId, $limit, $offset);
+        $locked = (int)$thread['is_locked'] === 1;
+        $breadcrumb .= ' / <a href="/?tab=forum&f=' . (int)$category['id'] . '">' . htmlspecialchars((string)$category['name']) . '</a>';
+        $breadcrumb .= ' / ' . htmlspecialchars((string)$thread['title']);
+
+        $postsHtml = '';
+        foreach ($posts as $p) {
+          $author = htmlspecialchars((string)$p['author']);
+          $bodyHtml = nl2br(htmlspecialchars((string)$p['body']));
+          $created = htmlspecialchars((string)$p['created_at']);
+          $isAdminPost = $allowPosting && isset($adminIds[(int)$p['author_account_id']]);
+          $badge = $isAdminPost ? ' <span class="badge admin">Blizzard Rep</span>' : '';
+          $postClass = $isAdminPost ? 'post admin' : 'post';
+          $initial = $author !== '' ? strtoupper($author[0]) : '?';
+          $avatar = '<div class="avatar">' . htmlspecialchars($initial) . '</div>';
+
+          $modControls = '';
+          if ($isAdminUser) {
+            $modControls = '<form method="post" style="margin-top:8px;">' .
+              '<input type="hidden" name="csrf" value="' . $csrf . '" />' .
+              '<input type="hidden" name="action" value="forum_delete_post" />' .
+              '<input type="hidden" name="post_id" value="' . (int)$p['id'] . '" />' .
+              '<input type="hidden" name="t" value="' . $threadId . '" />' .
+              '<button class="btn danger" type="submit">Remove Post</button>' .
+              '</form>';
+          }
+
+          $postsHtml .= '<div class="' . $postClass . '">' .
+            '<div class="post-row">' . $avatar .
+            '<div class="post-content">' .
+              '<div class="post-title">' . $author . $badge . '</div>' .
+              '<div class="post-meta">' . $created . '</div>' .
+              '<div class="post-body">' . $bodyHtml . '</div>' .
+              $modControls .
+            '</div></div>' .
+            '</div>';
+        }
+        if ($postsHtml === '') {
+          $postsHtml = '<div class="muted">No posts yet.</div>';
+        }
+
+        $pagination = '';
+        if ($totalPosts > $limit) {
+          $pages = (int)ceil($totalPosts / $limit);
+          $pagination = '<div class="muted" style="margin-top:12px;">Pages: ';
+          for ($i = 1; $i <= $pages; $i++) {
+            $active = $i === $page ? '<span class="pill">' . $i . '</span>' : '<a class="pill" href="/?tab=forum&t=' . $threadId . '&p=' . $i . '">' . $i . '</a>';
+            $pagination .= $active . ' ';
+          }
+          $pagination .= '</div>';
+        }
+
+        $replyForm = '';
+        if ($allowPosting && !$locked) {
+          $replyForm = <<<HTML
+            <div class="panel" style="margin-top:14px;">
+              <div class="hd"><h2>Reply</h2></div>
+              <div class="bd">
+                <form method="post">
+                  <input type="hidden" name="csrf" value="{$csrf}" />
+                  <input type="hidden" name="action" value="forum_reply" />
+                  <input type="hidden" name="thread_id" value="{$threadId}" />
+                  <label>Message</label>
+                  <textarea name="body" required></textarea>
+                  <div style="margin-top:12px;">
+                    <button class="btn" type="submit">Post reply</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          HTML;
+        } elseif ($locked) {
+          $replyForm = '<div class="muted" style="margin-top:12px;">This thread is locked.</div>';
+        } else {
+          $replyForm = '<div class="muted" style="margin-top:12px;">Log in to reply.</div>';
+        }
+
+        $modButtons = '';
+        if ($isAdminUser) {
+          $lockAction = $locked ? 'forum_unlock_thread' : 'forum_lock_thread';
+          $lockLabel = $locked ? 'Unlock' : 'Lock';
+          $pinAction = ((int)$thread['is_pinned'] === 1) ? 'forum_unpin_thread' : 'forum_pin_thread';
+          $pinLabel = ((int)$thread['is_pinned'] === 1) ? 'Unpin' : 'Pin';
+          $modButtons = '<form method="post" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">' .
+            '<input type="hidden" name="csrf" value="' . $csrf . '" />' .
+            '<input type="hidden" name="thread_id" value="' . $threadId . '" />' .
+            '<input type="hidden" name="f" value="' . (int)$category['id'] . '" />' .
+            '<button class="btn secondary" type="submit" name="action" value="' . $pinAction . '">' . $pinLabel . '</button>' .
+            '<button class="btn secondary" type="submit" name="action" value="' . $lockAction . '">' . $lockLabel . '</button>' .
+            '<button class="btn danger" type="submit" name="action" value="forum_delete_thread">Remove Thread</button>' .
+            '</form>';
+        }
+
+        $body = <<<HTML
+        <div class="panel">
+          <div class="hd"><h2>Forum Thread</h2></div>
+          <div class="bd">
+            <div class="muted">{$breadcrumb}</div>
+            {$modButtons}
+            <div style="margin-top:14px;">{$postsHtml}</div>
+            {$pagination}
+            {$replyForm}
+          </div>
+        </div>
+        HTML;
+      } elseif ($categoryId > 0) {
+        $category = getForumCategory($pdo, $categoryId);
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+        $totalThreads = countForumThreads($pdo, $categoryId, $query);
+        $threads = listForumThreadsPage($pdo, $categoryId, $limit, $offset, $query);
+        $breadcrumb .= ' / ' . htmlspecialchars((string)$category['name']);
+
+        $rows = '';
+        foreach ($threads as $t) {
+          $title = htmlspecialchars((string)$t['title']);
+          $author = htmlspecialchars((string)$t['author']);
+          $updated = htmlspecialchars((string)($t['last_post_at'] ?? $t['updated_at']));
+          $replies = (int)$t['replies'];
+          $locked = (int)$t['is_locked'] === 1 ? ' • Locked' : '';
+          $pinned = (int)$t['is_pinned'] === 1 ? ' • Pinned' : '';
+          $lastAuthor = htmlspecialchars((string)($t['last_author'] ?? $t['author']));
+          $rows .= '<div class="forum-item">' .
+            '<div class="forum-row">' .
+              '<div class="forum-cell">' .
+                '<div class="forum-title"><a href="/?tab=forum&t=' . (int)$t['id'] . '">' . $title . '</a></div>' .
+                '<div class="forum-meta">By ' . $author . $pinned . $locked . '</div>' .
+              '</div>' .
+              '<div class="forum-cell right"><span class="pill">' . $replies . '</span><div class="forum-meta">Replies</div></div>' .
+              '<div class="forum-cell right"><span class="pill">' . $updated . '</span><div class="forum-meta">Last post: ' . $lastAuthor . '</div></div>' .
+            '</div>' .
+            '</div>';
+        }
+        if ($rows === '') {
+          $rows = '<div class="muted">No threads yet. Be the first to post.</div>';
+        }
+
+        $searchForm = <<<HTML
+          <form method="get" style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="hidden" name="tab" value="forum" />
+            <input type="hidden" name="f" value="{$categoryId}" />
+            <label style="margin:0;">Search</label>
+            <input name="q" value="{$queryEsc}" placeholder="Search threads..." />
+            <button class="btn secondary" type="submit">Search</button>
+          </form>
+        HTML;
+
+        $pagination = '';
+        if ($totalThreads > $limit) {
+          $pages = (int)ceil($totalThreads / $limit);
+          $pagination = '<div class="muted" style="margin-top:12px;">Pages: ';
+          for ($i = 1; $i <= $pages; $i++) {
+            $active = $i === $page ? '<span class="pill">' . $i . '</span>' : '<a class="pill" href="/?tab=forum&f=' . $categoryId . '&page=' . $i . '&q=' . urlencode($query) . '">' . $i . '</a>';
+            $pagination .= $active . ' ';
+          }
+          $pagination .= '</div>';
+        }
+
+        $newThread = '';
+        if ($allowPosting && (int)$category['is_locked'] === 0) {
+          $newThread = <<<HTML
+            <div class="panel" style="margin-top:14px;">
+              <div class="hd"><h2>New Thread</h2></div>
+              <div class="bd">
+                <form method="post">
+                  <input type="hidden" name="csrf" value="{$csrf}" />
+                  <input type="hidden" name="action" value="forum_create_thread" />
+                  <input type="hidden" name="category_id" value="{$categoryId}" />
+                  <label>Title</label>
+                  <input name="title" required />
+                  <label>Message</label>
+                  <textarea name="body" required></textarea>
+                  <div style="margin-top:12px;">
+                    <button class="btn" type="submit">Post thread</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          HTML;
+        } elseif ((int)$category['is_locked'] === 1) {
+          $newThread = '<div class="muted" style="margin-top:12px;">This category is locked.</div>';
+        } else {
+          $newThread = '<div class="muted" style="margin-top:12px;">Log in to start a thread.</div>';
+        }
+
+        $body = <<<HTML
+        <div class="panel">
+          <div class="hd"><h2>Forum: {$category['name']}</h2></div>
+          <div class="bd">
+            <div class="muted">{$breadcrumb}</div>
+            {$searchForm}
+            <div class="forum-grid" style="margin-top:12px;">{$rows}</div>
+            {$pagination}
+            {$newThread}
+          </div>
+        </div>
+        HTML;
+      } else {
+        $cats = listForumCategories($pdo);
+        $items = '';
+        foreach ($cats as $c) {
+          $name = htmlspecialchars((string)$c['name']);
+          $desc = htmlspecialchars((string)$c['description']);
+          $threads = (int)$c['threads'];
+          $posts = (int)$c['posts'];
+          $items .= '<div class="forum-item">' .
+            '<div class="forum-title"><a href="/?tab=forum&f=' . (int)$c['id'] . '">' . $name . '</a></div>' .
+            '<div class="muted">' . $desc . '</div>' .
+            '<div class="forum-meta">Threads ' . $threads . ' • Posts ' . $posts . '</div>' .
+            '</div>';
+        }
+        if ($items === '') {
+          $items = '<div class="muted">Forum categories are not available yet.</div>';
+        }
+
+        $rules = '<div class="forum-item"><div class="forum-title">Realm Rules</div>' .
+          '<div class="muted">Be respectful. No exploits. Keep it friendly. Admin posts are highlighted in blue.</div></div>';
+
+        $searchResults = '';
+        $searchForm = <<<HTML
+          <form method="get" style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="hidden" name="tab" value="forum" />
+            <label style="margin:0;">Search</label>
+            <input name="q" value="{$queryEsc}" placeholder="Search all threads..." />
+            <button class="btn secondary" type="submit">Search</button>
+          </form>
+        HTML;
+        if ($query !== '') {
+          $page = max(1, (int)($_GET['page'] ?? 1));
+          $limit = 15;
+          $offset = ($page - 1) * $limit;
+          $total = countForumSearchAll($pdo, $query);
+          $results = listForumSearchAll($pdo, $query, $limit, $offset);
+          $rows = '';
+          foreach ($results as $t) {
+            $title = htmlspecialchars((string)$t['title']);
+            $author = htmlspecialchars((string)$t['author']);
+            $updated = htmlspecialchars((string)($t['last_post_at'] ?? $t['updated_at']));
+            $replies = (int)$t['replies'];
+            $rows .= '<div class="forum-item">' .
+              '<div class="forum-row">' .
+                '<div class="forum-cell">' .
+                  '<div class="forum-title"><a href="/?tab=forum&t=' . (int)$t['id'] . '">' . $title . '</a></div>' .
+                  '<div class="forum-meta">By ' . $author . '</div>' .
+                '</div>' .
+                '<div class="forum-cell right"><span class="pill">' . $replies . '</span><div class="forum-meta">Replies</div></div>' .
+                '<div class="forum-cell right"><span class="pill">' . $updated . '</span><div class="forum-meta">Updated</div></div>' .
+              '</div>' .
+              '</div>';
+          }
+          if ($rows === '') {
+            $rows = '<div class="muted">No results found.</div>';
+          }
+          $pagination = '';
+          if ($total > $limit) {
+            $pages = (int)ceil($total / $limit);
+            $pagination = '<div class="muted" style="margin-top:12px;">Pages: ';
+            for ($i = 1; $i <= $pages; $i++) {
+              $active = $i === $page ? '<span class="pill">' . $i . '</span>' : '<a class="pill" href="/?tab=forum&page=' . $i . '&q=' . urlencode($query) . '">' . $i . '</a>';
+              $pagination .= $active . ' ';
+            }
+            $pagination .= '</div>';
+          }
+          $searchResults = '<div class="divider"></div><div class="muted">Search results</div><div class="forum-grid" style="margin-top:12px;">' . $rows . '</div>' . $pagination;
+        }
+
+        $body = <<<HTML
+        <div class="panel">
+          <div class="hd"><h2>Forum Index</h2></div>
+          <div class="bd">
+            <div class="muted">{$breadcrumb}</div>
+            {$searchForm}
+            <div class="forum-grid" style="margin-top:12px;">
+              {$rules}
+              {$items}
+            </div>
+            {$searchResults}
+          </div>
+        </div>
+        HTML;
+      }
+
+      render($body, $flash, $flashKind);
+    }
+
+    function renderPortal(PDO $pdo, array $stats, array $realm, array $snap, array $chars, array $announcements, string $flash = '', string $flashKind = 'info'): void {
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
       $tab = (string)($_GET['tab'] ?? 'overview');
-      if (!in_array($tab, ['overview', 'characters', 'services', 'store', 'stats', 'arena', 'about'], true)) {
+      if (!in_array($tab, ['overview', 'announcements', 'server', 'characters', 'services', 'store', 'stats', 'arena', 'about'], true)) {
         $tab = 'overview';
       }
 
@@ -1180,9 +2022,23 @@ data:
 
       if ($tab === 'overview') {
         $mainTitle = 'My Account';
+        $profile = getAccountProfile($pdo, currentAccountId());
+        $pName = htmlspecialchars((string)$profile['top_name']);
+        $pClass = (int)$profile['top_class'];
+        $pLevel = (int)$profile['top_level'];
+        $pTotal = (int)$profile['total_chars'];
+        $pSummary = $pName !== '' ? (classPill($pClass) . $pName . ' <span class="pill">Lvl ' . $pLevel . '</span>') : '<span class="muted">No characters yet.</span>';
         $mainBody = <<<HTML
           <div class="kpi">
             <div class="card"><div class="muted">Players online</div><div class="val">{$online}</div></div>
+            <div class="card"><div class="muted">Characters</div><div class="val">{$pTotal}</div></div>
+          </div>
+          <div class="panel" style="margin-top:14px;">
+            <div class="hd"><h2>Profile Snapshot</h2></div>
+            <div class="bd">
+              <div class="muted">Highest level character</div>
+              <div style="margin-top:8px;">{$pSummary}</div>
+            </div>
           </div>
           <div style="margin-top:12px; display:flex; justify-content:flex-end;">
             <form method="post">
@@ -1190,6 +2046,67 @@ data:
               <button class="btn secondary" type="submit" name="action" value="logout">{$iconLogout}Log Out</button>
             </form>
           </div>
+        HTML;
+      } elseif ($tab === 'announcements') {
+        $mainTitle = 'Announcements';
+        $isAdmin = isAdmin($pdo, currentAccountId());
+        $listHtml = renderAnnouncementsList($announcements, 'No announcements yet.');
+        $adminPanel = '';
+        if ($isAdmin) {
+          $adminPanel = <<<HTML
+            <div class="panel" style="margin-top:14px;">
+              <div class="hd"><h2>Post Update</h2></div>
+              <div class="bd">
+                <form method="post">
+                  <input type="hidden" name="csrf" value="{$csrf}" />
+                  <input type="hidden" name="action" value="announce_create" />
+                  <label>Title</label>
+                  <input name="announce_title" required />
+                  <label>Body</label>
+                  <textarea name="announce_body" required></textarea>
+                  <div style="margin-top:12px;">
+                    <button class="btn" type="submit">Post announcement</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          HTML;
+        }
+
+        $deleteRows = '';
+        if ($isAdmin && $announcements) {
+          foreach ($announcements as $a) {
+            $id = (int)($a['id'] ?? 0);
+            $title = htmlspecialchars((string)($a['title'] ?? ''));
+            $deleteRows .= '<tr><td>' . $title . '</td><td style="text-align:right;">' .
+              '<form method="post" style="margin:0;">' .
+              '<input type="hidden" name="csrf" value="' . $csrf . '" />' .
+              '<input type="hidden" name="action" value="announce_delete" />' .
+              '<input type="hidden" name="announce_id" value="' . $id . '" />' .
+              '<button class="btn danger" type="submit">Delete</button>' .
+              '</form></td></tr>';
+          }
+        }
+
+        $deletePanel = '';
+        if ($deleteRows !== '') {
+          $deletePanel = <<<HTML
+            <div class="panel" style="margin-top:14px;">
+              <div class="hd"><h2>Manage Posts</h2></div>
+              <div class="bd">
+                <table class="table">
+                  <thead><tr><th>Announcement</th><th></th></tr></thead>
+                  <tbody>{$deleteRows}</tbody>
+                </table>
+              </div>
+            </div>
+          HTML;
+        }
+
+        $mainBody = <<<HTML
+          {$listHtml}
+          {$adminPanel}
+          {$deletePanel}
         HTML;
       } elseif ($tab === 'characters') {
         $mainTitle = 'Characters';
@@ -1491,6 +2408,113 @@ data:
           soapExecute('account create ' . $username . ' ' . $password . ' ' . $email);
           $flash = "Created account: {$username}";
           $flashKind = 'ok';
+        } elseif ($action === 'forum_create_thread') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          $categoryId = (int)($_POST['category_id'] ?? 0);
+          if ($categoryId <= 0) {
+            throw new RuntimeException("Invalid category.");
+          }
+          $category = getForumCategory($pdo, $categoryId);
+          if ((int)$category['is_locked'] === 1) {
+            throw new RuntimeException("Category is locked.");
+          }
+          $title = validateForumTitle((string)($_POST['title'] ?? ''));
+          $body = validateForumBody((string)($_POST['body'] ?? ''));
+          createForumThread($pdo, $categoryId, $title, $body, currentUsername(), currentAccountId());
+          header('Location: /?tab=forum&f=' . $categoryId);
+          exit;
+        } elseif ($action === 'forum_reply') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          $threadId = (int)($_POST['thread_id'] ?? 0);
+          if ($threadId <= 0) {
+            throw new RuntimeException("Invalid thread.");
+          }
+          $thread = getForumThread($pdo, $threadId);
+          if ((int)$thread['is_locked'] === 1) {
+            throw new RuntimeException("Thread is locked.");
+          }
+          $body = validateForumBody((string)($_POST['body'] ?? ''));
+          replyToForumThread($pdo, $threadId, $body, currentUsername(), currentAccountId());
+          header('Location: /?tab=forum&t=' . $threadId);
+          exit;
+        } elseif ($action === 'forum_lock_thread' || $action === 'forum_unlock_thread' || $action === 'forum_pin_thread' || $action === 'forum_unpin_thread' || $action === 'forum_delete_thread') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          if (!isAdmin($pdo, currentAccountId())) {
+            throw new RuntimeException("Admin access required.");
+          }
+          $threadId = (int)($_POST['thread_id'] ?? 0);
+          if ($threadId <= 0) {
+            throw new RuntimeException("Invalid thread.");
+          }
+          if ($action === 'forum_lock_thread') {
+            setForumThreadFlag($pdo, $threadId, 'is_locked', 1);
+          } elseif ($action === 'forum_unlock_thread') {
+            setForumThreadFlag($pdo, $threadId, 'is_locked', 0);
+          } elseif ($action === 'forum_pin_thread') {
+            setForumThreadFlag($pdo, $threadId, 'is_pinned', 1);
+          } elseif ($action === 'forum_unpin_thread') {
+            setForumThreadFlag($pdo, $threadId, 'is_pinned', 0);
+          } else {
+            setForumThreadFlag($pdo, $threadId, 'is_deleted', 1);
+          }
+          $categoryId = (int)($_POST['f'] ?? 0);
+          if ($categoryId > 0) {
+            header('Location: /?tab=forum&f=' . $categoryId);
+          } else {
+            header('Location: /?tab=forum');
+          }
+          exit;
+        } elseif ($action === 'forum_delete_post') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          if (!isAdmin($pdo, currentAccountId())) {
+            throw new RuntimeException("Admin access required.");
+          }
+          $postId = (int)($_POST['post_id'] ?? 0);
+          if ($postId <= 0) {
+            throw new RuntimeException("Invalid post.");
+          }
+          deleteForumPost($pdo, $postId);
+          $threadId = (int)($_POST['t'] ?? 0);
+          if ($threadId > 0) {
+            header('Location: /?tab=forum&t=' . $threadId);
+            exit;
+          }
+          header('Location: /?tab=forum');
+          exit;
+        } elseif ($action === 'announce_create') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          if (!isAdmin($pdo, currentAccountId())) {
+            throw new RuntimeException("Admin access required.");
+          }
+          $title = validateAnnouncementTitle((string)($_POST['announce_title'] ?? ''));
+          $body = validateAnnouncementBody((string)($_POST['announce_body'] ?? ''));
+          createAnnouncement($pdo, $title, $body, currentUsername());
+          $flash = "Announcement posted.";
+          $flashKind = 'ok';
+        } elseif ($action === 'announce_delete') {
+          if (!isLoggedIn()) {
+            throw new RuntimeException("Login required.");
+          }
+          if (!isAdmin($pdo, currentAccountId())) {
+            throw new RuntimeException("Admin access required.");
+          }
+          $id = (int)($_POST['announce_id'] ?? 0);
+          if ($id <= 0) {
+            throw new RuntimeException("Invalid announcement.");
+          }
+          deleteAnnouncement($pdo, $id);
+          $flash = "Announcement removed.";
+          $flashKind = 'ok';
         } elseif ($action === 'change_password') {
           if (!isLoggedIn()) {
             throw new RuntimeException("Login required.");
@@ -1579,16 +2603,32 @@ data:
         }
       }
 
+      $tab = (string)($_GET['tab'] ?? (isLoggedIn() ? 'overview' : 'home'));
+
       if (!isLoggedIn()) {
-        $tab = (string)($_GET['tab'] ?? 'home');
         if ($tab === 'about') {
           renderAboutPage($realm, $flash, $flashKind);
         }
-        renderLoginPage($stats, $realm, $snap, $flash, $flashKind);
+        if ($tab === 'server') {
+          renderServerInfoPage($realm, $flash, $flashKind);
+        }
+        if ($tab === 'forum') {
+          renderForumPage($pdo, false, $flash, $flashKind);
+        }
+        $announcements = listAnnouncements($pdo, 6);
+        renderLoginPage($stats, $realm, $snap, $announcements, $flash, $flashKind);
       }
 
+      if ($tab === 'server') {
+        renderServerInfoPage($realm, $flash, $flashKind);
+      }
+      if ($tab === 'forum') {
+        renderForumPage($pdo, true, $flash, $flashKind);
+      }
+
+      $announcements = listAnnouncements($pdo, 12);
       $chars = listCharacters($pdo, currentAccountId());
-      renderPortal($pdo, $stats, $realm, $snap, $chars, $flash, $flashKind);
+      renderPortal($pdo, $stats, $realm, $snap, $chars, $announcements, $flash, $flashKind);
     } catch (Throwable $e) {
       // If DB is down or extensions missing, render a simple page.
       $msg = $e->getMessage();
