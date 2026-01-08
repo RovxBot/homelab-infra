@@ -384,18 +384,19 @@ data:
         ? [
             'overview' => 'My Account',
             'announcements' => 'Announcements',
+            'forum' => 'Forum',
             'server' => 'Server Info',
             'characters' => 'Characters',
-            'services' => 'Services',
             'store' => 'Store',
             'stats' => 'Stats',
-            'arena' => 'Arena',
             'about' => 'About',
           ]
         : [
             'home' => 'Home',
             'announcements' => 'Announcements',
+            'forum' => 'Forum',
             'server' => 'Server Info',
+            'stats' => 'Stats',
             'about' => 'About',
           ];
 
@@ -817,6 +818,20 @@ data:
         "WHERE c.is_hidden = 0 " .
         "ORDER BY c.sort_order ASC, c.id ASC"
       );
+      return $stmt->fetchAll();
+    }
+
+    function listLatestThreads(PDO $pdo, int $limit = 6): array {
+      $authDb = dbName('DB_AUTH_DB', 'acore_auth');
+      $stmt = $pdo->prepare(
+        "SELECT t.id, t.category_id, t.title, t.author, t.updated_at " .
+        "FROM {$authDb}.web_forum_threads t " .
+        "WHERE t.is_deleted = 0 " .
+        "ORDER BY t.updated_at DESC, t.id DESC " .
+        "LIMIT :l"
+      );
+      $stmt->bindValue(':l', $limit, PDO::PARAM_INT);
+      $stmt->execute();
       return $stmt->fetchAll();
     }
 
@@ -1354,7 +1369,7 @@ data:
       ]);
     }
 
-    function renderLoginPage(array $stats, array $realm, array $snap, array $announcements, string $flash = '', string $flashKind = 'info'): void {
+    function renderLoginPage(array $stats, array $realm, array $snap, array $announcements, array $latestThreads, string $flash = '', string $flashKind = 'info'): void {
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
 
@@ -1369,97 +1384,18 @@ data:
       $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
       $snapshotRows = (int)($snap['rows'] ?? 0);
 
-      $githubRepo = envOrDefault('PORTAL_GITHUB_REPO', 'RovxBot/homelab-infra');
-      $githubBranch = envOrDefault('PORTAL_GITHUB_BRANCH', 'main');
-      $githubRepoSafe = preg_match('/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/', $githubRepo) ? $githubRepo : 'RovxBot/homelab-infra';
-      $githubBranchSafe = preg_match('/^[A-Za-z0-9_.\\/-]+$/', $githubBranch) ? $githubBranch : 'main';
-      $commitsPage = 'https://github.com/' . $githubRepoSafe . '/commits/' . rawurlencode($githubBranchSafe);
-
-      $commits = [];
-      try {
-        ensureSession();
-        $cacheKey = 'commits_cache';
-        $cacheAtKey = 'commits_cache_at';
-        $cacheTtl = 60; // seconds
-
-        $now = time();
-        if (!empty($_SESSION[$cacheKey]) && !empty($_SESSION[$cacheAtKey]) && ($now - (int)$_SESSION[$cacheAtKey]) < $cacheTtl) {
-          $commits = (array)$_SESSION[$cacheKey];
-        } else {
-          $api = 'https://api.github.com/repos/' . $githubRepoSafe . '/commits?per_page=6&sha=' . rawurlencode($githubBranchSafe);
-          $ctx = stream_context_create([
-            'http' => [
-              'method' => 'GET',
-              'timeout' => 2,
-              'header' => implode("\r\n", [
-                'Accept: application/vnd.github+json',
-                'User-Agent: grimguzzler-portal',
-              ]),
-            ],
-          ]);
-          $json = @file_get_contents($api, false, $ctx);
-          if ($json !== false) {
-            $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-            if (is_array($data)) {
-              foreach ($data as $c) {
-                if (!is_array($c)) continue;
-                $sha = (string)($c['sha'] ?? '');
-                $htmlUrl = (string)($c['html_url'] ?? '');
-                $msg = (string)($c['commit']['message'] ?? '');
-                $date = (string)($c['commit']['committer']['date'] ?? '');
-                if ($sha === '' || $htmlUrl === '' || $msg === '') continue;
-                $firstLine = trim(explode("\n", $msg, 2)[0]);
-                $commits[] = [
-                  'sha' => substr($sha, 0, 7),
-                  'url' => $htmlUrl,
-                  'msg' => $firstLine,
-                  'date' => $date,
-                ];
-              }
-            }
-          }
-          $_SESSION[$cacheKey] = $commits;
-          $_SESSION[$cacheAtKey] = $now;
-        }
-      } catch (Throwable $e) {
-        $commits = [];
+      $threadsRows = '';
+      foreach ($latestThreads as $t) {
+        $title = htmlspecialchars((string)($t['title'] ?? ''));
+        $author = htmlspecialchars((string)($t['author'] ?? ''));
+        $updated = htmlspecialchars((string)($t['updated_at'] ?? ''));
+        $threadsRows .= '<div class="forum-item">' .
+          '<div class="forum-title"><a href="/?tab=forum&t=' . (int)($t['id'] ?? 0) . '">' . $title . '</a></div>' .
+          '<div class="forum-meta">By ' . $author . ' • ' . $updated . '</div>' .
+          '</div>';
       }
-
-      $commitsRows = '';
-      foreach ($commits as $c) {
-        $msg = htmlspecialchars((string)($c['msg'] ?? ''));
-        $sha = htmlspecialchars((string)($c['sha'] ?? ''));
-        $url = htmlspecialchars((string)($c['url'] ?? ''));
-        $date = htmlspecialchars((string)($c['date'] ?? ''));
-        if ($msg === '' || $sha === '' || $url === '') continue;
-        $commitsRows .= '<tr><td><a href="' . $url . '" target="_blank" rel="noreferrer">' . $msg . '</a><div class="muted" style="margin-top:4px;"><span class="pill">' . $sha . '</span> <span class="pill">' . $date . '</span></div></td></tr>';
-      }
-      if ($commitsRows === '') {
-        $commitsRows = '<tr><td class="muted">Unable to load recent commits right now. <a href="' . htmlspecialchars($commitsPage) . '" target="_blank" rel="noreferrer">View commit history</a>.</td></tr>';
-      }
-
-      $topKillsRows = '';
-      foreach ($stats['top_kills'] as $r) {
-        $name = htmlspecialchars((string)($r['name'] ?? ''));
-        $class = (int)($r['class'] ?? 0);
-        $level = (int)($r['level'] ?? 0);
-        $gained = (int)($r['gained'] ?? 0);
-        $topKillsRows .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">' . $gained . '</span></td></tr>';
-      }
-      if ($topKillsRows === '') {
-        $topKillsRows = '<tr><td colspan="3" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
-      }
-
-      $topLevelsRows = '';
-      foreach ($stats['top_levels'] as $r) {
-        $name = htmlspecialchars((string)($r['name'] ?? ''));
-        $class = (int)($r['class'] ?? 0);
-        $level = (int)($r['level'] ?? 0);
-        $gained = (int)($r['gained'] ?? 0);
-        $topLevelsRows .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">+' . $gained . '</span></td></tr>';
-      }
-      if ($topLevelsRows === '') {
-        $topLevelsRows = '<tr><td colspan="3" class="muted">Not enough data yet (snapshot job needs to run).</td></tr>';
+      if ($threadsRows === '') {
+        $threadsRows = '<div class="muted">No threads yet.</div>';
       }
 
       $signup = '';
@@ -1496,33 +1432,14 @@ data:
             <div class="bd">
               <div style="margin-top:2px;">{$annLeadHtml}</div>
               <div style="margin-top:12px;">{$announcementsHtml}</div>
-              <div class="muted" style="margin-top:12px;">Recent updates</div>
-              <table class="table" style="margin-top:6px;">
-                <tbody>{$commitsRows}</tbody>
-              </table>
-              <div class="muted" style="margin-top:10px;"><a href="{$commitsPage}" target="_blank" rel="noreferrer">View all commits</a></div>
             </div>
           </div>
           <div class="panel" style="margin-top:14px;">
-            <div class="hd"><h2>Weekly Stats</h2></div>
+            <div class="hd"><h2>Forum Highlights</h2></div>
             <div class="bd">
-              <div class="muted" style="margin-bottom: 10px;">Last 7 days (best effort).</div>
-              <div class="row" style="align-items:flex-start;">
-                <div>
-                  <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
-                  <table class="table">
-                    <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
-                    <tbody>{$topKillsRows}</tbody>
-                  </table>
-                </div>
-                <div>
-                  <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
-                  <table class="table">
-                    <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
-                    <tbody>{$topLevelsRows}</tbody>
-                  </table>
-                </div>
-              </div>
+              <div class="muted" style="margin-bottom: 10px;">Latest threads</div>
+              <div class="forum-grid">{$threadsRows}</div>
+              <div class="muted" style="margin-top:10px;"><a href="/?tab=forum">Visit the forum</a></div>
             </div>
           </div>
         </div>
@@ -1617,11 +1534,128 @@ data:
       render($body, $flash, $flashKind);
     }
 
+    function getArenaLadders(PDO $pdo): array {
+      $charDb = dbName('DB_CHAR_DB', 'acore_characters');
+      $teamStmt = $pdo->prepare(
+        "SELECT t.name AS team, t.type, t.rating, t.weekGames, t.weekWins, t.seasonGames, t.seasonWins, " .
+        "c.name AS captain, c.class AS captainClass, c.level AS captainLevel " .
+        "FROM {$charDb}.arena_team t " .
+        "LEFT JOIN {$charDb}.characters c ON c.guid = t.captainGuid " .
+        "WHERE t.type = :type " .
+        "ORDER BY t.rating DESC, t.rank ASC, t.arenaTeamId ASC " .
+        "LIMIT 10"
+      );
+      $brackets = [2 => '2v2', 3 => '3v3', 5 => '5v5'];
+      $out = [];
+      foreach ($brackets as $type => $label) {
+        $teamStmt->execute([':type' => $type]);
+        $out[] = [
+          'label' => $label,
+          'teams' => $teamStmt->fetchAll(),
+        ];
+      }
+      return $out;
+    }
+
+    function renderPublicStatsPage(PDO $pdo, array $stats, array $snap, string $flash = '', string $flashKind = 'info'): void {
+      $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
+      $snapshotRows = (int)($snap['rows'] ?? 0);
+
+      $topKills = '';
+      foreach ($stats['top_kills'] as $r) {
+        $name = htmlspecialchars((string)($r['name'] ?? ''));
+        $class = (int)($r['class'] ?? 0);
+        $level = (int)($r['level'] ?? 0);
+        $gained = (int)($r['gained'] ?? 0);
+        $topKills .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">' . $gained . '</span></td></tr>';
+      }
+      if ($topKills === '') {
+        $topKills = '<tr><td colspan="3" class="muted">Not enough data yet.</td></tr>';
+      }
+
+      $topLv = '';
+      foreach ($stats['top_levels'] as $r) {
+        $name = htmlspecialchars((string)($r['name'] ?? ''));
+        $class = (int)($r['class'] ?? 0);
+        $level = (int)($r['level'] ?? 0);
+        $gained = (int)($r['gained'] ?? 0);
+        $topLv .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">+' . $gained . '</span></td></tr>';
+      }
+      if ($topLv === '') {
+        $topLv = '<tr><td colspan="3" class="muted">Not enough data yet.</td></tr>';
+      }
+
+      $sections = '';
+      foreach (getArenaLadders($pdo) as $bracket) {
+        $rows = '';
+        foreach ($bracket['teams'] as $t) {
+          $team = htmlspecialchars((string)($t['team'] ?? ''));
+          $rating = (int)($t['rating'] ?? 0);
+          $wg = (int)($t['weekGames'] ?? 0);
+          $ww = (int)($t['weekWins'] ?? 0);
+          $sg = (int)($t['seasonGames'] ?? 0);
+          $sw = (int)($t['seasonWins'] ?? 0);
+          $capt = htmlspecialchars((string)($t['captain'] ?? ''));
+          $cClass = (int)($t['captainClass'] ?? 0);
+          $cLevel = (int)($t['captainLevel'] ?? 0);
+          $captCell = $capt !== '' ? (classPill($cClass) . $capt . ' <span class="pill">' . $cLevel . '</span>') : '<span class="muted">—</span>';
+          $rows .= '<tr><td><strong>' . $team . '</strong></td><td><span class="pill">' . $rating . '</span></td><td>' . $captCell . '</td><td><span class="pill">' . $ww . '/' . $wg . '</span></td><td><span class="pill">' . $sw . '/' . $sg . '</span></td></tr>';
+        }
+        if ($rows === '') {
+          $rows = '<tr><td colspan="5" class="muted">No teams found for this bracket.</td></tr>';
+        }
+        $sections .= '<div class="panel" style="margin-top:14px;"><div class="hd"><h2>Arena Ladder ' . htmlspecialchars($bracket['label']) . '</h2></div><div class="bd"><table class="table"><thead><tr><th>Team</th><th>Rating</th><th>Captain</th><th>Week</th><th>Season</th></tr></thead><tbody>' . $rows . '</tbody></table></div></div>';
+      }
+
+      $body = <<<HTML
+      <div class="panel">
+        <div class="hd"><h2>Realm Stats</h2></div>
+        <div class="bd">
+          <div class="muted">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
+          <div class="divider"></div>
+          <div class="muted">Last 7 days (based on daily snapshots).</div>
+          <div class="row" style="align-items:flex-start;margin-top:10px;">
+            <div>
+              <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
+              <table class="table">
+                <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
+                <tbody>{$topKills}</tbody>
+              </table>
+            </div>
+            <div>
+              <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
+              <table class="table">
+                <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
+                <tbody>{$topLv}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {$sections}
+      HTML;
+
+      render($body, $flash, $flashKind);
+    }
+
+    function renderAnnouncementsPage(array $announcements, string $flash = '', string $flashKind = 'info'): void {
+      $announcementsHtml = renderAnnouncementsList($announcements, 'No announcements yet.');
+      $body = <<<HTML
+      <div class="panel">
+        <div class="hd"><h2>Announcements</h2></div>
+        <div class="bd">
+          {$announcementsHtml}
+        </div>
+      </div>
+      HTML;
+      render($body, $flash, $flashKind);
+    }
+
     function renderServerInfoPage(array $realm, string $flash = '', string $flashKind = 'info'): void {
       $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
       $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
       $realmPort = (int)($realm['port'] ?? 0);
-      $patchNote = '<a href="/?download=patch-s">patch-S.mpq</a>';
+      $patchNote = '<a href="/?download=patch-s">patch-S.mpq</a> (client download)';
 
       $body = <<<HTML
       <div class="panel">
@@ -1645,7 +1679,7 @@ data:
                 <li>Use common sense and respect other players.</li>
                 <li>Raid/instance progress is tracked per character.</li>
               </ul>
-              <div class="muted" style="margin-top:12px;">Optional progression patch: {$patchNote}</div>
+              <div class="muted" style="margin-top:12px;">Progression patch S: {$patchNote}</div>
             </div>
           </div>
           <div class="divider"></div>
@@ -1653,7 +1687,7 @@ data:
           <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
             <li>Install a 3.3.5a client from <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a>.</li>
             <li>Set realmlist to: <span class="pill">grim.cooked.beer</span></li>
-            <li>Apply the optional patch if you want classic reagent behavior.</li>
+            <li>Apply the progression patch if you want classic reagent behavior.</li>
           </ol>
         </div>
       </div>
@@ -1795,6 +1829,15 @@ data:
         $threads = listForumThreadsPage($pdo, $categoryId, $limit, $offset, $query);
         $breadcrumb .= ' / ' . htmlspecialchars((string)$category['name']);
 
+        $sticky = listAnnouncements($pdo, 2);
+        $stickyHtml = '';
+        if ($sticky) {
+          $stickyHtml = '<div class="panel" style="margin-top:12px;">' .
+            '<div class="hd"><h2>Sticky Announcements</h2></div>' .
+            '<div class="bd">' . renderAnnouncementsList($sticky, 'No announcements yet.') . '</div>' .
+            '</div>';
+        }
+
         $rows = '';
         foreach ($threads as $t) {
           $title = htmlspecialchars((string)$t['title']);
@@ -1878,10 +1921,12 @@ data:
             {$newThread}
           </div>
         </div>
+        {$stickyHtml}
         HTML;
       } else {
         $cats = listForumCategories($pdo);
         $items = '';
+        $quickLinks = '';
         foreach ($cats as $c) {
           $name = htmlspecialchars((string)$c['name']);
           $desc = htmlspecialchars((string)$c['description']);
@@ -1892,6 +1937,9 @@ data:
             '<div class="muted">' . $desc . '</div>' .
             '<div class="forum-meta">Threads ' . $threads . ' • Posts ' . $posts . '</div>' .
             '</div>';
+          if ($allowPosting) {
+            $quickLinks .= '<a class="pill" href="/?tab=forum&f=' . (int)$c['id'] . '">' . $name . '</a> ';
+          }
         }
         if ($items === '') {
           $items = '<div class="muted">Forum categories are not available yet.</div>';
@@ -1948,6 +1996,16 @@ data:
           $searchResults = '<div class="divider"></div><div class="muted">Search results</div><div class="forum-grid" style="margin-top:12px;">' . $rows . '</div>' . $pagination;
         }
 
+        $startPanel = '';
+        if ($allowPosting && $quickLinks !== '') {
+          $startPanel = '<div class="forum-item"><div class="forum-title">Start a new thread</div>' .
+            '<div class="muted">Choose a category to post in:</div>' .
+            '<div style="margin-top:8px;">' . $quickLinks . '</div></div>';
+        } elseif (!$allowPosting) {
+          $startPanel = '<div class="forum-item"><div class="forum-title">Join the discussion</div>' .
+            '<div class="muted">Log in with your game account to create threads and reply.</div></div>';
+        }
+
         $body = <<<HTML
         <div class="panel">
           <div class="hd"><h2>Forum Index</h2></div>
@@ -1956,6 +2014,7 @@ data:
             {$searchForm}
             <div class="forum-grid" style="margin-top:12px;">
               {$rules}
+              {$startPanel}
               {$items}
             </div>
             {$searchResults}
@@ -1971,7 +2030,7 @@ data:
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
       $tab = (string)($_GET['tab'] ?? 'overview');
-      if (!in_array($tab, ['overview', 'announcements', 'server', 'characters', 'services', 'store', 'stats', 'arena', 'about'], true)) {
+      if (!in_array($tab, ['overview', 'announcements', 'forum', 'server', 'characters', 'store', 'stats', 'about'], true)) {
         $tab = 'overview';
       }
 
@@ -2111,21 +2170,12 @@ data:
       } elseif ($tab === 'characters') {
         $mainTitle = 'Characters';
         $mainBody = <<<HTML
+          <div class="muted">Rename, race change, and unstuck are available per character below.</div>
+          <div class="divider"></div>
           <table class="table">
             <thead><tr><th>Character</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>{$rows}</tbody>
           </table>
-        HTML;
-      } elseif ($tab === 'services') {
-        $mainTitle = 'Services';
-        $mainBody = <<<HTML
-          <div class="muted">Character services are applied on next login (and require the character to be offline).</div>
-          <div style="margin-top:12px;">
-            <div class="pill">Rename</div>
-            <div class="pill">Race Change</div>
-            <div class="pill">Unstuck to Graveyard</div>
-          </div>
-          <div class="muted" style="margin-top:12px;">Go to the Characters tab and use the buttons next to a character.</div>
         HTML;
       } elseif ($tab === 'store') {
         $mainTitle = 'Store';
@@ -2203,51 +2253,6 @@ data:
             <tbody>{$itemsRows}</tbody>
           </table>
         HTML;
-      } elseif ($tab === 'arena') {
-        $charDb = dbName('DB_CHAR_DB', 'acore_characters');
-
-        $teamStmt = $pdo->prepare(
-          "SELECT t.name AS team, t.type, t.rating, t.weekGames, t.weekWins, t.seasonGames, t.seasonWins, " .
-          "c.name AS captain, c.class AS captainClass, c.level AS captainLevel " .
-          "FROM {$charDb}.arena_team t " .
-          "LEFT JOIN {$charDb}.characters c ON c.guid = t.captainGuid " .
-          "WHERE t.type = :type " .
-          "ORDER BY t.rating DESC, t.rank ASC, t.arenaTeamId ASC " .
-          "LIMIT 10"
-        );
-
-        $brackets = [
-          2 => '2v2',
-          3 => '3v3',
-          5 => '5v5',
-        ];
-
-        $sections = '';
-        foreach ($brackets as $type => $label) {
-          $teamStmt->execute([':type' => $type]);
-          $teams = $teamStmt->fetchAll();
-          $rows = '';
-          foreach ($teams as $t) {
-            $team = htmlspecialchars((string)($t['team'] ?? ''));
-            $rating = (int)($t['rating'] ?? 0);
-            $wg = (int)($t['weekGames'] ?? 0);
-            $ww = (int)($t['weekWins'] ?? 0);
-            $sg = (int)($t['seasonGames'] ?? 0);
-            $sw = (int)($t['seasonWins'] ?? 0);
-            $capt = htmlspecialchars((string)($t['captain'] ?? ''));
-            $cClass = (int)($t['captainClass'] ?? 0);
-            $cLevel = (int)($t['captainLevel'] ?? 0);
-            $captCell = $capt !== '' ? (classPill($cClass) . $capt . ' <span class="pill">' . $cLevel . '</span>') : '<span class="muted">—</span>';
-            $rows .= '<tr><td><strong>' . $team . '</strong></td><td><span class="pill">' . $rating . '</span></td><td>' . $captCell . '</td><td><span class="pill">' . $ww . '/' . $wg . '</span></td><td><span class="pill">' . $sw . '/' . $sg . '</span></td></tr>';
-          }
-          if ($rows === '') {
-            $rows = '<tr><td colspan="5" class="muted">No teams found for this bracket.</td></tr>';
-          }
-          $sections .= '<div class="panel" style="margin-top:14px;"><div class="hd"><h2>Arena Ladder ' . htmlspecialchars($label) . '</h2></div><div class="bd"><table class="table"><thead><tr><th>Team</th><th>Rating</th><th>Captain</th><th>Week</th><th>Season</th></tr></thead><tbody>' . $rows . '</tbody></table></div></div>';
-        }
-
-        $mainTitle = 'Arena';
-        $mainBody = '<div class="muted">Current arena ladder snapshot from the characters database.</div>' . $sections;
       } elseif ($tab === 'about') {
         $mainTitle = 'About';
         $mainBody = <<<HTML
@@ -2278,52 +2283,12 @@ data:
             <li>Invite required (ask an admin).</li>
             <li>Client download: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
             <li>Set realmlist: <span class="pill">grim.cooked.beer</span></li>
-            <li>Optional progression patch (WotLK mana costs): <a href="/?download=patch-s">patch-S.mpq</a></li>
+            <li>Progression patch S (client): <a href="/?download=patch-s">patch-S.mpq</a></li>
           </ol>
         HTML;
       } else {
         $mainTitle = 'Stats';
-        $topKills = '';
-        foreach ($stats['top_kills'] as $r) {
-          $name = htmlspecialchars((string)($r['name'] ?? ''));
-          $class = (int)($r['class'] ?? 0);
-          $level = (int)($r['level'] ?? 0);
-          $gained = (int)($r['gained'] ?? 0);
-          $topKills .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">' . $gained . '</span></td></tr>';
-        }
-        if ($topKills === '') {
-          $topKills = '<tr><td colspan="3" class="muted">Not enough data yet.</td></tr>';
-        }
-        $topLv = '';
-        foreach ($stats['top_levels'] as $r) {
-          $name = htmlspecialchars((string)($r['name'] ?? ''));
-          $class = (int)($r['class'] ?? 0);
-          $level = (int)($r['level'] ?? 0);
-          $gained = (int)($r['gained'] ?? 0);
-          $topLv .= '<tr><td>' . classPill($class) . $name . '</td><td><span class="pill">' . $level . '</span></td><td><span class="pill">+' . $gained . '</span></td></tr>';
-        }
-        if ($topLv === '') {
-          $topLv = '<tr><td colspan="3" class="muted">Not enough data yet.</td></tr>';
-        }
-        $mainBody = <<<HTML
-          <div class="muted">Last 7 days (based on daily snapshots).</div>
-          <div class="row" style="align-items:flex-start;margin-top:10px;">
-            <div>
-              <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
-              <table class="table">
-                <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
-                <tbody>{$topKills}</tbody>
-              </table>
-            </div>
-            <div>
-              <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
-              <table class="table">
-                <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
-                <tbody>{$topLv}</tbody>
-              </table>
-            </div>
-          </div>
-        HTML;
+        $mainBody = '<div class="muted">Stats are available on the public Stats tab.</div>';
       }
 
       $body = <<<HTML
@@ -2615,8 +2580,16 @@ data:
         if ($tab === 'forum') {
           renderForumPage($pdo, false, $flash, $flashKind);
         }
+        if ($tab === 'stats') {
+          renderPublicStatsPage($pdo, $stats, $snap, $flash, $flashKind);
+        }
+        if ($tab === 'announcements') {
+          $announcements = listAnnouncements($pdo, 12);
+          renderAnnouncementsPage($announcements, $flash, $flashKind);
+        }
         $announcements = listAnnouncements($pdo, 6);
-        renderLoginPage($stats, $realm, $snap, $announcements, $flash, $flashKind);
+        $latestThreads = listLatestThreads($pdo, 6);
+        renderLoginPage($stats, $realm, $snap, $announcements, $latestThreads, $flash, $flashKind);
       }
 
       if ($tab === 'server') {
@@ -2624,6 +2597,9 @@ data:
       }
       if ($tab === 'forum') {
         renderForumPage($pdo, true, $flash, $flashKind);
+      }
+      if ($tab === 'stats') {
+        renderPublicStatsPage($pdo, $stats, $snap, $flash, $flashKind);
       }
 
       $announcements = listAnnouncements($pdo, 12);
