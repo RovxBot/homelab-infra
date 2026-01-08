@@ -437,7 +437,7 @@ data:
     PlayerStart.String = ""
 
     # Player settings
-    EnablePlayerSettings = 0
+    EnablePlayerSettings = 1
     MaxPlayerLevel = 80
     MinDualSpecLevel = 40
     WaterBreath.Timer = 180000
@@ -588,7 +588,7 @@ data:
     ItemDelete.KeepDays = 0
 
     # DBC settings
-    DBC.EnforceItemAttributes = 1
+    DBC.EnforceItemAttributes = 0
 
     # Drop rates
     Rate.Drop.Item.Poor = 1
