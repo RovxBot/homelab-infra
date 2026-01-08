@@ -406,7 +406,7 @@ data:
         $tabLinks .= '<a class="tab' . $active . '" href="/?tab=' . urlencode($k) . '">' . htmlspecialchars($label) . '</a>';
       }
 
-      $masthead = '<div class="masthead"><h2>Grim Guzzler Battle.net</h2><p>Wrath-era portal for accounts, realm news, and community.</p></div>';
+      $masthead = '';
 
       echo <<<HTML
     <!doctype html>
@@ -1726,7 +1726,7 @@ data:
           $bodyHtml = nl2br(htmlspecialchars((string)$p['body']));
           $created = htmlspecialchars((string)$p['created_at']);
           $isAdminPost = $allowPosting && isset($adminIds[(int)$p['author_account_id']]);
-          $badge = $isAdminPost ? ' <span class="badge admin">Blizzard Rep</span>' : '';
+          $badge = $isAdminPost ? ' <span class="badge admin">Grim Rep</span>' : '';
           $postClass = $isAdminPost ? 'post admin' : 'post';
           $initial = $author !== '' ? strtoupper($author[0]) : '?';
           $avatar = '<div class="avatar">' . htmlspecialchars($initial) . '</div>';
