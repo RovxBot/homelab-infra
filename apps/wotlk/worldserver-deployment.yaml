@@ -116,7 +116,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-bc0aed655b6868135dd99d24317e5caced767fe3
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-c3b0d1bed5b603a659813f87889d491f3c69c075
           imagePullPolicy: Always
           command:
             - bash
@@ -137,7 +137,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-bc0aed655b6868135dd99d24317e5caced767fe3
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-c3b0d1bed5b603a659813f87889d491f3c69c075
           imagePullPolicy: Always
           env:
             - name: AC_UPDATES_ENABLE_DATABASES
