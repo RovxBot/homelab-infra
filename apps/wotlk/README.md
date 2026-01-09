@@ -28,6 +28,22 @@ It builds and pushes these images to GHCR:
 - `ghcr.io/rovxbot/azerothcore-wotlk:db-import-<ref>`
 - `ghcr.io/rovxbot/azerothcore-wotlk:tools-<ref>`
 
+## Weekly upstream summary (since 2025-12-29)
+
+Sources:
+
+- https://github.com/mod-playerbots/mod-playerbots
+- https://github.com/mod-playerbots/azerothcore-wotlk/tree/Playerbot
+
+Highlights:
+
+- Playerbots: party bots no longer try to PvP, safer login handling, mount/vehicle movement fixes, and crash hardening around teleport/ack handling.
+- Playerbots: action/strategy refactors (NextAction, guild manager singleton), plus guild tooling now respects real player guilds.
+- Playerbots: fixes for buff preservation on summon, rooted movement flag updates, and removal of obsolete InitSpells.
+- Core merges: pulled latest AzerothCore master into Playerbot branch (multiple core/script/DB fixes landed).
+- Movement/AI: pet Line of Sight and movement/pathing improvements, attack timer reset fix, and creature movement template loading fix.
+- Content/scripts/DB: quest, loot, creature, SAI, and dungeon script fixes (Icecrown, Naxx, Nexus, Azjol-Nerub, Gundrak, etc).
+
 ## Database bootstrap
 
 `db-bootstrap-cronjob.yaml` clones AzerothCore and loads:
