@@ -1018,8 +1018,8 @@ data:
     AiPlayerbot.RandomBotAutologin = 1
     
     # Randombot count
-    AiPlayerbot.MinRandomBots = 800
-    AiPlayerbot.MaxRandomBots = 1200
+    AiPlayerbot.MinRandomBots = 1000
+    AiPlayerbot.MaxRandomBots = 1500
     
     # Randombot accounts
     # If you are not using any expansion at all, you may have to set this manually, in which case please ensure that RandomBotAccountCount is at least greater than (MaxRandomBots / 10 + AddClassAccountPoolSize)
