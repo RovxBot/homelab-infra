@@ -1356,7 +1356,7 @@ data:
     AiPlayerbot.TooCloseDistance = 5.0
     AiPlayerbot.MeleeDistance = 0.75
     AiPlayerbot.FollowDistance = 1.5
-    AiPlayerbot.WhisperDistance = 6000.0
+    AiPlayerbot.WhisperDistance = 0
     AiPlayerbot.ContactDistance = 0.45
     AiPlayerbot.AoeRadius = 10
     AiPlayerbot.RpgDistance = 200
@@ -2955,7 +2955,7 @@ data:
     # Enable bots emoting
     AiPlayerbot.RandomBotEmote = 0
     # Enable randombots suggesting dungeons in chat
-    AiPlayerbot.RandomBotSuggestDungeons = 1
+    AiPlayerbot.RandomBotSuggestDungeons = 0
     # Bots greet players when invited
     AiPlayerbot.EnableGreet = 0
     # Chance to reply to toxic links with toxic links (0-100)
@@ -3201,9 +3201,9 @@ data:
     
     AuctionHouseBot.ListProportion.CategoryContainer.QualityPoor = 0
     # Disable container category listings (lockboxes / sacks / similar) to prevent common exploit vectors.
-    AuctionHouseBot.ListProportion.CategoryContainer.QualityNormal = 0
-    AuctionHouseBot.ListProportion.CategoryContainer.QualityUncommon = 0
-    AuctionHouseBot.ListProportion.CategoryContainer.QualityRare = 0
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityNormal = 10
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityUncommon = 4
+    AuctionHouseBot.ListProportion.CategoryContainer.QualityRare = 1
     AuctionHouseBot.ListProportion.CategoryContainer.QualityEpic = 0
     AuctionHouseBot.ListProportion.CategoryContainer.QualityLegendary = 0
     AuctionHouseBot.ListProportion.CategoryContainer.QualityArtifact = 0
