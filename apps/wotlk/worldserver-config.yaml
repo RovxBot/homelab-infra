@@ -424,7 +424,7 @@ data:
     CharactersPerAccount = 50
     CharactersPerRealm = 10
     HeroicCharactersPerRealm = 1
-    CharacterCreating.MinLevelForHeroicCharacter = 55
+    CharacterCreating.MinLevelForHeroicCharacter = 1
 
     # Starting level settings
     StartPlayerLevel = 1
