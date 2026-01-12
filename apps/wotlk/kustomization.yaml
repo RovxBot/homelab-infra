@@ -6,6 +6,13 @@ generatorOptions:
   disableNameSuffixHash: true
 
 configMapGenerator:
+  - name: wotlk-worldserver-config
+    files:
+      - worldserver.conf=config/worldserver.conf
+      - playerbots.conf=config/playerbots.conf
+      - mod_ahbot.conf=config/mod_ahbot.conf
+    options:
+      disableNameSuffixHash: false
   - name: wotlk-realmfirst-sql
     files:
       - realmfirst.sql=realmfirst.sql
@@ -14,7 +21,6 @@ configMapGenerator:
       - playerbots-normalize-ascii.sql=playerbots-normalize-ascii.sql
 resources:
   - namespace.yaml
-  - config/
   - client-files-pv.yaml
   - mariadb-pvc.yaml
   - mariadb-service.yaml
@@ -50,4 +56,4 @@ replacements:
           kind: Deployment
           name: wotlk-worldserver
         fieldPaths:
-          - spec.template.metadata.annotations.[checksum/worldserver-config]
+          - spec.template.metadata.annotations.checksum~1worldserver-config
