@@ -14,6 +14,7 @@ configMapGenerator:
       - playerbots-normalize-ascii.sql=playerbots-normalize-ascii.sql
 resources:
   - namespace.yaml
+  - config/
   - client-files-pv.yaml
   - mariadb-pvc.yaml
   - mariadb-service.yaml
@@ -37,5 +38,16 @@ resources:
   - accountmgr-service.yaml
   - authserver-config.yaml
   - authserver-deployment.yaml
-  - worldserver-config.yaml
   - worldserver-deployment.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: wotlk-worldserver-config
+      fieldPath: metadata.name
+    targets:
+      - select:
+          kind: Deployment
+          name: wotlk-worldserver
+        fieldPaths:
+          - spec.template.metadata.annotations.[checksum/worldserver-config]
