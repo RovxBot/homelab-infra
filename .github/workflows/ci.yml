@@ -1,0 +1,24 @@
+name: Repo Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  repo-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure forbidden files are not tracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden_regex='(^|/)(age-key\.txt|.*\.key|.*\.pem|.*\.p12|.*\.pfx|.*\.age|.*\.agekey|immich_backup_.*\.sql|modules/mod-playerbots/data/sql/playerbots/base/playerbots_travelnode_path\.sql)$'
+          if git ls-files | grep -E "$forbidden_regex"; then
+            echo "Forbidden files are tracked. Remove them before merging."
+            exit 1
+          fi
