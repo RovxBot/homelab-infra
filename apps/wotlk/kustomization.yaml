@@ -55,5 +55,7 @@ replacements:
       - select:
           kind: Deployment
           name: wotlk-worldserver
+        options:
+          create: true
         fieldPaths:
           - spec.template.metadata.annotations.checksum~1worldserver-config
