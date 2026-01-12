@@ -72,10 +72,10 @@ spec:
               set -eu
               apk add --no-cache gettext >/dev/null
               mkdir -p /etc-out/modules
-      envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
-      envsubst < /etc-tpl/playerbots.conf > /etc-out/modules/playerbots.conf
-      envsubst < /etc-tpl/mod_ahbot.conf > /etc-out/modules/mod_ahbot.conf
-      chmod -R a+rwX /etc-out
+              envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
+              envsubst < /etc-tpl/playerbots.conf > /etc-out/modules/playerbots.conf
+              envsubst < /etc-tpl/mod_ahbot.conf > /etc-out/modules/mod_ahbot.conf
+              chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
               value: wotlk-mariadb.wotlk.svc.cluster.local
