@@ -8,6 +8,8 @@ configMapGenerator:
       - worldserver.conf=config/worldserver.conf
       - playerbots.conf=config/playerbots.conf
       - mod_ahbot.conf=config/mod_ahbot.conf
+      - individualProgression.conf=config/individualProgression.conf
+      - transmog.conf=config/transmog.conf
     options:
       disableNameSuffixHash: false
   - name: wotlk-realmfirst-sql

@@ -74,6 +74,8 @@ spec:
               envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
               envsubst < /etc-tpl/playerbots.conf > /etc-out/modules/playerbots.conf
               envsubst < /etc-tpl/mod_ahbot.conf > /etc-out/modules/mod_ahbot.conf
+              envsubst < /etc-tpl/individualProgression.conf > /etc-out/modules/individualProgression.conf
+              envsubst < /etc-tpl/transmog.conf > /etc-out/modules/transmog.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
