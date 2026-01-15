@@ -67,14 +67,14 @@
     },
     {
       "description": "Group Immich image updates together.",
-      "matchPaths": [
+      "matchFileNames": [
         "apps/immich/**"
       ],
       "groupName": "immich"
     },
     {
       "description": "Group media stack image updates together.",
-      "matchPaths": [
+      "matchFileNames": [
         "apps/jellyfin/**",
         "apps/jellyseerr/**",
         "apps/prowlarr/**",
@@ -86,7 +86,7 @@
     },
     {
       "description": "Group homepage-related updates together.",
-      "matchPaths": [
+      "matchFileNames": [
         "apps/homepage/**",
         "infra/pod-report/**"
       ],
@@ -94,7 +94,7 @@
     },
     {
       "description": "Group tunnel/VPN updates together.",
-      "matchPaths": [
+      "matchFileNames": [
         "infra/cloudflared/**",
         "infra/tailscale/**",
         "infra/wireguard/**",
