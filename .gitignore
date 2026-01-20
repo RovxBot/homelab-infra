@@ -14,3 +14,4 @@ age-key.txt
 .env.*
 immich_backup_*.sql
 modules/mod-playerbots/data/sql/playerbots/base/playerbots_travelnode_path.sql
+ops/playerbots/Playerbots.log
