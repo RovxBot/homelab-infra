@@ -13,6 +13,14 @@ stringData:
       smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp-auth/smtp-password
       smtp_require_tls: true
 
+    inhibit_rules:
+      - source_matchers:
+          - alertname="InfoInhibitor"
+        target_matchers:
+          - severity="info"
+        equal:
+          - namespace
+
     route:
       receiver: email
       group_by: [alertname, job, namespace]
