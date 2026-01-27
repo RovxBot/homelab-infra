@@ -33,8 +33,8 @@ SET @FACTION_ALLIANCE := 11;
 -- Cleanup (re-runnable)
 -- --------------------------------------------------------------------
 DELETE FROM creature_formations
-WHERE leaderGUID IN (SELECT guid FROM creature WHERE id1 IN (@ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2))
-   OR memberGUID IN (SELECT guid FROM creature WHERE id1 IN (@ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2));
+WHERE leaderGUID IN (SELECT guid FROM creature WHERE id1 IN (@ENTRY_DRESK, @ENTRY_HEALER1, @ENTRY_HEALER2))
+   OR memberGUID IN (SELECT guid FROM creature WHERE id1 IN (@ENTRY_DRESK, @ENTRY_HEALER1, @ENTRY_HEALER2));
 DELETE FROM waypoint_data WHERE id IN (SELECT guid FROM creature WHERE id1 = @ENTRY_DAISH);
 DELETE FROM smart_scripts WHERE entryorguid IN (@ENTRY_NUBMAGE, @ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2) AND source_type = 0;
 DELETE FROM creature_text WHERE CreatureID IN (@ENTRY_NUBMAGE, @ENTRY_DAISH);
@@ -42,10 +42,10 @@ DELETE FROM creature_equip_template WHERE CreatureID IN (@ENTRY_NUBMAGE, @ENTRY_
 DELETE FROM conditions WHERE SourceTypeOrReferenceId = 15 AND SourceGroup = @ENTRY_NUBMAGE;
 DELETE FROM gossip_menu_option WHERE MenuID = @ENTRY_NUBMAGE;
 DELETE FROM gossip_menu WHERE MenuID = @ENTRY_NUBMAGE;
-DELETE FROM creature_template_gossip WHERE CreatureID = @ENTRY_NUBMAGE;
-DELETE FROM creature WHERE id1 IN (@ENTRY_NUBMAGE, @ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2);
-DELETE FROM creature_template_model WHERE CreatureID IN (@ENTRY_NUBMAGE, @ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2);
-DELETE FROM creature_template WHERE entry IN (@ENTRY_NUBMAGE, @ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2);
+DELETE FROM creature_template_gossip WHERE CreatureID = @ENTRY_NUBMAGE
+DELETE FROM creature WHERE id1 IN (@ENTRY_NUBMAGE, @ENTRY_DRESK, @ENTRY_HEALER1, @ENTRY_HEALER2);
+DELETE FROM creature_template_model WHERE CreatureID IN (@ENTRY_NUBMAGE, @ENTRY_DRESK, @ENTRY_HEALER1, @ENTRY_HEALER2);
+DELETE FROM creature_template WHERE entry IN (@ENTRY_NUBMAGE, @ENTRY_DRESK, @ENTRY_HEALER1, @ENTRY_HEALER2);
 
 -- Allocate GUIDs dynamically (so the file works on any DB state)
 SET @GUID_BASE := (SELECT IFNULL(MAX(guid), 0) + 1 FROM creature);
@@ -357,7 +357,7 @@ SET @GOSSIP_MENU_NUBMAGE := @ENTRY_NUBMAGE;  -- Use entry as menu ID for simplic
 
 DELETE FROM gossip_menu WHERE MenuID = @GOSSIP_MENU_NUBMAGE;
 INSERT INTO gossip_menu (MenuID, TextID)
-VALUES (@GOSSIP_MENU_NUBMAGE, 1);  -- TextID 1 = generic "Greetings" (or create custom npc_text)
+VALUES (@GOSSIP_MENU_NUBMAGE, 'Yes what is it? Nubmage has many portals to make and very little time!');  -- TextID 1 = generic "Greetings" (or create custom npc_text)
 
 -- Link creature to gossip menu
 DELETE FROM creature_template_gossip WHERE CreatureID = @ENTRY_NUBMAGE;
@@ -369,12 +369,10 @@ DELETE FROM gossip_menu_option WHERE MenuID = @GOSSIP_MENU_NUBMAGE;
 INSERT INTO gossip_menu_option (MenuID, OptionID, OptionIcon, OptionText, OptionBroadcastTextID, OptionType, OptionNpcFlag, ActionMenuID, ActionPoiID, BoxCoded, BoxMoney, BoxText)
 VALUES
   -- Options 0-3: Player has enough gold (10g = 100000 copper)
-  (@GOSSIP_MENU_NUBMAGE, 0,  6, 'Portal to Orgrimmar [10g]',     0, 1, 1, 0, 0, 0, 100000, 'Nubmage demands 10 gold for this portal. Pay up!'),
   (@GOSSIP_MENU_NUBMAGE, 1,  6, 'Portal to Thunder Bluff [10g]', 0, 1, 1, 0, 0, 0, 100000, 'Nubmage demands 10 gold for this portal. Pay up!'),
   (@GOSSIP_MENU_NUBMAGE, 2,  6, 'Portal to Undercity [10g]',     0, 1, 1, 0, 0, 0, 100000, 'Nubmage demands 10 gold for this portal. Pay up!'),
   (@GOSSIP_MENU_NUBMAGE, 3,  6, 'Portal to Silvermoon [10g]',    0, 1, 1, 0, 0, 0, 100000, 'Nubmage demands 10 gold for this portal. Pay up!'),
   -- Options 10-13: Player does NOT have enough gold (shows grayed-out style)
-  (@GOSSIP_MENU_NUBMAGE, 10, 0, 'Portal to Orgrimmar [10g] - Not enough gold!',     0, 1, 1, 0, 0, 0, 0, NULL),
   (@GOSSIP_MENU_NUBMAGE, 11, 0, 'Portal to Thunder Bluff [10g] - Not enough gold!', 0, 1, 1, 0, 0, 0, 0, NULL),
   (@GOSSIP_MENU_NUBMAGE, 12, 0, 'Portal to Undercity [10g] - Not enough gold!',     0, 1, 1, 0, 0, 0, 0, NULL),
   (@GOSSIP_MENU_NUBMAGE, 13, 0, 'Portal to Silvermoon [10g] - Not enough gold!',    0, 1, 1, 0, 0, 0, 0, NULL);
@@ -385,12 +383,10 @@ DELETE FROM conditions WHERE SourceTypeOrReferenceId = 15 AND SourceGroup = @GOS
 INSERT INTO conditions (SourceTypeOrReferenceId, SourceGroup, SourceEntry, SourceId, ElseGroup, ConditionTypeOrReference, ConditionTarget, ConditionValue1, ConditionValue2, ConditionValue3, NegativeCondition, ErrorType, ErrorTextId, ScriptName, Comment)
 VALUES
   -- Show options 0-3 only if player has >= 100000 copper (10g)
-  (15, @GOSSIP_MENU_NUBMAGE, 0,  0, 0, 7, 0, 100000, 0, 0, 0, 0, 0, '', 'Nubmage - Orgrimmar option requires 10g'),
   (15, @GOSSIP_MENU_NUBMAGE, 1,  0, 0, 7, 0, 100000, 0, 0, 0, 0, 0, '', 'Nubmage - Thunder Bluff option requires 10g'),
   (15, @GOSSIP_MENU_NUBMAGE, 2,  0, 0, 7, 0, 100000, 0, 0, 0, 0, 0, '', 'Nubmage - Undercity option requires 10g'),
   (15, @GOSSIP_MENU_NUBMAGE, 3,  0, 0, 7, 0, 100000, 0, 0, 0, 0, 0, '', 'Nubmage - Silvermoon option requires 10g'),
   -- Show options 10-13 only if player has < 100000 copper (negated condition)
-  (15, @GOSSIP_MENU_NUBMAGE, 10, 0, 0, 7, 0, 100000, 0, 0, 1, 0, 0, '', 'Nubmage - Orgrimmar no-gold option'),
   (15, @GOSSIP_MENU_NUBMAGE, 11, 0, 0, 7, 0, 100000, 0, 0, 1, 0, 0, '', 'Nubmage - Thunder Bluff no-gold option'),
   (15, @GOSSIP_MENU_NUBMAGE, 12, 0, 0, 7, 0, 100000, 0, 0, 1, 0, 0, '', 'Nubmage - Undercity no-gold option'),
   (15, @GOSSIP_MENU_NUBMAGE, 13, 0, 0, 7, 0, 100000, 0, 0, 1, 0, 0, '', 'Nubmage - Silvermoon no-gold option');
