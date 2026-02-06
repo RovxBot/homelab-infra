@@ -1,19 +1,19 @@
 ---
-title: cooked.beer
+title: cooked.beer // Mission Control
 theme: dark
 color: violet
 headerStyle: boxedWidgets
 hideVersion: true
 useEqualHeights: true
-statusStyle: "dot"
+statusStyle: badge
 
 background:
   image: /assets/998981.jpg
-  opacity: 38
-  blur: none
-  saturate: 130
-  brightness: 108
-cardBlur: md
+  opacity: 34
+  blur: sm
+  saturate: 135
+  brightness: 110
+cardBlur: lg
 
 quicklaunch:
   searchDescriptions: true
@@ -21,25 +21,26 @@ quicklaunch:
   showSearchSuggestions: true
   mobileButtonPosition: bottom-right
 
+providers:
+  longhorn:
+    url: http://longhorn-frontend.longhorn-system.svc.cluster.local
+
 layout:
-  Apps:
+  Mission Control:
     style: row
     columns: 3
-  Games:
+  Media Stack:
     style: row
     columns: 3
-  Media:
+  Game Worlds:
     style: row
     columns: 3
-  Security:
+  Security & Access:
     style: row
     columns: 3
-  Observability:
+  Storage & Cluster:
     style: row
-    columns: 3
-  Cluster:
-    style: row
-    columns: 3
-  Me:
+    columns: 2
+  Personal:
     style: row
     columns: 3

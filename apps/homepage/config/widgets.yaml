@@ -1,7 +1,8 @@
 ---
 - greeting:
-    text_size: xl
-    text: cooked.beer
+    text_size: 2xl
+    text: cooked.beer // Mission Control
+    subtext: Stay curious, ship often
 
 - search:
     provider: duckduckgo
@@ -16,9 +17,18 @@
 
 - kubernetes:
     cluster:
-      show: false
+      show: true
+      cpu: true
+      memory: true
+      showLabel: true
     nodes:
       show: true
       cpu: true
       memory: true
       showLabel: true
+
+- longhorn:
+    expanded: true
+    total: true
+    labels: true
+    nodes: true

@@ -354,3 +354,86 @@ h3,
     margin-left: 0;
   }
 }
+
+/* Section headers: neon beams that visually separate each stack */
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  font-size: 0.78rem;
+  color: rgb(var(--anime-white) / 0.76);
+  padding: 0.25rem 0;
+}
+
+.group-title::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--anime-pink) / 0.0), rgb(var(--anime-violet) / 0.55), rgb(var(--anime-cyan) / 0.0));
+  box-shadow: 0 0 24px rgb(var(--anime-violet) / 0.35);
+}
+
+.group-title h2 {
+  font-size: 0.95rem !important;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: inherit;
+}
+
+/* Bookmark stacks share the same liquid-glass treatment as service cards */
+.bookmark-group {
+  background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.58), rgb(var(--anime-glass) / 0.25));
+  border-radius: 18px;
+  border: 1px solid rgb(var(--glass-border) / 0.12);
+  box-shadow:
+    0 18px 38px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(var(--anime-violet) / 0.16) inset;
+  padding: 1rem 1rem 0.25rem;
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.bookmark-group-name {
+  font-size: 0.9rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  color: rgb(var(--anime-white) / 0.75);
+}
+
+.bookmark-list {
+  gap: 0.85rem !important;
+}
+
+.bookmark a {
+  border: 1px solid rgb(var(--glass-border) / 0.08);
+  background: linear-gradient(180deg, rgb(var(--anime-glass) / 0.55), rgb(var(--anime-glass) / 0.25));
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 0.3),
+    0 0 0 1px rgb(var(--anime-pink) / 0.14) inset;
+}
+
+.bookmark a:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 18px 44px rgb(0 0 0 / 0.4),
+    0 0 0 1px rgb(var(--anime-cyan) / 0.2) inset;
+}
+
+.bookmark-icon {
+  background: rgb(var(--anime-glass) / 0.35) !important;
+  border-right: 1px solid rgb(var(--glass-border) / 0.08);
+  text-shadow: 0 0 18px rgb(var(--anime-violet) / 0.4);
+}
+
+.bookmark-name {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.bookmark-description {
+  text-transform: none;
+  letter-spacing: 0.08em;
+  font-size: 0.65rem !important;
+}

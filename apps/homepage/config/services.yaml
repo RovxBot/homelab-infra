@@ -1,10 +1,10 @@
 ---
-- Apps:
+- Mission Control:
     - Homepage:
         href: https://homepage.cooked.beer
         siteMonitor: http://homepage.homepage.svc.cluster.local:3000
-        description: Dashboard
-        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/dashboard-icons.svg
+        description: Mission dashboard
+        icon: homepage
         target: _blank
         widget:
           type: kubernetes
@@ -14,53 +14,49 @@
     - Immich:
         href: https://immich.cooked.beer
         siteMonitor: http://immich-server.immich.svc.cluster.local:2283/api/server/ping
-        description: Photos
-        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/immich.svg
+        description: Photos & shared albums
+        icon: immich
         target: _blank
         widget:
           type: kubernetes
           namespace: immich
           app: immich-server
           podSelector: app=immich-server
+    - Grafana:
+        href: https://grafana.cooked.beer
+        siteMonitor: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80/api/health
+        description: Dashboards & logs
+        icon: grafana
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: monitoring
+          app: grafana
+          podSelector: app.kubernetes.io/name=grafana,app.kubernetes.io/instance=kube-prometheus-stack
+    - Prometheus:
+        href: https://prometheus.cooked.beer
+        siteMonitor: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/-/ready
+        description: Metrics & alert rules
+        icon: prometheus
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: monitoring
+          app: prometheus
+          podSelector: prometheus=kube-prometheus-stack-prometheus
+    - Alertmanager:
+        href: https://alertmanager.cooked.beer
+        siteMonitor: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/-/ready
+        description: Paging & routing
+        icon: alertmanager
+        target: _blank
+        widget:
+          type: kubernetes
+          namespace: monitoring
+          app: alertmanager
+          podSelector: alertmanager=kube-prometheus-stack-alertmanager
 
-- Games:
-    - WotLK Authserver:
-        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
-        description: Auth / realm list (TCP 3724 on metal7)
-        icon: /icons/wotlk.svg
-        target: _blank
-        widget:
-          type: kubernetes
-          namespace: wotlk
-          app: wotlk-authserver
-          podSelector: app=wotlk-authserver
-    - WotLK Worldserver:
-        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
-        description: World server (TCP 8085 on metal7)
-        icon: /icons/wotlk.svg
-        target: _blank
-        widget:
-          type: kubernetes
-          namespace: wotlk
-          app: wotlk-worldserver
-          podSelector: app=wotlk-worldserver
-    - WotLK Account Manager (LAN):
-        href: https://grimguzzler.cooked.beer/
-        siteMonitor: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
-        description: Account creation / invites
-        icon: /icons/accountmgr.svg
-        target: _blank
-    - WotLK DB (MariaDB):
-        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
-        description: Characters / world DB
-        icon: /icons/mariadb.svg
-        target: _blank
-        widget:
-          type: kubernetes
-          namespace: wotlk
-          app: wotlk-mariadb
-          podSelector: app=wotlk-mariadb
-- Media:
+- Media Stack:
     - Radarr:
         href: https://radarr.cooked.beer
         siteMonitor: http://radarr.media.svc.cluster.local:7878
@@ -75,7 +71,7 @@
     - Sonarr:
         href: https://sonarr.cooked.beer
         siteMonitor: http://sonarr.media.svc.cluster.local:8989/ping
-        description: TV automation
+        description: Series automation
         icon: sonarr
         target: _blank
         widget:
@@ -128,42 +124,45 @@
           app: jellyfin
           podSelector: app=jellyfin
 
-- Observability:
-    - Grafana:
-        href: https://grafana.cooked.beer
-        siteMonitor: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80/api/health
-        description: Dashboards & logs
-        icon: grafana
+- Game Worlds:
+    - WotLK Authserver:
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
+        description: Auth / realm list (TCP 3724 on metal7)
+        icon: /icons/wotlk.svg
         target: _blank
         widget:
           type: kubernetes
-          namespace: monitoring
-          app: grafana
-          podSelector: app.kubernetes.io/name=grafana,app.kubernetes.io/instance=kube-prometheus-stack
-    - Prometheus:
-        href: https://prometheus.cooked.beer
-        siteMonitor: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/-/ready
-        description: Metrics & rules
-        icon: prometheus
+          namespace: wotlk
+          app: wotlk-authserver
+          podSelector: app=wotlk-authserver
+    - WotLK Worldserver:
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
+        description: World server (TCP 8085 on metal7)
+        icon: /icons/wotlk.svg
         target: _blank
         widget:
           type: kubernetes
-          namespace: monitoring
-          app: prometheus
-          podSelector: prometheus=kube-prometheus-stack-prometheus
-    - Alertmanager:
-        href: https://alertmanager.cooked.beer
-        siteMonitor: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/-/ready
-        description: Alert routing
-        icon: alertmanager
+          namespace: wotlk
+          app: wotlk-worldserver
+          podSelector: app=wotlk-worldserver
+    - WotLK Account Manager (LAN):
+        href: https://grimguzzler.cooked.beer/
+        siteMonitor: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
+        description: Account creation / invites
+        icon: /icons/accountmgr.svg
+        target: _blank
+    - WotLK DB (MariaDB):
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
+        description: Characters / world DB
+        icon: /icons/mariadb.svg
         target: _blank
         widget:
           type: kubernetes
-          namespace: monitoring
-          app: alertmanager
-          podSelector: alertmanager=kube-prometheus-stack-alertmanager
+          namespace: wotlk
+          app: wotlk-mariadb
+          podSelector: app=wotlk-mariadb
 
-- Security:
+- Security & Access:
     - Vaultwarden:
         href: https://vault.cooked.beer
         siteMonitor: http://vaultwarden.security.svc.cluster.local:80
@@ -175,8 +174,13 @@
           namespace: security
           app: vaultwarden
           podSelector: app=vaultwarden
+    - Cloudflare Zero Trust:
+        href: https://one.dash.cloudflare.com/
+        description: Access policies & tunnels
+        icon: cloudflare
+        target: _blank
 
-- Cluster:
+- Storage & Cluster:
     - Longhorn (LAN):
         href: http://192.168.1.190:30080
         siteMonitor: http://longhorn-frontend.longhorn-system.svc.cluster.local:80
@@ -195,7 +199,7 @@
         icon: kubernetes
         target: _blank
 
-- Me:
+- Personal:
     - GitHub:
         href: https://github.com/RovxBot
         description: My profile
@@ -205,9 +209,4 @@
         href: https://rovblog.cooked.beer
         description: rovblog.cooked.beer
         icon: mdi-rss
-        target: _blank
-    - Cloudflare:
-        href: https://dash.cloudflare.com/
-        description: Login / dashboard
-        icon: cloudflare
         target: _blank

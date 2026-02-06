@@ -1,2 +1,40 @@
 ---
-[]
+- Quick Links:
+	- Ops:
+		- Homelab Infra Repo:
+			href: https://github.com/RovxBot/homelab-infra
+			icon: github
+			description: Flux + manifests
+		- Ops Runbooks:
+			href: https://github.com/RovxBot/homelab-infra/tree/main/ops
+			icon: mdi-notebook-outline
+			description: Handy commands & docs
+	- Reference:
+		- WotLK Notes:
+			href: https://github.com/RovxBot/homelab-infra/blob/main/WOTLK.md
+			icon: mdi-book-open-page-variant
+			description: Patch + rollout notes
+		- Playerbot Tuning:
+			href: https://github.com/RovxBot/homelab-infra/tree/main/wotlk-playerbots
+			icon: mdi-robot-outline
+			description: NPC tweaks & scripts
+
+- Edge & Access:
+	- Networking:
+		- Tailscale Admin:
+			href: https://login.tailscale.com/admin/machines
+			icon: mdi-lan
+			description: Device inventory
+		- WireGuard Peers:
+			href: https://github.com/RovxBot/homelab-infra/tree/main/wireguard
+			icon: mdi-shield-lock-outline
+			description: Peer manifests & configs
+	- Cloud:
+		- Cloudflare Analytics:
+			href: https://dash.cloudflare.com/
+			icon: cloudflare
+			description: Zones, DNS, rules
+		- Backblaze B2 Buckets:
+			href: https://secure.backblaze.com/b2_buckets.htm
+			icon: mdi-database-lock
+			description: Longhorn + restic storage
