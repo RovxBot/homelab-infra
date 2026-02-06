@@ -1,7 +1,4 @@
 - Quick Links:
-    - layout:
-        style: row
-        columns: 2
     - Homelab Infra Repo:
         href: https://github.com/RovxBot/homelab-infra
         icon: github
@@ -20,9 +17,6 @@
         description: NPC tweaks & scripts
 
 - "Edge & Access":
-    - layout:
-        style: row
-        columns: 2
     - Tailscale Admin:
         href: https://login.tailscale.com/admin/machines
         icon: mdi-lan
