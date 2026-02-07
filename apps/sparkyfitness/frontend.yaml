@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: sparkyfitness-frontend
-          image: codewithcj/sparkyfitness:v0.16.3.7@sha256:e838c187518a01b6e3d1d3418dbb7df2baec8365bdc1f1c8ea36cfd26173203f
+          image: codewithcj/sparkyfitness:v0.16.4.1@sha256:4e380f3a90bce1a3e2c279fb829287af63d97c73315af1c6a62216040d76e8d9
           imagePullPolicy: IfNotPresent
           env:
             - name: SPARKY_FITNESS_SERVER_HOST
