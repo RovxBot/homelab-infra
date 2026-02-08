@@ -69,6 +69,6 @@ spec:
                   done
 
                   echo "Upserting realm row (no DB wipe)..."
-                  db --database "acore_auth" --execute "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, flag, timezone, allowedSecurityLevel, population, gamebuild) VALUES (${REALM_ID}, '${REALM_NAME}', '${REALM_ADDRESS}', '${REALM_LOCAL_ADDRESS}', '${REALM_LOCAL_SUBNET}', ${REALM_WORLD_PORT}, ${REALM_FLAG}, 1, 0, 0, ${REALM_GAMEBUILD}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), localAddress=VALUES(localAddress), localSubnetMask=VALUES(localSubnetMask), port=VALUES(port), flag=VALUES(flag), gamebuild=VALUES(gamebuild);"
+                  db --database "acore_auth" --execute "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, flag, timezone, allowedSecurityLevel, population, gamebuild) VALUES (${REALM_ID}, '${REALM_NAME}', '${REALM_ADDRESS}', '${REALM_LOCAL_ADDRESS}', '${REALM_LOCAL_SUBNET}', ${REALM_WORLD_PORT}, ${REALM_FLAG}, 3, 0, 0, ${REALM_GAMEBUILD}) ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), localAddress=VALUES(localAddress), localSubnetMask=VALUES(localSubnetMask), port=VALUES(port), flag=VALUES(flag), gamebuild=VALUES(gamebuild);"
 
                   db --database "acore_auth" --execute "SELECT id,name,address,localAddress,localSubnetMask,port,gamebuild FROM realmlist WHERE id=${REALM_ID};"
