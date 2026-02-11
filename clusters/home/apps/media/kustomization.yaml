@@ -4,4 +4,5 @@ resources:
   - ../../../../apps/shared
   - ../../../../apps/jellyfin
   - ../../../../apps/immich
+  - ../../../../apps/ollama
   - ../../../../apps/vaultwarden
