@@ -3,6 +3,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: ollama-data
   namespace: ollama
+  labels:
+    recurring-job.longhorn.io/source: enabled
+    recurring-job-group.longhorn.io/ollama-excluded: enabled
 spec:
   accessModes:
     - ReadWriteOnce
