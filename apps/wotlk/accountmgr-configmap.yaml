@@ -700,7 +700,13 @@ data:
           right: 24px;
           bottom: 20px;
           z-index: 2;
-          max-width: 720px;
+          max-width: 760px;
+          padding: 14px 14px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 221, 148, .18);
+          background:
+            linear-gradient(180deg, rgba(8, 18, 32, .72), rgba(7, 14, 26, .74));
+          box-shadow: 0 14px 30px rgba(0,0,0,.34);
         }
         .home-kicker {
           display: inline-flex;
@@ -774,12 +780,7 @@ data:
           display: grid;
           gap: 14px;
           align-content: start;
-        }
-        @media (min-width: 980px) {
-          .home-columns {
-            grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
-            align-items: start;
-          }
+          max-width: 1040px;
         }
         .home-stack {
           max-width: 920px;
