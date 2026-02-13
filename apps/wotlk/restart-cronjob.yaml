@@ -27,9 +27,9 @@ spec:
               env:
                 - name: NAMESPACE
                   value: wotlk
-                - name: WORLD_LABEL
-                  value: app=wotlk-worldserver
-                - name: WORLD_CONTAINER
+                - name: SOAP_POD_LABEL
+                  value: app=wotlk-accountmgr
+                - name: SOAP_CONTAINER
                   value: accountmgr
                 - name: WORLD_DEPLOY
                   value: wotlk-worldserver
@@ -44,26 +44,26 @@ spec:
                   set -euo pipefail
 
                   ns="${NAMESPACE}"
-                  label="${WORLD_LABEL}"
-                  container="${WORLD_CONTAINER}"
+                  label="${SOAP_POD_LABEL}"
+                  container="${SOAP_CONTAINER}"
 
-                  get_world_pod() {
+                  get_soap_pod() {
                     kubectl -n "${ns}" get pod -l "${label}" -o jsonpath='{.items[0].metadata.name}'
                   }
 
                   soap_exec() {
                     local command="$1"
                     local pod
-                    pod="$(get_world_pod)"
+                    pod="$(get_soap_pod)"
                     if [ -z "${pod}" ]; then
-                      echo "No worldserver pod found (label=${label})" >&2
+                      echo "No SOAP-capable pod found (label=${label})" >&2
                       return 1
                     fi
 
-                    # Execute SOAP from inside the accountmgr sidecar (has curl and SOAP creds in env).
+                    # Execute SOAP from the dedicated accountmgr pod (has PHP and SOAP creds in env).
                     kubectl -n "${ns}" exec "${pod}" -c "${container}" -- sh -lc "
                       set -eu
-                      SOAP_URL=\"\${SOAP_URL:-http://127.0.0.1:7878/}\"
+                      SOAP_URL=\"\${SOAP_URL:-http://wotlk-worldserver-soap.wotlk.svc.cluster.local:7878/}\"
                       SOAP_USER=\"\${SOAP_USERNAME:-}\"
                       SOAP_PASS=\"\${SOAP_PASSWORD:-}\"
                       if [ -z \"\${SOAP_USER}\" ] || [ -z \"\${SOAP_PASS}\" ]; then
@@ -71,8 +71,28 @@ spec:
                         exit 1
                       fi
                       cmd=\"$command\"
-                      xml=\"<?xml version=\\\"1.0\\\" encoding=\\\"utf-8\\\"?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\\\"http://schemas.xmlsoap.org/soap/envelope/\\\" xmlns:xsi=\\\"http://www.w3.org/2001/XMLSchema-instance\\\" xmlns:xsd=\\\"http://www.w3.org/2001/XMLSchema\\\"><SOAP-ENV:Body><executeCommand xmlns=\\\"urn:AC\\\"><command>\${cmd}</command></executeCommand></SOAP-ENV:Body></SOAP-ENV:Envelope>\"
-                      curl -sS -u \"\${SOAP_USER}:\${SOAP_PASS}\" -H \"Content-Type: text/xml; charset=utf-8\" -H \"SOAPAction: urn:AC#executeCommand\" --data \"\${xml}\" \"\${SOAP_URL}\" >/dev/null
+                      SOAP_URL=\"\${SOAP_URL}\" SOAP_USER=\"\${SOAP_USER}\" SOAP_PASS=\"\${SOAP_PASS}\" SOAP_CMD=\"\${cmd}\" php -r '
+                        \$url = getenv(\"SOAP_URL\") ?: \"http://wotlk-worldserver-soap.wotlk.svc.cluster.local:7878/\";
+                        \$user = getenv(\"SOAP_USER\") ?: \"\";
+                        \$pass = getenv(\"SOAP_PASS\") ?: \"\";
+                        \$cmd = getenv(\"SOAP_CMD\") ?: \"\";
+                        if (\$user === \"\" || \$pass === \"\" || \$cmd === \"\") { fwrite(STDERR, \"missing soap env\\n\"); exit(1); }
+                        \$xml = \"<?xml version=\\\"1.0\\\" encoding=\\\"utf-8\\\"?>\" .
+                          \"<SOAP-ENV:Envelope xmlns:SOAP-ENV=\\\"http://schemas.xmlsoap.org/soap/envelope/\\\" xmlns:xsi=\\\"http://www.w3.org/2001/XMLSchema-instance\\\" xmlns:xsd=\\\"http://www.w3.org/2001/XMLSchema\\\">\" .
+                          \"<SOAP-ENV:Body><executeCommand xmlns=\\\"urn:AC\\\"><command>\" . htmlspecialchars(\$cmd, ENT_XML1) . \"</command></executeCommand></SOAP-ENV:Body></SOAP-ENV:Envelope>\";
+                        \$auth = base64_encode(\$user . \":\" . \$pass);
+                        \$ctx = stream_context_create([
+                          \"http\" => [
+                            \"method\" => \"POST\",
+                            \"header\" => \"Content-Type: text/xml; charset=utf-8\\r\\nSOAPAction: urn:AC#executeCommand\\r\\nAuthorization: Basic \" . \$auth . \"\\r\\n\",
+                            \"content\" => \$xml,
+                            \"timeout\" => 10,
+                            \"ignore_errors\" => true
+                          ]
+                        ]);
+                        \$r = @file_get_contents(\$url, false, \$ctx);
+                        if (\$r === false) { fwrite(STDERR, \"soap request failed\\n\"); exit(1); }
+                      '
                     "
                   }
 
