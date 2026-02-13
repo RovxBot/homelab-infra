@@ -104,7 +104,7 @@ spec:
                   key: INVITE_CODE
             - name: PORTAL_REQUIRE_CF_ACCESS
               # When true, portal requires Cloudflare Access header (`Cf-Access-Jwt-Assertion`).
-              value: "true"
+              value: "false"
             - name: PORTAL_GITHUB_REPO
               value: "RovxBot/homelab-infra"
             - name: PORTAL_GITHUB_BRANCH
