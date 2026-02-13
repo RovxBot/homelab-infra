@@ -1628,7 +1628,7 @@ data:
 
       $body = <<<HTML
       <section class="landing">
-        <div class="landing-banner"><img src="/assets/Logo.png" alt="Grim Guzzler banner logo" /></div>
+        <div class="landing-banner"><img src="/assets/Logo.svg" alt="Grim Guzzler banner logo" /></div>
         <h2 class="landing-title">Grim Guzzler</h2>
         <div class="landing-sub">Wrath of the Lich King 3.3.5a</div>
         <div class="landing-tagline">Community progression realm with account tools, forums, and in-game services in one place.</div>

@@ -13,11 +13,6 @@ configMapGenerator:
       - mod_ollama_chat.conf=config/mod_ollama_chat.conf
     options:
       disableNameSuffixHash: false
-  - name: wotlk-accountmgr-assets
-    files:
-      - Logo.png=Assets/Logo.png
-    options:
-      disableNameSuffixHash: false
 resources:
   - namespace.yaml
   - client-files-pv.yaml
@@ -37,6 +32,7 @@ resources:
   - restart-rbac.yaml
   - restart-cronjob.yaml
   - accountmgr-configmap.yaml
+  - accountmgr-assets-configmap.yaml
   - accountmgr-deployment.yaml
   - accountmgr-service.yaml
   - worldserver-soap-service.yaml
