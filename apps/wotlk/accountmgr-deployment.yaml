@@ -117,6 +117,9 @@ spec:
             - name: accountmgr-web
               mountPath: /app/index.php
               subPath: index.php
+            - name: accountmgr-assets
+              mountPath: /app/assets
+              readOnly: true
             - name: client
               mountPath: /client
               readOnly: true
@@ -124,6 +127,9 @@ spec:
         - name: accountmgr-web
           configMap:
             name: wotlk-accountmgr
+        - name: accountmgr-assets
+          configMap:
+            name: wotlk-accountmgr-assets
         - name: client
           persistentVolumeClaim:
             claimName: wotlk-client-files
