@@ -50,6 +50,9 @@ spec:
                   TOKEN_ITEM_ID="${TOKEN_ITEM_ID:-90000}"
                   CLASSIC_DUTY_ITEM_ID="${CLASSIC_DUTY_ITEM_ID:-90001}"
                   TBC_DUTY_ITEM_ID="${TBC_DUTY_ITEM_ID:-90002}"
+                  XP_POTION_ITEM_ID="${XP_POTION_ITEM_ID:-91000}"
+                  XP_POTION_SPELL_ID="${XP_POTION_SPELL_ID:-91001}"
+                  XP_POTION_SPELL_CLONE_ID="${XP_POTION_SPELL_CLONE_ID:-68006}"
 
                   QUEST_CLASSIC_ID="${QUEST_CLASSIC_ID:-210010}"
                   QUEST_TBC_ID="${QUEST_TBC_ID:-210011}"
@@ -97,6 +100,115 @@ spec:
                     UPDATE item_template
                       SET bonding = 1, SellPrice = 1, BuyPrice = 0, stackable = 1000
                       WHERE entry = ${TOKEN_ITEM_ID};
+                  "
+
+                  echo "Ensuring custom XP potion spell + item exist..."
+                  clone_spell_count="$(db --database acore_world --skip-column-names --execute "SELECT COUNT(*) FROM spell_dbc WHERE ID = ${XP_POTION_SPELL_CLONE_ID};" 2>/dev/null || echo 0)"
+                  if [ "${clone_spell_count}" = "0" ]; then
+                    echo "Source spell ${XP_POTION_SPELL_CLONE_ID} was not found in spell_dbc; cannot seed custom XP potion spell." >&2
+                    exit 1
+                  fi
+                  clone_item_count="$(db --database acore_world --skip-column-names --execute "SELECT COUNT(*) FROM item_template WHERE entry = 40079;" 2>/dev/null || echo 0)"
+                  if [ "${clone_item_count}" = "0" ]; then
+                    echo "Source item 40079 was not found in item_template; cannot seed custom XP potion item." >&2
+                    exit 1
+                  fi
+                  db --database acore_world --execute "
+                    CREATE TEMPORARY TABLE tmp_xp_spell LIKE spell_dbc;
+                    INSERT INTO tmp_xp_spell
+                      SELECT * FROM spell_dbc WHERE ID = ${XP_POTION_SPELL_CLONE_ID} LIMIT 1;
+                    UPDATE tmp_xp_spell
+                      SET ID = ${XP_POTION_SPELL_ID},
+                          Name_Lang_enUS = 'Grim Experience Potion',
+                          Name_Lang_enGB = 'Grim Experience Potion',
+                          Description_Lang_enUS = 'Increases experience gained by 300%. Persists through death.',
+                          Description_Lang_enGB = 'Increases experience gained by 300%. Persists through death.',
+                          AuraDescription_Lang_enUS = 'Experience gained increased by 300%.',
+                          AuraDescription_Lang_enGB = 'Experience gained increased by 300%.',
+                          AttributesEx3 = (AttributesEx3 | 1048576),
+                          Effect_1 = 6,
+                          EffectAura_1 = 200,
+                          EffectBasePoints_1 = 299,
+                          Effect_2 = 0,
+                          EffectAura_2 = 0,
+                          EffectBasePoints_2 = 0,
+                          Effect_3 = 0,
+                          EffectAura_3 = 0,
+                          EffectBasePoints_3 = 0,
+                          ImplicitTargetA_1 = 1,
+                          ImplicitTargetB_1 = 0,
+                          ImplicitTargetA_2 = 0,
+                          ImplicitTargetB_2 = 0,
+                          ImplicitTargetA_3 = 0,
+                          ImplicitTargetB_3 = 0;
+                    INSERT INTO spell_dbc SELECT * FROM tmp_xp_spell
+                    ON DUPLICATE KEY UPDATE
+                      Name_Lang_enUS = VALUES(Name_Lang_enUS),
+                      Name_Lang_enGB = VALUES(Name_Lang_enGB),
+                      Description_Lang_enUS = VALUES(Description_Lang_enUS),
+                      Description_Lang_enGB = VALUES(Description_Lang_enGB),
+                      AuraDescription_Lang_enUS = VALUES(AuraDescription_Lang_enUS),
+                      AuraDescription_Lang_enGB = VALUES(AuraDescription_Lang_enGB),
+                      AttributesEx3 = VALUES(AttributesEx3),
+                      Effect_1 = VALUES(Effect_1),
+                      EffectAura_1 = VALUES(EffectAura_1),
+                      EffectBasePoints_1 = VALUES(EffectBasePoints_1),
+                      Effect_2 = VALUES(Effect_2),
+                      EffectAura_2 = VALUES(EffectAura_2),
+                      EffectBasePoints_2 = VALUES(EffectBasePoints_2),
+                      Effect_3 = VALUES(Effect_3),
+                      EffectAura_3 = VALUES(EffectAura_3),
+                      EffectBasePoints_3 = VALUES(EffectBasePoints_3),
+                      ImplicitTargetA_1 = VALUES(ImplicitTargetA_1),
+                      ImplicitTargetB_1 = VALUES(ImplicitTargetB_1),
+                      ImplicitTargetA_2 = VALUES(ImplicitTargetA_2),
+                      ImplicitTargetB_2 = VALUES(ImplicitTargetB_2),
+                      ImplicitTargetA_3 = VALUES(ImplicitTargetA_3),
+                      ImplicitTargetB_3 = VALUES(ImplicitTargetB_3);
+                    DROP TEMPORARY TABLE tmp_xp_spell;
+
+                    CREATE TEMPORARY TABLE tmp_xp_item LIKE item_template;
+                    INSERT INTO tmp_xp_item
+                      SELECT * FROM item_template WHERE entry = 40079 LIMIT 1;
+                    UPDATE tmp_xp_item
+                      SET entry = ${XP_POTION_ITEM_ID},
+                          class = 0,
+                          subclass = 1,
+                          name = 'Grim Experience Potion',
+                          displayid = 57024,
+                          Quality = 2,
+                          stackable = 20,
+                          maxcount = 0,
+                          bonding = 1,
+                          requiredspell = 0,
+                          RequiredLevel = 1,
+                          spellid_1 = ${XP_POTION_SPELL_ID},
+                          spelltrigger_1 = 0,
+                          spellcharges_1 = -1,
+                          spellcooldown_1 = 0,
+                          spellcategory_1 = 4,
+                          spellcategorycooldown_1 = 60000,
+                          description = 'Custom potion: +300% XP for 1 hour. Persists through death.';
+                    INSERT INTO item_template SELECT * FROM tmp_xp_item
+                    ON DUPLICATE KEY UPDATE
+                      class = VALUES(class),
+                      subclass = VALUES(subclass),
+                      name = VALUES(name),
+                      displayid = VALUES(displayid),
+                      Quality = VALUES(Quality),
+                      stackable = VALUES(stackable),
+                      maxcount = VALUES(maxcount),
+                      bonding = VALUES(bonding),
+                      requiredspell = VALUES(requiredspell),
+                      RequiredLevel = VALUES(RequiredLevel),
+                      spellid_1 = VALUES(spellid_1),
+                      spelltrigger_1 = VALUES(spelltrigger_1),
+                      spellcharges_1 = VALUES(spellcharges_1),
+                      spellcooldown_1 = VALUES(spellcooldown_1),
+                      spellcategory_1 = VALUES(spellcategory_1),
+                      spellcategorycooldown_1 = VALUES(spellcategorycooldown_1),
+                      description = VALUES(description);
+                    DROP TEMPORARY TABLE tmp_xp_item;
                   "
 
                   echo "Ensuring heroic proof quests reward 5 tokens..."
@@ -391,5 +503,7 @@ spec:
                   db --database acore_world --execute "
                     SELECT 'token_item' AS k, COUNT(*) AS v FROM item_template WHERE entry = ${TOKEN_ITEM_ID}
                     UNION ALL SELECT 'classic_daily' AS k, COUNT(*) AS v FROM quest_template WHERE ID = ${QUEST_CLASSIC_ID}
-                    UNION ALL SELECT 'tbc_daily' AS k, COUNT(*) AS v FROM quest_template WHERE ID = ${QUEST_TBC_ID};
+                    UNION ALL SELECT 'tbc_daily' AS k, COUNT(*) AS v FROM quest_template WHERE ID = ${QUEST_TBC_ID}
+                    UNION ALL SELECT 'xp_potion_item' AS k, COUNT(*) AS v FROM item_template WHERE entry = ${XP_POTION_ITEM_ID}
+                    UNION ALL SELECT 'xp_potion_spell' AS k, COUNT(*) AS v FROM spell_dbc WHERE ID = ${XP_POTION_SPELL_ID};
                   "

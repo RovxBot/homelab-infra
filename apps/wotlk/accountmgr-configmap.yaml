@@ -1367,6 +1367,7 @@ data:
     function storeItems(): array {
       // Extend this list with more vanity items as needed.
       return [
+        ['id' => 91000, 'name' => 'Grim Experience Potion', 'cost' => 25, 'note' => 'Custom: +300% XP for 1 hour, persists through death.'],
         ['id' => 35227, 'name' => 'Goblin Weather Machine', 'cost' => 15, 'note' => 'Vanity toy.'],
         ['id' => 33219, 'name' => 'Goblin Gumbo Kettle', 'cost' => 10, 'note' => 'Fun/cosmetic.'],
         ['id' => 32542, 'name' => 'Imp in a Ball', 'cost' => 20, 'note' => 'Vanity.'],
