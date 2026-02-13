@@ -775,12 +775,17 @@ data:
           display: grid;
           gap: 14px;
           grid-template-columns: 1fr;
+          width: 100%;
         }
         .home-feed {
           display: grid;
           gap: 14px;
           align-content: start;
-          max-width: 1040px;
+          max-width: none;
+          width: 100%;
+        }
+        .home-feed .panel {
+          width: 100%;
         }
         .home-stack {
           max-width: 920px;
@@ -1166,6 +1171,11 @@ data:
           }
           .page-hero.compact img {
             max-width: none;
+          }
+        }
+        @media (min-width: 980px) {
+          .home-columns {
+            grid-template-columns: 1fr !important;
           }
         }
         .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
