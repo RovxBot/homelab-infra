@@ -440,16 +440,16 @@ data:
           opacity: .12;
         }
         a { color: #9bd7ff; }
-        .wrap { max-width: 980px; margin: 0 auto; padding: 20px 14px 56px; }
+        .wrap { max-width: 1080px; margin: 0 auto; padding: 18px 14px 56px; }
         .topbar {
           display: flex; align-items: center; justify-content: space-between; gap: 10px;
-          border: 1px solid rgba(255, 221, 148, .22);
-          border-radius: 12px;
+          border: 1px solid rgba(255, 192, 104, .26);
+          border-radius: 14px;
           background:
-            linear-gradient(180deg, rgba(44, 29, 14, .55), rgba(12, 8, 4, .75)),
-            linear-gradient(180deg, rgba(18, 55, 96, .35), rgba(7, 18, 35, .35));
-          box-shadow: 0 24px 50px rgba(0,0,0,.45);
-          padding: 12px 14px;
+            linear-gradient(180deg, rgba(46, 29, 13, .62), rgba(12, 8, 4, .82)),
+            linear-gradient(180deg, rgba(14, 42, 72, .38), rgba(7, 18, 35, .28));
+          box-shadow: 0 20px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255, 255, 255, .06);
+          padding: 10px 14px;
         }
         .masthead {
           margin-top: 12px;
@@ -466,51 +466,51 @@ data:
         .brand {
           display:flex; align-items:center; gap: 12px;
         }
-        .logo { width: 36px; height: 36px; display:flex; align-items:center; justify-content:center; }
-        .brand h1 { margin: 0; font-size: 15px; letter-spacing: .3px; color: #ffe1a3; font-family: "Georgia", "Times New Roman", serif; }
-        .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; color: #cbb58f; }
+        .logo { width: 32px; height: 32px; display:flex; align-items:center; justify-content:center; }
+        .brand h1 { margin: 0; font-size: 14px; letter-spacing: .3px; color: #ffe1a3; font-family: "Georgia", "Times New Roman", serif; }
+        .brand .sub { opacity: .75; font-size: 11px; margin-top: 2px; color: #cbb58f; }
         .user { font-size: 12px; opacity: .85; text-align: right; color: #d7c6a6; }
         .tabs {
           margin-top: 12px;
           display: flex;
-          gap: 9px;
+          gap: 10px;
           flex-wrap: wrap;
           padding: 10px;
-          border: 1px solid rgba(255, 221, 148, .20);
-          border-radius: 12px;
+          border: 1px solid rgba(255, 192, 104, .18);
+          border-radius: 14px;
           background:
-            linear-gradient(180deg, rgba(32, 22, 12, .72), rgba(11, 8, 4, .76)),
-            linear-gradient(180deg, rgba(18, 54, 96, .18), rgba(7, 18, 35, .12));
-          box-shadow: 0 18px 38px rgba(0,0,0,.35);
+            linear-gradient(180deg, rgba(33, 21, 11, .78), rgba(10, 7, 4, .82)),
+            linear-gradient(180deg, rgba(18, 54, 96, .12), rgba(7, 18, 35, .08));
+          box-shadow: 0 16px 34px rgba(0,0,0,.34);
           position: sticky;
           top: 8px;
           z-index: 5;
-          backdrop-filter: blur(4px);
+          backdrop-filter: blur(6px);
         }
         .tab {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          padding: 9px 12px;
+          padding: 10px 16px;
           border-radius: 999px;
-          border: 1px solid rgba(255, 221, 148, .15);
-          background: rgba(0,0,0,.24);
+          border: 1px solid rgba(255, 188, 94, .16);
+          background: rgba(0,0,0,.26);
           color: #efe2c1;
           text-decoration: none;
-          font-weight: 600;
-          letter-spacing: .2px;
-          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: .25px;
+          font-size: 12.5px;
           transition: transform .12s ease, border-color .12s ease, background .12s ease;
         }
         .tab:hover {
           transform: translateY(-1px);
-          border-color: rgba(255, 221, 148, .30);
-          background: rgba(21, 95, 163, .20);
+          border-color: rgba(255, 188, 94, .34);
+          background: rgba(23, 91, 152, .22);
         }
         .tab.active {
-          border-color: rgba(255, 221, 148, .40);
+          border-color: rgba(255, 196, 112, .48);
           background:
-            linear-gradient(180deg, rgba(24, 96, 160, .58), rgba(10, 34, 60, .50));
+            linear-gradient(180deg, rgba(30, 108, 176, .66), rgba(11, 38, 66, .58));
           color: #ffe7b0;
           box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 8px 18px rgba(0,0,0,.30);
         }
@@ -518,14 +518,15 @@ data:
         @media (min-width: 920px) { .grid { grid-template-columns: 1.25fr .75fr; } }
         .landing {
           margin-top: 14px;
-          border: 1px solid rgba(255, 221, 148, .24);
-          border-radius: 14px;
-          padding: 16px;
+          border: 1px solid rgba(255, 187, 104, .24);
+          border-radius: 16px;
+          padding: 14px 14px 16px;
           background:
-            radial-gradient(700px 260px at 18% 0%, rgba(71, 165, 244, .20), rgba(0,0,0,0)),
-            linear-gradient(180deg, rgba(29, 72, 122, .25), rgba(11, 28, 48, .58)),
-            linear-gradient(180deg, rgba(58, 38, 18, .45), rgba(18, 12, 7, .45));
-          box-shadow: 0 30px 60px rgba(0,0,0,.48);
+            radial-gradient(860px 360px at 50% -12%, rgba(240, 140, 46, .19), rgba(0,0,0,0)),
+            radial-gradient(640px 260px at 8% 0%, rgba(71, 165, 244, .16), rgba(0,0,0,0)),
+            linear-gradient(180deg, rgba(24, 64, 110, .24), rgba(10, 27, 46, .58)),
+            linear-gradient(180deg, rgba(58, 36, 16, .54), rgba(18, 12, 7, .50));
+          box-shadow: 0 26px 54px rgba(0,0,0,.48);
           text-align: center;
           position: relative;
           overflow: hidden;
@@ -541,13 +542,21 @@ data:
         }
         .landing-banner {
           width: 100%;
-          max-width: 860px;
-          margin: 0 auto 14px;
-          border-radius: 12px;
+          max-width: 920px;
+          margin: 0 auto 12px;
+          border-radius: 14px;
           display: flex;
-          border: 1px solid rgba(255, 221, 148, .32);
-          box-shadow: 0 18px 40px rgba(0,0,0,.45);
+          border: 1px solid rgba(255, 192, 104, .38);
+          box-shadow: 0 28px 46px rgba(0,0,0,.50), inset 0 0 0 1px rgba(255,255,255,.06);
           overflow: hidden;
+          position: relative;
+        }
+        .landing-banner:after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(180deg, rgba(0,0,0,0) 58%, rgba(0,0,0,.28) 100%);
         }
         .landing-banner img {
           width: 100%;
@@ -565,20 +574,21 @@ data:
         .landing-sub {
           margin-top: 6px;
           color: #d7c6a6;
-          font-size: 14px;
-          letter-spacing: .35px;
+          font-size: 13px;
+          letter-spacing: .45px;
+          text-transform: uppercase;
         }
         .landing-tagline {
-          margin-top: 9px;
+          margin-top: 10px;
           color: #efe2c1;
-          font-size: 15px;
-          max-width: 680px;
+          font-size: 14px;
+          max-width: 720px;
           margin-left: auto;
           margin-right: auto;
-          line-height: 1.4;
+          line-height: 1.55;
         }
         .landing-links {
-          margin-top: 18px;
+          margin-top: 14px;
           display: flex;
           gap: 10px;
           justify-content: center;
@@ -591,7 +601,7 @@ data:
           box-shadow: 0 10px 24px rgba(0,0,0,.28);
         }
         .landing-stats {
-          margin-top: 14px;
+          margin-top: 12px;
           display: flex;
           gap: 10px;
           justify-content: center;
@@ -620,27 +630,102 @@ data:
           font-size: 13px;
         }
         .home-stack {
-          max-width: 860px;
+          max-width: 920px;
           margin: 14px auto 0;
           display: grid;
           gap: 14px;
         }
-        .auth-card {
-          border: 1px solid rgba(255, 221, 148, .18);
-          border-radius: 12px;
+        .page-shell {
+          max-width: 980px;
+          margin: 14px auto 0;
+          display: grid;
+          gap: 14px;
+        }
+        .page-hero {
+          border: 1px solid rgba(255, 192, 104, .24);
+          border-radius: 14px;
+          padding: 12px;
           background:
-            linear-gradient(180deg, rgba(24, 72, 122, .24), rgba(12, 28, 48, .20)),
-            linear-gradient(180deg, rgba(34, 24, 14, .82), rgba(10, 7, 4, .88));
-          box-shadow: 0 24px 55px rgba(0,0,0,.48);
+            radial-gradient(620px 220px at 15% 0%, rgba(240, 140, 46, .16), rgba(0,0,0,0)),
+            radial-gradient(640px 220px at 85% 0%, rgba(71, 165, 244, .16), rgba(0,0,0,0)),
+            linear-gradient(180deg, rgba(22, 58, 98, .26), rgba(9, 24, 44, .56)),
+            linear-gradient(180deg, rgba(58, 36, 16, .54), rgba(18, 12, 7, .50));
+          box-shadow: 0 20px 44px rgba(0,0,0,.45);
+          display: grid;
+          gap: 12px;
+        }
+        .page-hero img {
+          width: 100%;
+          display: block;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 192, 104, .30);
+        }
+        .page-hero-head h2 {
+          margin: 0;
+          color: #ffe7b0;
+          font-size: clamp(22px, 3vw, 30px);
+          letter-spacing: .35px;
+          font-family: "Georgia", "Times New Roman", serif;
+        }
+        .page-hero-head p {
+          margin: 8px 0 0;
+          color: #d7c6a6;
+          line-height: 1.6;
+        }
+        .page-hero.compact {
+          grid-template-columns: 220px 1fr;
+          align-items: center;
+        }
+        .page-hero.compact img {
+          max-width: 220px;
+          margin: 0;
+        }
+        .section-stack {
+          display: grid;
+          gap: 14px;
+        }
+        .split {
+          display: grid;
+          gap: 14px;
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 920px) {
+          .split {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+        .portal-layout {
+          margin-top: 14px;
+          display: grid;
+          gap: 14px;
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 1020px) {
+          .portal-layout {
+            grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+          }
+        }
+        .portal-side {
+          display: grid;
+          gap: 14px;
+          align-content: start;
+        }
+        .auth-card {
+          border: 1px solid rgba(255, 192, 104, .22);
+          border-radius: 14px;
+          background:
+            linear-gradient(180deg, rgba(32, 98, 160, .20), rgba(12, 30, 50, .18)),
+            linear-gradient(180deg, rgba(34, 24, 14, .86), rgba(9, 7, 4, .92));
+          box-shadow: 0 26px 56px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.04);
           overflow: hidden;
         }
         .auth-head {
-          padding: 14px 16px;
-          border-bottom: 1px solid rgba(255, 221, 148, .14);
+          padding: 16px 18px;
+          border-bottom: 1px solid rgba(255, 192, 104, .16);
         }
         .auth-head h2 {
           margin: 0;
-          font-size: 16px;
+          font-size: 18px;
           letter-spacing: .3px;
           color: #ffe7b0;
           font-family: "Georgia", "Times New Roman", serif;
@@ -651,7 +736,7 @@ data:
           font-size: 13px;
         }
         .auth-form {
-          padding: 14px 16px 16px;
+          padding: 14px 18px 18px;
         }
         .auth-grid {
           display: grid;
@@ -687,7 +772,13 @@ data:
             linear-gradient(180deg, rgba(60, 40, 18, .55), rgba(20, 14, 7, .35));
         }
         .panel .hd h2 { margin: 0; font-size: 13px; letter-spacing: .35px; color: #ffe1a3; text-transform: uppercase; font-family: "Georgia", "Times New Roman", serif; }
-        .panel .bd { padding: 14px; }
+        .panel .bd { padding: 16px; }
+        .home-intro {
+          margin-top: 0;
+          color: #d9caa9;
+          font-size: 15px;
+          line-height: 1.6;
+        }
         .flash {
           margin-top: 12px;
           border-radius: 10px;
@@ -763,10 +854,10 @@ data:
         .kpi { display:flex; gap: 10px; flex-wrap: wrap; }
         .kpi .card { flex: 1; min-width: 160px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 221, 148, .14); background: rgba(0,0,0,.18); }
         .kpi .val { font-size: 20px; font-weight: 800; color: #9bd7ff; margin-top: 4px; }
-        .post { border: 1px solid rgba(255, 221, 148, .14); border-radius: 10px; padding: 10px 12px; background: rgba(0,0,0,.18); margin-bottom: 10px; }
+        .post { border: 1px solid rgba(255, 221, 148, .14); border-radius: 10px; padding: 12px 14px; background: rgba(0,0,0,.18); margin-bottom: 12px; }
         .post-title { font-weight: 700; color: #ffe1a3; }
-        .post-meta { font-size: 11px; opacity: .7; margin-top: 4px; }
-        .post-body { margin-top: 8px; line-height: 1.6; }
+        .post-meta { font-size: 11px; opacity: .7; margin-top: 4px; letter-spacing: .2px; }
+        .post-body { margin-top: 10px; line-height: 1.75; font-size: 15px; }
         .post.admin {
           border-color: rgba(90, 200, 255, .55);
           background:
@@ -888,6 +979,12 @@ data:
           .forum-cell.right { text-align: left; }
           .landing .btn { min-width: 0; width: 100%; }
           .service-actions .btn { width: 100%; }
+          .page-hero.compact {
+            grid-template-columns: 1fr;
+          }
+          .page-hero.compact img {
+            max-width: none;
+          }
         }
         .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
         @keyframes fadeLift {
@@ -1645,6 +1742,9 @@ data:
       $body = <<<HTML
       <section class="landing">
         <div class="landing-banner"><img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" /></div>
+        <h2 class="landing-title">Grim Guzzler</h2>
+        <div class="landing-sub">Wrath Of The Lich King • 3.3.5a</div>
+        <div class="landing-tagline">A no pay-to-win WotLK realm with community progression, forum updates, and in-game services in one place.</div>
         <div class="landing-links">
           <a class="btn" href="/?tab=about#how-to-connect">How to Connect Guide</a>
           <a class="btn secondary" href="/?tab=signup">Account Creation</a>
@@ -1676,7 +1776,7 @@ data:
               </div>
             </div>
             <div class="auth-actions">
-              <button class="btn" type="submit">{$iconLogin}Log In</button>
+              <button class="btn" type="submit">{$iconLogin}Enter Portal</button>
               <div class="muted">Need an account? <a href="/?tab=signup">Create one</a></div>
             </div>
           </form>
@@ -1684,7 +1784,7 @@ data:
         <div class="panel">
           <div class="hd"><h2>Announcements</h2></div>
           <div class="bd">
-            <div style="margin-top:2px;">{$annLeadHtml}</div>
+            <div class="home-intro">{$annLeadHtml}</div>
             <div style="margin-top:12px;">{$announcementsHtml}</div>
           </div>
         </div>
@@ -1731,7 +1831,14 @@ data:
       }
 
       $body = <<<HTML
-      <div class="home-stack">
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Create Your Account</h2>
+            <p>Join Grim Guzzler and unlock account, forum, and character services.</p>
+          </div>
+        </section>
         <div class="panel">
           <div class="hd"><h2>Create Account</h2></div>
           <div class="bd">
@@ -1755,10 +1862,18 @@ data:
       $realmPort = (int)($realm['port'] ?? 0);
 
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>About Grim Guzzler</h2></div>
-        <div class="bd">
-          <div class="row" style="align-items:flex-start;">
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>About Grim Guzzler</h2>
+            <p>Community-first Wrath 3.3.5a, built for progression and long-term realm stability.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>About Grim Guzzler</h2></div>
+          <div class="bd">
+            <div class="row" style="align-items:flex-start;">
             <div style="flex: 1;">
               <div class="muted" style="margin-bottom:8px;">Server info</div>
               <ul class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
@@ -1794,6 +1909,7 @@ data:
             <li>Download a 3.3.5a client: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
             <li>Set realmlist to: <span class="pill">grim.cooked.beer</span></li>
           </ol>
+          </div>
         </div>
       </div>
       HTML;
@@ -1875,31 +1991,40 @@ data:
       }
 
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>Realm Stats</h2></div>
-        <div class="bd">
-          <div class="muted">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
-          <div class="divider"></div>
-          <div class="muted">Last 7 days (based on daily snapshots).</div>
-          <div class="row" style="align-items:flex-start;margin-top:10px;">
-            <div>
-              <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
-              <table class="table">
-                <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
-                <tbody>{$topKills}</tbody>
-              </table>
-            </div>
-            <div>
-              <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
-              <table class="table">
-                <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
-                <tbody>{$topLv}</tbody>
-              </table>
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Realm Stats</h2>
+            <p>Daily snapshots and arena ladders to track progression across the server.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>Realm Stats</h2></div>
+          <div class="bd">
+            <div class="muted">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
+            <div class="divider"></div>
+            <div class="muted">Last 7 days (based on daily snapshots).</div>
+            <div class="row" style="align-items:flex-start;margin-top:10px;">
+              <div>
+                <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
+                <table class="table">
+                  <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
+                  <tbody>{$topKills}</tbody>
+                </table>
+              </div>
+              <div>
+                <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
+                <table class="table">
+                  <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
+                  <tbody>{$topLv}</tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
+        {$sections}
       </div>
-      {$sections}
       HTML;
 
       render($body, $flash, $flashKind);
@@ -1908,10 +2033,19 @@ data:
     function renderAnnouncementsPage(array $announcements, string $flash = '', string $flashKind = 'info'): void {
       $announcementsHtml = renderAnnouncementsList($announcements, 'No announcements yet.');
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>Announcements</h2></div>
-        <div class="bd">
-          {$announcementsHtml}
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Announcements</h2>
+            <p>Realm updates, release notes, and community news.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>Announcements</h2></div>
+          <div class="bd">
+            {$announcementsHtml}
+          </div>
         </div>
       </div>
       HTML;
@@ -1925,10 +2059,18 @@ data:
       $patchNote = '<a href="/?download=patch-s">patch-S.mpq</a> (client download)';
 
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>Server Information</h2></div>
-        <div class="bd">
-          <div class="row" style="align-items:flex-start;">
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Server Information</h2>
+            <p>Connection details, realm rules, and client setup notes.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>Server Information</h2></div>
+          <div class="bd">
+            <div class="row" style="align-items:flex-start;">
             <div style="flex:1;">
               <div class="muted" style="margin-bottom:8px;">Realm status</div>
               <div><strong>{$realmName}</strong></div>
@@ -1956,6 +2098,7 @@ data:
             <li>Set realmlist to: <span class="pill">grim.cooked.beer</span></li>
             <li>Apply the progression patch if you want classic reagent behavior.</li>
           </ol>
+          </div>
         </div>
       </div>
       HTML;
@@ -2290,6 +2433,23 @@ data:
         HTML;
       }
 
+      $forumHeroText = $allowPosting
+        ? 'Discuss progression, strategies, and updates with the community.'
+        : 'Browse public threads and announcements from the realm team.';
+
+      $body = <<<HTML
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Forum</h2>
+            <p>{$forumHeroText}</p>
+          </div>
+        </section>
+        {$body}
+      </div>
+      HTML;
+
       render($body, $flash, $flashKind);
     }
 
@@ -2561,34 +2721,43 @@ data:
       }
 
       $body = <<<HTML
-      <div class="grid">
-        <div class="panel">
-          <div class="hd"><h2>{$mainTitle}</h2></div>
-          <div class="bd">
-            {$mainBody}
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>{$mainTitle}</h2>
+            <p>Account, character services, and store tools in one control center.</p>
           </div>
-        </div>
-        <div>
+        </section>
+        <div class="portal-layout">
           <div class="panel">
-            <div class="hd"><h2>Realm</h2></div>
+            <div class="hd"><h2>{$mainTitle}</h2></div>
             <div class="bd">
-              <div><strong>{$realmName}</strong></div>
-              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
-              <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span>)</div>
+              {$mainBody}
             </div>
           </div>
-          <div class="panel" style="margin-top:14px;">
-            <div class="hd"><h2>Password</h2></div>
-            <div class="bd">
-              <form method="post">
-                <input type="hidden" name="csrf" value="{$csrf}" />
-                <input type="hidden" name="action" value="change_password" />
-                <label>New password (max 16 chars)</label>
-                <input name="new_password" type="password" autocomplete="new-password" required />
-                <div style="margin-top:12px;">
-                  <button class="btn" type="submit">{$iconKey}Change Password</button>
-                </div>
-              </form>
+          <div class="portal-side">
+            <div class="panel">
+              <div class="hd"><h2>Realm</h2></div>
+              <div class="bd">
+                <div><strong>{$realmName}</strong></div>
+                <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+                <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span>)</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="hd"><h2>Password</h2></div>
+              <div class="bd">
+                <form method="post">
+                  <input type="hidden" name="csrf" value="{$csrf}" />
+                  <input type="hidden" name="action" value="change_password" />
+                  <label>New password (max 16 chars)</label>
+                  <input name="new_password" type="password" autocomplete="new-password" required />
+                  <div style="margin-top:12px;">
+                    <button class="btn" type="submit">{$iconKey}Change Password</button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>
