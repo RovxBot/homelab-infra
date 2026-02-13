@@ -420,7 +420,7 @@ data:
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          font-family: "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif;
+          font-family: "Garamond", "Palatino Linotype", "Book Antiqua", serif;
           color: #efe2c1;
           background:
             radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .22), rgba(0,0,0,0)),
@@ -508,50 +508,99 @@ data:
           margin-top: 14px;
           border: 1px solid rgba(255, 221, 148, .24);
           border-radius: 14px;
-          padding: 20px 16px;
+          padding: 16px;
           background:
-            radial-gradient(600px 250px at 20% 0%, rgba(71, 165, 244, .25), rgba(0,0,0,0)),
-            linear-gradient(180deg, rgba(29, 72, 122, .35), rgba(11, 28, 48, .58)),
+            radial-gradient(700px 260px at 18% 0%, rgba(71, 165, 244, .20), rgba(0,0,0,0)),
+            linear-gradient(180deg, rgba(29, 72, 122, .25), rgba(11, 28, 48, .58)),
             linear-gradient(180deg, rgba(58, 38, 18, .45), rgba(18, 12, 7, .45));
           box-shadow: 0 30px 60px rgba(0,0,0,.48);
           text-align: center;
+          position: relative;
+          overflow: hidden;
+          animation: fadeLift .45s ease-out both;
         }
-        .landing-logo {
-          width: 78px;
-          height: 78px;
-          margin: 0 auto 12px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-family: "Georgia", "Times New Roman", serif;
-          font-size: 26px;
-          font-weight: 700;
-          color: #ffe7b0;
-          border: 1px solid rgba(255, 221, 148, .35);
+        .landing:before {
+          content: "";
+          position: absolute;
+          inset: -1px;
+          pointer-events: none;
           background:
-            radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), rgba(0,0,0,0) 60%),
-            linear-gradient(180deg, rgba(21, 95, 163, .72), rgba(12, 40, 72, .72));
-          box-shadow: 0 16px 40px rgba(0,0,0,.45);
+            radial-gradient(600px 180px at 50% -20%, rgba(255, 219, 133, .16), rgba(0,0,0,0));
+        }
+        .landing-banner {
+          width: 100%;
+          max-width: 860px;
+          margin: 0 auto 14px;
+          border-radius: 12px;
+          display: flex;
+          border: 1px solid rgba(255, 221, 148, .32);
+          box-shadow: 0 18px 40px rgba(0,0,0,.45);
+          overflow: hidden;
+        }
+        .landing-banner img {
+          width: 100%;
+          height: auto;
+          display: block;
         }
         .landing-title {
           margin: 0;
           color: #ffe1a3;
-          font-size: 28px;
-          letter-spacing: .35px;
+          font-size: clamp(25px, 4vw, 36px);
+          letter-spacing: .45px;
           font-family: "Georgia", "Times New Roman", serif;
+          text-shadow: 0 6px 18px rgba(0, 0, 0, .45);
         }
         .landing-sub {
           margin-top: 6px;
           color: #d7c6a6;
-          font-size: 13px;
+          font-size: 14px;
+          letter-spacing: .35px;
+        }
+        .landing-tagline {
+          margin-top: 9px;
+          color: #efe2c1;
+          font-size: 15px;
+          max-width: 680px;
+          margin-left: auto;
+          margin-right: auto;
+          line-height: 1.4;
         }
         .landing-links {
-          margin-top: 16px;
+          margin-top: 18px;
           display: flex;
           gap: 10px;
           justify-content: center;
           flex-wrap: wrap;
+        }
+        .landing .btn {
+          min-width: 190px;
+          font-size: 13px;
+          letter-spacing: .3px;
+          box-shadow: 0 10px 24px rgba(0,0,0,.28);
+        }
+        .landing-stats {
+          margin-top: 14px;
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        .landing-stat {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: 6px 10px;
+          border: 1px solid rgba(255, 221, 148, .20);
+          background: rgba(0,0,0,.24);
+          color: #d7c6a6;
+          font-size: 12px;
+          line-height: 1;
+        }
+        .landing-stat b {
+          color: #ffe7b0;
+          margin-left: 6px;
+          font-weight: 700;
         }
         .landing-note {
           margin-top: 14px;
@@ -701,8 +750,13 @@ data:
         @media (max-width: 780px) {
           .forum-row { grid-template-columns: 1fr; }
           .forum-cell.right { text-align: left; }
+          .landing .btn { min-width: 0; width: 100%; }
         }
         .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
+        @keyframes fadeLift {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       </style>
     </head>
     <body class="noise">
@@ -1489,12 +1543,18 @@ data:
 
       $body = <<<HTML
       <section class="landing">
-        <div class="landing-logo" aria-hidden="true">GG</div>
+        <div class="landing-banner"><img src="/assets/Logo.png" alt="Grim Guzzler banner logo" /></div>
         <h2 class="landing-title">Grim Guzzler</h2>
         <div class="landing-sub">Wrath of the Lich King 3.3.5a</div>
+        <div class="landing-tagline">Community progression realm with account tools, forums, and in-game services in one place.</div>
         <div class="landing-links">
           <a class="btn" href="/?tab=about#how-to-connect">How to Connect Guide</a>
           <a class="btn secondary" href="/?tab=home#create-account">Account Creation</a>
+        </div>
+        <div class="landing-stats">
+          <div class="landing-stat">Players Online<b>{$online}</b></div>
+          <div class="landing-stat">Realm<b>{$realmName}</b></div>
+          <div class="landing-stat">Connect<b>{$realmAddr}:{$realmPort}</b></div>
         </div>
         <div class="landing-note">Proudly based on <a href="https://www.azerothcore.org/" target="_blank" rel="noreferrer">AzerothCore</a>, support Open Source</div>
       </section>
