@@ -470,37 +470,48 @@ data:
         .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; color: #cbb58f; }
         .user { font-size: 12px; opacity: .85; text-align: right; color: #d7c6a6; }
         .tabs {
-          margin-top: 10px;
+          margin-top: 12px;
           display: flex;
-          gap: 8px;
+          gap: 9px;
           flex-wrap: wrap;
-          padding: 8px;
-          border: 1px solid rgba(255, 221, 148, .14);
+          padding: 10px;
+          border: 1px solid rgba(255, 221, 148, .20);
           border-radius: 12px;
           background:
-            linear-gradient(180deg, rgba(42, 28, 14, .70), rgba(12, 8, 4, .70));
-          box-shadow: 0 20px 45px rgba(0,0,0,.35);
+            linear-gradient(180deg, rgba(32, 22, 12, .72), rgba(11, 8, 4, .76)),
+            linear-gradient(180deg, rgba(18, 54, 96, .18), rgba(7, 18, 35, .12));
+          box-shadow: 0 18px 38px rgba(0,0,0,.35);
+          position: sticky;
+          top: 8px;
+          z-index: 5;
+          backdrop-filter: blur(4px);
         }
         .tab {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          padding: 8px 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(255, 221, 148, .12);
-          background: rgba(0,0,0,.18);
+          gap: 6px;
+          padding: 9px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 221, 148, .15);
+          background: rgba(0,0,0,.24);
           color: #efe2c1;
           text-decoration: none;
-          font-weight: 700;
-          letter-spacing: .15px;
+          font-weight: 600;
+          letter-spacing: .2px;
           font-size: 12px;
+          transition: transform .12s ease, border-color .12s ease, background .12s ease;
         }
-        .tab:hover { filter: brightness(1.05); }
+        .tab:hover {
+          transform: translateY(-1px);
+          border-color: rgba(255, 221, 148, .30);
+          background: rgba(21, 95, 163, .20);
+        }
         .tab.active {
-          border-color: rgba(255, 221, 148, .28);
+          border-color: rgba(255, 221, 148, .40);
           background:
-            linear-gradient(180deg, rgba(22, 86, 142, .50), rgba(10, 34, 60, .45));
+            linear-gradient(180deg, rgba(24, 96, 160, .58), rgba(10, 34, 60, .50));
           color: #ffe7b0;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 8px 18px rgba(0,0,0,.30);
         }
         .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
         @media (min-width: 920px) { .grid { grid-template-columns: 1.25fr .75fr; } }
@@ -747,10 +758,83 @@ data:
         }
         .post-row { display: flex; gap: 10px; align-items: flex-start; }
         .post-content { flex: 1; }
+        .services-grid {
+          display: grid;
+          gap: 12px;
+          margin-top: 12px;
+        }
+        .service-card {
+          border: 1px solid rgba(255, 221, 148, .16);
+          border-radius: 12px;
+          padding: 12px;
+          background: rgba(0,0,0,.2);
+        }
+        .service-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .service-name {
+          font-size: 16px;
+          color: #ffe7b0;
+          font-weight: 700;
+        }
+        .service-meta {
+          margin-top: 6px;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .service-actions {
+          margin-top: 10px;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .store-grid {
+          margin-top: 12px;
+          display: grid;
+          gap: 12px;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+        .store-card {
+          border: 1px solid rgba(255, 221, 148, .16);
+          border-radius: 12px;
+          padding: 12px;
+          background: rgba(0,0,0,.2);
+          display: flex;
+          flex-direction: column;
+          min-height: 180px;
+        }
+        .store-card.low {
+          border-color: rgba(239, 68, 68, .30);
+        }
+        .store-title {
+          color: #ffe7b0;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        .store-note {
+          margin-top: 8px;
+          color: #cbb58f;
+          font-size: 12px;
+          line-height: 1.5;
+          flex: 1;
+        }
+        .store-buy {
+          margin-top: 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
+        }
         @media (max-width: 780px) {
           .forum-row { grid-template-columns: 1fr; }
           .forum-cell.right { text-align: left; }
           .landing .btn { min-width: 0; width: 100%; }
+          .service-actions .btn { width: 100%; }
         }
         .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
         @keyframes fadeLift {
@@ -2179,34 +2263,39 @@ data:
       $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
       $snapshotRows = (int)($snap['rows'] ?? 0);
 
-      $rows = '';
+      $characterCards = '';
       foreach ($chars as $c) {
         $guid = (int)$c['guid'];
         $name = htmlspecialchars((string)$c['name']);
         $level = (int)$c['level'];
+        $class = (int)$c['class'];
         $isOnline = (int)$c['online'] === 1;
         $state = $isOnline ? '<span class="pill">Online</span>' : '<span class="pill">Offline</span>';
         $disabled = $isOnline ? 'disabled' : '';
+        $classPill = classPill($class);
 
-        $rows .= <<<HTML
-        <tr>
-          <td><strong>{$name}</strong><div class="muted">GUID {$guid}</div></td>
-          <td>{$level}</td>
-          <td>{$state}</td>
-          <td>
-            <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;">
-              <input type="hidden" name="csrf" value="{$csrf}" />
-              <input type="hidden" name="guid" value="{$guid}" />
-              <button class="btn secondary" type="submit" name="action" value="rename" {$disabled}>{$iconQuill}Rename</button>
-              <button class="btn secondary" type="submit" name="action" value="race_change" {$disabled}>{$iconMask}Race Change</button>
-              <button class="btn danger" type="submit" name="action" value="unstuck" {$disabled}>{$iconGrave}Unstuck</button>
-            </form>
-          </td>
-        </tr>
+        $characterCards .= <<<HTML
+        <div class="service-card">
+          <div class="service-head">
+            <div class="service-name">{$classPill}{$name}</div>
+            {$state}
+          </div>
+          <div class="service-meta">
+            <span class="pill">Level {$level}</span>
+            <span class="pill">GUID {$guid}</span>
+          </div>
+          <form method="post" class="service-actions">
+            <input type="hidden" name="csrf" value="{$csrf}" />
+            <input type="hidden" name="guid" value="{$guid}" />
+            <button class="btn secondary" type="submit" name="action" value="rename" {$disabled}>{$iconQuill}Rename</button>
+            <button class="btn secondary" type="submit" name="action" value="race_change" {$disabled}>{$iconMask}Race Change</button>
+            <button class="btn danger" type="submit" name="action" value="unstuck" {$disabled}>{$iconGrave}Unstuck</button>
+          </form>
+        </div>
         HTML;
       }
-      if ($rows === '') {
-        $rows = '<tr><td colspan="4" class="muted">No characters found.</td></tr>';
+      if ($characterCards === '') {
+        $characterCards = '<div class="muted">No characters found.</div>';
       }
 
       $mainTitle = 'My Account';
@@ -2301,14 +2390,11 @@ data:
           {$deletePanel}
         HTML;
       } elseif ($tab === 'characters') {
-        $mainTitle = 'Characters';
+        $mainTitle = 'Character Services';
         $mainBody = <<<HTML
-          <div class="muted">Rename, race change, and unstuck are available per character below.</div>
+          <div class="muted">Pick a character and queue services. Characters must be offline for changes to apply.</div>
           <div class="divider"></div>
-          <table class="table">
-            <thead><tr><th>Character</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>{$rows}</tbody>
-          </table>
+          <div class="services-grid">{$characterCards}</div>
         HTML;
       } elseif ($tab === 'store') {
         $mainTitle = 'Store';
@@ -2354,7 +2440,7 @@ data:
           }
         }
 
-        $itemsRows = '';
+        $storeCards = '';
         foreach (storeItems() as $it) {
           $id = (int)$it['id'];
           $name = htmlspecialchars((string)$it['name']);
@@ -2363,15 +2449,20 @@ data:
 
           $canBuy = $selected && $disabledNote === '' && $balance >= $cost;
           $btnDisabled = $canBuy ? '' : 'disabled';
+          $affordClass = $balance >= $cost ? '' : ' low';
 
-          $itemsRows .= '<tr><td><strong>' . $name . '</strong><div class="muted">Item ' . $id . '</div><div class="muted">' . $note . '</div></td><td><span class="pill">' . $cost . '</span></td><td>' .
-            '<form method="post" style="margin:0;display:flex;gap:8px;justify-content:flex-end;align-items:center;">' .
+          $storeCards .= '<div class="store-card' . $affordClass . '">' .
+            '<div class="store-title">' . $name . '</div>' .
+            '<div class="service-meta"><span class="pill">Item ' . $id . '</span><span class="pill">Cost ' . $cost . '</span></div>' .
+            '<div class="store-note">' . $note . '</div>' .
+            '<form method="post" class="store-buy">' .
             '<input type="hidden" name="csrf" value="' . $csrf . '" />' .
             '<input type="hidden" name="action" value="store_purchase" />' .
             '<input type="hidden" name="guid" value="' . (int)($selected['guid'] ?? 0) . '" />' .
             '<input type="hidden" name="item_id" value="' . $id . '" />' .
+            '<span class="pill">Price ' . $cost . '</span>' .
             '<button class="btn" type="submit" ' . $btnDisabled . '>Buy</button>' .
-            '</form></td></tr>';
+            '</form></div>';
         }
 
         $mainBody = <<<HTML
@@ -2380,11 +2471,8 @@ data:
             <div class="card"><div class="muted">Grim Tokens</div><div class="val">{$balance}</div></div>
           </div>
           {$disabledNote}
-          <div class="muted" style="margin-top:14px;">Purchases are delivered via in-game mail.</div>
-          <table class="table" style="margin-top:10px;">
-            <thead><tr><th>Item</th><th>Cost</th><th></th></tr></thead>
-            <tbody>{$itemsRows}</tbody>
-          </table>
+          <div class="muted" style="margin-top:14px;">Purchases are delivered via in-game mail. Offline characters only.</div>
+          <div class="store-grid">{$storeCards}</div>
         HTML;
       } elseif ($tab === 'about') {
         $mainTitle = 'About';
