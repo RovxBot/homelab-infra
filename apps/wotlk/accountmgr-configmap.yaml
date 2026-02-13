@@ -357,6 +357,17 @@ data:
       $userChip = '';
       if (isLoggedIn()) {
         $userChip = '<div class="user">Signed in as <strong>' . htmlspecialchars(currentUsername()) . '</strong></div>';
+      } else {
+        $csrf = htmlspecialchars(csrfToken());
+        $userChip = <<<HTML
+        <form method="post" class="top-login">
+          <input type="hidden" name="csrf" value="{$csrf}" />
+          <input type="hidden" name="action" value="login" />
+          <input class="top-login-input" name="login_user" placeholder="Account" autocomplete="username" required />
+          <input class="top-login-input" name="login_pass" type="password" placeholder="Password" autocomplete="current-password" required />
+          <button class="btn top-login-btn" type="submit">Enter</button>
+        </form>
+        HTML;
       }
 
       $orbSvg = <<<SVG
@@ -470,6 +481,29 @@ data:
         .brand h1 { margin: 0; font-size: 14px; letter-spacing: .3px; color: #ffe1a3; font-family: "Georgia", "Times New Roman", serif; }
         .brand .sub { opacity: .75; font-size: 11px; margin-top: 2px; color: #cbb58f; }
         .user { font-size: 12px; opacity: .85; text-align: right; color: #d7c6a6; }
+        .top-login {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .top-login-input {
+          width: 158px;
+          padding: 8px 10px;
+          border-radius: 9px;
+          border: 1px solid rgba(255, 221, 148, .18);
+          background: rgba(0,0,0,.30);
+          color: #efe2c1;
+          font-size: 12px;
+        }
+        .top-login-input::placeholder { color: #cbb58f; opacity: .85; }
+        .top-login-btn {
+          padding: 8px 12px;
+          border-radius: 9px;
+          font-size: 12px;
+          min-width: 0;
+        }
         .tabs {
           margin-top: 12px;
           display: flex;
@@ -1093,6 +1127,20 @@ data:
           gap: 8px;
         }
         @media (max-width: 780px) {
+          .topbar {
+            align-items: flex-start;
+          }
+          .top-login {
+            width: 100%;
+            justify-content: stretch;
+          }
+          .top-login-input {
+            flex: 1 1 140px;
+            width: auto;
+          }
+          .top-login-btn {
+            width: 100%;
+          }
           .forum-row { grid-template-columns: 1fr; }
           .forum-cell.right { text-align: left; }
           .landing .btn { min-width: 0; width: 100%; }
@@ -1849,8 +1897,6 @@ data:
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
 
-      $iconLogin = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21 12H11m0 0 3-3m-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
       $annLead = trim(envOrDefault('PORTAL_ANNOUNCEMENTS', 'Welcome to Grim Guzzler.'));
       $annLeadHtml = nl2br(htmlspecialchars($annLead));
       $announcementsHtml = renderAnnouncementsList($announcements, 'No announcements yet.');
@@ -1878,9 +1924,6 @@ data:
           <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
           <div class="home-hero-scrim"></div>
           <div class="home-hero-content">
-            <div class="home-kicker">Wrath Of The Lich King • 3.3.5a</div>
-            <h2>Grim Guzzler</h2>
-            <p>A no pay-to-win WotLK realm with community progression, active forums, and in-game services in one place.</p>
             <div class="home-cta">
               <a class="btn" href="/?tab=about#how-to-connect">How to Connect Guide</a>
               <a class="btn secondary" href="/?tab=signup">Create Account</a>
@@ -1894,30 +1937,6 @@ data:
           </div>
         </section>
         <div class="home-columns">
-          <section class="auth-card">
-            <div class="auth-head">
-              <h2>Sign In</h2>
-              <p>Use your game account credentials to access account, character, and store services.</p>
-            </div>
-            <form method="post" class="auth-form">
-              <input type="hidden" name="csrf" value="{$csrf}" />
-              <input type="hidden" name="action" value="login" />
-              <div class="auth-grid">
-                <div>
-                  <label>Account name</label>
-                  <input name="login_user" autocomplete="username" required />
-                </div>
-                <div>
-                  <label>Password</label>
-                  <input name="login_pass" type="password" autocomplete="current-password" required />
-                </div>
-              </div>
-              <div class="auth-actions">
-                <button class="btn" type="submit">{$iconLogin}Enter Portal</button>
-                <div class="muted">Need an account? <a href="/?tab=signup">Create one</a></div>
-              </div>
-            </form>
-          </section>
           <div class="home-feed">
             <div class="panel">
               <div class="hd"><h2>Announcements</h2></div>
