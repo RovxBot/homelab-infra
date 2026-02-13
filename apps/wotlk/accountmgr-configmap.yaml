@@ -504,6 +504,60 @@ data:
         }
         .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
         @media (min-width: 920px) { .grid { grid-template-columns: 1.25fr .75fr; } }
+        .landing {
+          margin-top: 14px;
+          border: 1px solid rgba(255, 221, 148, .24);
+          border-radius: 14px;
+          padding: 20px 16px;
+          background:
+            radial-gradient(600px 250px at 20% 0%, rgba(71, 165, 244, .25), rgba(0,0,0,0)),
+            linear-gradient(180deg, rgba(29, 72, 122, .35), rgba(11, 28, 48, .58)),
+            linear-gradient(180deg, rgba(58, 38, 18, .45), rgba(18, 12, 7, .45));
+          box-shadow: 0 30px 60px rgba(0,0,0,.48);
+          text-align: center;
+        }
+        .landing-logo {
+          width: 78px;
+          height: 78px;
+          margin: 0 auto 12px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: "Georgia", "Times New Roman", serif;
+          font-size: 26px;
+          font-weight: 700;
+          color: #ffe7b0;
+          border: 1px solid rgba(255, 221, 148, .35);
+          background:
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), rgba(0,0,0,0) 60%),
+            linear-gradient(180deg, rgba(21, 95, 163, .72), rgba(12, 40, 72, .72));
+          box-shadow: 0 16px 40px rgba(0,0,0,.45);
+        }
+        .landing-title {
+          margin: 0;
+          color: #ffe1a3;
+          font-size: 28px;
+          letter-spacing: .35px;
+          font-family: "Georgia", "Times New Roman", serif;
+        }
+        .landing-sub {
+          margin-top: 6px;
+          color: #d7c6a6;
+          font-size: 13px;
+        }
+        .landing-links {
+          margin-top: 16px;
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        .landing-note {
+          margin-top: 14px;
+          color: #cbb58f;
+          font-size: 13px;
+        }
         .panel {
           border: 1px solid rgba(255, 221, 148, .18);
           border-radius: 12px;
@@ -1401,7 +1455,7 @@ data:
       $signup = '';
       if (isSignupEnabled()) {
         $signup = <<<HTML
-        <div class="panel">
+        <div id="create-account" class="panel">
           <div class="hd"><h2>Create Account (Invite)</h2></div>
           <div class="bd">
             <form method="post">
@@ -1422,9 +1476,28 @@ data:
           </div>
         </div>
         HTML;
+      } else {
+        $signup = <<<HTML
+        <div id="create-account" class="panel">
+          <div class="hd"><h2>Account Creation</h2></div>
+          <div class="bd">
+            <div class="muted">Account creation is currently invite-only. Contact an admin for access.</div>
+          </div>
+        </div>
+        HTML;
       }
 
       $body = <<<HTML
+      <section class="landing">
+        <div class="landing-logo" aria-hidden="true">GG</div>
+        <h2 class="landing-title">Grim Guzzler</h2>
+        <div class="landing-sub">Wrath of the Lich King 3.3.5a</div>
+        <div class="landing-links">
+          <a class="btn" href="/?tab=about#how-to-connect">How to Connect Guide</a>
+          <a class="btn secondary" href="/?tab=home#create-account">Account Creation</a>
+        </div>
+        <div class="landing-note">Proudly based on <a href="https://www.azerothcore.org/" target="_blank" rel="noreferrer">AzerothCore</a>, support Open Source</div>
+      </section>
       <div class="grid">
         <div>
           <div class="panel">
@@ -1521,7 +1594,7 @@ data:
 
           <div class="divider"></div>
 
-          <div class="muted" style="margin-bottom:8px;">How to connect</div>
+          <div id="how-to-connect" class="muted" style="margin-bottom:8px;">How to connect</div>
           <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
             <li>Ask an admin for an <strong>invite</strong> (account creation is invite-only).</li>
             <li>Download a 3.3.5a client: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>

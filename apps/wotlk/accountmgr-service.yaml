@@ -5,8 +5,8 @@ metadata:
   namespace: wotlk
 spec:
   selector:
-    app: wotlk-worldserver
+    app: wotlk-accountmgr
   ports:
     - name: http
       port: 80
-      targetPort: accountmgr
+      targetPort: http
