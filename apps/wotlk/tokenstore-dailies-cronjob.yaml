@@ -50,7 +50,7 @@ spec:
                   TOKEN_ITEM_ID="${TOKEN_ITEM_ID:-90000}"
                   CLASSIC_DUTY_ITEM_ID="${CLASSIC_DUTY_ITEM_ID:-90001}"
                   TBC_DUTY_ITEM_ID="${TBC_DUTY_ITEM_ID:-90002}"
-                  XP_POTION_ITEM_ID="${XP_POTION_ITEM_ID:-91000}"
+                  XP_POTION_ITEM_ID="${XP_POTION_ITEM_ID:-91090}"
                   XP_POTION_SPELL_ID="${XP_POTION_SPELL_ID:-91001}"
                   XP_POTION_SPELL_CLONE_ID="${XP_POTION_SPELL_CLONE_ID:-68006}"
 
@@ -167,6 +167,38 @@ spec:
                       ImplicitTargetB_3 = VALUES(ImplicitTargetB_3);
                     DROP TEMPORARY TABLE tmp_xp_spell;
 
+                    -- Make the potion cast path client-compatible:
+                    -- seed the known client spell ID itself with the XP aura payload.
+                    UPDATE spell_dbc
+                      SET Name_Lang_enUS = 'Grim Experience Potion',
+                          Name_Lang_enGB = 'Grim Experience Potion',
+                          Description_Lang_enUS = 'Increases experience gained by 300% for 1 hour. Persists through death.',
+                          Description_Lang_enGB = 'Increases experience gained by 300% for 1 hour. Persists through death.',
+                          AuraDescription_Lang_enUS = 'Experience gained increased by 300% for 1 hour.',
+                          AuraDescription_Lang_enGB = 'Experience gained increased by 300% for 1 hour.',
+                          AttributesEx3 = (AttributesEx3 | 1048576),
+                          Effect_1 = 6,
+                          EffectAura_1 = 200,
+                          EffectBasePoints_1 = 299,
+                          Effect_2 = 0,
+                          EffectAura_2 = 0,
+                          EffectBasePoints_2 = 0,
+                          Effect_3 = 0,
+                          EffectAura_3 = 0,
+                          EffectBasePoints_3 = 0,
+                          ImplicitTargetA_1 = 1,
+                          ImplicitTargetB_1 = 0,
+                          ImplicitTargetA_2 = 0,
+                          ImplicitTargetB_2 = 0,
+                          ImplicitTargetA_3 = 0,
+                          ImplicitTargetB_3 = 0
+                    WHERE ID = ${XP_POTION_SPELL_CLONE_ID};
+
+                    -- Ensure no linked fallback remains; clone spell now carries the effect.
+                    DELETE FROM spell_linked_spell
+                    WHERE spell_trigger = ${XP_POTION_SPELL_CLONE_ID}
+                      AND spell_effect = ${XP_POTION_SPELL_ID};
+
                     CREATE TEMPORARY TABLE tmp_xp_item LIKE item_template;
                     INSERT INTO tmp_xp_item
                       SELECT * FROM item_template WHERE entry = 40079 LIMIT 1;
@@ -182,7 +214,7 @@ spec:
                           bonding = 1,
                           requiredspell = 0,
                           RequiredLevel = 1,
-                          spellid_1 = ${XP_POTION_SPELL_ID},
+                          spellid_1 = ${XP_POTION_SPELL_CLONE_ID},
                           spelltrigger_1 = 0,
                           spellcharges_1 = -1,
                           spellcooldown_1 = 0,
