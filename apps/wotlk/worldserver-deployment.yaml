@@ -59,7 +59,8 @@ spec:
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
               clone_module "https://github.com/DustinHendrickson/mod-ollama-chat.git" "main"
-              
+              clone_module "https://github.com/RovxBot/mod-weekend-xp.git" "master"
+
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
@@ -78,6 +79,7 @@ spec:
               envsubst < /etc-tpl/individualProgression.conf > /etc-out/modules/individualProgression.conf
               envsubst < /etc-tpl/transmog.conf > /etc-out/modules/transmog.conf
               envsubst < /etc-tpl/mod_ollama_chat.conf > /etc-out/modules/mod_ollama_chat.conf
+              envsubst < /etc-tpl/mod-double-xp-weekend.conf > /etc-out/modules/mod-double-xp-weekend.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
@@ -119,7 +121,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-d20c3421f366c74d6a34358534cec0f3d02fc2fb
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-0cdc6c924fc805ea9c46872b11ad183a2740f620
           imagePullPolicy: Always
           command:
             - bash
@@ -140,7 +142,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-d20c3421f366c74d6a34358534cec0f3d02fc2fb
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-0cdc6c924fc805ea9c46872b11ad183a2740f620
           imagePullPolicy: Always
           env:
             - name: TZ
@@ -171,6 +173,9 @@ spec:
             - name: world
               containerPort: 8085
               protocol: TCP
+            - name: soap
+              containerPort: 7878
+              protocol: TCP
           volumeMounts:
             - name: etc
               mountPath: /azerothcore/env/dist/etc
@@ -188,108 +193,6 @@ spec:
             limits:
               cpu: "6"
               memory: 16Gi
-        - name: accountmgr
-          image: php:8.3-cli-alpine
-          imagePullPolicy: IfNotPresent
-          command:
-            - sh
-            - -lc
-            - |
-              set -eu
-              # Install required PHP extensions at runtime (keeps this repo image-less).
-              # If this ever becomes too slow on restarts, build a small custom image with these enabled.
-              if ! php -m | grep -qi '^pdo_mysql$'; then
-                jobs="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
-                apk add --no-cache \
-                  gmp \
-                  gmp-dev \
-                  mariadb-connector-c \
-                  mariadb-connector-c-dev \
-                  ${PHPIZE_DEPS} >/dev/null
-                docker-php-ext-install -j"${jobs}" gmp pdo_mysql >/dev/null
-                apk del --no-network gmp-dev mariadb-connector-c-dev ${PHPIZE_DEPS} >/dev/null || true
-              fi
-              php -S 0.0.0.0:8088 -t /app
-          startupProbe:
-            httpGet:
-              path: /
-              port: 8088
-            periodSeconds: 5
-            failureThreshold: 60
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8088
-            periodSeconds: 10
-            timeoutSeconds: 2
-            failureThreshold: 3
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 8088
-            periodSeconds: 30
-            timeoutSeconds: 2
-            failureThreshold: 3
-          env:
-            - name: DB_HOST
-              value: wotlk-mariadb.wotlk.svc.cluster.local
-            - name: DB_PORT
-              value: "3306"
-            - name: DB_AUTH_DB
-              value: acore_auth
-            - name: DB_CHAR_DB
-              value: acore_characters
-            - name: DB_WORLD_DB
-              value: acore_world
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: wotlk-mariadb-auth
-                  key: MARIADB_USER
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: wotlk-mariadb-auth
-                  key: MARIADB_PASSWORD
-            - name: SOAP_URL
-              value: http://127.0.0.1:7878/
-            - name: SOAP_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: wotlk-soap-auth
-                  key: SOAP_USERNAME
-            - name: SOAP_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: wotlk-soap-auth
-                  key: SOAP_PASSWORD
-            - name: ALLOW_SIGNUP
-              # Invite-only signup for friends. If exposing publicly, strongly consider enabling
-              # Cloudflare Access (`PORTAL_REQUIRE_CF_ACCESS=true`) to prevent invite-code brute force.
-              value: "true"
-            - name: INVITE_CODE
-              valueFrom:
-                secretKeyRef:
-                  name: wotlk-accountmgr-invite
-                  key: INVITE_CODE
-            - name: PORTAL_REQUIRE_CF_ACCESS
-              # When true, portal requires Cloudflare Access header (`Cf-Access-Jwt-Assertion`).
-              value: "false"
-            - name: PORTAL_GITHUB_REPO
-              value: "RovxBot/homelab-infra"
-            - name: PORTAL_GITHUB_BRANCH
-              value: "main"
-          ports:
-            - name: accountmgr
-              containerPort: 8088
-              protocol: TCP
-          volumeMounts:
-            - name: accountmgr-web
-              mountPath: /app/index.php
-              subPath: index.php
-            - name: client
-              mountPath: /client
-              readOnly: true
       volumes:
         - name: config-tpl
           configMap:
@@ -303,9 +206,3 @@ spec:
             claimName: wotlk-data-rwx
         - name: acore-src
           emptyDir: {}
-        - name: accountmgr-web
-          configMap:
-            name: wotlk-accountmgr
-        - name: client
-          persistentVolumeClaim:
-            claimName: wotlk-client-files

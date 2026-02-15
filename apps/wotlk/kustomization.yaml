@@ -11,18 +11,9 @@ configMapGenerator:
       - individualProgression.conf=config/individualProgression.conf
       - transmog.conf=config/transmog.conf
       - mod_ollama_chat.conf=config/mod_ollama_chat.conf
+      - mod-double-xp-weekend.conf=config/mod-double-xp-weekend.conf
     options:
       disableNameSuffixHash: false
-  - name: wotlk-realmfirst-sql
-    files:
-      - realmfirst.sql=realmfirst.sql
-    options:
-      disableNameSuffixHash: true
-  - name: wotlk-playerbots-normalize-ascii-sql
-    files:
-      - playerbots-normalize-ascii.sql=playerbots-normalize-ascii.sql
-    options:
-      disableNameSuffixHash: true
 resources:
   - namespace.yaml
   - client-files-pv.yaml
@@ -34,9 +25,6 @@ resources:
   - db-bootstrap-cronjob.yaml
   - ahbot-cleanup-cronjob.yaml
   - realm-upsert-cronjob.yaml
-  - db-hotfix-cronjob.yaml
-  - bot-realmfirst-cleanup-cronjob.yaml
-  - playerbots-normalize-ascii-cronjob.yaml
   - tokenstore-dailies-cronjob.yaml
   - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
@@ -45,7 +33,11 @@ resources:
   - restart-rbac.yaml
   - restart-cronjob.yaml
   - accountmgr-configmap.yaml
+  - accountmgr-assets-configmap.yaml
+  - accountmgr-deployment.yaml
   - accountmgr-service.yaml
+  - worldserver-soap-service.yaml
+  - worldserver-soap-networkpolicy.yaml
   - authserver-config.yaml
   - authserver-deployment.yaml
   - worldserver-deployment.yaml

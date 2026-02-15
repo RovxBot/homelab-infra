@@ -357,6 +357,17 @@ data:
       $userChip = '';
       if (isLoggedIn()) {
         $userChip = '<div class="user">Signed in as <strong>' . htmlspecialchars(currentUsername()) . '</strong></div>';
+      } else {
+        $csrf = htmlspecialchars(csrfToken());
+        $userChip = <<<HTML
+        <form method="post" class="top-login">
+          <input type="hidden" name="csrf" value="{$csrf}" />
+          <input type="hidden" name="action" value="login" />
+          <input class="top-login-input" name="login_user" placeholder="Account" autocomplete="username" required />
+          <input class="top-login-input" name="login_pass" type="password" placeholder="Password" autocomplete="current-password" required />
+          <button class="btn top-login-btn" type="submit">Enter</button>
+        </form>
+        HTML;
       }
 
       $orbSvg = <<<SVG
@@ -393,6 +404,7 @@ data:
           ]
         : [
             'home' => 'Home',
+            'signup' => 'Create Account',
             'announcements' => 'Announcements',
             'forum' => 'Forum',
             'server' => 'Server Info',
@@ -420,7 +432,7 @@ data:
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          font-family: "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif;
+          font-family: "Garamond", "Palatino Linotype", "Book Antiqua", serif;
           color: #efe2c1;
           background:
             radial-gradient(1200px 700px at 50% -10%, rgba(48, 137, 245, .22), rgba(0,0,0,0)),
@@ -439,16 +451,16 @@ data:
           opacity: .12;
         }
         a { color: #9bd7ff; }
-        .wrap { max-width: 980px; margin: 0 auto; padding: 20px 14px 56px; }
+        .wrap { max-width: 1080px; margin: 0 auto; padding: 18px 14px 56px; }
         .topbar {
           display: flex; align-items: center; justify-content: space-between; gap: 10px;
-          border: 1px solid rgba(255, 221, 148, .22);
-          border-radius: 12px;
+          border: 1px solid rgba(255, 192, 104, .26);
+          border-radius: 14px;
           background:
-            linear-gradient(180deg, rgba(44, 29, 14, .55), rgba(12, 8, 4, .75)),
-            linear-gradient(180deg, rgba(18, 55, 96, .35), rgba(7, 18, 35, .35));
-          box-shadow: 0 24px 50px rgba(0,0,0,.45);
-          padding: 12px 14px;
+            linear-gradient(180deg, rgba(46, 29, 13, .62), rgba(12, 8, 4, .82)),
+            linear-gradient(180deg, rgba(14, 42, 72, .38), rgba(7, 18, 35, .28));
+          box-shadow: 0 20px 44px rgba(0,0,0,.45), inset 0 1px 0 rgba(255, 255, 255, .06);
+          padding: 10px 14px;
         }
         .masthead {
           margin-top: 12px;
@@ -465,45 +477,443 @@ data:
         .brand {
           display:flex; align-items:center; gap: 12px;
         }
-        .logo { width: 36px; height: 36px; display:flex; align-items:center; justify-content:center; }
-        .brand h1 { margin: 0; font-size: 15px; letter-spacing: .3px; color: #ffe1a3; font-family: "Georgia", "Times New Roman", serif; }
-        .brand .sub { opacity: .75; font-size: 12px; margin-top: 2px; color: #cbb58f; }
+        .logo { width: 32px; height: 32px; display:flex; align-items:center; justify-content:center; }
+        .brand h1 { margin: 0; font-size: 14px; letter-spacing: .3px; color: #ffe1a3; font-family: "Georgia", "Times New Roman", serif; }
+        .brand .sub { opacity: .75; font-size: 11px; margin-top: 2px; color: #cbb58f; }
         .user { font-size: 12px; opacity: .85; text-align: right; color: #d7c6a6; }
-        .tabs {
-          margin-top: 10px;
+        .top-login {
           display: flex;
+          align-items: center;
           gap: 8px;
           flex-wrap: wrap;
-          padding: 8px;
-          border: 1px solid rgba(255, 221, 148, .14);
-          border-radius: 12px;
+          justify-content: flex-end;
+        }
+        .top-login-input {
+          width: 158px;
+          padding: 8px 10px;
+          border-radius: 9px;
+          border: 1px solid rgba(255, 221, 148, .18);
+          background: rgba(0,0,0,.30);
+          color: #efe2c1;
+          font-size: 12px;
+        }
+        .top-login-input::placeholder { color: #cbb58f; opacity: .85; }
+        .top-login-btn {
+          padding: 8px 12px;
+          border-radius: 9px;
+          font-size: 12px;
+          min-width: 0;
+        }
+        .tabs {
+          margin-top: 12px;
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding: 10px;
+          border: 1px solid rgba(255, 192, 104, .18);
+          border-radius: 14px;
           background:
-            linear-gradient(180deg, rgba(42, 28, 14, .70), rgba(12, 8, 4, .70));
-          box-shadow: 0 20px 45px rgba(0,0,0,.35);
+            linear-gradient(180deg, rgba(33, 21, 11, .78), rgba(10, 7, 4, .82)),
+            linear-gradient(180deg, rgba(18, 54, 96, .12), rgba(7, 18, 35, .08));
+          box-shadow: 0 16px 34px rgba(0,0,0,.34);
+          position: sticky;
+          top: 8px;
+          z-index: 5;
+          backdrop-filter: blur(6px);
         }
         .tab {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          padding: 8px 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(255, 221, 148, .12);
-          background: rgba(0,0,0,.18);
+          gap: 6px;
+          padding: 10px 16px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 188, 94, .16);
+          background: rgba(0,0,0,.26);
           color: #efe2c1;
           text-decoration: none;
           font-weight: 700;
-          letter-spacing: .15px;
-          font-size: 12px;
+          letter-spacing: .25px;
+          font-size: 12.5px;
+          transition: transform .12s ease, border-color .12s ease, background .12s ease;
         }
-        .tab:hover { filter: brightness(1.05); }
+        .tab:hover {
+          transform: translateY(-1px);
+          border-color: rgba(255, 188, 94, .34);
+          background: rgba(23, 91, 152, .22);
+        }
         .tab.active {
-          border-color: rgba(255, 221, 148, .28);
+          border-color: rgba(255, 196, 112, .48);
           background:
-            linear-gradient(180deg, rgba(22, 86, 142, .50), rgba(10, 34, 60, .45));
+            linear-gradient(180deg, rgba(30, 108, 176, .66), rgba(11, 38, 66, .58));
           color: #ffe7b0;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 8px 18px rgba(0,0,0,.30);
         }
         .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
         @media (min-width: 920px) { .grid { grid-template-columns: 1.25fr .75fr; } }
+        .landing {
+          margin-top: 14px;
+          border: 1px solid rgba(255, 187, 104, .24);
+          border-radius: 16px;
+          padding: 14px 14px 16px;
+          background:
+            radial-gradient(860px 360px at 50% -12%, rgba(240, 140, 46, .19), rgba(0,0,0,0)),
+            radial-gradient(640px 260px at 8% 0%, rgba(71, 165, 244, .16), rgba(0,0,0,0)),
+            linear-gradient(180deg, rgba(24, 64, 110, .24), rgba(10, 27, 46, .58)),
+            linear-gradient(180deg, rgba(58, 36, 16, .54), rgba(18, 12, 7, .50));
+          box-shadow: 0 26px 54px rgba(0,0,0,.48);
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+          animation: fadeLift .45s ease-out both;
+        }
+        .landing:before {
+          content: "";
+          position: absolute;
+          inset: -1px;
+          pointer-events: none;
+          background:
+            radial-gradient(600px 180px at 50% -20%, rgba(255, 219, 133, .16), rgba(0,0,0,0));
+        }
+        .landing-banner {
+          width: 100%;
+          max-width: 920px;
+          margin: 0 auto 12px;
+          border-radius: 14px;
+          display: flex;
+          border: 1px solid rgba(255, 192, 104, .38);
+          box-shadow: 0 28px 46px rgba(0,0,0,.50), inset 0 0 0 1px rgba(255,255,255,.06);
+          overflow: hidden;
+          position: relative;
+        }
+        .landing-banner:after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(180deg, rgba(0,0,0,0) 58%, rgba(0,0,0,.28) 100%);
+        }
+        .landing-banner img {
+          width: 100%;
+          height: auto;
+          display: block;
+        }
+        .landing-title {
+          margin: 0;
+          color: #ffe1a3;
+          font-size: clamp(25px, 4vw, 36px);
+          letter-spacing: .45px;
+          font-family: "Georgia", "Times New Roman", serif;
+          text-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+        }
+        .landing-sub {
+          margin-top: 6px;
+          color: #d7c6a6;
+          font-size: 13px;
+          letter-spacing: .45px;
+          text-transform: uppercase;
+        }
+        .landing-tagline {
+          margin-top: 10px;
+          color: #efe2c1;
+          font-size: 14px;
+          max-width: 720px;
+          margin-left: auto;
+          margin-right: auto;
+          line-height: 1.55;
+        }
+        .landing-links {
+          margin-top: 14px;
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        .landing .btn {
+          min-width: 190px;
+          font-size: 13px;
+          letter-spacing: .3px;
+          box-shadow: 0 10px 24px rgba(0,0,0,.28);
+        }
+        .landing-stats {
+          margin-top: 12px;
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        .landing-stat {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: 6px 10px;
+          border: 1px solid rgba(255, 221, 148, .20);
+          background: rgba(0,0,0,.24);
+          color: #d7c6a6;
+          font-size: 12px;
+          line-height: 1;
+        }
+        .landing-stat b {
+          color: #ffe7b0;
+          margin-left: 6px;
+          font-weight: 700;
+        }
+        .landing-note {
+          margin-top: 14px;
+          color: #cbb58f;
+          font-size: 13px;
+        }
+        .home-shell {
+          max-width: 1040px;
+          margin: 14px auto 0;
+          display: grid;
+          gap: 14px;
+        }
+        .home-hero {
+          position: relative;
+          border-radius: 16px;
+          overflow: hidden;
+          border: 1px solid rgba(255, 192, 104, .36);
+          box-shadow: 0 28px 56px rgba(0,0,0,.52);
+          min-height: 360px;
+        }
+        .home-hero img {
+          width: 100%;
+          height: 100%;
+          min-height: 360px;
+          max-height: 520px;
+          object-fit: cover;
+          display: block;
+          filter: saturate(1.05) contrast(1.02);
+        }
+        .home-hero-scrim {
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(90deg, rgba(6, 12, 22, .84) 0%, rgba(6, 12, 22, .50) 52%, rgba(6, 12, 22, .74) 100%),
+            linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.62) 100%);
+          pointer-events: none;
+        }
+        .home-hero-content {
+          position: absolute;
+          left: 24px;
+          right: 24px;
+          bottom: 20px;
+          z-index: 2;
+          max-width: 760px;
+          padding: 14px 14px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 221, 148, .18);
+          background:
+            linear-gradient(180deg, rgba(8, 18, 32, .72), rgba(7, 14, 26, .74));
+          box-shadow: 0 14px 30px rgba(0,0,0,.34);
+        }
+        .home-kicker {
+          display: inline-flex;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 221, 148, .26);
+          background: rgba(5, 13, 24, .55);
+          color: #ffe7b0;
+          text-transform: uppercase;
+          letter-spacing: .55px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .home-hero-content h2 {
+          margin: 10px 0 0;
+          color: #ffe7b0;
+          font-size: clamp(30px, 5vw, 52px);
+          line-height: 1.05;
+          text-shadow: 0 8px 28px rgba(0, 0, 0, .55);
+          font-family: "Georgia", "Times New Roman", serif;
+        }
+        .home-hero-content p {
+          margin: 10px 0 0;
+          max-width: 640px;
+          color: #efe2c1;
+          line-height: 1.6;
+          font-size: 15px;
+        }
+        .home-cta {
+          margin-top: 14px;
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .home-cta .btn {
+          min-width: 180px;
+          box-shadow: 0 10px 24px rgba(0,0,0,.34);
+        }
+        .home-badges {
+          margin-top: 12px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .home-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border-radius: 999px;
+          padding: 6px 10px;
+          border: 1px solid rgba(255, 221, 148, .24);
+          background: rgba(5, 13, 24, .52);
+          color: #d7c6a6;
+          font-size: 12px;
+        }
+        .home-badge b {
+          color: #ffe7b0;
+          font-weight: 700;
+        }
+        .home-note {
+          margin-top: 10px;
+          color: #cbb58f;
+          font-size: 13px;
+        }
+        .home-columns {
+          display: grid;
+          gap: 14px;
+          grid-template-columns: 1fr;
+          width: 100%;
+        }
+        .home-feed {
+          display: grid;
+          gap: 14px;
+          align-content: start;
+          max-width: none;
+          width: 100%;
+        }
+        .home-feed .panel {
+          width: 100%;
+        }
+        .home-stack {
+          max-width: 920px;
+          margin: 14px auto 0;
+          display: grid;
+          gap: 14px;
+        }
+        .page-shell {
+          max-width: 980px;
+          margin: 14px auto 0;
+          display: grid;
+          gap: 14px;
+        }
+        .page-hero {
+          border: 1px solid rgba(255, 192, 104, .24);
+          border-radius: 14px;
+          padding: 12px;
+          background:
+            radial-gradient(620px 220px at 15% 0%, rgba(240, 140, 46, .16), rgba(0,0,0,0)),
+            radial-gradient(640px 220px at 85% 0%, rgba(71, 165, 244, .16), rgba(0,0,0,0)),
+            linear-gradient(180deg, rgba(22, 58, 98, .26), rgba(9, 24, 44, .56)),
+            linear-gradient(180deg, rgba(58, 36, 16, .54), rgba(18, 12, 7, .50));
+          box-shadow: 0 20px 44px rgba(0,0,0,.45);
+          display: grid;
+          gap: 12px;
+        }
+        .page-hero img {
+          width: 100%;
+          display: block;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 192, 104, .30);
+        }
+        .page-hero-head h2 {
+          margin: 0;
+          color: #ffe7b0;
+          font-size: clamp(22px, 3vw, 30px);
+          letter-spacing: .35px;
+          font-family: "Georgia", "Times New Roman", serif;
+        }
+        .page-hero-head p {
+          margin: 8px 0 0;
+          color: #d7c6a6;
+          line-height: 1.6;
+        }
+        .page-hero.compact {
+          grid-template-columns: 220px 1fr;
+          align-items: center;
+        }
+        .page-hero.compact img {
+          max-width: 220px;
+          margin: 0;
+        }
+        .section-stack {
+          display: grid;
+          gap: 14px;
+        }
+        .split {
+          display: grid;
+          gap: 14px;
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 920px) {
+          .split {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+        .portal-layout {
+          margin-top: 14px;
+          display: grid;
+          gap: 14px;
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 1020px) {
+          .portal-layout {
+            grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+          }
+        }
+        .portal-side {
+          display: grid;
+          gap: 14px;
+          align-content: start;
+        }
+        .auth-card {
+          border: 1px solid rgba(255, 192, 104, .22);
+          border-radius: 14px;
+          background:
+            linear-gradient(180deg, rgba(32, 98, 160, .20), rgba(12, 30, 50, .18)),
+            linear-gradient(180deg, rgba(34, 24, 14, .86), rgba(9, 7, 4, .92));
+          box-shadow: 0 26px 56px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.04);
+          overflow: hidden;
+        }
+        .auth-head {
+          padding: 16px 18px;
+          border-bottom: 1px solid rgba(255, 192, 104, .16);
+        }
+        .auth-head h2 {
+          margin: 0;
+          font-size: 18px;
+          letter-spacing: .3px;
+          color: #ffe7b0;
+          font-family: "Georgia", "Times New Roman", serif;
+        }
+        .auth-head p {
+          margin: 6px 0 0;
+          color: #cbb58f;
+          font-size: 13px;
+        }
+        .auth-form {
+          padding: 14px 18px 18px;
+        }
+        .auth-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+        @media (min-width: 700px) {
+          .auth-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+        .auth-actions {
+          margin-top: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
         .panel {
           border: 1px solid rgba(255, 221, 148, .18);
           border-radius: 12px;
@@ -520,7 +930,13 @@ data:
             linear-gradient(180deg, rgba(60, 40, 18, .55), rgba(20, 14, 7, .35));
         }
         .panel .hd h2 { margin: 0; font-size: 13px; letter-spacing: .35px; color: #ffe1a3; text-transform: uppercase; font-family: "Georgia", "Times New Roman", serif; }
-        .panel .bd { padding: 14px; }
+        .panel .bd { padding: 16px; }
+        .home-intro {
+          margin-top: 0;
+          color: #d9caa9;
+          font-size: 15px;
+          line-height: 1.6;
+        }
         .flash {
           margin-top: 12px;
           border-radius: 10px;
@@ -596,10 +1012,10 @@ data:
         .kpi { display:flex; gap: 10px; flex-wrap: wrap; }
         .kpi .card { flex: 1; min-width: 160px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 221, 148, .14); background: rgba(0,0,0,.18); }
         .kpi .val { font-size: 20px; font-weight: 800; color: #9bd7ff; margin-top: 4px; }
-        .post { border: 1px solid rgba(255, 221, 148, .14); border-radius: 10px; padding: 10px 12px; background: rgba(0,0,0,.18); margin-bottom: 10px; }
+        .post { border: 1px solid rgba(255, 221, 148, .14); border-radius: 10px; padding: 12px 14px; background: rgba(0,0,0,.18); margin-bottom: 12px; }
         .post-title { font-weight: 700; color: #ffe1a3; }
-        .post-meta { font-size: 11px; opacity: .7; margin-top: 4px; }
-        .post-body { margin-top: 8px; line-height: 1.6; }
+        .post-meta { font-size: 11px; opacity: .7; margin-top: 4px; letter-spacing: .2px; }
+        .post-body { margin-top: 10px; line-height: 1.75; font-size: 15px; }
         .post.admin {
           border-color: rgba(90, 200, 255, .55);
           background:
@@ -644,11 +1060,164 @@ data:
         }
         .post-row { display: flex; gap: 10px; align-items: flex-start; }
         .post-content { flex: 1; }
+        .services-grid {
+          display: grid;
+          gap: 12px;
+          margin-top: 12px;
+        }
+        .service-card {
+          border: 1px solid rgba(255, 221, 148, .16);
+          border-radius: 12px;
+          padding: 12px;
+          background: rgba(0,0,0,.2);
+        }
+        .service-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .service-name {
+          font-size: 16px;
+          color: #ffe7b0;
+          font-weight: 700;
+        }
+        .service-meta {
+          margin-top: 6px;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .service-actions {
+          margin-top: 10px;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .store-grid {
+          margin-top: 12px;
+          display: grid;
+          gap: 12px;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+        .store-tabs {
+          margin-top: 12px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .store-tab {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 221, 148, .25);
+          background: rgba(0, 0, 0, .35);
+          color: #f6deac;
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .store-tab.active {
+          border-color: rgba(111, 192, 255, .55);
+          background: linear-gradient(180deg, #184873, #0f2f52);
+          color: #e8f5ff;
+        }
+        .store-search {
+          margin-top: 10px;
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .store-search input[type=text] {
+          min-width: 260px;
+          flex: 1;
+        }
+        .store-card {
+          border: 1px solid rgba(255, 221, 148, .16);
+          border-radius: 12px;
+          padding: 12px;
+          background: rgba(0,0,0,.2);
+          display: flex;
+          flex-direction: column;
+          min-height: 180px;
+        }
+        .store-card.low {
+          border-color: rgba(239, 68, 68, .30);
+        }
+        .store-title {
+          color: #ffe7b0;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        .store-note {
+          margin-top: 8px;
+          color: #cbb58f;
+          font-size: 12px;
+          line-height: 1.5;
+          flex: 1;
+        }
+        .store-buy {
+          margin-top: 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
+        }
         @media (max-width: 780px) {
+          .topbar {
+            align-items: flex-start;
+          }
+          .top-login {
+            width: 100%;
+            justify-content: stretch;
+          }
+          .top-login-input {
+            flex: 1 1 140px;
+            width: auto;
+          }
+          .top-login-btn {
+            width: 100%;
+          }
           .forum-row { grid-template-columns: 1fr; }
           .forum-cell.right { text-align: left; }
+          .landing .btn { min-width: 0; width: 100%; }
+          .service-actions .btn { width: 100%; }
+          .home-hero {
+            min-height: 300px;
+          }
+          .home-hero img {
+            min-height: 300px;
+          }
+          .home-hero-content {
+            left: 14px;
+            right: 14px;
+            bottom: 14px;
+          }
+          .home-cta .btn {
+            min-width: 0;
+            width: 100%;
+          }
+          .page-hero.compact {
+            grid-template-columns: 1fr;
+          }
+          .page-hero.compact img {
+            max-width: none;
+          }
+        }
+        @media (min-width: 980px) {
+          .home-columns {
+            grid-template-columns: 1fr !important;
+          }
         }
         .foot { margin-top: 16px; font-size: 12px; opacity: .7; }
+        @keyframes fadeLift {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       </style>
     </head>
     <body class="noise">
@@ -1175,9 +1744,72 @@ data:
     function storeItems(): array {
       // Extend this list with more vanity items as needed.
       return [
-        ['id' => 35227, 'name' => 'Goblin Weather Machine', 'cost' => 15, 'note' => 'Vanity toy.'],
-        ['id' => 33219, 'name' => 'Goblin Gumbo Kettle', 'cost' => 10, 'note' => 'Fun/cosmetic.'],
-        ['id' => 32542, 'name' => 'Imp in a Ball', 'cost' => 20, 'note' => 'Vanity.'],
+        ['id' => 54811, 'name' => 'Celestial Steed', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 49284, 'name' => 'Swift Spectral Tiger', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49283, 'name' => 'Spectral Tiger', 'cost' => 150, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49290, 'name' => 'Magic Rooster Egg', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49636, 'name' => 'Onyxian Drake', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 52200, 'name' => 'Crimson Deathcharger', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49282, 'name' => 'Big Battle Bear', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 35226, 'name' => 'X-51 Nether-Rocket X-TREME', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 33224, 'name' => 'Reins of the Spectral Tiger', 'cost' => 150, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 33809, 'name' => 'Amani War Bear', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 19902, 'name' => 'Swift Zulian Tiger', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 19872, 'name' => 'Swift Razzashi Raptor', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 32768, 'name' => 'Reins of the Raven Lord', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 33999, 'name' => 'Cenarion War Hippogryph', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 33182, 'name' => 'Swift Flying Broom', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Seasonal flying mount (vanity).'],
+        ['id' => 33176, 'name' => 'Flying Broom', 'cost' => 150, 'cat' => 'mounts', 'note' => 'Seasonal flying mount (vanity).'],
+        ['id' => 25535, 'name' => 'Netherwhelp\'s Collar', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 23712, 'name' => 'White Tiger Cub', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 23713, 'name' => 'Hippogryph Hatchling', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 38050, 'name' => 'Soul-Trader Beacon', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 34425, 'name' => 'Clockwork Rocket Bot', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 32588, 'name' => 'Banana Charm', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 46707, 'name' => 'Pint-Sized Pink Pachyderm', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 49343, 'name' => 'Spectral Tiger Cub', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 49362, 'name' => 'Onyxian Whelpling', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 44721, 'name' => 'Proto-Drake Whelp', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 44723, 'name' => 'Nurtured Penguin Egg', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 44819, 'name' => 'Baby Blizzard Bear', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 46802, 'name' => 'Heavy Murloc Egg', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 34478, 'name' => 'Tiny Sporebat', 'cost' => 20, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 41133, 'name' => 'Unhatched Mr. Chilly', 'cost' => 20, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 35227, 'name' => 'Goblin Weather Machine', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 38301, 'name' => 'D.I.S.C.O.', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 45057, 'name' => 'Wind-Up Train Wrecker', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 45061, 'name' => 'Foam Sword Rack', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 35275, 'name' => 'Orb of the Sin\'dorei', 'cost' => 12, 'cat' => 'toys', 'note' => 'Cosmetic transform toy.'],
+        ['id' => 49703, 'name' => 'Perpetual Purple Firework', 'cost' => 12, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 43499, 'name' => 'Iron Boot Flask', 'cost' => 12, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 33219, 'name' => 'Goblin Gumbo Kettle', 'cost' => 10, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 45073, 'name' => 'Spring Flowers', 'cost' => 10, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 36862, 'name' => 'Worn Troll Dice', 'cost' => 10, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 33223, 'name' => 'Fishing Chair', 'cost' => 8, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 34480, 'name' => 'Romantic Picnic Basket', 'cost' => 8, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 43348, 'name' => 'Tabard of the Explorer', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 54653, 'name' => 'Darkspear Pride', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 54651, 'name' => 'Gnomeregan Pride', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 43349, 'name' => 'Tabard of Brute Force', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 43300, 'name' => 'Loremaster\'s Colors', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 32542, 'name' => 'Imp in a Ball', 'cost' => 20, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 52253, 'name' => 'Sylvanas\'s Music Box', 'cost' => 20, 'cat' => 'misc', 'note' => 'Music box toy.'],
+        ['id' => 40768, 'name' => 'MOLL-E', 'cost' => 20, 'cat' => 'misc', 'note' => 'Mailbox utility vanity.'],
+        ['id' => 38578, 'name' => 'Flag of Ownership', 'cost' => 18, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 38506, 'name' => 'Don Carlos\' Famous Hat', 'cost' => 18, 'cat' => 'misc', 'note' => 'Cosmetic headpiece.'],
+        ['id' => 34499, 'name' => 'Paper Flying Machine Kit', 'cost' => 15, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 49704, 'name' => 'Carved Ogre Idol', 'cost' => 10, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+      ];
+    }
+
+    function storeCategoryLabels(): array {
+      return [
+        'all' => 'All',
+        'mounts' => 'Mounts',
+        'pets' => 'Pets',
+        'toys' => 'Toys',
+        'tabards' => 'Tabards',
+        'misc' => 'Misc',
       ];
     }
 
@@ -1373,16 +2005,12 @@ data:
       $csrf = htmlspecialchars(csrfToken());
       $online = (int)$stats['players_online'];
 
-      $iconLogin = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21 12H11m0 0 3-3m-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
       $annLead = trim(envOrDefault('PORTAL_ANNOUNCEMENTS', 'Welcome to Grim Guzzler.'));
       $annLeadHtml = nl2br(htmlspecialchars($annLead));
       $announcementsHtml = renderAnnouncementsList($announcements, 'No announcements yet.');
       $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
       $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
       $realmPort = (int)($realm['port'] ?? 0);
-      $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
-      $snapshotRows = (int)($snap['rows'] ?? 0);
 
       $threadsRows = '';
       foreach ($latestThreads as $t) {
@@ -1398,83 +2026,96 @@ data:
         $threadsRows = '<div class="muted">No threads yet.</div>';
       }
 
-      $signup = '';
-      if (isSignupEnabled()) {
-        $signup = <<<HTML
-        <div class="panel">
-          <div class="hd"><h2>Create Account (Invite)</h2></div>
-          <div class="bd">
-            <form method="post">
-              <input type="hidden" name="csrf" value="{$csrf}" />
-              <input type="hidden" name="action" value="signup" />
-              <label>Username</label>
-              <input name="username" autocomplete="username" required />
-              <label>Password (max 16 chars)</label>
-              <input name="password" type="password" autocomplete="new-password" required />
-              <label>Email</label>
-              <input name="email" type="email" autocomplete="email" required />
-              <label>Invite code</label>
-              <input name="invite" required />
-              <div style="margin-top:12px;">
-                <button class="btn" type="submit">Create account</button>
+      $body = <<<HTML
+      <div class="home-shell">
+        <section class="home-hero">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="home-hero-scrim"></div>
+          <div class="home-hero-content">
+            <div class="home-cta">
+              <a class="btn" href="/?tab=about#how-to-connect">How to Connect Guide</a>
+              <a class="btn secondary" href="/?tab=signup">Create Account</a>
+            </div>
+            <div class="home-badges">
+              <div class="home-badge">Players Online <b>{$online}</b></div>
+              <div class="home-badge">Realm <b>{$realmName}</b></div>
+              <div class="home-badge">Connect <b>{$realmAddr}:{$realmPort}</b></div>
+            </div>
+            <div class="home-note">Proudly based on <a href="https://www.azerothcore.org/" target="_blank" rel="noreferrer">AzerothCore</a>, support Open Source.</div>
+          </div>
+        </section>
+        <div class="home-columns">
+          <div class="home-feed">
+            <div class="panel">
+              <div class="hd"><h2>Announcements</h2></div>
+              <div class="bd">
+                <div class="home-intro">{$annLeadHtml}</div>
+                <div style="margin-top:12px;">{$announcementsHtml}</div>
               </div>
-            </form>
+            </div>
+            <div class="panel">
+              <div class="hd"><h2>Forum Highlights</h2></div>
+              <div class="bd">
+                <div class="muted" style="margin-bottom: 10px;">Latest threads</div>
+                <div class="forum-grid">{$threadsRows}</div>
+                <div class="muted" style="margin-top:10px;"><a href="/?tab=forum">Visit the forum</a></div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
+      HTML;
+
+      render($body, $flash, $flashKind);
+    }
+
+    function renderSignupPage(array $realm, string $flash = '', string $flashKind = 'info'): void {
+      $csrf = htmlspecialchars(csrfToken());
+      $realmName = htmlspecialchars((string)($realm['name'] ?? 'Unknown'));
+      $realmAddr = htmlspecialchars((string)($realm['address'] ?? ''));
+      $realmPort = (int)($realm['port'] ?? 0);
+
+      if (isSignupEnabled()) {
+        $form = <<<HTML
+          <form method="post">
+            <input type="hidden" name="csrf" value="{$csrf}" />
+            <input type="hidden" name="action" value="signup" />
+            <label>Username</label>
+            <input name="username" autocomplete="username" required />
+            <label>Password (max 16 chars)</label>
+            <input name="password" type="password" autocomplete="new-password" required />
+            <label>Email</label>
+            <input name="email" type="email" autocomplete="email" required />
+            <label>Invite code</label>
+            <input name="invite" required />
+            <div style="margin-top:12px;">
+              <button class="btn" type="submit">Create account</button>
+            </div>
+          </form>
         HTML;
+      } else {
+        $form = '<div class="muted">Account creation is currently invite-only. Contact an admin for access.</div>';
       }
 
       $body = <<<HTML
-      <div class="grid">
-        <div>
-          <div class="panel">
-            <div class="hd"><h2>Announcements</h2></div>
-            <div class="bd">
-              <div style="margin-top:2px;">{$annLeadHtml}</div>
-              <div style="margin-top:12px;">{$announcementsHtml}</div>
-            </div>
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Create Your Account</h2>
+            <p>Join Grim Guzzler and unlock account, forum, and character services.</p>
           </div>
-          <div class="panel" style="margin-top:14px;">
-            <div class="hd"><h2>Forum Highlights</h2></div>
-            <div class="bd">
-              <div class="muted" style="margin-bottom: 10px;">Latest threads</div>
-              <div class="forum-grid">{$threadsRows}</div>
-              <div class="muted" style="margin-top:10px;"><a href="/?tab=forum">Visit the forum</a></div>
-            </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>Create Account</h2></div>
+          <div class="bd">
+            <div class="muted" style="margin-bottom:12px;">Create your Grim Guzzler account. Invite code is required.</div>
+            {$form}
+            <div class="divider"></div>
+            <div class="muted">Realm: <strong>{$realmName}</strong> — <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+            <div class="muted" style="margin-top:10px;"><a href="/?tab=about#how-to-connect">How to connect guide</a></div>
+            <div class="muted" style="margin-top:10px;">Already have an account? <a href="/?tab=home">Sign in</a></div>
           </div>
-        </div>
-        <div>
-          <div class="panel">
-            <div class="hd"><h2>Sign In</h2></div>
-            <div class="bd">
-              <div class="kpi">
-                <div class="card">
-                  <div class="muted">Players online</div>
-                  <div class="val">{$online}</div>
-                </div>
-              </div>
-              <form method="post" style="margin-top:14px;">
-                <input type="hidden" name="csrf" value="{$csrf}" />
-                <input type="hidden" name="action" value="login" />
-                <label>Account name</label>
-                <input name="login_user" autocomplete="username" required />
-                <label>Password</label>
-                <input name="login_pass" type="password" autocomplete="current-password" required />
-                <div style="margin-top:12px;">
-                  <button class="btn" type="submit">{$iconLogin}Log In</button>
-                </div>
-              </form>
-            </div>
-          </div>
-          <div class="panel" style="margin-top:14px;">
-            <div class="hd"><h2>Realm Status</h2></div>
-            <div class="bd">
-              <div><strong>{$realmName}</strong></div>
-              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
-              <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
-            </div>
-          </div>
-          {$signup}
         </div>
       </div>
       HTML;
@@ -1488,10 +2129,18 @@ data:
       $realmPort = (int)($realm['port'] ?? 0);
 
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>About Grim Guzzler</h2></div>
-        <div class="bd">
-          <div class="row" style="align-items:flex-start;">
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>About Grim Guzzler</h2>
+            <p>Community-first Wrath 3.3.5a, built for progression and long-term realm stability.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>About Grim Guzzler</h2></div>
+          <div class="bd">
+            <div class="row" style="align-items:flex-start;">
             <div style="flex: 1;">
               <div class="muted" style="margin-bottom:8px;">Server info</div>
               <ul class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
@@ -1521,12 +2170,13 @@ data:
 
           <div class="divider"></div>
 
-          <div class="muted" style="margin-bottom:8px;">How to connect</div>
+          <div id="how-to-connect" class="muted" style="margin-bottom:8px;">How to connect</div>
           <ol class="muted" style="margin:0; padding-left: 18px; line-height: 1.7;">
             <li>Ask an admin for an <strong>invite</strong> (account creation is invite-only).</li>
             <li>Download a 3.3.5a client: <a href="https://www.chromiecraft.com/en/downloads/" target="_blank" rel="noreferrer">ChromieCraft Downloads</a></li>
             <li>Set realmlist to: <span class="pill">grim.cooked.beer</span></li>
           </ol>
+          </div>
         </div>
       </div>
       HTML;
@@ -1608,31 +2258,40 @@ data:
       }
 
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>Realm Stats</h2></div>
-        <div class="bd">
-          <div class="muted">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
-          <div class="divider"></div>
-          <div class="muted">Last 7 days (based on daily snapshots).</div>
-          <div class="row" style="align-items:flex-start;margin-top:10px;">
-            <div>
-              <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
-              <table class="table">
-                <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
-                <tbody>{$topKills}</tbody>
-              </table>
-            </div>
-            <div>
-              <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
-              <table class="table">
-                <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
-                <tbody>{$topLv}</tbody>
-              </table>
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Realm Stats</h2>
+            <p>Daily snapshots and arena ladders to track progression across the server.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>Realm Stats</h2></div>
+          <div class="bd">
+            <div class="muted">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span> rows)</div>
+            <div class="divider"></div>
+            <div class="muted">Last 7 days (based on daily snapshots).</div>
+            <div class="row" style="align-items:flex-start;margin-top:10px;">
+              <div>
+                <div class="muted" style="margin-bottom: 6px;">Top PvP kills</div>
+                <table class="table">
+                  <thead><tr><th>Character</th><th>Lvl</th><th>+Kills</th></tr></thead>
+                  <tbody>{$topKills}</tbody>
+                </table>
+              </div>
+              <div>
+                <div class="muted" style="margin-bottom: 6px;">Top levels gained</div>
+                <table class="table">
+                  <thead><tr><th>Character</th><th>Lvl</th><th>+Levels</th></tr></thead>
+                  <tbody>{$topLv}</tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
+        {$sections}
       </div>
-      {$sections}
       HTML;
 
       render($body, $flash, $flashKind);
@@ -1641,10 +2300,19 @@ data:
     function renderAnnouncementsPage(array $announcements, string $flash = '', string $flashKind = 'info'): void {
       $announcementsHtml = renderAnnouncementsList($announcements, 'No announcements yet.');
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>Announcements</h2></div>
-        <div class="bd">
-          {$announcementsHtml}
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Announcements</h2>
+            <p>Realm updates, release notes, and community news.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>Announcements</h2></div>
+          <div class="bd">
+            {$announcementsHtml}
+          </div>
         </div>
       </div>
       HTML;
@@ -1658,10 +2326,18 @@ data:
       $patchNote = '<a href="/?download=patch-s">patch-S.mpq</a> (client download)';
 
       $body = <<<HTML
-      <div class="panel">
-        <div class="hd"><h2>Server Information</h2></div>
-        <div class="bd">
-          <div class="row" style="align-items:flex-start;">
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Server Information</h2>
+            <p>Connection details, realm rules, and client setup notes.</p>
+          </div>
+        </section>
+        <div class="panel">
+          <div class="hd"><h2>Server Information</h2></div>
+          <div class="bd">
+            <div class="row" style="align-items:flex-start;">
             <div style="flex:1;">
               <div class="muted" style="margin-bottom:8px;">Realm status</div>
               <div><strong>{$realmName}</strong></div>
@@ -1689,6 +2365,7 @@ data:
             <li>Set realmlist to: <span class="pill">grim.cooked.beer</span></li>
             <li>Apply the progression patch if you want classic reagent behavior.</li>
           </ol>
+          </div>
         </div>
       </div>
       HTML;
@@ -2023,6 +2700,23 @@ data:
         HTML;
       }
 
+      $forumHeroText = $allowPosting
+        ? 'Discuss progression, strategies, and updates with the community.'
+        : 'Browse public threads and announcements from the realm team.';
+
+      $body = <<<HTML
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>Forum</h2>
+            <p>{$forumHeroText}</p>
+          </div>
+        </section>
+        {$body}
+      </div>
+      HTML;
+
       render($body, $flash, $flashKind);
     }
 
@@ -2046,34 +2740,39 @@ data:
       $snapshotDate = htmlspecialchars((string)($snap['date'] ?? ''));
       $snapshotRows = (int)($snap['rows'] ?? 0);
 
-      $rows = '';
+      $characterCards = '';
       foreach ($chars as $c) {
         $guid = (int)$c['guid'];
         $name = htmlspecialchars((string)$c['name']);
         $level = (int)$c['level'];
+        $class = (int)$c['class'];
         $isOnline = (int)$c['online'] === 1;
         $state = $isOnline ? '<span class="pill">Online</span>' : '<span class="pill">Offline</span>';
         $disabled = $isOnline ? 'disabled' : '';
+        $classPill = classPill($class);
 
-        $rows .= <<<HTML
-        <tr>
-          <td><strong>{$name}</strong><div class="muted">GUID {$guid}</div></td>
-          <td>{$level}</td>
-          <td>{$state}</td>
-          <td>
-            <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;">
-              <input type="hidden" name="csrf" value="{$csrf}" />
-              <input type="hidden" name="guid" value="{$guid}" />
-              <button class="btn secondary" type="submit" name="action" value="rename" {$disabled}>{$iconQuill}Rename</button>
-              <button class="btn secondary" type="submit" name="action" value="race_change" {$disabled}>{$iconMask}Race Change</button>
-              <button class="btn danger" type="submit" name="action" value="unstuck" {$disabled}>{$iconGrave}Unstuck</button>
-            </form>
-          </td>
-        </tr>
+        $characterCards .= <<<HTML
+        <div class="service-card">
+          <div class="service-head">
+            <div class="service-name">{$classPill}{$name}</div>
+            {$state}
+          </div>
+          <div class="service-meta">
+            <span class="pill">Level {$level}</span>
+            <span class="pill">GUID {$guid}</span>
+          </div>
+          <form method="post" class="service-actions">
+            <input type="hidden" name="csrf" value="{$csrf}" />
+            <input type="hidden" name="guid" value="{$guid}" />
+            <button class="btn secondary" type="submit" name="action" value="rename" {$disabled}>{$iconQuill}Rename</button>
+            <button class="btn secondary" type="submit" name="action" value="race_change" {$disabled}>{$iconMask}Race Change</button>
+            <button class="btn danger" type="submit" name="action" value="unstuck" {$disabled}>{$iconGrave}Unstuck</button>
+          </form>
+        </div>
         HTML;
       }
-      if ($rows === '') {
-        $rows = '<tr><td colspan="4" class="muted">No characters found.</td></tr>';
+      if ($characterCards === '') {
+        $characterCards = '<div class="muted">No characters found.</div>';
       }
 
       $mainTitle = 'My Account';
@@ -2168,14 +2867,11 @@ data:
           {$deletePanel}
         HTML;
       } elseif ($tab === 'characters') {
-        $mainTitle = 'Characters';
+        $mainTitle = 'Character Services';
         $mainBody = <<<HTML
-          <div class="muted">Rename, race change, and unstuck are available per character below.</div>
+          <div class="muted">Pick a character and queue services. Characters must be offline for changes to apply.</div>
           <div class="divider"></div>
-          <table class="table">
-            <thead><tr><th>Character</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>{$rows}</tbody>
-          </table>
+          <div class="services-grid">{$characterCards}</div>
         HTML;
       } elseif ($tab === 'store') {
         $mainTitle = 'Store';
@@ -2193,6 +2889,14 @@ data:
           }
         }
 
+        $categoryLabels = storeCategoryLabels();
+        $selectedCat = strtolower(trim((string)($_GET['cat'] ?? 'all')));
+        if (!array_key_exists($selectedCat, $categoryLabels)) {
+          $selectedCat = 'all';
+        }
+        $query = trim((string)($_GET['q'] ?? ''));
+        $queryLc = strtolower($query);
+
         $selector = '<div class="muted">Select a character to view token balance.</div>';
         $balance = 0;
         $disabledNote = '';
@@ -2204,6 +2908,8 @@ data:
 
           $selector = '<form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' .
             '<input type="hidden" name="tab" value="store" />' .
+            '<input type="hidden" name="cat" value="' . htmlspecialchars($selectedCat) . '" />' .
+            '<input type="hidden" name="q" value="' . htmlspecialchars($query) . '" />' .
             '<label style="margin:0;">Character</label>' .
             '<select name="guid" onchange="this.form.submit()">';
           foreach ($chars as $c) {
@@ -2221,24 +2927,63 @@ data:
           }
         }
 
-        $itemsRows = '';
+        $tabLinks = '';
+        foreach ($categoryLabels as $catKey => $catLabel) {
+          $isActive = $selectedCat === $catKey ? ' active' : '';
+          $href = '?tab=store&guid=' . (int)($selected['guid'] ?? $selectedGuid) .
+            '&cat=' . rawurlencode($catKey) .
+            ($query !== '' ? '&q=' . rawurlencode($query) : '');
+          $tabLinks .= '<a class="store-tab' . $isActive . '" href="' . $href . '">' . htmlspecialchars($catLabel) . '</a>';
+        }
+
+        $searchBox = '<form method="get" class="store-search">' .
+          '<input type="hidden" name="tab" value="store" />' .
+          '<input type="hidden" name="guid" value="' . (int)($selected['guid'] ?? $selectedGuid) . '" />' .
+          '<input type="hidden" name="cat" value="' . htmlspecialchars($selectedCat) . '" />' .
+          '<input type="text" name="q" value="' . htmlspecialchars($query) . '" placeholder="Search items..." />' .
+          '<button class="btn" type="submit">Search</button>' .
+          '</form>';
+
+        $storeCards = '';
+        $visibleCount = 0;
         foreach (storeItems() as $it) {
+          $cat = strtolower((string)($it['cat'] ?? 'misc'));
+          if (!array_key_exists($cat, $categoryLabels)) {
+            $cat = 'misc';
+          }
+          if ($selectedCat !== 'all' && $cat !== $selectedCat) {
+            continue;
+          }
+
           $id = (int)$it['id'];
           $name = htmlspecialchars((string)$it['name']);
+          $nameRaw = (string)$it['name'];
           $cost = (int)$it['cost'];
           $note = htmlspecialchars((string)($it['note'] ?? ''));
+          $noteRaw = (string)($it['note'] ?? '');
 
-          $canBuy = $selected && $disabledNote === '' && $balance >= $cost;
-          $btnDisabled = $canBuy ? '' : 'disabled';
+          if ($queryLc !== '' && strpos(strtolower($nameRaw . ' ' . $noteRaw), $queryLc) === false) {
+            continue;
+          }
 
-          $itemsRows .= '<tr><td><strong>' . $name . '</strong><div class="muted">Item ' . $id . '</div><div class="muted">' . $note . '</div></td><td><span class="pill">' . $cost . '</span></td><td>' .
-            '<form method="post" style="margin:0;display:flex;gap:8px;justify-content:flex-end;align-items:center;">' .
+          $affordClass = $balance >= $cost ? '' : ' low';
+          $visibleCount++;
+
+          $storeCards .= '<div class="store-card' . $affordClass . '">' .
+            '<div class="store-title">' . $name . '</div>' .
+            '<div class="service-meta"><span class="pill">Item ' . $id . '</span><span class="pill">' . htmlspecialchars($categoryLabels[$cat]) . '</span><span class="pill">Cost ' . $cost . '</span></div>' .
+            '<div class="store-note">' . $note . '</div>' .
+            '<form method="post" class="store-buy">' .
             '<input type="hidden" name="csrf" value="' . $csrf . '" />' .
             '<input type="hidden" name="action" value="store_purchase" />' .
             '<input type="hidden" name="guid" value="' . (int)($selected['guid'] ?? 0) . '" />' .
             '<input type="hidden" name="item_id" value="' . $id . '" />' .
-            '<button class="btn" type="submit" ' . $btnDisabled . '>Buy</button>' .
-            '</form></td></tr>';
+            '<span class="pill">Price ' . $cost . '</span>' .
+            '<button class="btn" type="submit">Buy</button>' .
+            '</form></div>';
+        }
+        if ($storeCards === '') {
+          $storeCards = '<div class="muted">No items match this filter.</div>';
         }
 
         $mainBody = <<<HTML
@@ -2247,11 +2992,11 @@ data:
             <div class="card"><div class="muted">Grim Tokens</div><div class="val">{$balance}</div></div>
           </div>
           {$disabledNote}
-          <div class="muted" style="margin-top:14px;">Purchases are delivered via in-game mail.</div>
-          <table class="table" style="margin-top:10px;">
-            <thead><tr><th>Item</th><th>Cost</th><th></th></tr></thead>
-            <tbody>{$itemsRows}</tbody>
-          </table>
+          <div class="store-tabs">{$tabLinks}</div>
+          {$searchBox}
+          <div class="muted" style="margin-top:14px;">Purchases are delivered via in-game mail. Offline characters only.</div>
+          <div class="muted" style="margin-top:4px;">Showing {$visibleCount} item(s).</div>
+          <div class="store-grid">{$storeCards}</div>
         HTML;
       } elseif ($tab === 'about') {
         $mainTitle = 'About';
@@ -2292,34 +3037,43 @@ data:
       }
 
       $body = <<<HTML
-      <div class="grid">
-        <div class="panel">
-          <div class="hd"><h2>{$mainTitle}</h2></div>
-          <div class="bd">
-            {$mainBody}
+      <div class="page-shell">
+        <section class="page-hero compact">
+          <img src="/assets/Logo.jpg" alt="Grim Guzzler banner logo" />
+          <div class="page-hero-head">
+            <h2>{$mainTitle}</h2>
+            <p>Account, character services, and store tools in one control center.</p>
           </div>
-        </div>
-        <div>
+        </section>
+        <div class="portal-layout">
           <div class="panel">
-            <div class="hd"><h2>Realm</h2></div>
+            <div class="hd"><h2>{$mainTitle}</h2></div>
             <div class="bd">
-              <div><strong>{$realmName}</strong></div>
-              <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
-              <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span>)</div>
+              {$mainBody}
             </div>
           </div>
-          <div class="panel" style="margin-top:14px;">
-            <div class="hd"><h2>Password</h2></div>
-            <div class="bd">
-              <form method="post">
-                <input type="hidden" name="csrf" value="{$csrf}" />
-                <input type="hidden" name="action" value="change_password" />
-                <label>New password (max 16 chars)</label>
-                <input name="new_password" type="password" autocomplete="new-password" required />
-                <div style="margin-top:12px;">
-                  <button class="btn" type="submit">{$iconKey}Change Password</button>
-                </div>
-              </form>
+          <div class="portal-side">
+            <div class="panel">
+              <div class="hd"><h2>Realm</h2></div>
+              <div class="bd">
+                <div><strong>{$realmName}</strong></div>
+                <div class="muted" style="margin-top:6px;">Connect: <span class="pill">{$realmAddr}:{$realmPort}</span></div>
+                <div class="muted" style="margin-top:10px;">Snapshot: <span class="pill">{$snapshotDate}</span> (<span class="pill">{$snapshotRows}</span>)</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="hd"><h2>Password</h2></div>
+              <div class="bd">
+                <form method="post">
+                  <input type="hidden" name="csrf" value="{$csrf}" />
+                  <input type="hidden" name="action" value="change_password" />
+                  <label>New password (max 16 chars)</label>
+                  <input name="new_password" type="password" autocomplete="new-password" required />
+                  <div style="margin-top:12px;">
+                    <button class="btn" type="submit">{$iconKey}Change Password</button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>
@@ -2573,6 +3327,9 @@ data:
       if (!isLoggedIn()) {
         if ($tab === 'about') {
           renderAboutPage($realm, $flash, $flashKind);
+        }
+        if ($tab === 'signup') {
+          renderSignupPage($realm, $flash, $flashKind);
         }
         if ($tab === 'server') {
           renderServerInfoPage($realm, $flash, $flashKind);
