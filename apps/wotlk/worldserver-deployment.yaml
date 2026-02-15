@@ -59,6 +59,7 @@ spec:
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
               clone_module "https://github.com/DustinHendrickson/mod-ollama-chat.git" "main"
+              clone_module "https://github.com/RovxBot/mod-weekend-xp.git" "master"
 
           volumeMounts:
             - name: acore-src

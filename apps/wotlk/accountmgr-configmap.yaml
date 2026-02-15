@@ -1101,6 +1101,41 @@ data:
           gap: 12px;
           grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         }
+        .store-tabs {
+          margin-top: 12px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .store-tab {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 221, 148, .25);
+          background: rgba(0, 0, 0, .35);
+          color: #f6deac;
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .store-tab.active {
+          border-color: rgba(111, 192, 255, .55);
+          background: linear-gradient(180deg, #184873, #0f2f52);
+          color: #e8f5ff;
+        }
+        .store-search {
+          margin-top: 10px;
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .store-search input[type=text] {
+          min-width: 260px;
+          flex: 1;
+        }
         .store-card {
           border: 1px solid rgba(255, 221, 148, .16);
           border-radius: 12px;
@@ -1709,10 +1744,72 @@ data:
     function storeItems(): array {
       // Extend this list with more vanity items as needed.
       return [
-        ['id' => 91000, 'name' => 'Grim Experience Potion', 'cost' => 25, 'note' => 'Custom: +300% XP for 1 hour, persists through death.'],
-        ['id' => 35227, 'name' => 'Goblin Weather Machine', 'cost' => 15, 'note' => 'Vanity toy.'],
-        ['id' => 33219, 'name' => 'Goblin Gumbo Kettle', 'cost' => 10, 'note' => 'Fun/cosmetic.'],
-        ['id' => 32542, 'name' => 'Imp in a Ball', 'cost' => 20, 'note' => 'Vanity.'],
+        ['id' => 54811, 'name' => 'Celestial Steed', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 49284, 'name' => 'Swift Spectral Tiger', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49283, 'name' => 'Spectral Tiger', 'cost' => 150, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49290, 'name' => 'Magic Rooster Egg', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49636, 'name' => 'Onyxian Drake', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 52200, 'name' => 'Crimson Deathcharger', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 49282, 'name' => 'Big Battle Bear', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 35226, 'name' => 'X-51 Nether-Rocket X-TREME', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 33224, 'name' => 'Reins of the Spectral Tiger', 'cost' => 150, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 33809, 'name' => 'Amani War Bear', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 19902, 'name' => 'Swift Zulian Tiger', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 19872, 'name' => 'Swift Razzashi Raptor', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 32768, 'name' => 'Reins of the Raven Lord', 'cost' => 1500, 'cat' => 'mounts', 'note' => 'Ground mount (vanity).'],
+        ['id' => 33999, 'name' => 'Cenarion War Hippogryph', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Flying mount (vanity).'],
+        ['id' => 33182, 'name' => 'Swift Flying Broom', 'cost' => 5000, 'cat' => 'mounts', 'note' => 'Seasonal flying mount (vanity).'],
+        ['id' => 33176, 'name' => 'Flying Broom', 'cost' => 150, 'cat' => 'mounts', 'note' => 'Seasonal flying mount (vanity).'],
+        ['id' => 25535, 'name' => 'Netherwhelp\'s Collar', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 23712, 'name' => 'White Tiger Cub', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 23713, 'name' => 'Hippogryph Hatchling', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 38050, 'name' => 'Soul-Trader Beacon', 'cost' => 35, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 34425, 'name' => 'Clockwork Rocket Bot', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 32588, 'name' => 'Banana Charm', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 46707, 'name' => 'Pint-Sized Pink Pachyderm', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 49343, 'name' => 'Spectral Tiger Cub', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 49362, 'name' => 'Onyxian Whelpling', 'cost' => 30, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 44721, 'name' => 'Proto-Drake Whelp', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 44723, 'name' => 'Nurtured Penguin Egg', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 44819, 'name' => 'Baby Blizzard Bear', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 46802, 'name' => 'Heavy Murloc Egg', 'cost' => 25, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 34478, 'name' => 'Tiny Sporebat', 'cost' => 20, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 41133, 'name' => 'Unhatched Mr. Chilly', 'cost' => 20, 'cat' => 'pets', 'note' => 'Companion pet.'],
+        ['id' => 35227, 'name' => 'Goblin Weather Machine', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 38301, 'name' => 'D.I.S.C.O.', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 45057, 'name' => 'Wind-Up Train Wrecker', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 45061, 'name' => 'Foam Sword Rack', 'cost' => 15, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 35275, 'name' => 'Orb of the Sin\'dorei', 'cost' => 12, 'cat' => 'toys', 'note' => 'Cosmetic transform toy.'],
+        ['id' => 49703, 'name' => 'Perpetual Purple Firework', 'cost' => 12, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 43499, 'name' => 'Iron Boot Flask', 'cost' => 12, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 33219, 'name' => 'Goblin Gumbo Kettle', 'cost' => 10, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 45073, 'name' => 'Spring Flowers', 'cost' => 10, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 36862, 'name' => 'Worn Troll Dice', 'cost' => 10, 'cat' => 'toys', 'note' => 'Vanity toy.'],
+        ['id' => 33223, 'name' => 'Fishing Chair', 'cost' => 8, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 34480, 'name' => 'Romantic Picnic Basket', 'cost' => 8, 'cat' => 'toys', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 43348, 'name' => 'Tabard of the Explorer', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 54653, 'name' => 'Darkspear Pride', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 54651, 'name' => 'Gnomeregan Pride', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 43349, 'name' => 'Tabard of Brute Force', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 43300, 'name' => 'Loremaster\'s Colors', 'cost' => 8, 'cat' => 'tabards', 'note' => 'Cosmetic tabard.'],
+        ['id' => 32542, 'name' => 'Imp in a Ball', 'cost' => 20, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 52253, 'name' => 'Sylvanas\'s Music Box', 'cost' => 20, 'cat' => 'misc', 'note' => 'Music box toy.'],
+        ['id' => 40768, 'name' => 'MOLL-E', 'cost' => 20, 'cat' => 'misc', 'note' => 'Mailbox utility vanity.'],
+        ['id' => 38578, 'name' => 'Flag of Ownership', 'cost' => 18, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 38506, 'name' => 'Don Carlos\' Famous Hat', 'cost' => 18, 'cat' => 'misc', 'note' => 'Cosmetic headpiece.'],
+        ['id' => 34499, 'name' => 'Paper Flying Machine Kit', 'cost' => 15, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+        ['id' => 49704, 'name' => 'Carved Ogre Idol', 'cost' => 10, 'cat' => 'misc', 'note' => 'Fun/cosmetic item.'],
+      ];
+    }
+
+    function storeCategoryLabels(): array {
+      return [
+        'all' => 'All',
+        'mounts' => 'Mounts',
+        'pets' => 'Pets',
+        'toys' => 'Toys',
+        'tabards' => 'Tabards',
+        'misc' => 'Misc',
       ];
     }
 
@@ -2792,6 +2889,14 @@ data:
           }
         }
 
+        $categoryLabels = storeCategoryLabels();
+        $selectedCat = strtolower(trim((string)($_GET['cat'] ?? 'all')));
+        if (!array_key_exists($selectedCat, $categoryLabels)) {
+          $selectedCat = 'all';
+        }
+        $query = trim((string)($_GET['q'] ?? ''));
+        $queryLc = strtolower($query);
+
         $selector = '<div class="muted">Select a character to view token balance.</div>';
         $balance = 0;
         $disabledNote = '';
@@ -2803,6 +2908,8 @@ data:
 
           $selector = '<form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' .
             '<input type="hidden" name="tab" value="store" />' .
+            '<input type="hidden" name="cat" value="' . htmlspecialchars($selectedCat) . '" />' .
+            '<input type="hidden" name="q" value="' . htmlspecialchars($query) . '" />' .
             '<label style="margin:0;">Character</label>' .
             '<select name="guid" onchange="this.form.submit()">';
           foreach ($chars as $c) {
@@ -2820,18 +2927,51 @@ data:
           }
         }
 
+        $tabLinks = '';
+        foreach ($categoryLabels as $catKey => $catLabel) {
+          $isActive = $selectedCat === $catKey ? ' active' : '';
+          $href = '?tab=store&guid=' . (int)($selected['guid'] ?? $selectedGuid) .
+            '&cat=' . rawurlencode($catKey) .
+            ($query !== '' ? '&q=' . rawurlencode($query) : '');
+          $tabLinks .= '<a class="store-tab' . $isActive . '" href="' . $href . '">' . htmlspecialchars($catLabel) . '</a>';
+        }
+
+        $searchBox = '<form method="get" class="store-search">' .
+          '<input type="hidden" name="tab" value="store" />' .
+          '<input type="hidden" name="guid" value="' . (int)($selected['guid'] ?? $selectedGuid) . '" />' .
+          '<input type="hidden" name="cat" value="' . htmlspecialchars($selectedCat) . '" />' .
+          '<input type="text" name="q" value="' . htmlspecialchars($query) . '" placeholder="Search items..." />' .
+          '<button class="btn" type="submit">Search</button>' .
+          '</form>';
+
         $storeCards = '';
+        $visibleCount = 0;
         foreach (storeItems() as $it) {
+          $cat = strtolower((string)($it['cat'] ?? 'misc'));
+          if (!array_key_exists($cat, $categoryLabels)) {
+            $cat = 'misc';
+          }
+          if ($selectedCat !== 'all' && $cat !== $selectedCat) {
+            continue;
+          }
+
           $id = (int)$it['id'];
           $name = htmlspecialchars((string)$it['name']);
+          $nameRaw = (string)$it['name'];
           $cost = (int)$it['cost'];
           $note = htmlspecialchars((string)($it['note'] ?? ''));
+          $noteRaw = (string)($it['note'] ?? '');
+
+          if ($queryLc !== '' && strpos(strtolower($nameRaw . ' ' . $noteRaw), $queryLc) === false) {
+            continue;
+          }
 
           $affordClass = $balance >= $cost ? '' : ' low';
+          $visibleCount++;
 
           $storeCards .= '<div class="store-card' . $affordClass . '">' .
             '<div class="store-title">' . $name . '</div>' .
-            '<div class="service-meta"><span class="pill">Item ' . $id . '</span><span class="pill">Cost ' . $cost . '</span></div>' .
+            '<div class="service-meta"><span class="pill">Item ' . $id . '</span><span class="pill">' . htmlspecialchars($categoryLabels[$cat]) . '</span><span class="pill">Cost ' . $cost . '</span></div>' .
             '<div class="store-note">' . $note . '</div>' .
             '<form method="post" class="store-buy">' .
             '<input type="hidden" name="csrf" value="' . $csrf . '" />' .
@@ -2842,6 +2982,9 @@ data:
             '<button class="btn" type="submit">Buy</button>' .
             '</form></div>';
         }
+        if ($storeCards === '') {
+          $storeCards = '<div class="muted">No items match this filter.</div>';
+        }
 
         $mainBody = <<<HTML
           {$selector}
@@ -2849,7 +2992,10 @@ data:
             <div class="card"><div class="muted">Grim Tokens</div><div class="val">{$balance}</div></div>
           </div>
           {$disabledNote}
+          <div class="store-tabs">{$tabLinks}</div>
+          {$searchBox}
           <div class="muted" style="margin-top:14px;">Purchases are delivered via in-game mail. Offline characters only.</div>
+          <div class="muted" style="margin-top:4px;">Showing {$visibleCount} item(s).</div>
           <div class="store-grid">{$storeCards}</div>
         HTML;
       } elseif ($tab === 'about') {

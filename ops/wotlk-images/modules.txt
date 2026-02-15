@@ -11,3 +11,4 @@ https://github.com/Wishmaster117/mod-playerbots.git@Smart-Loot-System-Refactored
 https://github.com/NathanHandley/mod-ah-bot-plus@master
 https://github.com/azerothcore/mod-transmog.git@master
 https://github.com/DustinHendrickson/mod-ollama-chat.git@main
+https://github.com/RovxBot/mod-weekend-xp.git@master
