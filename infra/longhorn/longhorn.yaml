@@ -4448,7 +4448,7 @@ spec:
             weight: 1
       containers:
       - name: longhorn-ui
-        image: longhornio/longhorn-ui:v1.10.1@sha256:62fd171f4fbed01ebb51653674c68ea1c531aa562dab23cb029033dffd6bccc6
+        image: longhornio/longhorn-ui:v1.11.0@sha256:e3a4761f49e6198c4de418e74a3c36f08326a14efcebf63cd13a840505843ef5
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: nginx-cache
