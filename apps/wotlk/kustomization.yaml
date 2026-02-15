@@ -11,6 +11,7 @@ configMapGenerator:
       - individualProgression.conf=config/individualProgression.conf
       - transmog.conf=config/transmog.conf
       - mod_ollama_chat.conf=config/mod_ollama_chat.conf
+      - mod-double-xp-weekend.conf=config/mod-double-xp-weekend.conf
     options:
       disableNameSuffixHash: false
 resources:

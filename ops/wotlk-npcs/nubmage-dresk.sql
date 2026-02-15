@@ -25,7 +25,7 @@ SET @NPC_TEXT_NUBMAGE := 4000000;
 -- --------------------------------------------------------------------
 SET @DISPLAY_UNDERCITY_MAGE := 18454;    -- Male undead mage (Nubmage)
 SET @DISPLAY_STORMWIND_GUARD := 19431;   -- Male human paladin (Daish)
-SET @DISPLAY_FEMALE_PRIEST := 24374;     -- Female human priest (Healers)
+SET @DISPLAY_FEMALE_PRIEST := 3344;      -- Female human priest (Healers)
 
 -- Factions
 SET @FACTION_HORDE_CITY := 1759;
@@ -37,6 +37,7 @@ SET @FACTION_ALLIANCE := 11;
 DELETE FROM creature_formations
 WHERE leaderGUID IN (SELECT guid FROM creature WHERE id1 IN (@ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2))
    OR memberGUID IN (SELECT guid FROM creature WHERE id1 IN (@ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2));
+DELETE FROM creature_addon WHERE guid IN (SELECT guid FROM creature WHERE id1 IN (@ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2));
 DELETE FROM waypoint_data WHERE id IN (SELECT guid FROM creature WHERE id1 = @ENTRY_DAISH);
 DELETE FROM smart_scripts WHERE entryorguid IN (@ENTRY_NUBMAGE, @ENTRY_DAISH, @ENTRY_HEALER1, @ENTRY_HEALER2) AND source_type = 0;
 DELETE FROM creature_text WHERE CreatureID IN (@ENTRY_NUBMAGE, @ENTRY_DAISH);
@@ -102,6 +103,13 @@ VALUES
   (@GUID_DAISH,   @ENTRY_DAISH,   0, 25, 25, 1, 1, 1, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 2),
   (@GUID_HEALER1, @ENTRY_HEALER1, 0, 25, 25, 1, 1, 0, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 0),
   (@GUID_HEALER2, @ENTRY_HEALER2, 0, 25, 25, 1, 1, 0, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 0);
+
+-- Bind waypoint path to Daish spawn (required for MovementType=2 waypoint patrol).
+INSERT INTO creature_addon (guid, path_id, mount, bytes1, bytes2, emote, visibilityDistanceType, auras)
+VALUES
+  (@GUID_DAISH,   @GUID_DAISH,   0, 0, 0, 0, 0, ''),
+  (@GUID_HEALER1, 0,             0, 0, 0, 0, 0, ''),
+  (@GUID_HEALER2, 0,             0, 0, 0, 0, 0, '');
 
 -- --------------------------------------------------------------------
 -- Formation: healers follow Daish
@@ -195,23 +203,25 @@ INSERT INTO smart_scripts (entryorguid, source_type, id, link, event_type, event
   action_type, action_param1, action_param2, action_param3, action_param4, action_param5, action_param6,
   target_type, target_param1, target_param2, target_param3, target_param4, target_x, target_y, target_z, target_o, comment)
 VALUES
-  -- Friendly missing aura: Power Word: Shield (event_flags=0 so it works in open world)
-  (@ENTRY_HEALER1, 0, 0, 0, 16, 0, 100, 0,
-   17139, 40, 8000, 12000, 0, 0,
+  -- Friendly missing aura: Power Word: Shield
+  -- Match stock cleric behavior: event_flags=2 (normal mode), 6s cadence.
+  (@ENTRY_HEALER1, 0, 0, 0, 16, 0, 100, 2,
+   17139, 40, 6000, 6000, 0, 0,
    11, 17139, 0, 0, 0, 0, 0,
    7, 0, 0, 0, 0, 0, 0, 0, 0, 'Daish Healer 1 - Friendly Missing Aura - Cast Power Word: Shield'),
-  (@ENTRY_HEALER2, 0, 0, 0, 16, 0, 100, 0,
-   17139, 40, 8000, 12000, 0, 0,
+  (@ENTRY_HEALER2, 0, 0, 0, 16, 0, 100, 2,
+   17139, 40, 6000, 6000, 0, 0,
    11, 17139, 0, 0, 0, 0, 0,
    7, 0, 0, 0, 0, 0, 0, 0, 0, 'Daish Healer 2 - Friendly Missing Aura - Cast Power Word: Shield'),
 
-  -- Friendly missing health: Flash Heal at 70% HP threshold
-  (@ENTRY_HEALER1, 0, 1, 0, 14, 0, 100, 0,
-   8000, 70, 2500, 4000, 0, 0,
+  -- Friendly missing health: Flash Heal.
+  -- Keep threshold practical for a level-60 escort: trigger when ally is <= 80% and missing >= 1500 HP.
+  (@ENTRY_HEALER1, 0, 1, 0, 14, 0, 100, 2,
+   1500, 80, 3000, 3000, 0, 0,
    11, 17843, 0, 0, 0, 0, 0,
    7, 0, 0, 0, 0, 0, 0, 0, 0, 'Daish Healer 1 - Friendly Missing Health - Cast Flash Heal'),
-  (@ENTRY_HEALER2, 0, 1, 0, 14, 0, 100, 0,
-   8000, 70, 2500, 4000, 0, 0,
+  (@ENTRY_HEALER2, 0, 1, 0, 14, 0, 100, 2,
+   1500, 80, 3000, 3000, 0, 0,
    11, 17843, 0, 0, 0, 0, 0,
    7, 0, 0, 0, 0, 0, 0, 0, 0, 'Daish Healer 2 - Friendly Missing Health - Cast Flash Heal');
 
@@ -273,7 +283,7 @@ VALUES
   (@ENTRY_NUBMAGE, 0, 22, 0, 61, 0, 100, 0,
    0, 0, 0, 0, 0, 0,
    62, 1, 0, 0, 0, 0, 0,
-   7, 0, 0, 0, 0, -1030.00, -251.00, 159.00, 0, 'Nubmage - Gossip Thunder Bluff - Teleport'),
+   7, 0, 0, 0, 0, -964.98, 283.433, 111.187, 3.02, 'Nubmage - Gossip Thunder Bluff - Teleport (matches spell_target_position ID 3566)'),
 
   -- GOSSIP: Undercity (MenuID 0, OptionID 2) - Player has gold
   (@ENTRY_NUBMAGE, 0, 30, 31, 62, 0, 100, 0,
@@ -287,7 +297,7 @@ VALUES
   (@ENTRY_NUBMAGE, 0, 32, 0, 61, 0, 100, 0,
    0, 0, 0, 0, 0, 0,
    62, 0, 0, 0, 0, 0, 0,
-   7, 0, 0, 0, 0, 1586.00, 239.00, -52.00, 0, 'Nubmage - Gossip Undercity - Teleport'),
+   7, 0, 0, 0, 0, 1773.47, 61.121, -46.321, 0.54, 'Nubmage - Gossip Undercity - Teleport (matches spell_target_position ID 3563)'),
 
   -- GOSSIP: Silvermoon (MenuID 0, OptionID 3) - Player has gold
   (@ENTRY_NUBMAGE, 0, 40, 41, 62, 0, 100, 0,
@@ -301,33 +311,7 @@ VALUES
   (@ENTRY_NUBMAGE, 0, 42, 0, 61, 0, 100, 0,
    0, 0, 0, 0, 0, 0,
    62, 530, 0, 0, 0, 0, 0,
-   7, 0, 0, 0, 0, 9738.00, -7454.00, 13.60, 0, 'Nubmage - Gossip Silvermoon - Teleport'),
-
-  -- GOSSIP: Not enough gold responses (MenuID 0, OptionID 10-13)
-  (@ENTRY_NUBMAGE, 0, 52, 53, 62, 0, 100, 0,
-   @ENTRY_NUBMAGE, 11, 0, 0, 0, 0,
-   62, 0, 0, 0, 0, 0, 0,
-   7, 0, 0, 0, 0, 0, 0, 0, 0, 'Nubmage - Gossip No Gold TB - Close Gossip'),
-  (@ENTRY_NUBMAGE, 0, 53, 0, 61, 0, 100, 0,
-   0, 0, 0, 0, 0, 0,
-   1, 2, 0, 0, 0, 0, 0,
-   1, 0, 0, 0, 0, 0, 0, 0, 0, 'Nubmage - Gossip No Gold TB - Yell sass'),
-  (@ENTRY_NUBMAGE, 0, 54, 55, 62, 0, 100, 0,
-   @ENTRY_NUBMAGE, 12, 0, 0, 0, 0,
-   62, 0, 0, 0, 0, 0, 0,
-   7, 0, 0, 0, 0, 0, 0, 0, 0, 'Nubmage - Gossip No Gold UC - Close Gossip'),
-  (@ENTRY_NUBMAGE, 0, 55, 0, 61, 0, 100, 0,
-   0, 0, 0, 0, 0, 0,
-   1, 2, 0, 0, 0, 0, 0,
-   1, 0, 0, 0, 0, 0, 0, 0, 0, 'Nubmage - Gossip No Gold UC - Yell sass'),
-  (@ENTRY_NUBMAGE, 0, 56, 57, 62, 0, 100, 0,
-   @ENTRY_NUBMAGE, 13, 0, 0, 0, 0,
-   62, 0, 0, 0, 0, 0, 0,
-   7, 0, 0, 0, 0, 0, 0, 0, 0, 'Nubmage - Gossip No Gold SM - Close Gossip'),
-  (@ENTRY_NUBMAGE, 0, 57, 0, 61, 0, 100, 0,
-   0, 0, 0, 0, 0, 0,
-   1, 2, 0, 0, 0, 0, 0,
-   1, 0, 0, 0, 0, 0, 0, 0, 0, 'Nubmage - Gossip No Gold SM - Yell sass');
+   7, 0, 0, 0, 0, 9998.49, -7106.78, 47.706, 2.44, 'Nubmage - Gossip Silvermoon - Teleport (matches spell_target_position ID 32272)');
 
 -- --------------------------------------------------------------------
 -- Nubmage Gossip Menu: Portal destinations (10g each)
@@ -344,27 +328,13 @@ VALUES (@GOSSIP_MENU_NUBMAGE, @NPC_TEXT_NUBMAGE);
 DELETE FROM gossip_menu_option WHERE MenuID = @GOSSIP_MENU_NUBMAGE;
 INSERT INTO gossip_menu_option (MenuID, OptionID, OptionIcon, OptionText, OptionBroadcastTextID, OptionType, OptionNpcFlag, ActionMenuID, ActionPoiID, BoxCoded, BoxMoney, BoxText)
 VALUES
-  -- Options 0-3: Player has enough gold (10g = 100000 copper)
-  (@GOSSIP_MENU_NUBMAGE, 1,  6, 'Portal to Thunder Bluff [10g]', 0, 1, 1, 0, 0, 0, 100000, 'Nubmage demands 10 gold for this portal. Pay up!'),
-  (@GOSSIP_MENU_NUBMAGE, 2,  6, 'Portal to Undercity [10g]',     0, 1, 1, 0, 0, 0, 100000, 'Nubmage demands 10 gold for this portal. Pay up!'),
-  (@GOSSIP_MENU_NUBMAGE, 3,  6, 'Portal to Silvermoon [10g]',    0, 1, 1, 0, 0, 0, 100000, 'Nubmage demands 10 gold for this portal. Pay up!'),
-  -- Options 10-13: Player does NOT have enough gold (shows grayed-out style)
-  (@GOSSIP_MENU_NUBMAGE, 11, 0, 'Portal to Thunder Bluff [10g] - Not enough gold!', 0, 1, 1, 0, 0, 0, 0, NULL),
-  (@GOSSIP_MENU_NUBMAGE, 12, 0, 'Portal to Undercity [10g] - Not enough gold!',     0, 1, 1, 0, 0, 0, 0, NULL),
-  (@GOSSIP_MENU_NUBMAGE, 13, 0, 'Portal to Silvermoon [10g] - Not enough gold!',    0, 1, 1, 0, 0, 0, 0, NULL);
+  -- Paid options (10g = 100000 copper)
+  (@GOSSIP_MENU_NUBMAGE, 1,  6, 'Portal to Thunder Bluff [10g]', 0, 1, 1, 0, 0, 0, 100000, 'No 10 gold, no portal. Nubmage laughs at your poverty.'),
+  (@GOSSIP_MENU_NUBMAGE, 2,  6, 'Portal to Undercity [10g]',     0, 1, 1, 0, 0, 0, 100000, 'No 10 gold, no portal. Nubmage laughs at your poverty.'),
+  (@GOSSIP_MENU_NUBMAGE, 3,  6, 'Portal to Silvermoon [10g]',    0, 1, 1, 0, 0, 0, 100000, 'No 10 gold, no portal. Nubmage laughs at your poverty.');
 
--- Conditions: Show "has gold" options only if player has >= 10g
--- Condition type 7 = CONDITION_GOLD (requires player to have X copper)
+-- No gold conditions here: paid options are always visible.
+-- BoxMoney enforces payment on selection.
 DELETE FROM conditions WHERE SourceTypeOrReferenceId = 15 AND SourceGroup = @GOSSIP_MENU_NUBMAGE;
-INSERT INTO conditions (SourceTypeOrReferenceId, SourceGroup, SourceEntry, SourceId, ElseGroup, ConditionTypeOrReference, ConditionTarget, ConditionValue1, ConditionValue2, ConditionValue3, NegativeCondition, ErrorType, ErrorTextId, ScriptName, Comment)
-VALUES
-  -- Show options 0-3 only if player has >= 100000 copper (10g)
-  (15, @GOSSIP_MENU_NUBMAGE, 1,  0, 0, 7, 0, 100000, 0, 0, 0, 0, 0, '', 'Nubmage - Thunder Bluff option requires 10g'),
-  (15, @GOSSIP_MENU_NUBMAGE, 2,  0, 0, 7, 0, 100000, 0, 0, 0, 0, 0, '', 'Nubmage - Undercity option requires 10g'),
-  (15, @GOSSIP_MENU_NUBMAGE, 3,  0, 0, 7, 0, 100000, 0, 0, 0, 0, 0, '', 'Nubmage - Silvermoon option requires 10g'),
-  -- Show options 10-13 only if player has < 100000 copper (negated condition)
-  (15, @GOSSIP_MENU_NUBMAGE, 11, 0, 0, 7, 0, 100000, 0, 0, 1, 0, 0, '', 'Nubmage - Thunder Bluff no-gold option'),
-  (15, @GOSSIP_MENU_NUBMAGE, 12, 0, 0, 7, 0, 100000, 0, 0, 1, 0, 0, '', 'Nubmage - Undercity no-gold option'),
-  (15, @GOSSIP_MENU_NUBMAGE, 13, 0, 0, 7, 0, 100000, 0, 0, 1, 0, 0, '', 'Nubmage - Silvermoon no-gold option');
 
 -- Done.
