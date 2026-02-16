@@ -59,9 +59,7 @@ spec:
                   - sh
                   - -lc
                   - |
-                    # Block tunnel-forwarded or local pod traffic from reaching host WoW ports.
-                    iptables -C FORWARD -i vps -d "${HOST_IP}" -p tcp -m multiport --dports 3724,8085 -j REJECT 2>/dev/null || \
-                    iptables -I FORWARD 1 -i vps -d "${HOST_IP}" -p tcp -m multiport --dports 3724,8085 -j REJECT
+                    # Block pod-local traffic from reaching host WoW ports.
                     iptables -C OUTPUT -d "${HOST_IP}" -p tcp -m multiport --dports 3724,8085 -j REJECT 2>/dev/null || \
                     iptables -I OUTPUT 1 -d "${HOST_IP}" -p tcp -m multiport --dports 3724,8085 -j REJECT
           volumeMounts:
