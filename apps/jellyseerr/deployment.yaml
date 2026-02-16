@@ -23,7 +23,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       initContainers:
         - name: fix-config-perms
-          image: busybox:1.36
+          image: busybox:1.37@sha256:b3255e7dfbcd10cb367af0d409747d511aeb66dfac98cf30e97e87e4207dd76f
           command:
             - sh
             - -c
@@ -33,7 +33,7 @@ spec:
               mountPath: /app/config
       containers:
         - name: jellyseerr
-          image: seerr/seerr:v3.0.1@sha256:e2529e89f1b7c427a0d85a381498259eb0bf18b7b9f8b9106a68a30b5cb2f4c0
+          image: seerr/seerr:v3.0.1@sha256:1b5fc1ea825631d9d165364472663b817a4c58ef6aa1013f58d82c1570d7c866
           imagePullPolicy: Always
           securityContext:
             runAsUser: 1000
