@@ -4,7 +4,7 @@ metadata:
   name: restic-immich-photos
   namespace: immich
 spec:
-  schedule: "45 4 * * *"
+  schedule: "45 4 * * 0"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 2
@@ -52,9 +52,7 @@ spec:
                     --tag immich \
                     --one-file-system
                   restic forget \
-                    --keep-daily 30 \
-                    --keep-weekly 12 \
-                    --keep-monthly 12 \
+                    --keep-weekly 2 \
                     --prune
               volumeMounts:
                 - name: photos
