@@ -16,7 +16,7 @@ INSERT IGNORE INTO item_template
    
 VALUES
 
-  (@BOOST_TOKEN_ITEM_ID, 10, 0, 'Sands of Infinite Wisdom', 29735, 5, 1, 1000, 2, 0, 0, 'The power eminating from the sands is almost overwhelming.'),
+  (@BOOST_TOKEN_ITEM_ID, 10, 0, 'Sands of Infinite Wisdom', 29735, 5, 1, 1000, 2, 0, 0, 'The power emanating from the sands is almost overwhelming.'),
 
 
 UPDATE item_template
