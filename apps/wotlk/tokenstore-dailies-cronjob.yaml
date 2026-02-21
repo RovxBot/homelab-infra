@@ -125,7 +125,7 @@ spec:
                       HoverHeight, HealthModifier, ManaModifier, ArmorModifier, ExperienceModifier, RacialLeader, movementId, RegenHealth,
                       mechanic_immune_mask, spell_school_immune_mask, flags_extra, ScriptName, VerifiedBuild
                     FROM creature_template
-                    WHERE entry = ${AUCTIONEER_ALLIANCE}
+                    WHERE entry = ${SW_GUARD_TEMPLATE}
                       AND NOT EXISTS (SELECT 1 FROM creature_template WHERE entry = ${DUTY_NPC_ALLIANCE});
 
                     INSERT INTO creature_template
@@ -149,7 +149,7 @@ spec:
                       HoverHeight, HealthModifier, ManaModifier, ArmorModifier, ExperienceModifier, RacialLeader, movementId, RegenHealth,
                       mechanic_immune_mask, spell_school_immune_mask, flags_extra, ScriptName, VerifiedBuild
                     FROM creature_template
-                    WHERE entry = ${AUCTIONEER_HORDE}
+                    WHERE entry = ${ORG_GRUNT_TEMPLATE}
                       AND NOT EXISTS (SELECT 1 FROM creature_template WHERE entry = ${DUTY_NPC_HORDE});
                   "
 
@@ -183,7 +183,7 @@ spec:
                       spawntimesecs, 0, currentwaypoint,
                       curhealth, curmana, MovementType, 0, unit_flags, dynamicflags, ScriptName, VerifiedBuild, CreateObject, 'Grim token questgiver (SW)'
                     FROM creature
-                    WHERE id1 = ${AUCTIONEER_ALLIANCE}
+                    WHERE id1 = ${SW_GUARD_TEMPLATE}
                       AND NOT EXISTS (SELECT 1 FROM creature WHERE id1 = ${DUTY_NPC_ALLIANCE})
                     ORDER BY guid
                     LIMIT 1;
@@ -211,7 +211,7 @@ spec:
                       spawntimesecs, 0, currentwaypoint,
                       curhealth, curmana, MovementType, 0, unit_flags, dynamicflags, ScriptName, VerifiedBuild, CreateObject, 'Grim token questgiver (Org)'
                     FROM creature
-                    WHERE id1 = ${AUCTIONEER_HORDE}
+                    WHERE id1 = ${ORG_GRUNT_TEMPLATE}
                       AND NOT EXISTS (SELECT 1 FROM creature WHERE id1 = ${DUTY_NPC_HORDE})
                     ORDER BY guid
                     LIMIT 1;

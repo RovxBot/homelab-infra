@@ -1,5 +1,6 @@
 .work/
 temp-aoe-loot/
+HOMELAB_*.md
 
 # Never commit private keys
 secrets/*.key
