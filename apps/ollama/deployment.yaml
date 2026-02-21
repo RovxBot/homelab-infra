@@ -17,7 +17,7 @@ spec:
         kubernetes.io/hostname: metal5
       containers:
         - name: ollama
-          image: ollama/ollama:latest@sha256:dca1224ecd799f764b21b8d74a17afdc00505ecce93e7b55530d124115b42260
+          image: ollama/ollama:latest@sha256:63f052826604a28a83795df1a66d9e364410c0b8d1357a62a885c62cef05cdbb
           ports:
             - containerPort: 11434
               name: http
