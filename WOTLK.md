@@ -37,6 +37,6 @@ Tags vary by build and component. The deployments in `apps/wotlk/` reference the
 This repo is MIT licensed (see `LICENSE`) and is free to use. Upstream components have their own licenses and must be respected:
 
 - AzerothCore: https://github.com/azerothcore/azerothcore-wotlk
-- Playerbots: https://github.com/mod-playerbots/mod-playerbots
+- Playerbots: https://github.com/RovxBot/mod-playerbots
 
 When using prebuilt images or module content, ensure you comply with all upstream licenses and terms.
