@@ -55,7 +55,7 @@ spec:
                 git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name" || true
               }
 
-              clone_module "https://github.com/Wishmaster117/mod-playerbots.git" "Smart-Loot-System-Refactored-2026"
+              clone_module "https://github.com/RovxBot/mod-playerbots.git" "master"
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
               clone_module "https://github.com/DustinHendrickson/mod-ollama-chat.git" "main"
