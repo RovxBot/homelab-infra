@@ -66,8 +66,8 @@ INSERT INTO creature_template (entry, name, subname, gossip_menu_id, minlevel, m
 VALUES
   (@ENTRY_NUBMAGE, 'Nubmage', 'Portal Service', @GOSSIP_MENU_NUBMAGE, 80, 80, 2, @FACTION_HORDE_CITY, 1, 1, 1.14286, 1, 0, 0, 8, 0, 0, 0, 7, 0, 'SmartAI', 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0),
   (@ENTRY_DAISH,   'Daish',   'Wintergrasp Champion', 0, 60, 60, 1, @FACTION_ALLIANCE, 0, 1, 1.14286, 1, 1, 0, 2, 0, 0, 0, 7, 0, 'SmartAI', 2, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0),
-  (@ENTRY_HEALER1, 'Daish\'s Healer', NULL, 0, 60, 60, 1, @FACTION_ALLIANCE, 0, 1, 1.14286, 1, 0, 0, 8, 0, 0, 0, 7, 0, 'SmartAI', 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0),
-  (@ENTRY_HEALER2, 'Daish\'s Healer', NULL, 0, 60, 60, 1, @FACTION_ALLIANCE, 0, 1, 1.14286, 1, 0, 0, 8, 0, 0, 0, 7, 0, 'SmartAI', 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0);
+  (@ENTRY_HEALER1, 'Daish\'s Healer', NULL, 0, 60, 60, 1, @FACTION_ALLIANCE, 0, 1, 1.14286, 1, 0, 1, 8, 0, 0, 0, 7, 0, 'SmartAI', 2, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0),
+  (@ENTRY_HEALER2, 'Daish\'s Healer', NULL, 0, 60, 60, 1, @FACTION_ALLIANCE, 0, 1, 1.14286, 1, 0, 1, 8, 0, 0, 0, 7, 0, 'SmartAI', 2, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0);
 
 INSERT INTO creature_template_model (CreatureID, Idx, CreatureDisplayID, DisplayScale, Probability)
 VALUES
@@ -101,8 +101,8 @@ VALUES
 INSERT INTO creature (guid, id1, map, zoneId, areaId, spawnMask, phaseMask, equipment_id, position_x, position_y, position_z, orientation, spawntimesecs, wander_distance, currentwaypoint, curhealth, curmana, MovementType)
 VALUES
   (@GUID_DAISH,   @ENTRY_DAISH,   0, 25, 25, 1, 1, 1, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 2),
-  (@GUID_HEALER1, @ENTRY_HEALER1, 0, 25, 25, 1, 1, 0, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 0),
-  (@GUID_HEALER2, @ENTRY_HEALER2, 0, 25, 25, 1, 1, 0, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 0);
+  (@GUID_HEALER1, @ENTRY_HEALER1, 0, 25, 25, 1, 1, 0, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 2),
+  (@GUID_HEALER2, @ENTRY_HEALER2, 0, 25, 25, 1, 1, 0, -7692.5690, -1087.0372, 217.71353, 1.1909260, 300, 0, 0, 0, 0, 2);
 
 -- Bind waypoint path to Daish spawn (required for MovementType=2 waypoint patrol).
 INSERT INTO creature_addon (guid, path_id, mount, bytes1, bytes2, emote, visibilityDistanceType, auras)

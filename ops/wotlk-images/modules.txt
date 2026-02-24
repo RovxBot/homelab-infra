@@ -6,8 +6,8 @@
 # https://github.com/azerothcore/mod-transmog.git@master
 
 https://github.com/ZhengPeiRu21/mod-individual-progression@master
-# Playerbots module (upstream)
-https://github.com/Wishmaster117/mod-playerbots.git@Smart-Loot-System-Refactored-2026
+# Playerbots module (RovxBot fork)
+https://github.com/RovxBot/mod-playerbots.git@master
 https://github.com/NathanHandley/mod-ah-bot-plus@master
 https://github.com/azerothcore/mod-transmog.git@master
 https://github.com/DustinHendrickson/mod-ollama-chat.git@main

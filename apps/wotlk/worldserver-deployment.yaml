@@ -55,7 +55,7 @@ spec:
                 git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name" || true
               }
 
-              clone_module "https://github.com/Wishmaster117/mod-playerbots.git" "Smart-Loot-System-Refactored-2026"
+              clone_module "https://github.com/RovxBot/mod-playerbots.git" "master"
               clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
               clone_module "https://github.com/DustinHendrickson/mod-ollama-chat.git" "main"
@@ -121,7 +121,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-f00a914e5fecd437888ba318b3e434e4e0a66025
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-48361bb4fb85e5fc70c5f9a7357cfec18aa0210a
           imagePullPolicy: Always
           command:
             - bash
@@ -142,7 +142,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-f00a914e5fecd437888ba318b3e434e4e0a66025
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-48361bb4fb85e5fc70c5f9a7357cfec18aa0210a
           imagePullPolicy: Always
           env:
             - name: TZ
