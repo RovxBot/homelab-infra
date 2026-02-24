@@ -46,6 +46,8 @@ jobs:
       - name: Add swap space
         shell: bash
         run: |
+          sudo swapoff -a || true
+          sudo rm -f /swapfile
           sudo fallocate -l 6G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
@@ -80,8 +82,6 @@ jobs:
             done < ops/wotlk-images/modules.txt
           fi
 
-          # Reduce build parallelism to avoid OOM on standard runners
-          sed -i 's/-j $(($(nproc) + 1))/-j $(nproc)/g' .work/acore/apps/docker/Dockerfile
 
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
