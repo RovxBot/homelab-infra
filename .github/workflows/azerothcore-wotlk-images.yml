@@ -82,8 +82,9 @@ jobs:
             done < ops/wotlk-images/modules.txt
           fi
 
-          # Reduce build parallelism to avoid OOM on standard runners
-          sed -i 's/-j $(($(nproc) + 1))/-j $(nproc)/g' .work/acore/apps/docker/Dockerfile
+          # Force single-threaded build to surface the real compiler error.
+          sed -i 's/-j $(($(nproc) + 1))/-j 1/g' .work/acore/apps/docker/Dockerfile
+          sed -i 's/-j $(nproc)/-j 1/g' .work/acore/apps/docker/Dockerfile
 
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
