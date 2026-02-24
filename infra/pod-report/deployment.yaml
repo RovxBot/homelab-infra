@@ -21,7 +21,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: generator
-          image: bitnami/kubectl:latest@sha256:4c5f63828f5170142d714cdf1f96bad9e223f7ad79bd67d6d6b21e59a188c514
+          image: bitnami/kubectl:latest@sha256:1045e4902cf28e4f0e4ecb7fdf198d1bb32fb93b184f4f2cc2d7576795124624
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-lc"]
           args:
