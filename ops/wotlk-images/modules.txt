@@ -12,3 +12,5 @@ https://github.com/NathanHandley/mod-ah-bot-plus@master
 https://github.com/azerothcore/mod-transmog.git@master
 https://github.com/DustinHendrickson/mod-ollama-chat.git@main
 https://github.com/RovxBot/mod-weekend-xp.git@master
+https://github.com/RovxBot/mod-customNPCs.git@master
+https://github.com/RovxBot/mod-GrimTokenDailies.git@master
