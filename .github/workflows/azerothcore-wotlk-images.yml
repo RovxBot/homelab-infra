@@ -90,12 +90,12 @@ jobs:
           # Addmod_customnpcsScripts() from folder name mod-customnpcs.
           if [[ -d .work/acore/modules/mod-customnpcs/src ]]; then
             cat > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp <<'EOF'
-void AddModCustomNPCsScripts();
-void Addmod_customnpcsScripts()
-{
-    AddModCustomNPCsScripts();
-}
-EOF
+            void AddModCustomNPCsScripts();
+            void Addmod_customnpcsScripts()
+            {
+                AddModCustomNPCsScripts();
+            }
+            EOF
           fi
 
 
