@@ -75,11 +75,27 @@ jobs:
                 ref="${line#*@}"
               fi
 
-              name="$(basename "$repo" .git)"
+              # AzerothCore static module loader derives Add...Scripts symbol from
+              # directory name. Normalize to lowercase to avoid case-mismatch link
+              # errors for mixed-case repo names.
+              name="$(basename "$repo" .git | tr '[:upper:]' '[:lower:]')"
               echo "Adding module: $repo@$ref -> modules/$name"
               
               git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
             done < ops/wotlk-images/modules.txt
+          fi
+
+          # Compatibility shim for mod-customNPCs:
+          # module exports AddModCustomNPCsScripts(), while static loader expects
+          # Addmod_customnpcsScripts() from folder name mod-customnpcs.
+          if [[ -d .work/acore/modules/mod-customnpcs/src ]]; then
+            cat > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp <<'EOF'
+void AddModCustomNPCsScripts();
+void Addmod_customnpcsScripts()
+{
+    AddModCustomNPCsScripts();
+}
+EOF
           fi
 
 
