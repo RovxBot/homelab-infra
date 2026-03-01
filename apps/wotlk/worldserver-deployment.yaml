@@ -60,6 +60,8 @@ spec:
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
               clone_module "https://github.com/DustinHendrickson/mod-ollama-chat.git" "main"
               clone_module "https://github.com/RovxBot/mod-weekend-xp.git" "master"
+              clone_module "https://github.com/RovxBot/mod-customNPCs.git" "master"
+              clone_module "https://github.com/RovxBot/mod-GrimTokenDailies.git" "master"
 
           volumeMounts:
             - name: acore-src
