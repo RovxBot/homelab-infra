@@ -82,6 +82,23 @@ jobs:
             done < ops/wotlk-images/modules.txt
           fi
 
+          # Compatibility fixes for custom modules on Playerbot branch.
+          # These modules ship CMake APIs not available in this core fork.
+          rm -f .work/acore/modules/mod-grimtokendailies/CMakeLists.txt || true
+          rm -f .work/acore/modules/mod-customnpcs/CMakeLists.txt || true
+
+          # mod-customnpcs exports AddModCustomNPCsScripts(), while the static
+          # module loader expects Addmod_customnpcsScripts() from folder name.
+          if [[ -d .work/acore/modules/mod-customnpcs/src ]]; then
+            cat > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp <<'EOF'
+            void AddModCustomNPCsScripts();
+            void Addmod_customnpcsScripts()
+            {
+                AddModCustomNPCsScripts();
+            }
+            EOF
+          fi
+
 
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
