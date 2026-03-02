@@ -107,6 +107,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: authserver
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}
@@ -119,6 +121,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: worldserver
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}
@@ -131,6 +135,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: db-import
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}
@@ -143,6 +149,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: tools
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}
