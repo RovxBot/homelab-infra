@@ -99,11 +99,6 @@ jobs:
               > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
           fi
 
-          # Improve failure visibility and reduce nondeterministic parallel-build issues.
-          # This rewrites upstream Dockerfile build invocation to be verbose and single-threaded.
-          sed -i 's#cmake --build \. --config "\$CTYPE" -j \$(($(nproc) + 1))#cmake --build . --config "$CTYPE" --verbose -j 1#g' .work/acore/apps/docker/Dockerfile
-
-
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
