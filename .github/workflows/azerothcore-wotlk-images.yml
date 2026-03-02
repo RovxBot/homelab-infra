@@ -90,13 +90,13 @@ jobs:
           # mod-customnpcs exports AddModCustomNPCsScripts(), while the static
           # module loader expects Addmod_customnpcsScripts() from folder name.
           if [[ -d .work/acore/modules/mod-customnpcs/src ]]; then
-            cat > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp <<'EOF'
-            void AddModCustomNPCsScripts();
-            void Addmod_customnpcsScripts()
-            {
-                AddModCustomNPCsScripts();
-            }
-            EOF
+            printf '%s\n' \
+              'void AddModCustomNPCsScripts();' \
+              'void Addmod_customnpcsScripts()' \
+              '{' \
+              '    AddModCustomNPCsScripts();' \
+              '}' \
+              > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
           fi
 
 
