@@ -90,6 +90,9 @@ jobs:
           # mod-customnpcs exports AddModCustomNPCsScripts(), while the static
           # module loader expects Addmod_customnpcsScripts() from folder name.
           if [[ -d .work/acore/modules/mod-customnpcs/src ]]; then
+            # PlayerScript API differs on this core branch; drop incompatible override.
+            sed -i 's/void OnLogin(Player\* player) override/void OnLogin(Player* player)/' .work/acore/modules/mod-customnpcs/src/mod_customnpcs_world.cpp || true
+
             printf '%s\n' \
               'void AddModCustomNPCsScripts();' \
               'void Addmod_customnpcsScripts()' \
