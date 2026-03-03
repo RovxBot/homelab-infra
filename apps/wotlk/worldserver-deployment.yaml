@@ -60,6 +60,8 @@ spec:
               clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
               clone_module "https://github.com/DustinHendrickson/mod-ollama-chat.git" "main"
               clone_module "https://github.com/RovxBot/mod-weekend-xp.git" "master"
+              clone_module "https://github.com/RovxBot/mod-customNPCs.git" "master"
+              clone_module "https://github.com/RovxBot/mod-GrimTokenDailies.git" "master"
 
           volumeMounts:
             - name: acore-src
@@ -121,7 +123,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-63b3feef67769595d2409351c8a694e131d2e538
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-c811afa361049625bee0fe3effb7d2c40564843b
           imagePullPolicy: Always
           command:
             - bash
@@ -142,7 +144,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-63b3feef67769595d2409351c8a694e131d2e538
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-c811afa361049625bee0fe3effb7d2c40564843b
           imagePullPolicy: Always
           env:
             - name: TZ

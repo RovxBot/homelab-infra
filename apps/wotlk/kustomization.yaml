@@ -25,7 +25,6 @@ resources:
   - db-bootstrap-cronjob.yaml
   - ahbot-cleanup-cronjob.yaml
   - realm-upsert-cronjob.yaml
-  - tokenstore-dailies-cronjob.yaml
   - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml

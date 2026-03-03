@@ -82,6 +82,22 @@ jobs:
             done < ops/wotlk-images/modules.txt
           fi
 
+          # Compatibility fixes for custom modules on Playerbot branch.
+          # These modules ship CMake APIs not available in this core fork.
+          rm -f .work/acore/modules/mod-grimtokendailies/CMakeLists.txt || true
+          rm -f .work/acore/modules/mod-customnpcs/CMakeLists.txt || true
+
+          # mod-customnpcs exports AddModCustomNPCsScripts(), while the static
+          # module loader expects Addmod_customnpcsScripts() from folder name.
+          if [[ -d .work/acore/modules/mod-customnpcs/src ]]; then
+            printf '%s\n' \
+              'void AddModCustomNPCsScripts();' \
+              'void Addmod_customnpcsScripts()' \
+              '{' \
+              '    AddModCustomNPCsScripts();' \
+              '}' \
+              > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
+          fi
 
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
@@ -90,6 +106,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: authserver
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}
@@ -102,6 +120,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: worldserver
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}
@@ -114,6 +134,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: db-import
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}
@@ -126,6 +148,8 @@ jobs:
           context: .work/acore
           file: .work/acore/apps/docker/Dockerfile
           target: tools
+          build-args: |
+            CWITH_WARNINGS=OFF
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}
