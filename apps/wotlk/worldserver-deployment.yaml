@@ -82,6 +82,8 @@ spec:
               envsubst < /etc-tpl/transmog.conf > /etc-out/modules/transmog.conf
               envsubst < /etc-tpl/mod_ollama_chat.conf > /etc-out/modules/mod_ollama_chat.conf
               envsubst < /etc-tpl/mod-double-xp-weekend.conf > /etc-out/modules/mod-double-xp-weekend.conf
+              envsubst < /etc-tpl/mod_customnpcs.conf > /etc-out/modules/mod_customnpcs.conf
+              envsubst < /etc-tpl/mod_grimtokendailies.conf > /etc-out/modules/mod_grimtokendailies.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
@@ -123,7 +125,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-c811afa361049625bee0fe3effb7d2c40564843b
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-d824b521cdc82ff3ecf93150e6e7b38712fc58b3
           imagePullPolicy: Always
           command:
             - bash
@@ -144,7 +146,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-c811afa361049625bee0fe3effb7d2c40564843b
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-d824b521cdc82ff3ecf93150e6e7b38712fc58b3
           imagePullPolicy: Always
           env:
             - name: TZ

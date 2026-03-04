@@ -12,6 +12,8 @@ configMapGenerator:
       - transmog.conf=config/transmog.conf
       - mod_ollama_chat.conf=config/mod_ollama_chat.conf
       - mod-double-xp-weekend.conf=config/mod-double-xp-weekend.conf
+      - mod_customnpcs.conf=config/mod_customnpcs.conf
+      - mod_grimtokendailies.conf=config/mod_grimtokendailies.conf
     options:
       disableNameSuffixHash: false
 resources:
