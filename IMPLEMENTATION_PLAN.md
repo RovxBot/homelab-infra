@@ -241,13 +241,13 @@ Status: [ ] Not started  [ ] In progress  [x] Done
 
 ## PR 4 - CI manifest validation and secret-ref checks (P1)
 
-Status: [ ] Not started  [ ] In progress  [ ] Done
+Status: [ ] Not started  [ ] In progress  [x] Done
 
 ### Tasks
-- [ ] Install `kustomize` in CI and render `clusters/home`.
-- [ ] Install `kubeconform` and validate rendered output.
-- [ ] Add static secret-reference check script.
-- [ ] Keep existing forbidden-file gate.
+- [x] Install `kustomize` in CI and render `clusters/home`.
+- [x] Install `kubeconform` and validate rendered output.
+- [x] Add static secret-reference check script.
+- [x] Keep existing forbidden-file gate.
 
 ### Files
 - `.github/workflows/ci.yml`
@@ -427,5 +427,5 @@ Status: [ ] Not started  [ ] In progress  [ ] Done
 - [x] PR 1
 - [ ] PR 2
 - [x] PR 3
-- [ ] PR 4
+- [x] PR 4
 - [ ] PR 5
