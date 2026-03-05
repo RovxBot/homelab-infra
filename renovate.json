@@ -32,7 +32,6 @@
     "**/*.b64",
     "age-key.txt",
     "apps/wotlk/**",
-    "apps/wow/**",
     "immich_backup_*.sql"
   ],
   "customManagers": [],
@@ -103,12 +102,10 @@
       "groupName": "tunnels"
     },
     {
-      "description": "Disable WoW-related updates.",
+      "description": "Disable WotLK-related updates.",
       "matchFileNames": [
         "apps/wotlk/**",
-        "apps/wow/**",
-        "ops/wotlk-images/**",
-        "ops/wow-images/**"
+        "ops/wotlk-images/**"
       ],
       "enabled": false
     },
