@@ -23,6 +23,11 @@ This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux a
 - `secrets/`: SOPS-encrypted Kubernetes secrets (`*.enc.yaml`)
 - `ops/`: operational helpers (SQL, build inputs, scripts)
 
+## Deployment status
+
+- Active in this cluster: `apps/wotlk`, `apps/homepage`, `clusters/home/apps/media`, `clusters/home/apps/arr`, and `clusters/home/infrastructure`.
+- Present but not wired into Flux by default: `apps/wow`.
+
 ## How changes deploy
 
 1. Edit manifests in this repo.
