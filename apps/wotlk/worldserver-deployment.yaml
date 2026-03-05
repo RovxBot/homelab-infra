@@ -47,25 +47,36 @@ spec:
               mkdir -p /acore-src/modules
 
               # Clone module repos so the in-server DB updater can find their SQL folders.
-              clone_module() {
-                repo="$1"
-                ref="${2:-master}"
-                name="$(basename "$repo" .git)"
-                # Don't fail the whole pod if a module is temporarily unavailable.
-                git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name" || true
-              }
+              if [ -f /modules/modules.txt ]; then
+                while IFS= read -r line || [ -n "$line" ]; do
+                  line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+                  [ -z "$line" ] && continue
+                  case "$line" in
+                    \#*) continue ;;
+                  esac
 
-              clone_module "https://github.com/RovxBot/mod-playerbots.git" "master"
-              clone_module "https://github.com/NathanHandley/mod-ah-bot-plus.git" "master"
-              clone_module "https://github.com/azerothcore/mod-transmog.git" "master"
-              clone_module "https://github.com/DustinHendrickson/mod-ollama-chat.git" "main"
-              clone_module "https://github.com/RovxBot/mod-weekend-xp.git" "master"
-              clone_module "https://github.com/RovxBot/mod-customNPCs.git" "master"
-              clone_module "https://github.com/RovxBot/mod-GrimTokenDailies.git" "master"
+                  repo="$line"
+                  ref="master"
+                  case "$line" in
+                    *@*)
+                      repo="${line%@*}"
+                      ref="${line##*@}"
+                      ;;
+                  esac
+
+                  name="$(basename "$repo" .git)"
+                  echo "Adding module: $repo@$ref -> modules/$name"
+                  # Don't fail the whole pod if a module is temporarily unavailable.
+                  git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name" || true
+                done < /modules/modules.txt
+              fi
 
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
+            - name: modules-list
+              mountPath: /modules
+              readOnly: true
         - name: render-config
           image: alpine:3.20
           command:
@@ -210,3 +221,6 @@ spec:
             claimName: wotlk-data-rwx
         - name: acore-src
           emptyDir: {}
+        - name: modules-list
+          configMap:
+            name: wotlk-modules-list

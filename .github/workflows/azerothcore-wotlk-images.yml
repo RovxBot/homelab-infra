@@ -62,7 +62,13 @@ jobs:
           git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" .work/acore
 
           # Optional modules
-          if [[ -f ops/wotlk-images/modules.txt ]]; then
+          modules_file=""
+          if [[ -f apps/wotlk/config/modules.txt ]]; then
+            modules_file="apps/wotlk/config/modules.txt"
+          fi
+
+          if [[ -n "${modules_file}" ]]; then
+            echo "Reading modules from: ${modules_file}"
             while IFS= read -r line; do
               line="${line#"${line%%[![:space:]]*}"}" # ltrim
               [[ -z "$line" ]] && continue
@@ -79,7 +85,7 @@ jobs:
               echo "Adding module: $repo@$ref -> modules/$name"
               
               git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
-            done < ops/wotlk-images/modules.txt
+            done < "${modules_file}"
           fi
 
           # Compatibility fixes for custom modules on Playerbot branch.
