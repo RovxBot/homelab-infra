@@ -16,6 +16,11 @@ configMapGenerator:
       - mod_grimtokendailies.conf=config/mod_grimtokendailies.conf
     options:
       disableNameSuffixHash: false
+  - name: wotlk-modules-list
+    files:
+      - modules.txt=config/modules.txt
+    options:
+      disableNameSuffixHash: false
 resources:
   - namespace.yaml
   - client-files-pv.yaml
