@@ -19,9 +19,8 @@ This repo can **configure rewards** for existing WotLK `"Realm First!"` achievem
     - `4576` → title `174` (`Bane of the Fallen King`)
   - Deletes any `"Realm First!"` achievements from **bot characters** (bot accounts are detected via `acore_playerbots.playerbots_account_type.account_type = 1`).
 
-- `apps/wotlk/bot-realmfirst-cleanup-cronjob.yaml`
-  - A suspended-by-default CronJob that runs `realmfirst.sql` against the DB (safe to run multiple times).
-  - The SQL mounted by the CronJob lives at `apps/wotlk/realmfirst.sql`.
+- Apply manually:
+  - `ops/wotlk-achievements/realmfirst.sql` against the DB (safe to run multiple times).
 
 - `ops/wotlk-achievements/extract_realmfirst.py`
   - Helper to extract `"Realm First!"` achievement IDs from `Achievement.dbc`.

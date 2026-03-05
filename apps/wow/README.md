@@ -29,9 +29,9 @@ This scaffold includes a suspended extraction CronJob (`wow-client-extract`). Yo
 
 1. Ensure the MaNGOS image has built and is available in GHCR.
 2. Ensure your DB content repo has `migrations/` (optional) ready (see `apps/wow/db-sync-config.md`).
-3. Unsuspend Flux Kustomization `apps-wow` (it is shipped as `suspend: true` so nothing deploys until you’re ready).
+3. This scaffold is not currently wired into `clusters/home/kustomization.yaml`; add a Flux Kustomization first if you want it deployed.
 4. Run the DB sync once (CronJob is `suspend: true` by default; run manually).
 
 ## Flux
 
-The Flux Kustomization is defined in `clusters/home/apps/wow-kustomization.yaml`.
+No active Flux Kustomization for `apps/wow` exists in this repo today.

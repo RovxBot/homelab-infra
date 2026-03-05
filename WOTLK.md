@@ -14,8 +14,9 @@ Key manifests live under:
 - `apps/wotlk/worldserver-deployment.yaml`
 - `apps/wotlk/authserver-deployment.yaml`
 - `apps/wotlk/mariadb-statefulset.yaml`
-- `apps/wotlk/worldserver-config.yaml`
+- `apps/wotlk/kustomization.yaml` (ConfigMap generator for worldserver config)
 - `apps/wotlk/authserver-config.yaml`
+- `apps/wotlk/db-bootstrap-cronjob.yaml`
 
 ## Prebuilt images
 
@@ -29,7 +30,7 @@ Tags vary by build and component. The deployments in `apps/wotlk/` reference the
 2. Update the image tags in:
    - `apps/wotlk/worldserver-deployment.yaml`
    - `apps/wotlk/authserver-deployment.yaml`
-   - `apps/wotlk/db-import-job.yaml` (if used)
+   - `apps/wotlk/db-bootstrap-cronjob.yaml` (if used)
 3. Commit + push to `main` so Flux applies the changes.
 
 ## Licensing and upstreams

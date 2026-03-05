@@ -78,7 +78,7 @@ Status: [ ] Not started  [x] In progress  [ ] Done
 - [x] Replace plaintext `alertmanager-config` with encrypted secret.
 - [x] Add encrypted `alertmanager-smtp-auth` secret.
 - [x] Update observability-config kustomization to reference encrypted secrets.
-- [ ] Verify Alertmanager starts with both secrets mounted.
+- [x] Verify Alertmanager starts with both secrets mounted.
 
 ### Files
 - `infra/observability-config/kustomization.yaml`
@@ -158,14 +158,14 @@ Status: [ ] Not started  [x] In progress  [ ] Done
 
 ## PR 3 - Fix docs drift and broken links (P1)
 
-Status: [ ] Not started  [ ] In progress  [ ] Done
+Status: [ ] Not started  [ ] In progress  [x] Done
 
 ### Tasks
-- [ ] Fix stale manifest references in `WOTLK.md`.
-- [ ] Fix stale Flux references in `apps/wow/README.md`.
-- [ ] Fix stale paths in `ops/wotlk-achievements/README.md`.
-- [ ] Fix broken bookmarks in homepage config.
-- [ ] Add active-vs-legacy deployment note in top-level README.
+- [x] Fix stale manifest references in `WOTLK.md`.
+- [x] Fix stale Flux references in `apps/wow/README.md`.
+- [x] Fix stale paths in `ops/wotlk-achievements/README.md`.
+- [x] Fix broken bookmarks in homepage config.
+- [x] Add active-vs-legacy deployment note in top-level README.
 
 ### Files
 - `WOTLK.md`
@@ -426,6 +426,6 @@ Status: [ ] Not started  [ ] In progress  [ ] Done
 ## Execution order
 - [x] PR 1
 - [ ] PR 2
-- [ ] PR 3
+- [x] PR 3
 - [ ] PR 4
 - [ ] PR 5
