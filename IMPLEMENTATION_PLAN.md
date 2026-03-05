@@ -72,12 +72,12 @@ Status: [ ] Not started  [ ] In progress  [x] Done
 
 ## PR 2 - Remove plaintext Alertmanager secret and move to SOPS (P1)
 
-Status: [ ] Not started  [ ] In progress  [ ] Done
+Status: [ ] Not started  [x] In progress  [ ] Done
 
 ### Tasks
-- [ ] Replace plaintext `alertmanager-config` with encrypted secret.
-- [ ] Add encrypted `alertmanager-smtp-auth` secret.
-- [ ] Update observability-config kustomization to reference encrypted secrets.
+- [x] Replace plaintext `alertmanager-config` with encrypted secret.
+- [x] Add encrypted `alertmanager-smtp-auth` secret.
+- [x] Update observability-config kustomization to reference encrypted secrets.
 - [ ] Verify Alertmanager starts with both secrets mounted.
 
 ### Files
