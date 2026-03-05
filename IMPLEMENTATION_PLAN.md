@@ -380,52 +380,40 @@ Status: [ ] Not started  [ ] In progress  [x] Done
 
 ---
 
-## PR 5 - Mark legacy paths clearly (P2)
+## PR 5 - Remove unused legacy YAML files (P2)
 
-Status: [ ] Not started  [ ] In progress  [ ] Done
+Status: [ ] Not started  [ ] In progress  [x] Done
 
 ### Tasks
-- [ ] Add legacy marker for `apps/wow`.
-- [ ] Add note for unused `clusters/home/apps/kustomization.yaml` path.
+- [x] Verify `apps/homepage/configmap.yaml` is not referenced by active Flux/Kustomize paths.
+- [x] Verify `clusters/home/apps/kustomization.yaml` is not referenced by active Flux/Kustomize paths.
+- [x] Delete both unused YAML files.
+- [x] Re-run render checks to confirm no regression.
 
 ### Files
-- `apps/wow/LEGACY.md` (new)
-- `clusters/home/apps/LEGACY.md` (new)
+- `apps/homepage/configmap.yaml` (delete)
+- `clusters/home/apps/kustomization.yaml` (delete)
 
 ### Exact diffs
 ```diff
-*** /dev/null
---- b/apps/wow/LEGACY.md
+*** a/apps/homepage/configmap.yaml
+--- /dev/null
 @@
-+# Legacy Status
-+
-+`apps/wow` is a legacy MaNGOS scaffold and is not currently deployed by Flux in this repository.
-+
-+If you want to enable it:
-+1. Add a Flux Kustomization under `clusters/home/apps/`.
-+2. Include it from `clusters/home/kustomization.yaml`.
-+3. Validate conflicts with `apps/wotlk` host ports.
+... (legacy generated homepage ConfigMap removed; active source is configMapGenerator in apps/homepage/kustomization.yaml)
 ```
 
 ```diff
-*** /dev/null
---- b/clusters/home/apps/LEGACY.md
+*** a/clusters/home/apps/kustomization.yaml
+--- /dev/null
 @@
-+# Legacy Notes
-+
-+`clusters/home/apps/kustomization.yaml` is not referenced by `clusters/home/kustomization.yaml`.
-+Active app reconciliations are:
-+- `apps-kustomization.yaml` (media path)
-+- `arr-kustomization.yaml`
-+- `homepage-kustomization.yaml`
-+- `wotlk-kustomization.yaml`
+... (unused aggregate kustomization removed; not referenced by clusters/home/kustomization.yaml)
 ```
 
 ---
 
 ## Execution order
 - [x] PR 1
-- [ ] PR 2
+- [x] PR 2
 - [x] PR 3
 - [x] PR 4
-- [ ] PR 5
+- [x] PR 5

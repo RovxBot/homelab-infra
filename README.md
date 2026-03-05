@@ -26,7 +26,6 @@ This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux a
 ## Deployment status
 
 - Active in this cluster: `apps/wotlk`, `apps/homepage`, `clusters/home/apps/media`, `clusters/home/apps/arr`, and `clusters/home/infrastructure`.
-- Present but not wired into Flux by default: `apps/wow`.
 
 ## How changes deploy
 
