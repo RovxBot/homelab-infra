@@ -1,7 +1,6 @@
 # homelab-infra
 
 [![WotLK Images](https://github.com/RovxBot/homelab-infra/actions/workflows/azerothcore-wotlk-images.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/azerothcore-wotlk-images.yml)
-[![Mangos Images](https://github.com/RovxBot/homelab-infra/actions/workflows/mangoszero-images.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/mangoszero-images.yml)
 [![Renovate](https://github.com/RovxBot/homelab-infra/actions/workflows/renovate.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/renovate.yml)
 
 This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux and includes infrastructure, apps, and game servers. The goal is learn-by-building, so expect opinionated choices and ongoing experimentation.
@@ -13,15 +12,19 @@ This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux a
 - Storage: Longhorn (with per-node disk layout)
 - Observability: kube-prometheus-stack, Loki + Promtail, blackbox exporter
 - Access: Cloudflared tunnel, Tailscale, WireGuard
-- Apps: media stack, Immich, Vaultwarden, WoW servers, and more
+- Apps: media stack, Immich, Vaultwarden, WotLK server, and more
 
 ## Repo layout
 
 - `clusters/`: Flux entrypoint and Kustomizations for the home cluster
-- `apps/`: application manifests (media stack, Immich, Vaultwarden, WoW servers, etc.)
+- `apps/`: application manifests (media stack, Immich, Vaultwarden, WotLK server, etc.)
 - `infra/`: shared infrastructure (Longhorn, monitoring, Cloudflared, WireGuard, namespaces)
 - `secrets/`: SOPS-encrypted Kubernetes secrets (`*.enc.yaml`)
 - `ops/`: operational helpers (SQL, build inputs, scripts)
+
+## Deployment status
+
+- Active in this cluster: `apps/wotlk`, `apps/homepage`, `clusters/home/apps/media`, `clusters/home/apps/arr`, and `clusters/home/infrastructure`.
 
 ## How changes deploy
 

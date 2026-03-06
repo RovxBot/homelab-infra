@@ -17,7 +17,7 @@
           description: Patch + rollout notes
     - Playerbot Tuning:
         - abbr: PB
-          href: https://github.com/RovxBot/homelab-infra/tree/main/wotlk-playerbots
+          href: https://github.com/RovxBot/homelab-infra/tree/main/ops/wotlk-playerbots
           icon: mdi-robot-outline
           description: NPC tweaks & scripts
 
@@ -29,7 +29,7 @@
           description: Device inventory
     - WireGuard Peers:
         - abbr: WG
-          href: https://github.com/RovxBot/homelab-infra/tree/main/wireguard
+          href: https://github.com/RovxBot/homelab-infra/tree/main/infra/wireguard
           icon: mdi-shield-lock-outline
           description: Peer manifests & configs
     - Cloudflare Analytics:

@@ -47,3 +47,5 @@ resources:
   - authserver-config.yaml
   - authserver-deployment.yaml
   - worldserver-deployment.yaml
+  - ../../secrets/wotlk-soap-auth.enc.yaml
+  - ../../secrets/wotlk-accountmgr-invite.enc.yaml
