@@ -111,6 +111,10 @@ jobs:
               > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
           fi
 
+          # Fail fast if mod-customnpcs is missing from the build context.
+          test -d .work/acore/modules/mod-customnpcs/src
+          test -f .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
+
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
@@ -277,6 +281,35 @@ jobs:
             find_tool vmap4_extractor
             find_tool vmap4_assembler
             find_tool mmaps_generator
+          '
+
+      - name: Smoke test mod-customnpcs module assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tools_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          world_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+
+          docker run --rm --entrypoint bash "${tools_image}" -lc '
+            set -euo pipefail
+            test -f /azerothcore/env/ref/etc/modules/mod_customnpcs.conf.dist
+          '
+
+          docker run --rm --entrypoint bash "${world_image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
           '
 
   update-manifests-pr:
