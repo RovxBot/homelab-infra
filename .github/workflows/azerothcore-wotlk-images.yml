@@ -4,12 +4,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      ref_tag: ${{ steps.read_upstream_ref.outputs.ref_tag }}
+      image_suffix: ${{ github.sha }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
@@ -27,6 +31,7 @@ jobs:
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Read upstream ref
+        id: read_upstream_ref
         shell: bash
         run: |
           set -euo pipefail
@@ -42,6 +47,7 @@ jobs:
           echo "ACORE_REPO=${repo}" >> "$GITHUB_ENV"
           echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
           echo "REPO_TAG=${repo_tag}" >> "$GITHUB_ENV"
+          echo "ref_tag=${ref_tag,,}" >> "$GITHUB_OUTPUT"
 
       - name: Add swap space
         shell: bash
@@ -105,6 +111,10 @@ jobs:
               > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
           fi
 
+          # Fail fast if mod-customnpcs is missing from the build context.
+          test -d .work/acore/modules/mod-customnpcs/src
+          test -f .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
+
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
@@ -160,3 +170,224 @@ jobs:
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}-${{ github.sha }}
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      REF_TAG: ${{ needs.build.outputs.ref_tag }}
+      IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+    steps:
+      - name: Lowercase image owner
+        shell: bash
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull built images
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+
+      - name: Smoke test authserver image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/authserver \
+              /azerothcore/bin/authserver \
+              /usr/local/bin/authserver \
+              /usr/bin/authserver; do
+              if [ -x "$path" ]; then
+                "$path" --version >/tmp/authserver-version.txt 2>&1 || \
+                "$path" -v >/tmp/authserver-version.txt 2>&1 || true
+                test -s /tmp/authserver-version.txt || "$path" --help >/tmp/authserver-version.txt 2>&1 || true
+                test -s /tmp/authserver-version.txt
+                exit 0
+              fi
+            done
+            echo "authserver binary not found" >&2
+            exit 1
+          '
+
+      - name: Smoke test worldserver image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                "$path" --version >/tmp/worldserver-version.txt 2>&1 || \
+                "$path" -v >/tmp/worldserver-version.txt 2>&1 || true
+                test -s /tmp/worldserver-version.txt || "$path" --help >/tmp/worldserver-version.txt 2>&1 || true
+                test -s /tmp/worldserver-version.txt
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
+          '
+
+      - name: Smoke test db-import image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            compgen -G "/azerothcore/env/dist/sql/*" >/dev/null || compgen -G "/azerothcore/env/dist/bin/*" >/dev/null || {
+              echo "db-import image is missing expected SQL or bin assets" >&2
+              exit 1
+            }
+          '
+
+      - name: Smoke test tools image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            find_tool() {
+              name="$1"
+              for path in \
+                "/azerothcore/env/dist/bin/${name}" \
+                "/azerothcore/bin/${name}" \
+                "/usr/local/bin/${name}" \
+                "/usr/bin/${name}" \
+                "/bin/${name}"; do
+                [ -x "$path" ] && return 0
+              done
+              return 1
+            }
+            find_tool map_extractor
+            find_tool vmap4_extractor
+            find_tool vmap4_assembler
+            find_tool mmaps_generator
+          '
+
+      - name: Smoke test module assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tools_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          world_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+
+          docker run --rm --entrypoint bash "${tools_image}" -lc '
+            set -euo pipefail
+            for conf in \
+              individualProgression.conf.dist \
+              playerbots.conf.dist \
+              mod_ahbot.conf.dist \
+              transmog.conf.dist \
+              mod_ollama_chat.conf.dist \
+              mod-double-xp-weekend.conf.dist \
+              mod_customnpcs.conf.dist \
+              mod_grimtokendailies.conf.dist; do
+              test -f "/azerothcore/env/ref/etc/modules/${conf}"
+            done
+          '
+
+          docker run --rm --entrypoint bash "${world_image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                if command -v strings >/dev/null 2>&1; then
+                  strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
+                else
+                  grep -aEq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" "$path"
+                fi
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
+          '
+
+  update-manifests-pr:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - smoke-test
+    env:
+      REF_TAG: ${{ needs.build.outputs.ref_tag }}
+      IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+      # Use a PAT/App token if configured so the PR triggers normal pull_request workflows.
+      GH_TOKEN: ${{ secrets.WORKFLOW_PR_TOKEN || secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WORKFLOW_PR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Update WotLK image tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth_tag="authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          world_tag="worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          tools_tag="tools-${REF_TAG}-${IMAGE_SUFFIX}"
+
+          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)authserver-[A-Za-z0-9._-]+#\1${auth_tag}#g" apps/wotlk/authserver-deployment.yaml
+          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)worldserver-[A-Za-z0-9._-]+#\1${world_tag}#g" apps/wotlk/worldserver-deployment.yaml
+          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/worldserver-deployment.yaml
+          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-cronjob.yaml
+          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-mmaps-cronjob.yaml
+
+      - name: Create pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- apps/wotlk; then
+            echo "No manifest changes detected."
+            exit 0
+          fi
+
+          branch="ci/wotlk-image-update-${REF_TAG}"
+          short_sha="${IMAGE_SUFFIX::7}"
+          title="Update WotLK images to ${REF_TAG}-${short_sha}"
+          body="Built and pushed fresh WotLK images to GHCR, then updated the deployed authserver/worldserver/tools tags for review."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${branch}" || true
+          git checkout -B "${branch}"
+          git add apps/wotlk/authserver-deployment.yaml apps/wotlk/worldserver-deployment.yaml apps/wotlk/client-extract-cronjob.yaml apps/wotlk/client-extract-mmaps-cronjob.yaml
+          git commit -m "${title}"
+          git push --force-with-lease --set-upstream origin "${branch}"
+
+          pr_number="$(gh pr list --base main --head "${branch}" --state open --json number --jq '.[0].number // empty')"
+
+          if [[ -n "${pr_number}" ]]; then
+            gh pr edit "${pr_number}" \
+              --title "${title}" \
+              --body "${body}"
+          else
+            gh pr create \
+              --base main \
+              --head "${branch}" \
+              --title "${title}" \
+              --body "${body}"
+          fi
