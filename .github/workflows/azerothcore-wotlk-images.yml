@@ -283,7 +283,7 @@ jobs:
             find_tool mmaps_generator
           '
 
-      - name: Smoke test mod-customnpcs module assets
+      - name: Smoke test module assets
         shell: bash
         run: |
           set -euo pipefail
@@ -293,7 +293,17 @@ jobs:
 
           docker run --rm --entrypoint bash "${tools_image}" -lc '
             set -euo pipefail
-            test -f /azerothcore/env/ref/etc/modules/mod_customnpcs.conf.dist
+            for conf in \
+              individualProgression.conf.dist \
+              playerbots.conf.dist \
+              mod_ahbot.conf.dist \
+              transmog.conf.dist \
+              mod_ollama_chat.conf.dist \
+              mod-double-xp-weekend.conf.dist \
+              mod_customnpcs.conf.dist \
+              mod_grimtokendailies.conf.dist; do
+              test -f "/azerothcore/env/ref/etc/modules/${conf}"
+            done
           '
 
           docker run --rm --entrypoint bash "${world_image}" -lc '
@@ -304,7 +314,11 @@ jobs:
               /usr/local/bin/worldserver \
               /usr/bin/worldserver; do
               if [ -x "$path" ]; then
-                strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
+                if command -v strings >/dev/null 2>&1; then
+                  strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
+                else
+                  grep -aEq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" "$path"
+                fi
                 exit 0
               fi
             done
