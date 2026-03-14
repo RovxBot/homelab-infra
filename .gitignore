@@ -1,6 +1,8 @@
 .work/
 temp-aoe-loot/
 HOMELAB_*.md
+THE_THREE*.md
+ROADMAP.md
 
 # Never commit private keys
 secrets/*.key
