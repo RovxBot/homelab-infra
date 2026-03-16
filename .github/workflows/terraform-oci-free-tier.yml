@@ -32,6 +32,7 @@ env:
   TFC_ORGANIZATION: Cooked
   TFC_PROJECT: K8s
   TFC_WORKSPACE: homelab-oci-free-tier
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_app_terraform_io }}
 
 jobs:
   plan:
