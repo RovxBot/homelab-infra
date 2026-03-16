@@ -75,14 +75,9 @@ jobs:
         shell: bash
         env:
           TFVARS_JSON: ${{ secrets.TF_OCI_FREE_TIER_TFVARS_JSON }}
-          OCI_API_PRIVATE_KEY_PEM: ${{ secrets.TF_OCI_API_PRIVATE_KEY_PEM }}
-          OCI_SSH_PUBLIC_KEY: ${{ secrets.TF_OCI_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           printf '%s\n' "$TFVARS_JSON" > "$RUNNER_TEMP/terraform.auto.tfvars.json"
-          printf '%s\n' "$OCI_API_PRIVATE_KEY_PEM" > "$RUNNER_TEMP/oci_api_key.pem"
-          printf '%s\n' "$OCI_SSH_PUBLIC_KEY" > "$RUNNER_TEMP/id_ed25519.pub"
-          chmod 600 "$RUNNER_TEMP/oci_api_key.pem"
           cat > "$TF_WORKING_DIR/terraform.cloud.tf" <<EOF
           terraform {
             cloud {
@@ -98,8 +93,8 @@ jobs:
       - name: Terraform init
         shell: bash
         env:
-          TF_VAR_private_key_path: ${{ runner.temp }}/oci_api_key.pem
-          TF_VAR_ssh_public_key_path: ${{ runner.temp }}/id_ed25519.pub
+          TF_VAR_private_key_pem: ${{ secrets.TF_OCI_API_PRIVATE_KEY_PEM }}
+          TF_VAR_ssh_public_key: ${{ secrets.TF_OCI_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           cp "$RUNNER_TEMP/terraform.auto.tfvars.json" "$TF_WORKING_DIR/terraform.auto.tfvars.json"
@@ -108,8 +103,8 @@ jobs:
       - name: Terraform validate
         shell: bash
         env:
-          TF_VAR_private_key_path: ${{ runner.temp }}/oci_api_key.pem
-          TF_VAR_ssh_public_key_path: ${{ runner.temp }}/id_ed25519.pub
+          TF_VAR_private_key_pem: ${{ secrets.TF_OCI_API_PRIVATE_KEY_PEM }}
+          TF_VAR_ssh_public_key: ${{ secrets.TF_OCI_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           terraform -chdir="$TF_WORKING_DIR" validate
@@ -117,8 +112,8 @@ jobs:
       - name: Terraform plan
         shell: bash
         env:
-          TF_VAR_private_key_path: ${{ runner.temp }}/oci_api_key.pem
-          TF_VAR_ssh_public_key_path: ${{ runner.temp }}/id_ed25519.pub
+          TF_VAR_private_key_pem: ${{ secrets.TF_OCI_API_PRIVATE_KEY_PEM }}
+          TF_VAR_ssh_public_key: ${{ secrets.TF_OCI_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           terraform -chdir="$TF_WORKING_DIR" plan -out=tfplan
@@ -161,14 +156,9 @@ jobs:
         shell: bash
         env:
           TFVARS_JSON: ${{ secrets.TF_OCI_FREE_TIER_TFVARS_JSON }}
-          OCI_API_PRIVATE_KEY_PEM: ${{ secrets.TF_OCI_API_PRIVATE_KEY_PEM }}
-          OCI_SSH_PUBLIC_KEY: ${{ secrets.TF_OCI_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           printf '%s\n' "$TFVARS_JSON" > "$RUNNER_TEMP/terraform.auto.tfvars.json"
-          printf '%s\n' "$OCI_API_PRIVATE_KEY_PEM" > "$RUNNER_TEMP/oci_api_key.pem"
-          printf '%s\n' "$OCI_SSH_PUBLIC_KEY" > "$RUNNER_TEMP/id_ed25519.pub"
-          chmod 600 "$RUNNER_TEMP/oci_api_key.pem"
           cp "$RUNNER_TEMP/terraform.auto.tfvars.json" "$TF_WORKING_DIR/terraform.auto.tfvars.json"
           cat > "$TF_WORKING_DIR/terraform.cloud.tf" <<EOF
           terraform {
@@ -185,8 +175,8 @@ jobs:
       - name: Terraform init
         shell: bash
         env:
-          TF_VAR_private_key_path: ${{ runner.temp }}/oci_api_key.pem
-          TF_VAR_ssh_public_key_path: ${{ runner.temp }}/id_ed25519.pub
+          TF_VAR_private_key_pem: ${{ secrets.TF_OCI_API_PRIVATE_KEY_PEM }}
+          TF_VAR_ssh_public_key: ${{ secrets.TF_OCI_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           terraform -chdir="$TF_WORKING_DIR" init
@@ -200,8 +190,8 @@ jobs:
       - name: Terraform apply
         shell: bash
         env:
-          TF_VAR_private_key_path: ${{ runner.temp }}/oci_api_key.pem
-          TF_VAR_ssh_public_key_path: ${{ runner.temp }}/id_ed25519.pub
+          TF_VAR_private_key_pem: ${{ secrets.TF_OCI_API_PRIVATE_KEY_PEM }}
+          TF_VAR_ssh_public_key: ${{ secrets.TF_OCI_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           test -f "$TF_WORKING_DIR/tfplan"

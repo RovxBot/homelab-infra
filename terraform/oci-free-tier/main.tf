@@ -4,7 +4,8 @@ data "oci_identity_availability_domains" "ads" {
 
 locals {
   availability_domain = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
-  ssh_authorized_keys = trimspace(file(var.ssh_public_key_path))
+  oci_private_key = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
+  ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
   wireguard_caddyfile_b64 = base64encode(file("${path.module}/files/Caddyfile"))
   wireguard_edge_script_b64 = base64encode(file("${path.module}/files/vps-public-edge.sh"))
   common_tags = merge(

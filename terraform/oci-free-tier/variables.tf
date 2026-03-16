@@ -16,6 +16,14 @@ variable "fingerprint" {
 variable "private_key_path" {
   description = "Path to the OCI API private key on the machine running Terraform."
   type        = string
+  default     = ""
+}
+
+variable "private_key_pem" {
+  description = "OCI API private key content. Prefer this for Terraform Cloud remote runs."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "region" {
@@ -38,6 +46,13 @@ variable "availability_domain_name" {
 variable "ssh_public_key_path" {
   description = "Path to the SSH public key to inject into both instances."
   type        = string
+  default     = ""
+}
+
+variable "ssh_public_key" {
+  description = "SSH public key content to inject into instances. Prefer this for Terraform Cloud remote runs."
+  type        = string
+  default     = ""
 }
 
 variable "wireguard_shape" {

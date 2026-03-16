@@ -35,13 +35,13 @@ WireGuard instance:
   - `tenancy_ocid`
   - `user_ocid`
   - `fingerprint`
-  - `private_key_path`
+  - `private_key_path` or `private_key_pem`
   - `region`
   - `compartment_ocid`
 - Instance boot image:
   - `wireguard_image_ocid`
 - SSH access:
-  - `ssh_public_key_path`
+  - `ssh_public_key_path` or `ssh_public_key`
 
 ## Usage
 
@@ -78,12 +78,12 @@ Create these repository or environment secrets:
   - Terraform Cloud user or team token
   - GitHub Actions uses this to authenticate to Terraform Cloud
 - `TF_OCI_FREE_TIER_TFVARS_JSON`
-  - JSON object containing the stack variables except `private_key_path` and `ssh_public_key_path`
+  - JSON object containing the stack variables except `private_key_path`, `private_key_pem`, `ssh_public_key_path`, and `ssh_public_key`
   - include the live `wireguard_peer_config` here if you want the replacement VPS to come up with the same tunnel config
 - `TF_OCI_API_PRIVATE_KEY_PEM`
-  - the OCI API private key content used by Terraform
+  - the OCI API private key content used by Terraform Cloud remote runs
 - `TF_OCI_SSH_PUBLIC_KEY`
-  - the SSH public key injected into both instances
+  - the SSH public key injected into the instance during Terraform Cloud remote runs
 
 Example `TF_OCI_FREE_TIER_TFVARS_JSON` shape:
 
