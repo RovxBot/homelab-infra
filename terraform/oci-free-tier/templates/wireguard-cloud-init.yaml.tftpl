@@ -34,6 +34,8 @@ write_files:
 runcmd:
   - sysctl --system
   - systemctl enable systemd-resolved
+  - bash -lc 'iptables -C INPUT -p udp --dport ${wireguard_udp_port} -j ACCEPT 2>/dev/null || iptables -I INPUT 4 -p udp --dport ${wireguard_udp_port} -j ACCEPT'
+  - netfilter-persistent save
 %{ if wireguard_install_caddy ~}
   - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor | tee /usr/share/keyrings/caddy-stable-archive-keyring.gpg >/dev/null'
   - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null'

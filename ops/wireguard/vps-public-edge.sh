@@ -25,6 +25,7 @@ WEB_PORTS=(
   "${HTTP_PUBLIC_PORT:-80}"
   "${HTTPS_PUBLIC_PORT:-443}"
 )
+WIREGUARD_PUBLIC_PORT="${WIREGUARD_PUBLIC_PORT:-51820}"
 
 # format: "public_port:backend_port"
 FORWARD_MAP=(
@@ -55,6 +56,8 @@ cleanup_legacy_world_443
 for web_port in "${WEB_PORTS[@]}"; do
   add_rule filter INPUT -i "$PUB_IFACE" -p tcp --dport "$web_port" -j ACCEPT
 done
+
+add_rule filter INPUT -i "$PUB_IFACE" -p udp --dport "$WIREGUARD_PUBLIC_PORT" -j ACCEPT
 
 # Clamp MSS to PMTU for forwarded TCP SYN packets so game traffic behaves over WireGuard.
 if ! iptables -t mangle -C FORWARD -o "$WG_IFACE" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null; then
