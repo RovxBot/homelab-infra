@@ -5,8 +5,8 @@ data "oci_identity_availability_domains" "ads" {
 locals {
   availability_domain = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
   ssh_authorized_keys = trimspace(file(var.ssh_public_key_path))
-  wireguard_caddyfile_b64 = base64encode(file("${path.module}/../../ops/wireguard/Caddyfile"))
-  wireguard_edge_script_b64 = base64encode(file("${path.module}/../../ops/wireguard/vps-public-edge.sh"))
+  wireguard_caddyfile_b64 = base64encode(file("${path.module}/files/Caddyfile"))
+  wireguard_edge_script_b64 = base64encode(file("${path.module}/files/vps-public-edge.sh"))
   common_tags = merge(
     {
       managed-by = "terraform"

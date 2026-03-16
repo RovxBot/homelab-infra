@@ -26,7 +26,7 @@ WireGuard instance:
 - Installs `wireguard` and `iptables-persistent`
 - Enables IP forwarding
 - Optionally installs Caddy from the official repository
-- Writes the repo versions of `ops/wireguard/Caddyfile` and `ops/wireguard/vps-public-edge.sh`
+- Writes the module-bundled `files/Caddyfile` and `files/vps-public-edge.sh`
 - Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
 
 ## Inputs you must provide
