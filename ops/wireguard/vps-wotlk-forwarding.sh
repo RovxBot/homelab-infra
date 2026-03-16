@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# WotLK port forwarding on Oracle VPS (public -> WireGuard -> home metal7).
+# Legacy WotLK port forwarding on Oracle VPS (public -> WireGuard -> home metal7).
 #
 # Assumptions:
 # - VPS public interface: ens3
@@ -9,10 +9,10 @@ set -euo pipefail
 # - Home server IP (metal7): 192.168.1.197
 # - Required public ports:
 #   - 3724/TCP (auth)
-#   - 443/TCP  (world via VPS forward -> 8085)
+#   - 8443/TCP (world via VPS forward -> 8085)
 #
 # This script:
-# - DNATs public traffic on the VPS to metal7 via wg0 (world is exposed on 443)
+# - DNATs public traffic on the VPS to metal7 via wg0
 # - SNATs (MASQUERADE) so replies return through the VPS (no asymmetric routing)
 # - Inserts FORWARD allows before Oracle's default REJECT
 # - Clamps TCP MSS on forwarded SYN packets to avoid MTU issues over WireGuard
@@ -25,7 +25,7 @@ HOME_IP="${HOME_IP:-192.168.1.197}"
 # format: "public_port:backend_port"
 PORT_MAP=(
   "3724:3724"
-  "443:8085"
+  "8443:8085"
 )
 
 add_rule() {
