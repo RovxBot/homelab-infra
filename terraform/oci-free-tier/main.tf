@@ -10,7 +10,7 @@ locals {
   wireguard_edge_script_b64 = base64encode(file("${path.module}/files/vps-public-edge.sh"))
   common_tags = merge(
     {
-      managed-by = "terraform"
+      managed-by = "github-actions"
       stack      = "oci-free-tier"
     },
     var.freeform_tags
@@ -177,7 +177,7 @@ resource "oci_core_public_ip" "wireguard" {
   compartment_id = var.compartment_ocid
   display_name   = "${var.wireguard_instance_name}-public-ip"
   lifetime       = "RESERVED"
-  private_ip_id  = one([
+  private_ip_id = one([
     for private_ip in data.oci_core_private_ips.wireguard_primary.private_ips :
     private_ip.id if private_ip.is_primary
   ])

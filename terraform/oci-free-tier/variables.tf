@@ -87,7 +87,9 @@ variable "ssh_ingress_cidrs" {
 variable "freeform_tags" {
   description = "Optional freeform tags applied to all OCI resources in this stack."
   type        = map(string)
-  default     = {}
+  default = {
+    project = "k8s"
+  }
 }
 
 variable "wireguard_instance_name" {
