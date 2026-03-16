@@ -1,0 +1,47 @@
+#cloud-config
+package_update: true
+packages:
+  - wireguard
+  - iptables-persistent
+%{ if wireguard_install_caddy ~}
+  - debian-keyring
+  - debian-archive-keyring
+  - apt-transport-https
+  - curl
+  - gnupg
+%{ endif ~}
+
+write_files:
+  - path: /etc/sysctl.d/99-wireguard-forwarding.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      net.ipv4.ip_forward=1
+      net.ipv6.conf.all.forwarding=1
+%{ if wireguard_install_caddy ~}
+  - path: /etc/caddy/Caddyfile
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${wireguard_caddyfile_b64}
+  - path: /opt/homelab/ops/wireguard/vps-public-edge.sh
+    owner: root:root
+    permissions: "0755"
+    encoding: b64
+    content: ${wireguard_edge_script_b64}
+%{ endif ~}
+
+runcmd:
+  - sysctl --system
+  - systemctl enable systemd-resolved
+%{ if wireguard_install_caddy ~}
+  - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor | tee /usr/share/keyrings/caddy-stable-archive-keyring.gpg >/dev/null'
+  - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null'
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
+  - caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+  - systemctl enable --now caddy
+%{ endif ~}
+  - bash -lc 'if [ -n "${wireguard_peer_config_b64}" ]; then echo "${wireguard_peer_config_b64}" | base64 -d >/etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf && systemctl enable --now wg-quick@wg0; fi'
+
+final_message: "WireGuard bootstrap complete. UDP port ${wireguard_udp_port} is expected to be opened by OCI NSG rules."
