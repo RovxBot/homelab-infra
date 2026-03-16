@@ -72,34 +72,45 @@ The workflow supports:
 
 This workflow is now wired for Terraform Cloud.
 
-Create these repository or environment secrets:
+Create this GitHub Actions secret:
 
 - `TF_TOKEN_app_terraform_io`
   - Terraform Cloud user or team token
   - GitHub Actions uses this to authenticate to Terraform Cloud
-- `TF_OCI_FREE_TIER_TFVARS_JSON`
-  - JSON object containing the stack variables except `private_key_path`, `private_key_pem`, `ssh_public_key_path`, and `ssh_public_key`
-  - include the live `wireguard_peer_config` here if you want the replacement VPS to come up with the same tunnel config
-- `TF_OCI_API_PRIVATE_KEY_PEM`
-  - the OCI API private key content used by Terraform Cloud remote runs
-- `TF_OCI_SSH_PUBLIC_KEY`
-  - the SSH public key injected into the instance during Terraform Cloud remote runs
 
-Example `TF_OCI_FREE_TIER_TFVARS_JSON` shape:
+Store Terraform inputs in the Terraform Cloud workspace instead of GitHub.
 
-```json
-{
-  "tenancy_ocid": "ocid1.tenancy.oc1..example",
-  "user_ocid": "ocid1.user.oc1..example",
-  "fingerprint": "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99",
-  "region": "ap-melbourne-1",
-  "compartment_ocid": "ocid1.compartment.oc1..example",
-  "availability_domain_name": "FnnO:AP-MELBOURNE-1-AD-1",
-  "wireguard_shape": "VM.Standard.E2.1.Micro",
-  "wireguard_image_ocid": "ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreqlrwshrvrz5byufo64cbvusn4mdwo2nnvuya",
-  "wireguard_peer_config": "[Interface]\nAddress = 10.77.0.1/24\n..."
-}
-```
+Terraform Cloud sensitive variables:
+
+- `private_key_pem`
+  - OCI API private key contents
+- `wireguard_peer_config`
+  - full live `/etc/wireguard/wg0.conf` content
+
+Terraform Cloud normal variables:
+
+- `tenancy_ocid`
+- `user_ocid`
+- `fingerprint`
+- `compartment_ocid`
+- `availability_domain_name`
+- `ssh_public_key`
+
+Optional Terraform Cloud normal variables if you want them managed there instead of relying on repo defaults:
+
+- `region`
+- `wireguard_instance_name`
+- `wireguard_shape`
+- `wireguard_image_ocid`
+- `wireguard_ocpus`
+- `wireguard_memory_gbs`
+- `wireguard_udp_port`
+- `wireguard_http_ports`
+- `wireguard_install_caddy`
+- `vcn_cidr`
+- `subnet_cidr`
+- `ssh_ingress_cidrs`
+- `freeform_tags`
 
 The workflow will target:
 
@@ -110,6 +121,12 @@ The workflow will target:
 If the workspace does not already exist, Terraform Cloud can create it during initialization.
 
 For safer applies, protect the GitHub environment `oci-free-tier` with reviewers.
+
+Recommended split:
+
+- keep stable, non-secret defaults in the repo
+- keep environment-specific normal values in Terraform Cloud normal variables
+- keep private keys and WireGuard config only in Terraform Cloud sensitive variables
 
 ## Notes
 
