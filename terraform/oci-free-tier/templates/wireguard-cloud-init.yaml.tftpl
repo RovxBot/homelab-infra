@@ -43,6 +43,8 @@ runcmd:
   - bash -lc 'DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::=--force-confold install -y caddy'
   - caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
   - systemctl enable --now caddy
+  - /opt/homelab/ops/wireguard/vps-public-edge.sh
+  - netfilter-persistent save
 %{ endif ~}
   - bash -lc 'if [ -n "${wireguard_peer_config_b64}" ]; then echo "${wireguard_peer_config_b64}" | base64 -d >/etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf && systemctl enable --now wg-quick@wg0; fi'
 

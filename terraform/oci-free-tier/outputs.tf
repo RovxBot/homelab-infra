@@ -17,7 +17,7 @@ output "ssh_commands" {
   description = "Convenience SSH commands once the stack is applied."
   value = {
     wireguard = "ssh ubuntu@${oci_core_public_ip.wireguard.ip_address}"
-    teamspeak = var.teamspeak_enabled ? "ssh ubuntu@${oci_core_public_ip.teamspeak[0].ip_address}" : null
+    teamspeak = var.teamspeak_enabled ? "ssh ubuntu@${data.oci_core_vnic.teamspeak_primary[0].public_ip_address}" : null
   }
 }
 
@@ -27,11 +27,6 @@ output "teamspeak_instance_id" {
 }
 
 output "teamspeak_public_ip" {
-  description = "Reserved public IP address of the TeamSpeak 6 instance."
-  value       = var.teamspeak_enabled ? oci_core_public_ip.teamspeak[0].ip_address : null
-}
-
-output "teamspeak_public_ip_ocid" {
-  description = "OCI OCID for the reserved public IP attached to the TeamSpeak 6 instance."
-  value       = var.teamspeak_enabled ? oci_core_public_ip.teamspeak[0].id : null
+  description = "Ephemeral public IP address of the TeamSpeak 6 instance."
+  value       = var.teamspeak_enabled ? data.oci_core_vnic.teamspeak_primary[0].public_ip_address : null
 }

@@ -273,7 +273,7 @@ resource "oci_core_instance" "teamspeak" {
 
   create_vnic_details {
     subnet_id        = oci_core_subnet.public.id
-    assign_public_ip = false
+    assign_public_ip = true
     nsg_ids          = [oci_core_network_security_group.teamspeak[0].id]
     display_name     = "${var.teamspeak_instance_name}-vnic"
     hostname_label   = "teamspeak"
@@ -298,20 +298,4 @@ data "oci_core_vnic_attachments" "teamspeak" {
 data "oci_core_vnic" "teamspeak_primary" {
   count   = var.teamspeak_enabled ? 1 : 0
   vnic_id = data.oci_core_vnic_attachments.teamspeak[0].vnic_attachments[0].vnic_id
-}
-
-data "oci_core_private_ips" "teamspeak_primary" {
-  count   = var.teamspeak_enabled ? 1 : 0
-  vnic_id = data.oci_core_vnic.teamspeak_primary[0].vnic_id
-}
-
-resource "oci_core_public_ip" "teamspeak" {
-  count          = var.teamspeak_enabled ? 1 : 0
-  compartment_id = var.compartment_ocid
-  display_name   = "${var.teamspeak_instance_name}-public-ip"
-  lifetime       = "RESERVED"
-  private_ip_id = one([
-    for private_ip in data.oci_core_private_ips.teamspeak_primary[0].private_ips :
-    private_ip.id if private_ip.is_primary
-  ])
 }

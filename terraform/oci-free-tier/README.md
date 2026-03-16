@@ -44,6 +44,7 @@ TeamSpeak 6 instance:
 - Installs Docker
 - Starts the official `teamspeaksystems/teamspeak6-server:latest` container via systemd
 - Persists server data in `/srv/teamspeak6`
+- Uses an ephemeral public IP so the reserved public IP slot stays with the WireGuard edge
 
 ## Inputs you must provide
 
