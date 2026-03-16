@@ -3,10 +3,10 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 locals {
-  availability_domain = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
-  oci_private_key = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
-  ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
-  wireguard_caddyfile_b64 = base64encode(file("${path.module}/files/Caddyfile"))
+  availability_domain       = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
+  oci_private_key           = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
+  ssh_authorized_keys       = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
+  wireguard_caddyfile_b64   = base64encode(file("${path.module}/files/Caddyfile"))
   wireguard_edge_script_b64 = base64encode(file("${path.module}/files/vps-public-edge.sh"))
   common_tags = merge(
     {
@@ -141,7 +141,7 @@ resource "oci_core_instance" "wireguard" {
 
   create_vnic_details {
     subnet_id        = oci_core_subnet.public.id
-    assign_public_ip = true
+    assign_public_ip = false
     nsg_ids          = [oci_core_network_security_group.wireguard.id]
     display_name     = "${var.wireguard_instance_name}-vnic"
     hostname_label   = "wireguard"
@@ -150,7 +150,7 @@ resource "oci_core_instance" "wireguard" {
   metadata = {
     ssh_authorized_keys = local.ssh_authorized_keys
     user_data = base64encode(templatefile("${path.module}/templates/wireguard-cloud-init.yaml.tftpl", {
-      wireguard_udp_port         = var.wireguard_udp_port
+      wireguard_udp_port        = var.wireguard_udp_port
       wireguard_peer_config_b64 = base64encode(var.wireguard_peer_config)
       wireguard_install_caddy   = var.wireguard_install_caddy
       wireguard_caddyfile_b64   = local.wireguard_caddyfile_b64
@@ -167,4 +167,18 @@ data "oci_core_vnic_attachments" "wireguard" {
 
 data "oci_core_vnic" "wireguard_primary" {
   vnic_id = data.oci_core_vnic_attachments.wireguard.vnic_attachments[0].vnic_id
+}
+
+data "oci_core_private_ips" "wireguard_primary" {
+  vnic_id = data.oci_core_vnic.wireguard_primary.vnic_id
+}
+
+resource "oci_core_public_ip" "wireguard" {
+  compartment_id = var.compartment_ocid
+  display_name   = "${var.wireguard_instance_name}-public-ip"
+  lifetime       = "RESERVED"
+  private_ip_id  = one([
+    for private_ip in data.oci_core_private_ips.wireguard_primary.private_ips :
+    private_ip.id if private_ip.is_primary
+  ])
 }
