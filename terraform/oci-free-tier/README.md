@@ -1,6 +1,9 @@
 # OCI Free Tier Terraform
 
-This Terraform stack provisions a replacement Oracle Cloud instance for your current Melbourne WireGuard/public-edge VPS.
+This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
+
+- 1 WireGuard/public-edge VPS
+- 1 TeamSpeak 6 VPS
 
 ## What it creates
 
@@ -10,6 +13,7 @@ This Terraform stack provisions a replacement Oracle Cloud instance for your cur
 - 1 public route table
 - 1 network security group
 - 1 `VM.Standard.E2.1.Micro` instance
+- 1 optional `VM.Standard.E2.1.Micro` TeamSpeak 6 instance
 
 ## Ports opened
 
@@ -18,6 +22,12 @@ WireGuard instance:
 - `22/TCP` from `ssh_ingress_cidrs`
 - `51820/UDP` for WireGuard
 - `80/TCP`, `443/TCP`, `3724/TCP`, `8443/TCP` for your current edge use case
+
+TeamSpeak 6 instance:
+
+- `22/TCP` from `ssh_ingress_cidrs`
+- `9987/UDP` for voice
+- `30033/TCP` for file transfers
 
 ## Bootstrap behavior
 
@@ -28,6 +38,12 @@ WireGuard instance:
 - Optionally installs Caddy from the official repository
 - Writes the module-bundled `files/Caddyfile` and `files/vps-public-edge.sh`
 - Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
+
+TeamSpeak 6 instance:
+
+- Installs Docker
+- Starts the official `teamspeaksystems/teamspeak6-server:latest` container via systemd
+- Persists server data in `/srv/teamspeak6`
 
 ## Inputs you must provide
 
@@ -42,6 +58,15 @@ WireGuard instance:
   - `wireguard_image_ocid`
 - SSH access:
   - `ssh_public_key_path` or `ssh_public_key`
+
+Optional TeamSpeak-specific inputs:
+
+- `teamspeak_enabled`
+- `teamspeak_instance_name`
+- `teamspeak_shape`
+- `teamspeak_image_ocid`
+- `teamspeak_voice_port`
+- `teamspeak_filetransfer_port`
 
 ## Usage
 
@@ -107,6 +132,14 @@ Optional Terraform Cloud normal variables if you want them managed there instead
 - `wireguard_udp_port`
 - `wireguard_http_ports`
 - `wireguard_install_caddy`
+- `teamspeak_enabled`
+- `teamspeak_instance_name`
+- `teamspeak_shape`
+- `teamspeak_image_ocid`
+- `teamspeak_ocpus`
+- `teamspeak_memory_gbs`
+- `teamspeak_voice_port`
+- `teamspeak_filetransfer_port`
 - `vcn_cidr`
 - `subnet_cidr`
 - `ssh_ingress_cidrs`
@@ -135,6 +168,7 @@ Recommended split:
   - AD: `FnnO:AP-MELBOURNE-1-AD-1`
   - shape: `VM.Standard.E2.1.Micro`
   - image: `ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreqlrwshrvrz5byufo64cbvusn4mdwo2nnvuya`
+- The official TeamSpeak 6 server image is currently x86-only, so the spare second AMD micro is the correct Always Free target.
 - `terraform init` and `terraform validate` succeeded locally for this stack.
 - To fully replace the current Oracle VPS, you still need to provide the live `wg0.conf` content via `wireguard_peer_config`.
 

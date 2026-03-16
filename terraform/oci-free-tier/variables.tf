@@ -134,3 +134,51 @@ variable "wireguard_peer_config" {
   default     = ""
   sensitive   = true
 }
+
+variable "teamspeak_enabled" {
+  description = "Whether to provision the TeamSpeak 6 instance."
+  type        = bool
+  default     = true
+}
+
+variable "teamspeak_instance_name" {
+  description = "Display name for the TeamSpeak 6 instance."
+  type        = string
+  default     = "teamspeak6"
+}
+
+variable "teamspeak_shape" {
+  description = "OCI shape for the TeamSpeak 6 instance."
+  type        = string
+  default     = "VM.Standard.E2.1.Micro"
+}
+
+variable "teamspeak_image_ocid" {
+  description = "Region-specific image OCID for the TeamSpeak 6 instance. Defaults to the WireGuard image when empty."
+  type        = string
+  default     = ""
+}
+
+variable "teamspeak_ocpus" {
+  description = "OCPU count for the TeamSpeak 6 instance when using a Flex shape."
+  type        = number
+  default     = 1
+}
+
+variable "teamspeak_memory_gbs" {
+  description = "Memory size in GB for the TeamSpeak 6 instance when using a Flex shape."
+  type        = number
+  default     = 1
+}
+
+variable "teamspeak_voice_port" {
+  description = "Public UDP voice port for TeamSpeak 6."
+  type        = number
+  default     = 9987
+}
+
+variable "teamspeak_filetransfer_port" {
+  description = "Public TCP file transfer port for TeamSpeak 6."
+  type        = number
+  default     = 30033
+}

@@ -20,6 +20,15 @@ wireguard_image_ocid = "ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreq
 wireguard_ocpus      = 1
 wireguard_memory_gbs = 1
 
+# TeamSpeak 6 now fits in the spare Always Free AMD micro slot.
+teamspeak_enabled          = true
+teamspeak_shape            = "VM.Standard.E2.1.Micro"
+teamspeak_instance_name    = "teamspeak6"
+# Optional: leave empty to reuse wireguard_image_ocid.
+# teamspeak_image_ocid     = "ocid1.image.oc1.ap-melbourne-1...."
+teamspeak_voice_port       = 9987
+teamspeak_filetransfer_port = 30033
+
 # Optional: if set, cloud-init writes /etc/wireguard/wg0.conf and starts wg-quick@wg0.
 # wireguard_peer_config = <<-EOT
 # [Interface]
