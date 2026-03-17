@@ -1,0 +1,42 @@
+tenancy_ocid     = "ocid1.tenancy.oc1..example"
+user_ocid        = "ocid1.user.oc1..example"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "ap-melbourne-1"
+compartment_ocid = "ocid1.compartment.oc1..example"
+
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+# Current live WireGuard VPS in Melbourne:
+# - shape: VM.Standard.E2.1.Micro
+# - image: current Ubuntu x86_64 image OCID shown below
+wireguard_shape      = "VM.Standard.E2.1.Micro"
+wireguard_image_ocid = "ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreqlrwshrvrz5byufo64cbvusn4mdwo2nnvuya"
+
+# Optional: pin the AD if your region has more than one.
+# availability_domain_name = "FnnO:AP-MELBOURNE-1-AD-1"
+
+# Current live VPS sizing.
+wireguard_ocpus      = 1
+wireguard_memory_gbs = 1
+
+# TeamSpeak 6 now fits in the spare Always Free AMD micro slot.
+teamspeak_enabled          = true
+teamspeak_shape            = "VM.Standard.E2.1.Micro"
+teamspeak_instance_name    = "teamspeak6"
+# Optional: leave empty to reuse wireguard_image_ocid.
+# teamspeak_image_ocid     = "ocid1.image.oc1.ap-melbourne-1...."
+teamspeak_voice_port       = 9987
+teamspeak_filetransfer_port = 30033
+
+# Optional: if set, cloud-init writes /etc/wireguard/wg0.conf and starts wg-quick@wg0.
+# wireguard_peer_config = <<-EOT
+# [Interface]
+# Address = 10.77.0.1/24
+# ListenPort = 51820
+# PrivateKey = ...
+#
+# [Peer]
+# PublicKey = ...
+# AllowedIPs = 10.77.0.2/32
+# EOT

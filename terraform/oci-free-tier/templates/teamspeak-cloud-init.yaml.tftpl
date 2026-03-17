@@ -1,0 +1,39 @@
+#cloud-config
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - docker.io
+
+write_files:
+  - path: /etc/systemd/system/teamspeak6.service
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=TeamSpeak 6 Server
+      Requires=docker.service
+      After=docker.service network-online.target
+
+      [Service]
+      Type=simple
+      Restart=always
+      RestartSec=10
+      ExecStartPre=/usr/bin/mkdir -p /srv/teamspeak6/logs
+      ExecStartPre=/usr/bin/chmod 0777 /srv/teamspeak6 /srv/teamspeak6/logs
+      ExecStartPre=-/usr/bin/docker rm -f teamspeak6
+      ExecStart=/usr/bin/docker run --name teamspeak6 --pull always --restart=no -e TSSERVER_LICENSE_ACCEPTED=accept -p ${teamspeak_voice_port}:${teamspeak_voice_port}/udp -p ${teamspeak_filetransfer_port}:${teamspeak_filetransfer_port}/tcp -v /srv/teamspeak6:/var/tsserver teamspeaksystems/teamspeak6-server:latest
+      ExecStop=/usr/bin/docker stop -t 30 teamspeak6
+      ExecStopPost=-/usr/bin/docker rm -f teamspeak6
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - mkdir -p /srv/teamspeak6/logs
+  - chmod 0777 /srv/teamspeak6 /srv/teamspeak6/logs
+  - systemctl enable --now docker
+  - systemctl daemon-reload
+  - systemctl enable --now teamspeak6
+
+final_message: "TeamSpeak 6 bootstrap complete. Public ports ${teamspeak_voice_port}/udp and ${teamspeak_filetransfer_port}/tcp are expected to be opened by OCI NSG rules."

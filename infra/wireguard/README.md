@@ -9,7 +9,7 @@ This sets up a **site-to-site WireGuard tunnel** where:
 
 - Namespace: `wireguard` (`infra/namespaces/wireguard.yaml`)
 - Gateway pod: `Deployment/wireguard-client` (`infra/wireguard/wireguard-client-deployment.yaml`)
-- Required secret (created manually): `Secret/wireguard-client-conf` with key `wg0.conf`.
+- Flux-managed secret: `Secret/wireguard-client-conf` from `infra/wireguard/wireguard-client-conf.enc.yaml`
 
 ## What you get
 
