@@ -31,7 +31,7 @@ spec:
                 name: wotlk-mmaps-config
           containers:
             - name: extract
-              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-f966c90228e6c74ba0418cfdd3b0eb36f89c1b1c
+              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-43cce49aea329bf14101e645582c935d5edfe347
               imagePullPolicy: Always
               env:
                 - name: WOTLK_SKIP_MMAPS
