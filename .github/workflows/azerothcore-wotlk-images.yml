@@ -97,23 +97,10 @@ jobs:
           # Compatibility fixes for custom modules on Playerbot branch.
           # These modules ship CMake APIs not available in this core fork.
           rm -f .work/acore/modules/mod-grimtokendailies/CMakeLists.txt || true
-          rm -f .work/acore/modules/mod-customnpcs/CMakeLists.txt || true
-
-          # mod-customnpcs exports AddModCustomNPCsScripts(), while the static
-          # module loader expects Addmod_customnpcsScripts() from folder name.
-          if [[ -d .work/acore/modules/mod-customnpcs/src ]]; then
-            printf '%s\n' \
-              'void AddModCustomNPCsScripts();' \
-              'void Addmod_customnpcsScripts()' \
-              '{' \
-              '    AddModCustomNPCsScripts();' \
-              '}' \
-              > .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
-          fi
 
           # Fail fast if mod-customnpcs is missing from the build context.
           test -d .work/acore/modules/mod-customnpcs/src
-          test -f .work/acore/modules/mod-customnpcs/src/mod_customnpcs_loader_compat.cpp
+          test -f .work/acore/modules/mod-customnpcs/CMakeLists.txt
 
       - name: Build and push authserver
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
