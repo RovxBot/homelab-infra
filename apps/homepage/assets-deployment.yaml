@@ -21,7 +21,7 @@ spec:
       serviceAccountName: homepage
       initContainers:
         - name: sync-assets
-          image: bitnami/kubectl:latest@sha256:6e2cdb22d6ab7264ea198c717f555e30536b54029d26c8781b9f25f78951b564
+          image: bitnami/kubectl:latest@sha256:d80c09afa570a14cf6d32ca09ca610b5701eb0a08c655b5bb820194b218078eb
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsUser: 0
@@ -75,7 +75,7 @@ spec:
               mountPath: /usr/share/nginx/html
       containers:
         - name: nginx
-          image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:aec540f08f99df3c830549d5dd7bfaf63e01cbbb499e37400c5af9f8e8554e9f
+          image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:ccbac1a4c20a8b41c5dd1691bd91d63eda3b7989d643a33fd47841838519bfb9
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
