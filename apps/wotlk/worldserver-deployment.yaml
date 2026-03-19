@@ -136,7 +136,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-c3acc93a1d630781e926e20f1300f4e8eb55f773
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-c662453075114ee2e4284af709e53c9977ca67fa
           imagePullPolicy: Always
           command:
             - bash
@@ -157,7 +157,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-c3acc93a1d630781e926e20f1300f4e8eb55f773
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-c662453075114ee2e4284af709e53c9977ca67fa
           imagePullPolicy: Always
           env:
             - name: TZ
