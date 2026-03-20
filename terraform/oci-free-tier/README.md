@@ -38,6 +38,7 @@ WireGuard instance:
 - Optionally installs Caddy from the official repository
 - Writes the module-bundled `files/Caddyfile` and `files/vps-public-edge.sh`
 - Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
+- Terminates TLS for `immich.cooked.beer` and `jellyfin.cooked.beer` and proxies them over WireGuard to home
 
 TeamSpeak 6 instance:
 
