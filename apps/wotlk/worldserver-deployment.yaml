@@ -95,6 +95,8 @@ spec:
               envsubst < /etc-tpl/mod-double-xp-weekend.conf > /etc-out/modules/mod-double-xp-weekend.conf
               envsubst < /etc-tpl/mod_customnpcs.conf > /etc-out/modules/mod_customnpcs.conf
               envsubst < /etc-tpl/mod_grimtokendailies.conf > /etc-out/modules/mod_grimtokendailies.conf
+              envsubst < /etc-tpl/mod_guildfunds.conf > /etc-out/modules/mod_guildfunds.conf
+              envsubst < /etc-tpl/mod_player_bot_level_brackets.conf > /etc-out/modules/mod_player_bot_level_brackets.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
