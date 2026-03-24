@@ -95,6 +95,8 @@ spec:
               envsubst < /etc-tpl/mod-double-xp-weekend.conf > /etc-out/modules/mod-double-xp-weekend.conf
               envsubst < /etc-tpl/mod_customnpcs.conf > /etc-out/modules/mod_customnpcs.conf
               envsubst < /etc-tpl/mod_grimtokendailies.conf > /etc-out/modules/mod_grimtokendailies.conf
+              envsubst < /etc-tpl/mod_guildfunds.conf > /etc-out/modules/mod_guildfunds.conf
+              envsubst < /etc-tpl/mod_player_bot_level_brackets.conf > /etc-out/modules/mod_player_bot_level_brackets.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
@@ -136,7 +138,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-2513fa1c7432a0de03ae586c10bf0d0672689b35
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-d8ba4f38d4bb21601c6be684c49265b8db19c27c
           imagePullPolicy: Always
           command:
             - bash
@@ -157,7 +159,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-2513fa1c7432a0de03ae586c10bf0d0672689b35
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-d8ba4f38d4bb21601c6be684c49265b8db19c27c
           imagePullPolicy: Always
           env:
             - name: TZ
