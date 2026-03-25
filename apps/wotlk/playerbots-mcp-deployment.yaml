@@ -66,7 +66,7 @@ spec:
               mountPath: /modules
               readOnly: true
         - name: configure-acore
-          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main-e519d76e73f8cd627941c99bcaf4552304a62d14
+          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main-b9365f5afb8e8a69bb47e7cd7bf0822e0141487a
           imagePullPolicy: Always
           command:
             - bash
@@ -84,7 +84,7 @@ spec:
               mountPath: /workspace
       containers:
         - name: mcp-server
-          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main-e519d76e73f8cd627941c99bcaf4552304a62d14
+          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main-b9365f5afb8e8a69bb47e7cd7bf0822e0141487a
           imagePullPolicy: Always
           env:
             - name: TZ
