@@ -84,7 +84,7 @@ spec:
               mountPath: /workspace
       containers:
         - name: mcp-server
-          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main
+          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main-e519d76e73f8cd627941c99bcaf4552304a62d14
           imagePullPolicy: Always
           env:
             - name: TZ
