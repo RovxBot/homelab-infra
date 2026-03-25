@@ -80,7 +80,7 @@ Then point VS Code at the forwarded endpoint:
 
 Suggested rollout order:
 
-1. Run the `Build Playerbots MCP image` workflow so `ghcr.io/<owner>/mcp-cpp-playerbots:main` exists.
+1. Run the `Build Playerbots MCP image` workflow and update the deployment to the published immutable tag, for example `ghcr.io/<owner>/mcp-cpp-playerbots:main-<commit>`.
 2. Commit and push this repo change.
 3. Reconcile `apps-wotlk` in Flux or wait for the normal sync.
 4. Port-forward the service locally and add the VS Code MCP entry.
