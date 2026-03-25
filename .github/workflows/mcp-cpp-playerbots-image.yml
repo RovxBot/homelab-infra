@@ -56,7 +56,7 @@ jobs:
           image="ghcr.io/${OWNER_LC}/mcp-cpp-playerbots:${REF_TAG}-${GITHUB_SHA}"
           docker pull "${image}"
 
-          docker run --rm --entrypoint /bin/sh "${image}" -lc '
+          docker run --rm --entrypoint /bin/bash "${image}" -lc '
             set -euo pipefail
             mcp-cpp-server --help >/tmp/mcp-help.txt
             clangd --version >/tmp/clangd-version.txt
