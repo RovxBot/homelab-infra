@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wotlk-playerbots-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wotlk-playerbots-mcp
+  template:
+    metadata:
+      labels:
+        app: wotlk-playerbots-mcp
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: metal7
+      initContainers:
+        - name: clone-acore
+          image: alpine/git:2.47.2
+          env:
+            - name: ACORE_REPO
+              valueFrom:
+                configMapKeyRef:
+                  name: wotlk-acore-source
+                  key: ACORE_REPO
+            - name: ACORE_REF
+              valueFrom:
+                configMapKeyRef:
+                  name: wotlk-acore-source
+                  key: ACORE_REF
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              rm -rf /workspace/source/*
+              git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" /workspace/source
+              mkdir -p /workspace/source/modules
+
+              if [ -f /modules/modules.txt ]; then
+                while IFS= read -r line || [ -n "$line" ]; do
+                  line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+                  [ -z "$line" ] && continue
+                  case "$line" in
+                    \#*) continue ;;
+                  esac
+
+                  repo="$line"
+                  ref="master"
+                  case "$line" in
+                    *@*)
+                      repo="${line%@*}"
+                      ref="${line##*@}"
+                      ;;
+                  esac
+
+                  name="$(basename "$repo" .git)"
+                  echo "Adding module: $repo@$ref -> modules/$name"
+                  git clone --depth=1 --branch "$ref" "$repo" "/workspace/source/modules/$name" || true
+                done < /modules/modules.txt
+              fi
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: modules-list
+              mountPath: /modules
+              readOnly: true
+        - name: configure-acore
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-6460b7ebb425fd28824c37e9fd0f950d1266085f
+          imagePullPolicy: Always
+          command:
+            - bash
+            - -lc
+            - |
+              set -euo pipefail
+              mkdir -p /workspace/build
+              cmake -S /workspace/source -B /workspace/build \
+                -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+              test -f /workspace/build/compile_commands.json
+              ln -sf /workspace/build/compile_commands.json /workspace/source/compile_commands.json
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      containers:
+        - name: mcp-server
+          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main
+          imagePullPolicy: Always
+          env:
+            - name: TZ
+              value: Australia/Adelaide
+            - name: RUST_LOG
+              value: info
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      volumes:
+        - name: workspace
+          emptyDir: {}
+        - name: modules-list
+          configMap:
+            name: wotlk-modules-list
