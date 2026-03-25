@@ -3,9 +3,11 @@ kind: Service
 metadata:
   name: wotlk-playerbots-mcp
 spec:
+  type: NodePort
   selector:
     app: wotlk-playerbots-mcp
   ports:
     - name: http
       port: 8000
       targetPort: http
+      nodePort: 30800
