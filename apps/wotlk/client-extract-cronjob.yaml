@@ -31,7 +31,7 @@ spec:
                 name: wotlk-mmaps-config
           containers:
             - name: extract
-              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-d8ba4f38d4bb21601c6be684c49265b8db19c27c
+              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-0214274ceb98ff75289123bdc70f483ae2d8027d
               imagePullPolicy: Always
               env:
                 # mmaps generation is very slow; enable manually when you're ready.
