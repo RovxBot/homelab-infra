@@ -59,6 +59,10 @@ spec:
                   git clone --depth=1 --branch "$ref" "$repo" "/workspace/source/modules/$name" || true
                 done < /modules/modules.txt
               fi
+
+              # Match the image-build compatibility fix for custom modules that
+              # expect AzerothCore CMake helpers missing from this Playerbot fork.
+              rm -f /workspace/source/modules/mod-grimtokendailies/CMakeLists.txt || true
           volumeMounts:
             - name: workspace
               mountPath: /workspace
