@@ -66,7 +66,7 @@ spec:
               mountPath: /modules
               readOnly: true
         - name: configure-acore
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-6460b7ebb425fd28824c37e9fd0f950d1266085f
+          image: ghcr.io/rovxbot/mcp-cpp-playerbots:main-e519d76e73f8cd627941c99bcaf4552304a62d14
           imagePullPolicy: Always
           command:
             - bash

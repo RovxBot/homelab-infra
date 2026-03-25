@@ -15,7 +15,21 @@ RUN cargo build --release
 FROM node:22-bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates clangd git tini \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        clangd \
+        cmake \
+        default-libmysqlclient-dev \
+        git \
+        libboost-all-dev \
+        libbz2-dev \
+        libcurl4-openssl-dev \
+        libncurses-dev \
+        libreadline-dev \
+        libssl-dev \
+        tini \
+        zlib1g-dev \
     && npm install -g supergateway \
     && rm -rf /var/lib/apt/lists/*
 

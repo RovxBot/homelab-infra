@@ -56,7 +56,7 @@ How it works:
 
 1. The pod clones the same AzerothCore fork/ref from `wotlk-acore-source`.
 2. It clones any extra module repos listed in `apps/wotlk/config/modules.txt`.
-3. It runs a CMake configure step to generate `compile_commands.json`.
+3. It runs a CMake configure step to generate `compile_commands.json` using the same MCP image toolchain as the runtime container.
 4. It starts `mcp-cpp-server` behind `supergateway` and exposes Streamable HTTP on port `8000` at `/mcp`.
 
 Recommended access pattern from your workstation:
