@@ -174,7 +174,7 @@ variable "matrix_memory_gbs" {
 variable "matrix_server_name" {
   description = "Public DNS hostname for the Matrix homeserver and Element Web, for example matrix.example.com."
   type        = string
-  default     = "matrix.cooked.beer"
+  default     = ""
 
   validation {
     condition     = !var.matrix_enabled || var.matrix_server_name != ""
@@ -185,7 +185,7 @@ variable "matrix_server_name" {
 variable "matrix_acme_email" {
   description = "Email address used by Caddy when requesting TLS certificates for the Matrix host."
   type        = string
-  default     = "sam@cooked.beer"
+  default     = "admin@cooked.beer"
 
   validation {
     condition     = !var.matrix_enabled || var.matrix_acme_email != ""
