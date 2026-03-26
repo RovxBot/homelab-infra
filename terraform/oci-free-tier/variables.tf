@@ -135,50 +135,90 @@ variable "wireguard_peer_config" {
   sensitive   = true
 }
 
-variable "teamspeak_enabled" {
-  description = "Whether to provision the TeamSpeak 6 instance."
+variable "matrix_enabled" {
+  description = "Whether to provision the Matrix homeserver instance."
   type        = bool
   default     = true
 }
 
-variable "teamspeak_instance_name" {
-  description = "Display name for the TeamSpeak 6 instance."
+variable "matrix_instance_name" {
+  description = "Display name for the Matrix homeserver instance."
   type        = string
-  default     = "teamspeak6"
+  default     = "matrix"
 }
 
-variable "teamspeak_shape" {
-  description = "OCI shape for the TeamSpeak 6 instance."
+variable "matrix_shape" {
+  description = "OCI shape for the Matrix homeserver instance."
   type        = string
-  default     = "VM.Standard.E2.1.Micro"
+  default     = "VM.Standard.A1.Flex"
 }
 
-variable "teamspeak_image_ocid" {
-  description = "Region-specific image OCID for the TeamSpeak 6 instance. Defaults to the WireGuard image when empty."
+variable "matrix_image_ocid" {
+  description = "Optional region-specific ARM image OCID for the Matrix homeserver instance. Leave empty to auto-select the latest compatible Ubuntu image."
   type        = string
   default     = ""
 }
 
-variable "teamspeak_ocpus" {
-  description = "OCPU count for the TeamSpeak 6 instance when using a Flex shape."
+variable "matrix_ocpus" {
+  description = "OCPU count for the Matrix homeserver instance when using a Flex shape."
   type        = number
-  default     = 1
+  default     = 2
 }
 
-variable "teamspeak_memory_gbs" {
-  description = "Memory size in GB for the TeamSpeak 6 instance when using a Flex shape."
+variable "matrix_memory_gbs" {
+  description = "Memory size in GB for the Matrix homeserver instance when using a Flex shape."
   type        = number
-  default     = 1
+  default     = 8
 }
 
-variable "teamspeak_voice_port" {
-  description = "Public UDP voice port for TeamSpeak 6."
-  type        = number
-  default     = 9987
+variable "matrix_server_name" {
+  description = "Public DNS hostname for the Matrix homeserver and Element Web, for example matrix.example.com."
+  type        = string
+  default     = "matrix.cooked.beer"
+
+  validation {
+    condition     = !var.matrix_enabled || var.matrix_server_name != ""
+    error_message = "matrix_server_name must be set when matrix_enabled is true."
+  }
 }
 
-variable "teamspeak_filetransfer_port" {
-  description = "Public TCP file transfer port for TeamSpeak 6."
+variable "matrix_acme_email" {
+  description = "Email address used by Caddy when requesting TLS certificates for the Matrix host."
+  type        = string
+  default     = "sam@cooked.beer"
+
+  validation {
+    condition     = !var.matrix_enabled || var.matrix_acme_email != ""
+    error_message = "matrix_acme_email must be set when matrix_enabled is true."
+  }
+}
+
+variable "matrix_report_stats" {
+  description = "Whether Synapse should report anonymized usage statistics upstream."
+  type        = bool
+  default     = false
+}
+
+variable "matrix_turn_min_port" {
+  description = "Lowest UDP relay port exposed by coturn."
   type        = number
-  default     = 30033
+  default     = 49152
+}
+
+variable "matrix_turn_max_port" {
+  description = "Highest UDP relay port exposed by coturn."
+  type        = number
+  default     = 49200
+}
+
+variable "matrix_operating_system" {
+  description = "Operating system name used when auto-selecting the Matrix image."
+  type        = string
+  default     = "Canonical Ubuntu"
+}
+
+variable "matrix_operating_system_version" {
+  description = "Optional operating system version used when auto-selecting the Matrix image, for example 24.04. Leave empty to use the latest compatible release."
+  type        = string
+  default     = ""
 }
