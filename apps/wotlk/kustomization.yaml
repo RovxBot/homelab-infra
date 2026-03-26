@@ -46,8 +46,6 @@ resources:
   - accountmgr-service.yaml
   - worldserver-soap-service.yaml
   - worldserver-soap-networkpolicy.yaml
-  - playerbots-mcp-service.yaml
-  - playerbots-mcp-deployment.yaml
   - authserver-config.yaml
   - authserver-deployment.yaml
   - worldserver-deployment.yaml
