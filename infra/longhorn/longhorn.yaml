@@ -4393,7 +4393,7 @@ spec:
         
       - name: pre-pull-share-manager-image
         imagePullPolicy: IfNotPresent
-        image: docker.io/longhornio/longhorn-share-manager:v1.11.0
+        image: docker.io/longhornio/longhorn-share-manager:v1.11.1@sha256:8536e403137b50b60ed0cb3268de225c26cbbe7e1fdb9e01080d3db34c7ce4c0
         command: ["sh", "-c", "echo share-manager image pulled && sleep infinity"]
       volumes:
       - name: boot
