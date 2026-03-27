@@ -14,6 +14,8 @@ configMapGenerator:
       - mod-double-xp-weekend.conf=config/mod-double-xp-weekend.conf
       - mod_customnpcs.conf=config/mod_customnpcs.conf
       - mod_grimtokendailies.conf=config/mod_grimtokendailies.conf
+      - mod_guildfunds.conf=config/mod_guildfunds.conf
+      - mod_player_bot_level_brackets.conf=config/mod_player_bot_level_brackets.conf
     options:
       disableNameSuffixHash: false
   - name: wotlk-modules-list

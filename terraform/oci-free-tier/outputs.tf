@@ -17,16 +17,21 @@ output "ssh_commands" {
   description = "Convenience SSH commands once the stack is applied."
   value = {
     wireguard = "ssh ubuntu@${oci_core_public_ip.wireguard.ip_address}"
-    teamspeak = var.teamspeak_enabled ? "ssh ubuntu@${data.oci_core_vnic.teamspeak_primary[0].public_ip_address}" : null
+    matrix    = var.matrix_enabled ? "ssh ubuntu@${data.oci_core_vnic.matrix_primary[0].public_ip_address}" : null
   }
 }
 
-output "teamspeak_instance_id" {
-  description = "OCI instance OCID for the TeamSpeak 6 node."
-  value       = var.teamspeak_enabled ? oci_core_instance.teamspeak[0].id : null
+output "matrix_instance_id" {
+  description = "OCI instance OCID for the Matrix node."
+  value       = var.matrix_enabled ? oci_core_instance.matrix[0].id : null
 }
 
-output "teamspeak_public_ip" {
-  description = "Ephemeral public IP address of the TeamSpeak 6 instance."
-  value       = var.teamspeak_enabled ? data.oci_core_vnic.teamspeak_primary[0].public_ip_address : null
+output "matrix_public_ip" {
+  description = "Ephemeral public IP address of the Matrix instance."
+  value       = var.matrix_enabled ? data.oci_core_vnic.matrix_primary[0].public_ip_address : null
+}
+
+output "matrix_admin_bootstrap_command" {
+  description = "SSH command that opens an interactive shell and prints the register_new_matrix_user invocation for creating the first admin user."
+  value       = var.matrix_enabled ? "ssh -t ubuntu@${data.oci_core_vnic.matrix_primary[0].public_ip_address} 'docker compose -f /srv/matrix/docker-compose.yml exec synapse register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008'" : null
 }

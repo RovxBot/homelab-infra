@@ -2,8 +2,8 @@
 
 This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
 
-- 1 WireGuard/public-edge VPS
-- 1 TeamSpeak 6 VPS
+- 1 WireGuard/public-edge VPS on `VM.Standard.E2.1.Micro`
+- 1 Matrix VPS on `VM.Standard.A1.Flex`
 
 ## What it creates
 
@@ -11,9 +11,10 @@ This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
 - 1 public subnet
 - 1 internet gateway
 - 1 public route table
-- 1 network security group
-- 1 `VM.Standard.E2.1.Micro` instance
-- 1 optional `VM.Standard.E2.1.Micro` TeamSpeak 6 instance
+- 1 network security group for the edge VM
+- 1 network security group for the Matrix VM
+- 1 reserved public IP on the WireGuard edge
+- 1 ephemeral public IP on the Matrix VM
 
 ## Ports opened
 
@@ -23,11 +24,13 @@ WireGuard instance:
 - `51820/UDP` for WireGuard
 - `80/TCP`, `443/TCP`, `3724/TCP`, `8443/TCP` for your current edge use case
 
-TeamSpeak 6 instance:
+Matrix instance:
 
 - `22/TCP` from `ssh_ingress_cidrs`
-- `9987/UDP` for voice
-- `30033/TCP` for file transfers
+- `80/TCP`, `443/TCP` for Element Web and Matrix client traffic
+- `8448/TCP` for Matrix federation
+- `3478/TCP+UDP` for TURN
+- `${matrix_turn_min_port}-${matrix_turn_max_port}/UDP` for coturn relay traffic
 
 ## Bootstrap behavior
 
@@ -39,12 +42,13 @@ WireGuard instance:
 - Writes the module-bundled `files/Caddyfile` and `files/vps-public-edge.sh`
 - Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
 
-TeamSpeak 6 instance:
+Matrix instance:
 
-- Installs Docker
-- Starts the official `teamspeaksystems/teamspeak6-server:latest` container via systemd
-- Persists server data in `/srv/teamspeak6`
-- Uses an ephemeral public IP so the reserved public IP slot stays with the WireGuard edge
+- Installs Docker, Caddy, coturn, and jq
+- Generates a Synapse config in a persistent Docker volume
+- Runs `synapse`, `postgres`, and `element-web` with Docker Compose
+- Configures Caddy to serve Element Web and reverse proxy `/_matrix` and `/_synapse`
+- Configures coturn on the instance public IP for Matrix voice/video calls
 
 ## Inputs you must provide
 
@@ -55,19 +59,28 @@ TeamSpeak 6 instance:
   - `private_key_path` or `private_key_pem`
   - `region`
   - `compartment_ocid`
-- Instance boot image:
+- WireGuard boot image:
   - `wireguard_image_ocid`
+- Matrix boot image:
 - SSH access:
   - `ssh_public_key_path` or `ssh_public_key`
+- Matrix DNS/TLS:
+  - `matrix_server_name`
+  - `matrix_acme_email`
 
-Optional TeamSpeak-specific inputs:
+Optional Matrix sizing inputs:
 
-- `teamspeak_enabled`
-- `teamspeak_instance_name`
-- `teamspeak_shape`
-- `teamspeak_image_ocid`
-- `teamspeak_voice_port`
-- `teamspeak_filetransfer_port`
+- `matrix_enabled`
+- `matrix_instance_name`
+- `matrix_shape`
+- `matrix_ocpus`
+- `matrix_memory_gbs`
+- `matrix_image_ocid`
+- `matrix_operating_system`
+- `matrix_operating_system_version`
+- `matrix_report_stats`
+- `matrix_turn_min_port`
+- `matrix_turn_max_port`
 
 ## Usage
 
@@ -77,9 +90,13 @@ Optional TeamSpeak-specific inputs:
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-2. Fill in your OCI values and the Melbourne x86 image OCID for the replacement VPS.
+2. Fill in your OCI values, the x86 image OCID for WireGuard, and the public DNS name for Matrix.
 
-3. Apply:
+3. Leave `matrix_image_ocid` empty to auto-select the latest compatible Ubuntu ARM image for the chosen Matrix shape, or set it explicitly if you want to pin a specific image.
+
+4. Point DNS for `matrix_server_name` at the Matrix VM public IP after apply.
+
+5. Apply:
 
 ```bash
 terraform init
@@ -87,33 +104,18 @@ terraform plan
 terraform apply
 ```
 
-## GitHub Actions deployment
+6. Create the first Matrix admin user with the `matrix_admin_bootstrap_command` output, then run the printed `register_new_matrix_user` command over SSH.
 
-If you do not want to run Terraform locally, this repo now includes [terraform-oci-free-tier.yml](/Users/sam/Git/homelab-infra/.github/workflows/terraform-oci-free-tier.yml).
+## Terraform Cloud
 
-The workflow supports:
+If you do not want to run Terraform locally, this repo includes [terraform-oci-free-tier.yml](/Users/sam/Git/homelab-infra/.github/workflows/terraform-oci-free-tier.yml).
 
-- automatic `plan` on pushes to `main` that touch this stack
-- manual `plan` or `apply` via `workflow_dispatch`
-
-This workflow is now wired for Terraform Cloud.
-
-Create this GitHub Actions secret:
-
-- `TF_TOKEN_app_terraform_io`
-  - Terraform Cloud user or team token
-  - GitHub Actions uses this to authenticate to Terraform Cloud
-
-Store Terraform inputs in the Terraform Cloud workspace instead of GitHub.
-
-Terraform Cloud sensitive variables:
+Suggested Terraform Cloud sensitive variables:
 
 - `private_key_pem`
-  - OCI API private key contents
 - `wireguard_peer_config`
-  - full live `/etc/wireguard/wg0.conf` content
 
-Terraform Cloud normal variables:
+Suggested Terraform Cloud normal variables:
 
 - `tenancy_ocid`
 - `user_ocid`
@@ -121,58 +123,21 @@ Terraform Cloud normal variables:
 - `compartment_ocid`
 - `availability_domain_name`
 - `ssh_public_key`
-
-Optional Terraform Cloud normal variables if you want them managed there instead of relying on repo defaults:
-
-- `region`
-- `wireguard_instance_name`
-- `wireguard_shape`
 - `wireguard_image_ocid`
-- `wireguard_ocpus`
-- `wireguard_memory_gbs`
-- `wireguard_udp_port`
-- `wireguard_http_ports`
-- `wireguard_install_caddy`
-- `teamspeak_enabled`
-- `teamspeak_instance_name`
-- `teamspeak_shape`
-- `teamspeak_image_ocid`
-- `teamspeak_ocpus`
-- `teamspeak_memory_gbs`
-- `teamspeak_voice_port`
-- `teamspeak_filetransfer_port`
-- `vcn_cidr`
-- `subnet_cidr`
-- `ssh_ingress_cidrs`
-- `freeform_tags`
-
-The workflow will target:
-
-- organization: `Cooked`
-- project: `K8s`
-- workspace: `homelab-oci-free-tier`
-
-If the workspace does not already exist, Terraform Cloud can create it during initialization.
-
-For safer applies, protect the GitHub environment `oci-free-tier` with reviewers.
-
-Recommended split:
-
-- keep stable, non-secret defaults in the repo
-- keep environment-specific normal values in Terraform Cloud normal variables
-- keep private keys and WireGuard config only in Terraform Cloud sensitive variables
+- `matrix_server_name`
+- `matrix_acme_email`
 
 ## Notes
 
-- The current live WireGuard VPS metadata reports:
-  - region: `ap-melbourne-1`
-  - AD: `FnnO:AP-MELBOURNE-1-AD-1`
-  - shape: `VM.Standard.E2.1.Micro`
-  - image: `ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreqlrwshrvrz5byufo64cbvusn4mdwo2nnvuya`
-- The official TeamSpeak 6 server image is currently x86-only, so the spare second AMD micro is the correct Always Free target.
-- `terraform init` and `terraform validate` succeeded locally for this stack.
-- To fully replace the current Oracle VPS, you still need to provide the live `wg0.conf` content via `wireguard_peer_config`.
+- This module assumes the Matrix host name is the same host used for Synapse, Element Web, and federation, for example `matrix.example.com`.
+- Synapse is configured with `enable_registration = false`; create users explicitly after bootstrap.
+- coturn is exposed directly on the Matrix VM because TURN works better with a public IP than through an extra proxy layer.
 
 ## Source references
 
 - OCI instance resource docs: https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_instance
+- Synapse install docs: https://element-hq.github.io/synapse/latest/setup/installation.html
+- Synapse Postgres docs: https://element-hq.github.io/synapse/latest/postgres.html
+- Synapse reverse proxy docs: https://element-hq.github.io/synapse/latest/reverse_proxy.html
+- Synapse TURN docs: https://element-hq.github.io/synapse/latest/turn-howto.html
+- Element Web install docs: https://web-docs.element.dev/install.html
