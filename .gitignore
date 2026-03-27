@@ -1,6 +1,8 @@
 .work/
 temp-aoe-loot/
 HOMELAB_*.md
+THE_THREE*.md
+ROADMAP.md
 
 # Never commit private keys
 secrets/*.key
@@ -13,6 +15,14 @@ age-key.txt
 *.agekey
 .env
 .env.*
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 immich_backup_*.sql
 modules/mod-playerbots/data/sql/playerbots/base/playerbots_travelnode_path.sql
 ops/playerbots/Playerbots.log

@@ -4,8 +4,6 @@ metrics: 0.0.0.0:2000
 ingress:
   - hostname: vault.cooked.beer
     service: http://vaultwarden.security.svc.cluster.local:80
-  - hostname: jellyfin.cooked.beer
-    service: http://jellyfin.media.svc.cluster.local:8096
   - hostname: prowlarr.cooked.beer
     service: http://prowlarr.media.svc.cluster.local:9696
   - hostname: radarr.cooked.beer
@@ -16,8 +14,6 @@ ingress:
     service: http://sabnzbd.media.svc.cluster.local:8080
   - hostname: jellyseerr.cooked.beer
     service: http://jellyseerr.media.svc.cluster.local:5055
-  - hostname: immich.cooked.beer
-    service: http://immich-server.immich.svc.cluster.local:2283
   - hostname: grafana.cooked.beer
     service: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80
   - hostname: prometheus.cooked.beer

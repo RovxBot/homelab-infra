@@ -1,0 +1,163 @@
+name: Terraform OCI Free Tier
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/oci-free-tier/**"
+      - ".github/workflows/terraform-oci-free-tier.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to run"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-oci-free-tier-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_WORKING_DIR: terraform/oci-free-tier
+  TFC_ORGANIZATION: Cooked
+  TFC_PROJECT: K8s
+  TFC_WORKSPACE: homelab-oci-free-tier
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_app_terraform_io }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      should_apply: ${{ steps.mode.outputs.should_apply }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Select mode
+        id: mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.action }}" == "apply" ]]; then
+            echo "should_apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_apply=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_app_terraform_io }}
+        run: |
+          set -euo pipefail
+          test -n "$TF_TOKEN_app_terraform_io"
+
+      - name: Materialize Terraform Cloud config
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$TF_WORKING_DIR/terraform.cloud.tf" <<EOF
+          terraform {
+            cloud {
+              organization = "${TFC_ORGANIZATION}"
+              workspaces {
+                project = "${TFC_PROJECT}"
+                name    = "${TFC_WORKSPACE}"
+              }
+            }
+          }
+          EOF
+
+      - name: Terraform init
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TF_WORKING_DIR" init
+
+      - name: Terraform validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TF_WORKING_DIR" validate
+
+      - name: Terraform plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TF_WORKING_DIR" plan -out=tfplan
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-oci-free-tier-plan
+          path: |
+            terraform/oci-free-tier/tfplan
+            terraform/oci-free-tier/.terraform.lock.hcl
+
+  apply:
+    if: needs.plan.outputs.should_apply == 'true'
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: oci-free-tier
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_app_terraform_io }}
+        run: |
+          set -euo pipefail
+          test -n "$TF_TOKEN_app_terraform_io"
+
+      - name: Materialize Terraform Cloud config
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$TF_WORKING_DIR/terraform.cloud.tf" <<EOF
+          terraform {
+            cloud {
+              organization = "${TFC_ORGANIZATION}"
+              workspaces {
+                project = "${TFC_PROJECT}"
+                name    = "${TFC_WORKSPACE}"
+              }
+            }
+          }
+          EOF
+
+      - name: Terraform init
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TF_WORKING_DIR" init
+
+      - name: Download reviewed plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-oci-free-tier-plan
+          path: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$TF_WORKING_DIR/tfplan"
+          terraform -chdir="$TF_WORKING_DIR" apply -auto-approve tfplan

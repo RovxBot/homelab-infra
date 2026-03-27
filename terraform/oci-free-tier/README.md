@@ -1,0 +1,143 @@
+# OCI Free Tier Terraform
+
+This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
+
+- 1 WireGuard/public-edge VPS on `VM.Standard.E2.1.Micro`
+- 1 Matrix VPS on `VM.Standard.A1.Flex`
+
+## What it creates
+
+- 1 VCN
+- 1 public subnet
+- 1 internet gateway
+- 1 public route table
+- 1 network security group for the edge VM
+- 1 network security group for the Matrix VM
+- 1 reserved public IP on the WireGuard edge
+- 1 ephemeral public IP on the Matrix VM
+
+## Ports opened
+
+WireGuard instance:
+
+- `22/TCP` from `ssh_ingress_cidrs`
+- `51820/UDP` for WireGuard
+- `80/TCP`, `443/TCP`, `3724/TCP`, `8443/TCP` for your current edge use case
+
+Matrix instance:
+
+- `22/TCP` from `ssh_ingress_cidrs`
+- `80/TCP`, `443/TCP` for Element Web and Matrix client traffic
+- `8448/TCP` for Matrix federation
+- `3478/TCP+UDP` for TURN
+- `${matrix_turn_min_port}-${matrix_turn_max_port}/UDP` for coturn relay traffic
+
+## Bootstrap behavior
+
+WireGuard instance:
+
+- Installs `wireguard` and `iptables-persistent`
+- Enables IP forwarding
+- Optionally installs Caddy from the official repository
+- Writes the module-bundled `files/Caddyfile` and `files/vps-public-edge.sh`
+- Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
+
+Matrix instance:
+
+- Installs Docker, Caddy, coturn, and jq
+- Generates a Synapse config in a persistent Docker volume
+- Runs `synapse`, `postgres`, and `element-web` with Docker Compose
+- Configures Caddy to serve Element Web and reverse proxy `/_matrix` and `/_synapse`
+- Configures coturn on the instance public IP for Matrix voice/video calls
+
+## Inputs you must provide
+
+- OCI API auth:
+  - `tenancy_ocid`
+  - `user_ocid`
+  - `fingerprint`
+  - `private_key_path` or `private_key_pem`
+  - `region`
+  - `compartment_ocid`
+- WireGuard boot image:
+  - `wireguard_image_ocid`
+- Matrix boot image:
+- SSH access:
+  - `ssh_public_key_path` or `ssh_public_key`
+- Matrix DNS/TLS:
+  - `matrix_server_name`
+  - `matrix_acme_email`
+
+Optional Matrix sizing inputs:
+
+- `matrix_enabled`
+- `matrix_instance_name`
+- `matrix_shape`
+- `matrix_ocpus`
+- `matrix_memory_gbs`
+- `matrix_image_ocid`
+- `matrix_operating_system`
+- `matrix_operating_system_version`
+- `matrix_report_stats`
+- `matrix_turn_min_port`
+- `matrix_turn_max_port`
+
+## Usage
+
+1. Copy the example file:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+2. Fill in your OCI values, the x86 image OCID for WireGuard, and the public DNS name for Matrix.
+
+3. Leave `matrix_image_ocid` empty to auto-select the latest compatible Ubuntu ARM image for the chosen Matrix shape, or set it explicitly if you want to pin a specific image.
+
+4. Point DNS for `matrix_server_name` at the Matrix VM public IP after apply.
+
+5. Apply:
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+6. Create the first Matrix admin user with the `matrix_admin_bootstrap_command` output, then run the printed `register_new_matrix_user` command over SSH.
+
+## Terraform Cloud
+
+If you do not want to run Terraform locally, this repo includes [terraform-oci-free-tier.yml](/Users/sam/Git/homelab-infra/.github/workflows/terraform-oci-free-tier.yml).
+
+Suggested Terraform Cloud sensitive variables:
+
+- `private_key_pem`
+- `wireguard_peer_config`
+
+Suggested Terraform Cloud normal variables:
+
+- `tenancy_ocid`
+- `user_ocid`
+- `fingerprint`
+- `compartment_ocid`
+- `availability_domain_name`
+- `ssh_public_key`
+- `wireguard_image_ocid`
+- `matrix_server_name`
+- `matrix_acme_email`
+
+## Notes
+
+- This module assumes the Matrix host name is the same host used for Synapse, Element Web, and federation, for example `matrix.example.com`.
+- Synapse is configured with `enable_registration = false`; create users explicitly after bootstrap.
+- coturn is exposed directly on the Matrix VM because TURN works better with a public IP than through an extra proxy layer.
+
+## Source references
+
+- OCI instance resource docs: https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_instance
+- Synapse install docs: https://element-hq.github.io/synapse/latest/setup/installation.html
+- Synapse Postgres docs: https://element-hq.github.io/synapse/latest/postgres.html
+- Synapse reverse proxy docs: https://element-hq.github.io/synapse/latest/reverse_proxy.html
+- Synapse TURN docs: https://element-hq.github.io/synapse/latest/turn-howto.html
+- Element Web install docs: https://web-docs.element.dev/install.html
