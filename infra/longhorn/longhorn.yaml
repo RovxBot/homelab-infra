@@ -4321,7 +4321,7 @@ spec:
     spec:
       containers:
       - name: longhorn-manager
-        image: docker.io/longhornio/longhorn-manager:v1.11.1@sha256:a4c0870e2b1d9aad9d7233a87ae13b962d807be803fd027e0b642753a80af122
+        image: docker.io/longhornio/longhorn-manager:v1.11.0
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
@@ -4330,17 +4330,17 @@ spec:
         - -d
         - daemon
         - --engine-image
-        - "docker.io/longhornio/longhorn-engine:v1.11.1"
+        - "docker.io/longhornio/longhorn-engine:v1.11.0"
         - --instance-manager-image
-        - "docker.io/longhornio/longhorn-instance-manager:v1.11.1"
+        - "docker.io/longhornio/longhorn-instance-manager:v1.11.0-hotfix-1"
         - --share-manager-image
-        - "docker.io/longhornio/longhorn-share-manager:v1.11.1"
+        - "docker.io/longhornio/longhorn-share-manager:v1.11.0"
         - --backing-image-manager-image
-        - "docker.io/longhornio/backing-image-manager:v1.11.1"
+        - "docker.io/longhornio/backing-image-manager:v1.11.0"
         - --support-bundle-manager-image
-        - "docker.io/longhornio/support-bundle-kit:v0.0.81"
+        - "docker.io/longhornio/support-bundle-kit:v0.0.79"
         - --manager-image
-        - "docker.io/longhornio/longhorn-manager:v1.11.1"
+        - "docker.io/longhornio/longhorn-manager:v1.11.0"
         - --service-account
         - longhorn-service-account
         - --upgrade-version-check
@@ -4393,7 +4393,7 @@ spec:
         
       - name: pre-pull-share-manager-image
         imagePullPolicy: IfNotPresent
-        image: docker.io/longhornio/longhorn-share-manager:v1.11.1@sha256:8536e403137b50b60ed0cb3268de225c26cbbe7e1fdb9e01080d3db34c7ce4c0
+        image: docker.io/longhornio/longhorn-share-manager:v1.11.0
         command: ["sh", "-c", "echo share-manager image pulled && sleep infinity"]
       volumes:
       - name: boot
@@ -4446,18 +4446,18 @@ spec:
     spec:
       initContainers:
         - name: wait-longhorn-manager
-          image: docker.io/longhornio/longhorn-manager:v1.11.1@sha256:a4c0870e2b1d9aad9d7233a87ae13b962d807be803fd027e0b642753a80af122
+          image: docker.io/longhornio/longhorn-manager:v1.11.0
           command: ['sh', '-c', 'while [ $(curl -m 1 -s -o /dev/null -w "%{http_code}" http://longhorn-backend:9500/v1) != "200" ]; do echo waiting; sleep 2; done']
       containers:
         - name: longhorn-driver-deployer
-          image: docker.io/longhornio/longhorn-manager:v1.11.1@sha256:a4c0870e2b1d9aad9d7233a87ae13b962d807be803fd027e0b642753a80af122
+          image: docker.io/longhornio/longhorn-manager:v1.11.0
           imagePullPolicy: IfNotPresent
           command:
           - longhorn-manager
           - -d
           - deploy-driver
           - --manager-image
-          - "docker.io/longhornio/longhorn-manager:v1.11.1"
+          - "docker.io/longhornio/longhorn-manager:v1.11.0"
           - --manager-url
           - http://longhorn-backend:9500/v1
           env:
@@ -4474,17 +4474,17 @@ spec:
               fieldRef:
                 fieldPath: spec.serviceAccountName
           - name: CSI_ATTACHER_IMAGE
-            value: "docker.io/longhornio/csi-attacher:v4.11.0"
+            value: "docker.io/longhornio/csi-attacher:v4.10.0-20251226"
           - name: CSI_PROVISIONER_IMAGE
             value: "docker.io/longhornio/csi-provisioner:v5.3.0-20251226"
           - name: CSI_NODE_DRIVER_REGISTRAR_IMAGE
-            value: "docker.io/longhornio/csi-node-driver-registrar:v2.16.0"
+            value: "docker.io/longhornio/csi-node-driver-registrar:v2.15.0-20251226"
           - name: CSI_RESIZER_IMAGE
-            value: "docker.io/longhornio/csi-resizer:v2.1.0"
+            value: "docker.io/longhornio/csi-resizer:v2.0.0-20251226"
           - name: CSI_SNAPSHOTTER_IMAGE
-            value: "docker.io/longhornio/csi-snapshotter:v8.5.0"
+            value: "docker.io/longhornio/csi-snapshotter:v8.4.0-20251226"
           - name: CSI_LIVENESS_PROBE_IMAGE
-            value: "docker.io/longhornio/livenessprobe:v2.18.0"
+            value: "docker.io/longhornio/livenessprobe:v2.17.0-20251226"
           
       priorityClassName: "longhorn-critical"
       serviceAccountName: longhorn-service-account
@@ -4530,7 +4530,7 @@ spec:
             weight: 1
       containers:
       - name: longhorn-ui
-        image: docker.io/longhornio/longhorn-ui:v1.11.1@sha256:9008cce5be4752f7fcef2d0e008076ba5c0c8a6df8f57fb6ab0285b0f49634ab
+        image: docker.io/longhornio/longhorn-ui:v1.11.0
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: nginx-cache
