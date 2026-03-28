@@ -6,8 +6,8 @@
 # https://github.com/azerothcore/mod-transmog.git@master
 
 https://github.com/ZhengPeiRu21/mod-individual-progression@master
-# Playerbots module (RovxBot fork)
-https://github.com/RovxBot/mod-playerbots.git@master
+# Do not add mod-playerbots here. The base AzerothCore source already comes from
+# the Playerbot fork via apps/wotlk/acore-source-configmap.yaml.
 https://github.com/NathanHandley/mod-ah-bot-plus@master
 https://github.com/azerothcore/mod-transmog.git@master
 https://github.com/DustinHendrickson/mod-ollama-chat.git@main
