@@ -20,14 +20,28 @@ wireguard_image_ocid = "ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreq
 wireguard_ocpus      = 1
 wireguard_memory_gbs = 1
 
-# TeamSpeak 6 now fits in the spare Always Free AMD micro slot.
-teamspeak_enabled          = true
-teamspeak_shape            = "VM.Standard.E2.1.Micro"
-teamspeak_instance_name    = "teamspeak6"
-# Optional: leave empty to reuse wireguard_image_ocid.
-# teamspeak_image_ocid     = "ocid1.image.oc1.ap-melbourne-1...."
-teamspeak_voice_port       = 9987
-teamspeak_filetransfer_port = 30033
+# Matrix homeserver on Always Free ARM.
+matrix_enabled       = true
+matrix_instance_name = "matrix"
+matrix_shape         = "VM.Standard.A1.Flex"
+matrix_ocpus         = 2
+matrix_memory_gbs    = 8
+matrix_server_name   = "matrix.example.com"
+matrix_acme_email    = "ops@example.com"
+
+# Optional: pin a specific ARM image instead of auto-selecting the latest compatible Ubuntu image.
+# matrix_image_ocid = "ocid1.image.oc1.ap-melbourne-1...."
+#
+# Optional: pin the Ubuntu release when auto-selecting.
+# matrix_operating_system         = "Canonical Ubuntu"
+# matrix_operating_system_version = "24.04"
+
+# Optional: report anonymized Synapse stats upstream.
+# matrix_report_stats = false
+
+# Optional: tighten or widen the TURN relay UDP range for coturn.
+# matrix_turn_min_port = 49152
+# matrix_turn_max_port = 49200
 
 # Optional: if set, cloud-init writes /etc/wireguard/wg0.conf and starts wg-quick@wg0.
 # wireguard_peer_config = <<-EOT

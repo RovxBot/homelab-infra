@@ -12,3 +12,18 @@ immich.cooked.beer {
 		}
 	}
 }
+
+jellyfin.cooked.beer {
+	encode zstd gzip
+
+	reverse_proxy 192.168.1.197:32096 {
+		header_up Host {host}
+
+		transport http {
+			dial_timeout 10s
+			response_header_timeout 0
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}
