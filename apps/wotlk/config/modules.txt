@@ -6,8 +6,10 @@
 # https://github.com/azerothcore/mod-transmog.git@master
 
 https://github.com/ZhengPeiRu21/mod-individual-progression@master
-# Do not add mod-playerbots here. The base AzerothCore source already comes from
-# the Playerbot fork via apps/wotlk/acore-source-configmap.yaml.
+# The Playerbot-enabled core still requires the actual mod-playerbots module.
+# Keep this explicit so image builds and runtime source clones both include the
+# headers, SQL, and config assets expected by Playerbots-dependent modules.
+https://github.com/mod-playerbots/mod-playerbots.git@master
 https://github.com/NathanHandley/mod-ah-bot-plus@master
 https://github.com/azerothcore/mod-transmog.git@master
 https://github.com/RovxBot/mod-weekend-xp.git@master
