@@ -45,6 +45,9 @@ spec:
               rm -rf /acore-src/*
               git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" /acore-src
               mkdir -p /acore-src/modules
+              # The base source already comes from the Playerbot fork, but the updater
+              # still expects a module-style source path for playerbots SQL discovery.
+              ln -sfn /acore-src /acore-src/modules/mod-playerbots
 
               # Clone module repos so the in-server DB updater can find their SQL folders.
               if [ -f /modules/modules.txt ]; then
@@ -137,7 +140,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-09d2bbad3c70ca4d1db8d5816ce687555ce499f9
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-42032d8456acfbf237c8832ffed7db7e495057b1
           imagePullPolicy: Always
           command:
             - bash
@@ -158,7 +161,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-09d2bbad3c70ca4d1db8d5816ce687555ce499f9
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-42032d8456acfbf237c8832ffed7db7e495057b1
           imagePullPolicy: Always
           env:
             - name: TZ
