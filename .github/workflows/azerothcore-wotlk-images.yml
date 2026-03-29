@@ -298,7 +298,6 @@ jobs:
               playerbots.conf.dist \
               mod_ahbot.conf.dist \
               transmog.conf.dist \
-              mod_ollama_chat.conf.dist \
               mod-double-xp-weekend.conf.dist \
               mod_customnpcs.conf.dist \
               mod_grimtokendailies.conf.dist; do
