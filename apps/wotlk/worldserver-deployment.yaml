@@ -163,6 +163,55 @@ spec:
         - name: worldserver
           image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-bbb113ebda9a231a98d337107472ece7735b4bcd
           imagePullPolicy: Always
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              log_dir=/azerothcore/env/dist/logs
+              pipe_path="${log_dir}/Playerbots.pipe"
+              output_path="${log_dir}/Playerbots.log"
+
+              mkdir -p "${log_dir}"
+              rm -f "${pipe_path}"
+              mkfifo "${pipe_path}"
+              : > "${output_path}"
+
+              awk '
+                function flush_block() {
+                  if (in_tick && keep_block) {
+                    printf "%s", block
+                    fflush()
+                  }
+                  block = ""
+                  keep_block = 0
+                }
+
+                /--- AI Tick ---/ {
+                  flush_block()
+                  in_tick = 1
+                  block = $0 "\n"
+                  next
+                }
+
+                {
+                  if (in_tick) {
+                    block = block $0 "\n"
+                    if ($0 ~ /aq40|AQ40/) {
+                      keep_block = 1
+                    }
+                  } else if ($0 ~ /aq40|AQ40/) {
+                    print
+                    fflush()
+                  }
+                }
+
+                END {
+                  flush_block()
+                }
+              ' < "${pipe_path}" >> "${output_path}" &
+
+              exec /azerothcore/env/dist/bin/worldserver
           env:
             - name: TZ
               value: Australia/Adelaide
