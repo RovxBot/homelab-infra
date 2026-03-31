@@ -180,25 +180,31 @@ spec:
               awk '
                 function flush_block() {
                   if (in_tick && keep_block) {
-                    printf "%s", block
+                    if (header != "") {
+                      print header
+                    }
+                    printf "%s", filtered
                     fflush()
                   }
-                  block = ""
+                  header = ""
+                  filtered = ""
                   keep_block = 0
                 }
 
                 /--- AI Tick ---/ {
                   flush_block()
                   in_tick = 1
-                  block = $0 "\n"
+                  header = $0
                   next
                 }
 
                 {
                   if (in_tick) {
-                    block = block $0 "\n"
                     if ($0 ~ /aq40|AQ40/) {
                       keep_block = 1
+                      filtered = filtered $0 "\n"
+                    } else if (keep_block && $0 ~ /(PUSH|A):follow|no actions executed/) {
+                      filtered = filtered $0 "\n"
                     }
                   } else if ($0 ~ /aq40|AQ40/) {
                     print
