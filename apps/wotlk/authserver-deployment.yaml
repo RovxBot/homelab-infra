@@ -81,7 +81,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-playerbot-2a2d3ece2205e7f76a01c1fe81eda20842f93e10
+          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-playerbot-34e943b4f10f2754660a11c9622782b4b9d102f7
           imagePullPolicy: Always
           command:
             - bash
@@ -99,7 +99,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: authserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-playerbot-2a2d3ece2205e7f76a01c1fe81eda20842f93e10
+          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-playerbot-34e943b4f10f2754660a11c9622782b4b9d102f7
           imagePullPolicy: Always
           env:
             - name: TZ
