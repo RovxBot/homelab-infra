@@ -9,6 +9,6 @@ data:
   # - db-bootstrap initContainer clone (bootstrap schema/data)
   #
   # If you maintain your own fork/branch that periodically merges upstream AzerothCore fixes
-  # into the Playerbot branch, update these two values.
+  # into the desired Playerbot branch, update these two values.
   ACORE_REPO: https://github.com/mod-playerbots/azerothcore-wotlk.git
-  ACORE_REF: Playerbot
+  ACORE_REF: test-staging
