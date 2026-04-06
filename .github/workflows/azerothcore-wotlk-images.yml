@@ -47,6 +47,7 @@ jobs:
           echo "ACORE_REPO=${repo}" >> "$GITHUB_ENV"
           echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
           echo "REPO_TAG=${repo_tag}" >> "$GITHUB_ENV"
+          echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/azerothcore-wotlk:buildcache-${repo_tag}-${ref_tag,,}" >> "$GITHUB_ENV"
           echo "ref_tag=${ref_tag,,}" >> "$GITHUB_OUTPUT"
 
       - name: Add swap space
@@ -111,6 +112,10 @@ jobs:
           target: authserver
           build-args: |
             CWITH_WARNINGS=OFF
+          cache-from: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+          cache-to: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}
@@ -125,6 +130,10 @@ jobs:
           target: worldserver
           build-args: |
             CWITH_WARNINGS=OFF
+          cache-from: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+          cache-to: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}
@@ -139,6 +148,10 @@ jobs:
           target: db-import
           build-args: |
             CWITH_WARNINGS=OFF
+          cache-from: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+          cache-to: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}
@@ -153,6 +166,10 @@ jobs:
           target: tools
           build-args: |
             CWITH_WARNINGS=OFF
+          cache-from: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+          cache-to: |
+            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}
