@@ -95,7 +95,6 @@
       "description": "Group tunnel/VPN updates together.",
       "matchFileNames": [
         "infra/cloudflared/**",
-        "infra/tailscale/**",
         "infra/wireguard/**",
         "ops/wireguard/**"
       ],

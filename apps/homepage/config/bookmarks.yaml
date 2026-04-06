@@ -22,11 +22,6 @@
           description: NPC tweaks & scripts
 
 - Edge Access:
-    - Tailscale Admin:
-        - abbr: TS
-          href: https://login.tailscale.com/admin/machines
-          icon: mdi-lan
-          description: Device inventory
     - WireGuard Peers:
         - abbr: WG
           href: https://github.com/RovxBot/homelab-infra/tree/main/infra/wireguard
