@@ -61,16 +61,18 @@ spec:
               value: http://ollama.ollama.svc.cluster.local:11434
             - name: WEBUI_AUTH
               value: "true"
+            - name: CORS_ALLOW_ORIGIN
+              value: http://metal6:32030
           volumeMounts:
             - name: data
               mountPath: /app/backend/data
           resources:
             requests:
-              cpu: 100m
-              memory: 512Mi
-            limits:
-              cpu: 500m
+              cpu: 250m
               memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
       volumes:
         - name: data
           persistentVolumeClaim:
