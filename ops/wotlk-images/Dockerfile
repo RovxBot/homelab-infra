@@ -75,7 +75,7 @@ ARG CACHEBUST=1
 
 WORKDIR /azerothcore/build
 
-RUN --mount=type=cache,target=/ccache,sharing=locked \
+RUN --mount=type=cache,id=ccache,target=/ccache,sharing=locked \
     --mount=type=bind,target=/azerothcore/.git,source=.git \
     git config --global --add safe.directory /azerothcore \
     && cmake /azerothcore \
