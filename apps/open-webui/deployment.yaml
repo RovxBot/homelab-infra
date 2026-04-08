@@ -59,10 +59,12 @@ spec:
               value: Australia/Adelaide
             - name: OLLAMA_BASE_URL
               value: http://ollama.ollama.svc.cluster.local:11434
+            - name: WEBUI_URL
+              value: http://192.168.1.190:32030
             - name: WEBUI_AUTH
               value: "true"
             - name: CORS_ALLOW_ORIGIN
-              value: http://metal6:32030
+              value: http://192.168.1.190:32030;http://192.168.1.191:32030;http://192.168.1.193:32030;http://192.168.1.195:32030;http://192.168.1.196:32030;http://192.168.1.197:32030;http://talos-wbh-nq8:32030;http://metal2:32030;http://metal3:32030;http://metal5:32030;http://metal6:32030;http://metal7:32030
           volumeMounts:
             - name: data
               mountPath: /app/backend/data
