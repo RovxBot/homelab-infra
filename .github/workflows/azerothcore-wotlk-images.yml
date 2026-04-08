@@ -30,6 +30,7 @@ jobs:
 
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        id: setup_buildx
 
       - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
@@ -71,6 +72,26 @@ jobs:
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
+
+      - name: Restore ccache
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ${{ runner.temp }}/wotlk-ccache
+          key: wotlk-ccache-${{ env.REPO_TAG }}-${{ env.REF_TAG }}-${{ github.sha }}
+          restore-keys: |
+            wotlk-ccache-${{ env.REPO_TAG }}-${{ env.REF_TAG }}-
+
+      - name: Inject ccache into BuildKit
+        uses: reproducible-containers/buildkit-cache-dance@d497796d128a76818baf0d28669b65faef2de192 # v3.3.2
+        with:
+          builder: ${{ steps.setup_buildx.outputs.name }}
+          cache-map: |
+            {
+              "${{ runner.temp }}/wotlk-ccache": {
+                "target": "/ccache",
+                "id": "ccache"
+              }
+            }
 
       - name: Prepare build context
         shell: bash
@@ -380,7 +401,6 @@ jobs:
           '
 
   update-manifests-pr:
-    if: ${{ inputs.build_scope == 'all' }}
     runs-on: ubuntu-latest
     needs:
       - build
@@ -400,15 +420,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          auth_tag="authserver-${REF_TAG}-${IMAGE_SUFFIX}"
-          world_tag="worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
-          tools_tag="tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          scope="${{ inputs.build_scope }}"
 
-          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)authserver-[A-Za-z0-9._-]+#\1${auth_tag}#g" apps/wotlk/authserver-deployment.yaml
-          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)worldserver-[A-Za-z0-9._-]+#\1${world_tag}#g" apps/wotlk/worldserver-deployment.yaml
-          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/worldserver-deployment.yaml
-          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-cronjob.yaml
-          sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-mmaps-cronjob.yaml
+          if [[ "$scope" == "all" || "$scope" == "authserver" ]]; then
+            auth_tag="authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)authserver-[A-Za-z0-9._-]+#\1${auth_tag}#g" apps/wotlk/authserver-deployment.yaml
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "worldserver" ]]; then
+            world_tag="worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)worldserver-[A-Za-z0-9._-]+#\1${world_tag}#g" apps/wotlk/worldserver-deployment.yaml
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "tools" ]]; then
+            tools_tag="tools-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/worldserver-deployment.yaml
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-cronjob.yaml
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-mmaps-cronjob.yaml
+          fi
 
       - name: Create pull request
         shell: bash
@@ -421,8 +450,9 @@ jobs:
 
           branch="ci/wotlk-image-update-${REF_TAG}"
           short_sha="${IMAGE_SUFFIX::7}"
-          title="Update WotLK images to ${REF_TAG}-${short_sha}"
-          body="Built and pushed fresh WotLK images to GHCR, then updated the deployed authserver/worldserver/tools tags for review."
+          scope="${{ inputs.build_scope }}"
+          title="Update WotLK ${scope} images to ${REF_TAG}-${short_sha}"
+          body="Built and pushed fresh WotLK ${scope} image tags to GHCR, then updated the deployed manifests for review."
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
