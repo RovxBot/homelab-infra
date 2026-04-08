@@ -53,7 +53,7 @@ jobs:
       - name: Run Renovate
         uses: renovatebot/github-action@8b7941943a108b2cc2150730963164aa8baeab8c # v44.2.2
         with:
-          # Use GitHub Actions' token by default.
-          # If you switch this to a PAT, it MUST have access to read Issues via GraphQL, or Renovate can fail during initRepo().
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Prefer a PAT if provided, otherwise fall back to the workflow's built-in token.
+          # If you use a PAT, it must be able to read issues via GraphQL or Renovate can fail during initRepo().
+          token: ${{ secrets.RENOVATE_TOKEN != '' && secrets.RENOVATE_TOKEN || github.token }}
           configurationFile: renovate.json
