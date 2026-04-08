@@ -11,7 +11,7 @@ This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux a
 - GitOps: Flux (repo is the source of truth)
 - Storage: Longhorn (with per-node disk layout)
 - Observability: kube-prometheus-stack, Loki + Promtail, blackbox exporter
-- Access: Cloudflared tunnel, Tailscale, WireGuard
+- Access: Cloudflared tunnel, WireGuard
 - Apps: media stack, Immich, Vaultwarden, WotLK server, and more
 
 ## Repo layout
@@ -106,7 +106,7 @@ You will need to edit manifests to match your environment:
 
 - Storage: `infra/longhorn-node-disks/*.yaml` (node names, disk paths)
 - Public access: `infra/cloudflared/config.yaml` (hostnames and services)
-- Mesh/VPN: `infra/tailscale/*`, `infra/wireguard/*`
+- VPN: `infra/wireguard/*`
 - Backups: `infra/backups/*` and `secrets/*`
 - Namespaces: `infra/namespaces/*`
 

@@ -75,7 +75,7 @@ spec:
               mountPath: /usr/share/nginx/html
       containers:
         - name: nginx
-          image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:6582a34398ce9530ea3ae5b46595391a26ef44955335bed21a9afa4c3f715c70
+          image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:601c823234c474696ded03d619e67f1e59538802731543099c691aea67e4a553
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

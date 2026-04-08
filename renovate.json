@@ -22,10 +22,7 @@
   ],
   "kubernetes": {
     "managerFilePatterns": [
-      "/^apps/.+\\.ya?ml$/",
-      "/^infra/.+\\.ya?ml$/",
-      "/^clusters/.+\\.ya?ml$/",
-      "/^ops/.+\\.ya?ml$/"
+      "/(^|/)(apps|infra|clusters|ops)/.+\\.ya?ml$/"
     ]
   },
   "ignorePaths": [
@@ -95,7 +92,6 @@
       "description": "Group tunnel/VPN updates together.",
       "matchFileNames": [
         "infra/cloudflared/**",
-        "infra/tailscale/**",
         "infra/wireguard/**",
         "ops/wireguard/**"
       ],

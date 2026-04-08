@@ -140,7 +140,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-31c482488519784f0f6a02d9c82ce6be1a9fdd51
+          image: ghcr.io/rovxbot/azerothcore-wotlk:tools-test-staging-19f6de6205de994d426465178006149bac75ecf1
           imagePullPolicy: Always
           command:
             - bash
@@ -161,8 +161,63 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-playerbot-31c482488519784f0f6a02d9c82ce6be1a9fdd51
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-19f6de6205de994d426465178006149bac75ecf1
           imagePullPolicy: Always
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              log_dir=/azerothcore/env/dist/logs
+              pipe_path="${log_dir}/Playerbots.pipe"
+              output_path="${log_dir}/Playerbots.log"
+
+              mkdir -p "${log_dir}"
+              rm -f "${pipe_path}"
+              mkfifo "${pipe_path}"
+              : > "${output_path}"
+
+              awk '
+                function flush_block() {
+                  if (in_tick && keep_block) {
+                    if (header != "") {
+                      print header
+                    }
+                    printf "%s", filtered
+                    fflush()
+                  }
+                  header = ""
+                  filtered = ""
+                  keep_block = 0
+                }
+
+                /--- AI Tick ---/ {
+                  flush_block()
+                  in_tick = 1
+                  header = $0
+                  next
+                }
+
+                {
+                  if (in_tick) {
+                    if ($0 ~ /aq40|AQ40/) {
+                      keep_block = 1
+                      filtered = filtered $0 "\n"
+                    } else if (keep_block && $0 ~ /(PUSH|A):follow|no actions executed/) {
+                      filtered = filtered $0 "\n"
+                    }
+                  } else if ($0 ~ /aq40|AQ40/) {
+                    print
+                    fflush()
+                  }
+                }
+
+                END {
+                  flush_block()
+                }
+              ' < "${pipe_path}" >> "${output_path}" &
+
+              exec /azerothcore/env/dist/bin/worldserver
           env:
             - name: TZ
               value: Australia/Adelaide
