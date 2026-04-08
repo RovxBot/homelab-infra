@@ -2,6 +2,17 @@ name: Build AzerothCore WotLK images
 
 on:
   workflow_dispatch:
+    inputs:
+      build_scope:
+        description: Images to build
+        type: choice
+        default: all
+        options:
+          - all
+          - worldserver
+          - authserver
+          - db-import
+          - tools
 
 permissions:
   contents: write
@@ -48,6 +59,7 @@ jobs:
           echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
           echo "REPO_TAG=${repo_tag}" >> "$GITHUB_ENV"
           echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/azerothcore-wotlk:buildcache-${repo_tag}-${ref_tag,,}" >> "$GITHUB_ENV"
+          echo "BUILD_CACHE_SCOPE=azerothcore-wotlk-${repo_tag}-${ref_tag,,}" >> "$GITHUB_ENV"
           echo "ref_tag=${ref_tag,,}" >> "$GITHUB_OUTPUT"
 
       - name: Add swap space
@@ -104,72 +116,92 @@ jobs:
           test -f .work/acore/modules/mod-customnpcs/CMakeLists.txt
 
       - name: Build and push authserver
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'authserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: authserver
           build-args: |
+            CAPPS_BUILD=auth-only
+            CTOOLS_BUILD=none
             CWITH_WARNINGS=OFF
           cache-from: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-authserver
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-authserver
           cache-to: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-authserver,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-authserver,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}-${{ github.sha }}
 
       - name: Build and push worldserver
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'worldserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: worldserver
           build-args: |
+            CAPPS_BUILD=world-only
+            CTOOLS_BUILD=none
             CWITH_WARNINGS=OFF
           cache-from: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-worldserver
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-worldserver
           cache-to: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-worldserver,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-worldserver,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}-${{ github.sha }}
 
       - name: Build and push db-import
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: db-import
           build-args: |
+            CAPPS_BUILD=none
+            CTOOLS_BUILD=db-only
             CWITH_WARNINGS=OFF
           cache-from: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-db-import
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-db-import
           cache-to: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-db-import,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-db-import,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}-${{ github.sha }}
 
       - name: Build and push tools
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'tools' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: tools
           build-args: |
+            CAPPS_BUILD=none
+            CTOOLS_BUILD=maps-only
             CWITH_WARNINGS=OFF
           cache-from: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }}
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-tools
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-tools
           cache-to: |
-            type=registry,ref=${{ env.BUILD_CACHE_REF }},mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-tools,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-tools,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}
@@ -196,12 +228,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:authserver-${REF_TAG}-${IMAGE_SUFFIX}"
-          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
-          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
-          docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          scope="${{ inputs.build_scope }}"
+
+          if [[ "$scope" == "all" || "$scope" == "authserver" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "worldserver" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "db-import" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "tools" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
 
       - name: Smoke test authserver image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'authserver' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -226,6 +272,7 @@ jobs:
           '
 
       - name: Smoke test worldserver image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'worldserver' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -250,6 +297,7 @@ jobs:
           '
 
       - name: Smoke test db-import image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -263,6 +311,7 @@ jobs:
           '
 
       - name: Smoke test tools image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'tools' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -288,6 +337,7 @@ jobs:
           '
 
       - name: Smoke test module assets
+        if: ${{ inputs.build_scope == 'all' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -330,6 +380,7 @@ jobs:
           '
 
   update-manifests-pr:
+    if: ${{ inputs.build_scope == 'all' }}
     runs-on: ubuntu-latest
     needs:
       - build
