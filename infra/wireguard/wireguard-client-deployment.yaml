@@ -34,7 +34,7 @@ spec:
                 path: vps.conf
       containers:
         - name: wireguard
-          image: lscr.io/linuxserver/wireguard:latest@sha256:b199fa09846365caec217ebf9cbf839a22b7bf836acfd367a59ed52b6984f174
+          image: lscr.io/linuxserver/wireguard:latest@sha256:f85af86cac70a091523947a7208f77002ce14f14555797779497745e65dedd6f
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
