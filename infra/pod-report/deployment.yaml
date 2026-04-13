@@ -85,7 +85,7 @@ spec:
               type: RuntimeDefault
 
         - name: web
-          image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:601c823234c474696ded03d619e67f1e59538802731543099c691aea67e4a553
+          image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:72cd9a222d01fdf47bd47ad8dc50b0221a768742b84a66c5e0b94ed13bcc6c72
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
