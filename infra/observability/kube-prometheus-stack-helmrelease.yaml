@@ -55,7 +55,8 @@ spec:
 
     prometheus:
       prometheusSpec:
-        retention: 15d
+        retention: 7d
+        retentionSize: 8GiB
         ruleSelectorNilUsesHelmValues: false
         ruleSelector: {}
         serviceMonitorSelectorNilUsesHelmValues: false

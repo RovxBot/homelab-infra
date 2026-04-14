@@ -48,6 +48,22 @@ spec:
                       "$@"
                   }
 
+                  wait_for_db() {
+                    attempts=30
+                    while [ "${attempts}" -gt 0 ]; do
+                      if db --database information_schema --skip-column-names --execute "SELECT 1" >/dev/null 2>&1; then
+                        return 0
+                      fi
+                      attempts="$((attempts - 1))"
+                      echo "Waiting for MariaDB to become ready..."
+                      sleep 10
+                    done
+                    echo "MariaDB did not become ready in time." >&2
+                    return 1
+                  }
+
+                  wait_for_db
+
                   echo "Ensuring stats table exists..."
                   db --database "${DB_CHAR_DB}" --execute "
                     CREATE TABLE IF NOT EXISTS web_stats_daily (
