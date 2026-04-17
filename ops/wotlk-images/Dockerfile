@@ -14,10 +14,10 @@ RUN printf '%s\n' \
         'Acquire::https::Timeout "30";' \
         > /etc/apt/apt.conf.d/80-retries
 
-RUN printf '%s\n' \
-        'http://azure.archive.ubuntu.com/ubuntu/\tpriority:1' \
-        'https://archive.ubuntu.com/ubuntu/\tpriority:2' \
-        'https://security.ubuntu.com/ubuntu/\tpriority:3' \
+RUN printf '%s\t%s\n' \
+        'http://azure.archive.ubuntu.com/ubuntu/' 'priority:1' \
+        'https://archive.ubuntu.com/ubuntu/' 'priority:2' \
+        'https://security.ubuntu.com/ubuntu/' 'priority:3' \
         > /etc/apt/apt-mirrors.txt \
     && sed -i \
         -e 's|http://archive\.ubuntu\.com/ubuntu/|mirror+file:/etc/apt/apt-mirrors.txt|g' \
