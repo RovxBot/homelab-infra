@@ -140,7 +140,6 @@ jobs:
         if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'authserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
           file: ops/wotlk-images/Dockerfile
           target: authserver
@@ -163,7 +162,6 @@ jobs:
         if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'worldserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
           file: ops/wotlk-images/Dockerfile
           target: worldserver
@@ -186,7 +184,6 @@ jobs:
         if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
           file: ops/wotlk-images/Dockerfile
           target: db-import
@@ -209,7 +206,6 @@ jobs:
         if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'tools' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
           file: ops/wotlk-images/Dockerfile
           target: tools
