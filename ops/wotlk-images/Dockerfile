@@ -8,6 +8,13 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ENV AC_FORCE_CREATE_DB=1
 
+RUN sed -i -E 's|http://(archive|security)\\.ubuntu\\.com/ubuntu|https://\\1.ubuntu.com/ubuntu|g' /etc/apt/sources.list \
+    && printf '%s\n' \
+        'Acquire::Retries "5";' \
+        'Acquire::http::Timeout "30";' \
+        'Acquire::https::Timeout "30";' \
+        > /etc/apt/apt.conf.d/80-retries
+
 RUN mkdir -pv \
         /azerothcore/bin                   \
         /azerothcore/data                  \
