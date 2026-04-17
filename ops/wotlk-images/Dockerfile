@@ -14,6 +14,35 @@ RUN printf '%s\n' \
         'Acquire::https::Timeout "30";' \
         > /etc/apt/apt.conf.d/80-retries
 
+RUN printf '%s\n' \
+        'http://azure.archive.ubuntu.com/ubuntu/\tpriority:1' \
+        'https://archive.ubuntu.com/ubuntu/\tpriority:2' \
+        'https://security.ubuntu.com/ubuntu/\tpriority:3' \
+        > /etc/apt/apt-mirrors.txt \
+    && sed -i \
+        -e 's|http://archive\.ubuntu\.com/ubuntu/|mirror+file:/etc/apt/apt-mirrors.txt|g' \
+        -e 's|http://security\.ubuntu\.com/ubuntu/|mirror+file:/etc/apt/apt-mirrors.txt|g' \
+        /etc/apt/sources.list
+
+RUN printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'set -euo pipefail' \
+        'attempt=1' \
+        'max_attempts=5' \
+        'while true; do' \
+        '  rm -rf /var/lib/apt/lists/*' \
+        '  if apt-get update; then' \
+        '    exit 0' \
+        '  fi' \
+        '  if [ "$attempt" -ge "$max_attempts" ]; then' \
+        '    exit 1' \
+        '  fi' \
+        '  sleep "$((attempt * 5))"' \
+        '  attempt="$((attempt + 1))"' \
+        'done' \
+        > /usr/local/bin/apt-update \
+    && chmod +x /usr/local/bin/apt-update
+
 RUN mkdir -pv \
         /azerothcore/bin                   \
         /azerothcore/data                  \
@@ -31,7 +60,7 @@ RUN mkdir -pv \
         /azerothcore/src                   \
         /azerothcore/build
 
-RUN apt-get update                                                       \
+RUN /usr/local/bin/apt-update                                            \
     && apt-get install -y --no-install-recommends tzdata ca-certificates \
     && ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime                  \
     && echo "$TZ" > /etc/timezone                                        \
@@ -62,7 +91,7 @@ ARG CCACHE_COMPRESSLEVEL="9"
 ARG CCACHE_COMPILERCHECK="content"
 ARG CCACHE_LOGFILE=""
 
-RUN apt-get update                                                     \
+RUN /usr/local/bin/apt-update                                          \
     && apt-get install -y --no-install-recommends                     \
         build-essential ccache libtool cmake-data make cmake clang    \
         git lsb-base curl unzip default-mysql-client openssl          \
@@ -109,7 +138,7 @@ ARG DOCKER_USER=acore
 
 ENV ACORE_COMPONENT=undefined
 
-RUN apt-get update && \
+RUN /usr/local/bin/apt-update && \
     apt-get install -y --no-install-recommends \
       libmysqlclient21 libreadline8 \
       gettext-base default-mysql-client && \
@@ -195,7 +224,7 @@ ARG DOCKER_USER=acore
 
 ENV DATAPATH=/azerothcore/env/dist/data
 
-RUN apt-get update && \
+RUN /usr/local/bin/apt-update && \
     apt-get install -y curl unzip && \
     rm -rf /var/lib/apt/lists/*
 
