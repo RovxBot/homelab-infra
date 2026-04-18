@@ -73,7 +73,7 @@ spec:
               cpu: 100m
               memory: 512Mi
             limits:
-              cpu: "1"
+              cpu: "2"
               memory: 2Gi
       volumes:
         - name: config
