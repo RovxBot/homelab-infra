@@ -137,3 +137,4 @@ To add a new app:
 - Contributing: `CONTRIBUTING.md`
 - License: `LICENSE`
 - WotLK server details and images: `WOTLK.md`
+- Azure Arc onboarding runbook: `ops/azure-arc/README.md`
