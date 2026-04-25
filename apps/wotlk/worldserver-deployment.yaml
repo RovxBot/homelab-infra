@@ -161,7 +161,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-35b09d52d6bf5126af4f3892a0eea607fe18d398
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-89389af78156bffea16eda50f8c0813f94758dfc
           imagePullPolicy: Always
           command:
             - sh
