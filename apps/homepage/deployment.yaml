@@ -89,6 +89,9 @@ spec:
               mountPath: /app/config/docker.yaml
               subPath: docker.yaml
             - name: app-config
+              mountPath: /app/config/proxmox.yaml
+              subPath: proxmox.yaml
+            - name: app-config
               mountPath: /app/config/custom.css
               subPath: custom.css
             - name: app-config
