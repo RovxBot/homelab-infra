@@ -3,7 +3,6 @@ kind: Kustomization
 namespace: homepage
 resources:
   - namespace.yaml
-  - pvc.yaml
   - assets-pvc.yaml
   - rbac.yaml
   - assets-deployment.yaml
