@@ -10,40 +10,23 @@
 
 body {
   color: rgb(var(--mission-text));
-  background:
-    linear-gradient(180deg, rgb(3 5 12 / 0.38), rgb(3 5 12 / 0.72)),
-    url("https://homepage.cooked.beer/assets/998981.jpg");
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background: rgb(9 12 20);
 }
 
-#page_container::before,
-#page_container::after {
+#background {
+  filter: saturate(1.15) brightness(1.02);
+}
+
+#background::after {
   content: "";
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
-}
-
-#page_container::before {
   background:
-    radial-gradient(900px 500px at 14% 0%, rgb(var(--mission-pink) / 0.14), transparent 58%),
-    radial-gradient(900px 500px at 86% 0%, rgb(var(--mission-cyan) / 0.12), transparent 58%),
-    radial-gradient(1100px 700px at 50% 110%, rgb(var(--mission-violet) / 0.14), transparent 62%);
-}
-
-#page_container::after {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.06), transparent 28%),
-    repeating-linear-gradient(
-      180deg,
-      rgb(255 255 255 / 0.028) 0,
-      rgb(255 255 255 / 0.028) 1px,
-      transparent 4px,
-      transparent 8px
-    );
-  opacity: 0.55;
+    linear-gradient(180deg, rgb(3 5 12 / 0.28), rgb(3 5 12 / 0.68)),
+    radial-gradient(900px 500px at 14% 0%, rgb(var(--mission-pink) / 0.12), transparent 58%),
+    radial-gradient(900px 500px at 86% 0%, rgb(var(--mission-cyan) / 0.1), transparent 58%),
+    radial-gradient(1100px 700px at 50% 110%, rgb(var(--mission-violet) / 0.12), transparent 62%);
 }
 
 #inner_wrapper {
@@ -54,70 +37,57 @@ body {
 }
 
 #information-widgets,
-.service-block,
 dialog,
-#inner_wrapper .container a[href] > div {
-  position: relative;
-  overflow: hidden;
+.bookmark,
+.service-card,
+.service-block,
+#inner_wrapper a[href] > div {
   border: 1px solid rgb(var(--mission-line) / 0.12) !important;
-  background: linear-gradient(180deg, rgb(var(--mission-panel) / 0.72), rgb(var(--mission-bg) / 0.28)) !important;
-  backdrop-filter: blur(16px) saturate(1.15);
+  background: linear-gradient(180deg, rgb(var(--mission-panel) / 0.72), rgb(var(--mission-bg) / 0.34)) !important;
   box-shadow:
-    0 20px 50px rgb(0 0 0 / 0.36),
-    0 0 0 1px rgb(var(--mission-violet) / 0.12) inset;
-}
-
-#information-widgets::before,
-#inner_wrapper .container a[href] > div::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(460px 140px at 12% 0%, rgb(var(--mission-pink) / 0.14), transparent 60%),
-    radial-gradient(460px 140px at 88% 0%, rgb(var(--mission-cyan) / 0.12), transparent 60%);
+    0 18px 48px rgb(0 0 0 / 0.3),
+    0 0 0 1px rgb(var(--mission-violet) / 0.1) inset;
+  backdrop-filter: blur(14px) saturate(1.12);
 }
 
 #information-widgets {
-  margin-bottom: 1.5rem;
   border-radius: 24px !important;
-  box-shadow:
-    0 24px 60px rgb(0 0 0 / 0.42),
-    0 0 0 1px rgb(var(--mission-cyan) / 0.08) inset;
+  padding: 0.75rem 1rem 1rem !important;
+  margin-bottom: 1rem !important;
 }
 
-#information-widgets > * {
-  position: relative;
-  z-index: 1;
+#widgets-wrap,
+#information-widgets-right {
+  gap: 0.75rem;
 }
 
-#information-widgets .widget-container,
-#information-widgets .information-widget-form,
-#information-widgets .information-widget-greeting,
-#information-widgets .information-widget-search,
-#information-widgets .information-widget-datetime,
-#information-widgets .information-widget-kubernetes,
-#information-widgets .information-widget-longhorn {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
+#information-widgets .widget-container {
+  min-width: fit-content;
 }
 
 #information-widgets .information-widget-search input {
-  border: 1px solid rgb(var(--mission-line) / 0.12) !important;
-  background: rgb(6 10 20 / 0.32) !important;
-  box-shadow: none !important;
+  min-height: 2.2rem;
+  border: 1px solid rgb(var(--mission-line) / 0.16) !important;
+  background: rgb(7 10 19 / 0.42) !important;
+  color: rgb(var(--mission-text)) !important;
 }
 
+#information-widgets .information-widget-search input::placeholder {
+  color: rgb(243 246 255 / 0.72) !important;
+}
+
+#information-widgets .information-widget-search button {
+  background: rgb(var(--mission-violet) / 0.32) !important;
+}
+
+.group-title,
 h1,
 h2,
-h3,
-.group-title {
+h3 {
   color: rgb(var(--mission-text));
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  text-shadow: 0 0 22px rgb(var(--mission-violet) / 0.22);
+  text-shadow: 0 0 20px rgb(var(--mission-violet) / 0.18);
 }
 
 .group-title {
@@ -128,7 +98,7 @@ h3,
   gap: 1rem !important;
 }
 
-#inner_wrapper .container a[href] > div {
+#inner_wrapper a[href] > div {
   border-radius: 18px !important;
   transition:
     transform 160ms ease,
@@ -136,29 +106,19 @@ h3,
     border-color 160ms ease;
 }
 
-#inner_wrapper .container a[href]:hover > div {
+#inner_wrapper a[href]:hover > div {
   transform: translateY(-3px);
   border-color: rgb(var(--mission-line) / 0.18) !important;
   box-shadow:
-    0 28px 70px rgb(0 0 0 / 0.45),
-    0 0 0 1px rgb(var(--mission-pink) / 0.18) inset,
-    0 0 28px rgb(var(--mission-violet) / 0.16);
-}
-
-.service-title,
-.service-description,
-.service-status,
-.bookmark-text,
-.widget-container span,
-.widget-container div {
-  text-shadow: 0 0 16px rgb(var(--mission-violet) / 0.16);
+    0 26px 64px rgb(0 0 0 / 0.4),
+    0 0 0 1px rgb(var(--mission-pink) / 0.16) inset;
 }
 
 .information-widget-resource .resource-usage {
   height: 0.42rem !important;
   border-radius: 999px !important;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(255 255 255 / 0.06);
 }
 
 .information-widget-resource .resource-usage > div {
@@ -168,14 +128,10 @@ h3,
     rgb(var(--mission-violet) / 0.88),
     rgb(var(--mission-pink) / 0.9)
   ) !important;
-  box-shadow: 0 0 18px rgb(var(--mission-violet) / 0.32);
+  box-shadow: 0 0 18px rgb(var(--mission-violet) / 0.28);
 }
 
 @media (max-width: 900px) {
-  body {
-    background-attachment: scroll;
-  }
-
   #information-widgets {
     border-radius: 20px !important;
   }
