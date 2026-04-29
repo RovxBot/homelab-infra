@@ -1,212 +1,132 @@
 ---
-- Mission Control:
+- Core Ops:
     - Homepage:
         href: https://homepage.cooked.beer
         siteMonitor: http://homepage.homepage.svc.cluster.local:3000
-        description: Mission dashboard
+        description: Dashboard and launch surface
         icon: homepage
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: homepage
-          app: homepage
-          podSelector: app=homepage
-    - Immich:
-        href: https://immich.cooked.beer
-        siteMonitor: http://immich-server.immich.svc.cluster.local:2283/api/server/ping
-        description: Photos & shared albums
-        icon: immich
-        target: _blank
-        widget:
-          type: kubernetes
-          namespace: immich
-          app: immich-server
-          podSelector: app=immich-server
     - Grafana:
         href: https://grafana.cooked.beer
         siteMonitor: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80/api/health
-        description: Dashboards & logs
+        description: Dashboards, logs, and alert views
         icon: grafana
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: monitoring
-          app: grafana
-          podSelector: app.kubernetes.io/name=grafana,app.kubernetes.io/instance=kube-prometheus-stack
     - Prometheus:
         href: https://prometheus.cooked.beer
         siteMonitor: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/-/ready
-        description: Metrics & alert rules
+        description: Metrics and rule evaluation
         icon: prometheus
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: monitoring
-          app: prometheus
-          podSelector: prometheus=kube-prometheus-stack-prometheus
     - Alertmanager:
         href: https://alertmanager.cooked.beer
         siteMonitor: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/-/ready
-        description: Paging & routing
+        description: Notification routing and silences
         icon: alertmanager
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: monitoring
-          app: alertmanager
-          podSelector: alertmanager=kube-prometheus-stack-alertmanager
-
-- Media Stack:
-    - Radarr:
-        href: https://radarr.cooked.beer
-        siteMonitor: http://radarr.media.svc.cluster.local:7878
-        description: Movies automation
-        icon: radarr
+    - Immich:
+        href: https://immich.cooked.beer
+        siteMonitor: http://immich-server.immich.svc.cluster.local:2283/api/server/ping
+        description: Photo library and shared memories
+        icon: immich
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: media
-          app: radarr
-          podSelector: app=radarr
+
+- Media:
+    - Jellyfin (LAN):
+        href: http://192.168.1.190:32096
+        siteMonitor: http://jellyfin.media.svc.cluster.local:8096
+        description: Local media playback
+        icon: jellyfin
+        target: _blank
+    - Jellyseerr:
+        href: https://jellyseerr.cooked.beer
+        siteMonitor: http://jellyseerr.media.svc.cluster.local:5055/login
+        description: Requests and discovery
+        icon: jellyseerr
+        target: _blank
     - Sonarr:
         href: https://sonarr.cooked.beer
         siteMonitor: http://sonarr.media.svc.cluster.local:8989/ping
         description: Series automation
         icon: sonarr
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: media
-          app: sonarr
-          podSelector: app=sonarr
-    - Prowlarr:
-        href: https://prowlarr.cooked.beer
-        siteMonitor: http://prowlarr.media.svc.cluster.local:9696/ping
-        description: Indexer management
-        icon: prowlarr
+    - Radarr:
+        href: https://radarr.cooked.beer
+        siteMonitor: http://radarr.media.svc.cluster.local:7878
+        description: Movie automation
+        icon: radarr
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: media
-          app: prowlarr
-          podSelector: app=prowlarr
     - SABnzbd:
         href: https://sabnzbd.cooked.beer
         siteMonitor: http://sabnzbd.media.svc.cluster.local:8080
         description: Usenet downloads
         icon: sabnzbd
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: media
-          app: sabnzbd
-          podSelector: app=sabnzbd
-    - Jellyseerr:
-        href: https://jellyseerr.cooked.beer
-        siteMonitor: http://jellyseerr.media.svc.cluster.local:5055/login
-        description: Requests & discovery
-        icon: jellyseerr
+    - Prowlarr:
+        href: https://prowlarr.cooked.beer
+        siteMonitor: http://prowlarr.media.svc.cluster.local:9696/ping
+        description: Indexer control plane
+        icon: prowlarr
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: media
-          app: jellyseerr
-          podSelector: app=jellyseerr
-    - Jellyfin (LAN):
-        href: http://192.168.1.190:32096
-        siteMonitor: http://jellyfin.media.svc.cluster.local:8096
-        description: Local streaming
-        icon: jellyfin
-        target: _blank
-        widget:
-          type: kubernetes
-          namespace: media
-          app: jellyfin
-          podSelector: app=jellyfin
 
 - Game Worlds:
-    - WotLK Authserver:
-        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
-        description: Auth / realm list (TCP 3724 on metal7)
-        icon: /icons/wotlk.svg
-        target: _blank
-        widget:
-          type: kubernetes
-          namespace: wotlk
-          app: wotlk-authserver
-          podSelector: app=wotlk-authserver
     - WotLK Worldserver:
         href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
-        description: World server (TCP 8085 on metal7)
+        description: World server on TCP 8085
         icon: /icons/wotlk.svg
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: wotlk
-          app: wotlk-worldserver
-          podSelector: app=wotlk-worldserver
-    - WotLK Account Manager (LAN):
+    - WotLK Authserver:
+        href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
+        description: Auth and realm list on TCP 3724
+        icon: /icons/wotlk.svg
+        target: _blank
+    - WotLK Account Manager:
         href: https://grimguzzler.cooked.beer/
         siteMonitor: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
-        description: Account creation / invites
+        description: Account creation and invites
         icon: /icons/accountmgr.svg
         target: _blank
-    - WotLK DB (MariaDB):
+    - WotLK DB:
         href: https://github.com/RovxBot/homelab-infra/tree/main/apps/wotlk
-        description: Characters / world DB
+        description: Character and world database
         icon: /icons/mariadb.svg
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: wotlk
-          app: wotlk-mariadb
-          podSelector: app=wotlk-mariadb
 
-- Security & Access:
+- Security:
     - Vaultwarden:
         href: https://vault.cooked.beer
         siteMonitor: http://vaultwarden.security.svc.cluster.local:80
-        description: Password manager
+        description: Password vault
         icon: bitwarden
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: security
-          app: vaultwarden
-          podSelector: app=vaultwarden
     - Cloudflare Zero Trust:
         href: https://one.dash.cloudflare.com/
-        description: Access policies & tunnels
+        description: Access policies and tunnels
         icon: cloudflare
         target: _blank
 
-- Storage & Cluster:
+- Storage:
     - Longhorn (LAN):
         href: http://192.168.1.190:30080
         siteMonitor: http://longhorn-frontend.longhorn-system.svc.cluster.local:80
-        description: Storage UI
+        description: Persistent storage control plane
         icon: longhorn
         target: _blank
-        widget:
-          type: kubernetes
-          namespace: longhorn-system
-          app: longhorn-ui
-          podSelector: app=longhorn-ui
     - Pods by Node (LAN):
         href: http://192.168.1.190:32081
         siteMonitor: http://pod-report.homepage.svc.cluster.local:80
-        description: Running pods per node
+        description: Fast view of workload spread
         icon: kubernetes
         target: _blank
 
-- Personal:
+- Links:
     - GitHub:
         href: https://github.com/RovxBot
-        description: My profile
+        description: Source and issue tracking
         icon: github
         target: _blank
     - Blog:
         href: https://rovblog.cooked.beer
-        description: rovblog.cooked.beer
+        description: Notes, writeups, and experiments
         icon: mdi-rss
         target: _blank

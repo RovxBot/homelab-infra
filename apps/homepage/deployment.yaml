@@ -4,6 +4,7 @@ metadata:
   name: homepage
   namespace: homepage
 spec:
+  revisionHistoryLimit: 3
   replicas: 1
   strategy:
     type: RollingUpdate
@@ -17,144 +18,78 @@ spec:
     metadata:
       labels:
         app: homepage
-      annotations:
-        homepage.cooked.beer/config-rev: "wow-services-2025-12-21b"
     spec:
       serviceAccountName: homepage
-      initContainers:
-        - name: sync-config
-          image: alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
-          imagePullPolicy: IfNotPresent
-          command:
-            - sh
-            - -c
-            - |
-              set -eu
-              mkdir -p /dst
-              cp -f /src/* /dst/
-              mkdir -p /dst/logs
-          volumeMounts:
-            - name: config
-              mountPath: /dst
-            - name: app-config
-              mountPath: /src
-              readOnly: true
-        - name: sync-background
-          image: bitnami/kubectl:latest@sha256:98736aabcecb8d3cbcdcd7b132d14b1d67ed99bac2f06d471f06235933103df3
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            runAsUser: 0
-            runAsGroup: 0
-          command:
-            - sh
-            - -c
-            - |
-              set -eu
-              dst="/work/998981.jpg"
-              if [ -s "$dst" ]; then
-                echo "Background already present: $dst"
-                exit 0
-              fi
-
-              artifact_url="$(kubectl -n flux-system get gitrepository flux-system -o jsonpath='{.status.artifact.url}' 2>/dev/null || true)"
-              if [ -z "$artifact_url" ]; then
-                echo "No Flux artifact URL found; skipping"
-                exit 0
-              fi
-
-              tmp="$(mktemp -d)"
-              trap 'rm -rf "$tmp"' EXIT
-
-              echo "Fetching Flux artifact: $artifact_url"
-              if ! curl -fsSL --retry 3 --retry-delay 2 --max-time 60 -o "$tmp/artifact.tar.gz" "$artifact_url"; then
-                echo "Failed to fetch artifact; skipping"
-                exit 0
-              fi
-
-              path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\.jpg$' | head -n 1 || true)"
-              if [ -n "$path" ]; then
-                echo "Extracting $path -> $dst"
-                tar -xzf "$tmp/artifact.tar.gz" -O "$path" > "$dst"
-                exit 0
-              fi
-
-              b64_path="$(tar -tzf "$tmp/artifact.tar.gz" | grep -E '(^|/)998981\.jpg\.b64$' | head -n 1 || true)"
-              if [ -z "$b64_path" ]; then
-                echo "No jpg or base64 asset found in artifact; skipping"
-                exit 0
-              fi
-
-              echo "Decoding $b64_path -> $dst"
-              tar -xzf "$tmp/artifact.tar.gz" -O "$b64_path" | base64 -D > "$dst" 2>/dev/null || \
-              tar -xzf "$tmp/artifact.tar.gz" -O "$b64_path" | base64 -d > "$dst"
-          volumeMounts:
-            - name: public-assets
-              mountPath: /work
+      automountServiceAccountToken: true
+      enableServiceLinks: true
       containers:
         - name: homepage
           image: ghcr.io/gethomepage/homepage:v1.12.3@sha256:cc84f2f5eb3c7734353701ccbaa24ed02dacb0d119114e50e4251e2005f3990a
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 3000
               name: http
+              protocol: TCP
           startupProbe:
-            tcpSocket:
+            httpGet:
+              path: /api/healthcheck
               port: http
             periodSeconds: 5
             failureThreshold: 60
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/healthcheck
               port: http
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/healthcheck
               port: http
             periodSeconds: 20
             timeoutSeconds: 2
             failureThreshold: 3
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  - sh
-                  - -lc
-                  - |
-                    # Force Next.js ISR to refresh the homepage after config changes.
-                    # Retry because the server may not be ready immediately.
-                    node - <<'NODE'
-                    const http = require("http");
-                    const url = "http://127.0.0.1:3000/api/revalidate";
-                    let tries = 0;
-                    function attempt() {
-                      tries += 1;
-                      const req = http.get(url, (res) => {
-                        res.resume();
-                        process.exit(0);
-                      });
-                      req.on("error", () => {
-                        if (tries >= 30) process.exit(0);
-                        setTimeout(attempt, 1000);
-                      });
-                    }
-                    attempt();
-                    NODE
           env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: TZ
               value: Australia/Melbourne
             - name: HOMEPAGE_ALLOWED_HOSTS
-              value: "homepage.cooked.beer,192.168.1.190,192.168.1.190:30300,homepage.homepage.svc.cluster.local,homepage.homepage.svc.cluster.local:3000,localhost,127.0.0.1"
+              value: "$(MY_POD_IP):3000,homepage.cooked.beer,192.168.1.190:30300,homepage.homepage.svc.cluster.local,homepage.homepage.svc.cluster.local:3000"
           volumeMounts:
-            - name: config
-              mountPath: /app/config
+            - name: app-config
+              mountPath: /app/config/settings.yaml
+              subPath: settings.yaml
+            - name: app-config
+              mountPath: /app/config/services.yaml
+              subPath: services.yaml
+            - name: app-config
+              mountPath: /app/config/bookmarks.yaml
+              subPath: bookmarks.yaml
+            - name: app-config
+              mountPath: /app/config/widgets.yaml
+              subPath: widgets.yaml
+            - name: app-config
+              mountPath: /app/config/kubernetes.yaml
+              subPath: kubernetes.yaml
+            - name: app-config
+              mountPath: /app/config/custom.css
+              subPath: custom.css
             - name: logs
               mountPath: /app/config/logs
-            - name: public-assets
-              mountPath: /app/public/assets
-              readOnly: true
             - name: public-icons
               mountPath: /app/public/icons
               readOnly: true
@@ -166,9 +101,6 @@ spec:
               cpu: 500m
               memory: 1Gi
       volumes:
-        - name: config
-          persistentVolumeClaim:
-            claimName: homepage-config
         - name: logs
           emptyDir: {}
         - name: app-config
@@ -177,5 +109,3 @@ spec:
         - name: public-icons
           configMap:
             name: homepage-public-icons
-        - name: public-assets
-          emptyDir: {}
