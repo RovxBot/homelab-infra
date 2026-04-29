@@ -18,7 +18,9 @@ configMapGenerator:
       - config/bookmarks.yaml
       - config/widgets.yaml
       - config/kubernetes.yaml
+      - config/docker.yaml
       - config/custom.css
+      - config/custom.js
   - name: homepage-public-icons
     files:
       - config/icons/wotlk.svg

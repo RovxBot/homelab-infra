@@ -86,8 +86,14 @@ spec:
               mountPath: /app/config/kubernetes.yaml
               subPath: kubernetes.yaml
             - name: app-config
+              mountPath: /app/config/docker.yaml
+              subPath: docker.yaml
+            - name: app-config
               mountPath: /app/config/custom.css
               subPath: custom.css
+            - name: app-config
+              mountPath: /app/config/custom.js
+              subPath: custom.js
             - name: logs
               mountPath: /app/config/logs
             - name: public-icons
