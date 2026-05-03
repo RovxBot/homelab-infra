@@ -12,6 +12,7 @@ RUN apt-get update \
         libfreetype6-dev \
         libgmp-dev \
         libjpeg62-turbo-dev \
+        libxml2-dev \
         libonig-dev \
         libpng-dev \
         libzip-dev \
