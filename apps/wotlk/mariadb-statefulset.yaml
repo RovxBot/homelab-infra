@@ -46,9 +46,15 @@ spec:
             - name: MYSQL_ROOT_HOST
               value: "%"
           volumeMounts:
+            - name: config
+              mountPath: /etc/mysql/conf.d
+              readOnly: true
             - name: data
               mountPath: /var/lib/mysql
       volumes:
+        - name: config
+          configMap:
+            name: wotlk-mariadb-config
         - name: data
           persistentVolumeClaim:
             claimName: wotlk-mariadb-data
