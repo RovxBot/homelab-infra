@@ -80,10 +80,10 @@
         description: Auth and realm list on TCP 3724
         icon: /icons/wotlk.svg
         target: _blank
-    - WotLK Account Manager:
+    - Grim Guzzler Registration:
         href: https://grimguzzler.cooked.beer/
-        siteMonitor: http://wotlk-accountmgr.wotlk.svc.cluster.local:80
-        description: Account creation and invites
+        siteMonitor: http://grimguzzler-registration.wotlk.svc.cluster.local:80
+        description: Standalone registration portal
         icon: /icons/accountmgr.svg
         target: _blank
     - WotLK DB:
