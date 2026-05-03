@@ -41,8 +41,13 @@ data:
     $config['disable_online_players'] = $envBool('DISABLE_ONLINE_PLAYERS', false);
     $config['disable_changepassword'] = $envBool('DISABLE_CHANGEPASSWORD', false);
     $config['multiple_email_use'] = $envBool('MULTIPLE_EMAIL_USE', false);
+    $config['allow_signup'] = $envBool('ALLOW_SIGNUP', true);
+    $config['invite_code'] = $env('INVITE_CODE', '');
 
     $config['template'] = $env('TEMPLATE', 'icecrown');
+    $config['store_enabled'] = $envBool('STORE_ENABLED', false);
+    $config['store_token_item_id'] = $envInt('STORE_TOKEN_ITEM_ID', 90000);
+    $config['store_catalog_file'] = $env('STORE_CATALOG_FILE', base_path . 'application/config/store-services.php');
 
     $config['smtp_host'] = $env('SMTP_HOST', '');
     $config['smtp_port'] = $envInt('SMTP_PORT', 587);

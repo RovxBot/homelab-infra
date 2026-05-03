@@ -3,5 +3,6 @@ kind: Kustomization
 namespace: wotlk
 resources:
   - config-configmap.yaml
+  - store-services-configmap.yaml
   - deployment.yaml
   - service.yaml

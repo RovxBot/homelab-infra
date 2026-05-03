@@ -120,6 +120,12 @@ spec:
                 secretKeyRef:
                   name: wotlk-accountmgr-invite
                   key: INVITE_CODE
+            - name: STORE_ENABLED
+              value: "true"
+            - name: STORE_TOKEN_ITEM_ID
+              value: "90000"
+            - name: STORE_CATALOG_FILE
+              value: /var/www/html/application/config/store-services.php
           ports:
             - name: http
               containerPort: 80
@@ -128,6 +134,10 @@ spec:
             - name: registration-config
               mountPath: /var/www/html/application/config/config.php
               subPath: config.php
+              readOnly: true
+            - name: registration-store-services
+              mountPath: /var/www/html/application/config/store-services.php
+              subPath: store-services.php
               readOnly: true
           resources:
             requests:
@@ -140,3 +150,6 @@ spec:
         - name: registration-config
           configMap:
             name: grimguzzler-registration-config
+        - name: registration-store-services
+          configMap:
+            name: grimguzzler-registration-store-services
