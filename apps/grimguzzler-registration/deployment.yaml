@@ -65,6 +65,10 @@ spec:
               value: "true"
             - name: SRP6_VERSION
               value: "2"
+            - name: DISABLE_ONLINE_PLAYERS
+              value: "true"
+            - name: DISABLE_TOP_PLAYERS
+              value: "true"
             - name: CAPTCHA_TYPE
               value: "0"
             - name: DB_HOST
