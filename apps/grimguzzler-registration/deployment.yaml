@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: grimguzzler-registration
-          image: ghcr.io/rovxbot/grimguzzler-registration:latest
+          image: ghcr.io/rovxbot/grimguzzler-registration:master-7fd00b327a5e3f0fb674ffb7417b273b1806e426
           imagePullPolicy: Always
           startupProbe:
             httpGet:
