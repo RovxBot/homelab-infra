@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grimguzzler-registration-config
+  namespace: wotlk
+data:
+  config.php: |
+    <?php
+
+    $env = static function (string $name, string $default = ''): string {
+        $value = getenv($name);
+        return $value === false ? $default : $value;
+    };
+
+    $envBool = static function (string $name, bool $default = false) use ($env): bool {
+        return filter_var($env($name, $default ? 'true' : 'false'), FILTER_VALIDATE_BOOLEAN);
+    };
+
+    $envInt = static function (string $name, int $default = 0) use ($env): int {
+        return (int) $env($name, (string) $default);
+    };
+
+    $realmId = $envInt('REALM_ID', 1);
+
+    $config['baseurl'] = $env('BASE_URL', 'https://grimguzzler.cooked.beer');
+    $config['page_title'] = $env('PAGE_TITLE', 'Grim Guzzler');
+    $config['language'] = $env('LANGUAGE', 'english');
+    $config['supported_langs'] = array();
+    $config['debug_mode'] = $envBool('DEBUG_MODE', false);
+
+    $config['realmlist'] = $env('REALMLIST_HOST', 'grim.cooked.beer');
+    $config['patch_location'] = $env('PATCH_LOCATION', '');
+    $config['game_version'] = $env('GAME_VERSION', '3.3.5a (12340)');
+    $config['expansion'] = (string) $envInt('EXPANSION', 2);
+    $config['server_core'] = $envInt('SERVER_CORE', 1);
+    $config['battlenet_support'] = $envBool('BATTLENET_SUPPORT', false);
+    $config['srp6_support'] = $envBool('SRP6_SUPPORT', true);
+    $config['srp6_version'] = $envInt('SRP6_VERSION', 2);
+
+    $config['disable_top_players'] = $envBool('DISABLE_TOP_PLAYERS', false);
+    $config['disable_online_players'] = $envBool('DISABLE_ONLINE_PLAYERS', false);
+    $config['disable_changepassword'] = $envBool('DISABLE_CHANGEPASSWORD', false);
+    $config['multiple_email_use'] = $envBool('MULTIPLE_EMAIL_USE', false);
+
+    $config['template'] = $env('TEMPLATE', 'icecrown');
+
+    $config['smtp_host'] = $env('SMTP_HOST', '');
+    $config['smtp_port'] = $envInt('SMTP_PORT', 587);
+    $config['smtp_auth'] = $envBool('SMTP_AUTH', false);
+    $config['smtp_user'] = $env('SMTP_USER', '');
+    $config['smtp_pass'] = $env('SMTP_PASS', '');
+    $config['smtp_secure'] = $env('SMTP_SECURE', 'tls');
+    $config['smtp_mail'] = $env('SMTP_MAIL', 'no-reply@grimguzzler.cooked.beer');
+
+    $config['vote_system'] = $envBool('VOTE_SYSTEM', false);
+    $config['vote_sites'] = array();
+
+    $config['captcha_type'] = $envInt('CAPTCHA_TYPE', 0);
+    $config['captcha_key'] = $env('CAPTCHA_KEY', '');
+    $config['captcha_secret'] = $env('CAPTCHA_SECRET', '');
+    $config['captcha_language'] = $env('CAPTCHA_LANGUAGE', 'en');
+
+    $config['soap_for_register'] = $envBool('SOAP_FOR_REGISTER', true);
+    $config['soap_host'] = $env('SOAP_HOST', 'wotlk-worldserver-soap.wotlk.svc.cluster.local');
+    $config['soap_port'] = $env('SOAP_PORT', '7878');
+    $config['soap_uri'] = $env('SOAP_URI', 'urn:AC');
+    $config['soap_style'] = defined('SOAP_RPC') ? SOAP_RPC : 1;
+    $config['soap_username'] = $env('SOAP_USERNAME', '');
+    $config['soap_password'] = $env('SOAP_PASSWORD', '');
+    $config['soap_ca_command'] = $env('SOAP_CREATE_ACCOUNT_COMMAND', 'account create {USERNAME} {PASSWORD} {EMAIL}');
+    $config['soap_asa_command'] = $env('SOAP_ADDON_COMMAND', 'account set addon {USERNAME} {EXPANSION}');
+
+    $config['2fa_support'] = $envBool('TWO_FACTOR_SUPPORT', false);
+    $config['soap_2d_command'] = $env('SOAP_2D_COMMAND', 'account set 2fa {USERNAME} off');
+    $config['soap_2e_command'] = $env('SOAP_2E_COMMAND', 'account set 2fa {USERNAME} {SECRET}');
+
+    $config['db_auth_host'] = $env('DB_HOST', 'wotlk-mariadb.wotlk.svc.cluster.local');
+    $config['db_auth_port'] = $env('DB_PORT', '3306');
+    $config['db_auth_user'] = $env('DB_USER', '');
+    $config['db_auth_pass'] = $env('DB_PASSWORD', '');
+    $config['db_auth_dbname'] = $env('DB_AUTH_DB', 'acore_auth');
+
+    $config['realmlists'] = array(
+        (string) $realmId => array(
+            'realmid' => $realmId,
+            'realmname' => $env('REALM_NAME', 'Grim Guzzler'),
+            'db_host' => $env('DB_HOST', 'wotlk-mariadb.wotlk.svc.cluster.local'),
+            'db_port' => $env('DB_PORT', '3306'),
+            'db_user' => $env('DB_USER', ''),
+            'db_pass' => $env('DB_PASSWORD', ''),
+            'db_name' => $env('DB_CHAR_DB', 'acore_characters'),
+        ),
+    );
+
+    $config['script_version'] = '2.0.4';

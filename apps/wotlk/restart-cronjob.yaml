@@ -28,9 +28,9 @@ spec:
                 - name: NAMESPACE
                   value: wotlk
                 - name: SOAP_POD_LABEL
-                  value: app=wotlk-accountmgr
+                  value: app=grimguzzler-registration
                 - name: SOAP_CONTAINER
-                  value: accountmgr
+                  value: grimguzzler-registration
                 - name: WORLD_DEPLOY
                   value: wotlk-worldserver
                 - name: AUTH_DEPLOY
@@ -60,7 +60,7 @@ spec:
                       return 1
                     fi
 
-                    # Execute SOAP from the dedicated accountmgr pod (has PHP and SOAP creds in env).
+                    # Execute SOAP from the standalone registration pod (has PHP and SOAP creds in env).
                     kubectl -n "${ns}" exec "${pod}" -c "${container}" -- sh -lc "
                       set -eu
                       SOAP_URL=\"\${SOAP_URL:-http://wotlk-worldserver-soap.wotlk.svc.cluster.local:7878/}\"
