@@ -54,7 +54,7 @@ spec:
             - name: REALM_NAME
               value: Grim Guzzler
             - name: TEMPLATE
-              value: icecrown
+              value: advance
             - name: GAME_VERSION
               value: 3.3.5a (12340)
             - name: EXPANSION
