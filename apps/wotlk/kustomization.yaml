@@ -33,7 +33,6 @@ resources:
   - db-bootstrap-cronjob.yaml
   - ahbot-cleanup-cronjob.yaml
   - realm-upsert-cronjob.yaml
-  - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
   - client-extract-mmaps-cronjob.yaml
