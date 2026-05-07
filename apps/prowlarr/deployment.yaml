@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: prowlarr
-          image: linuxserver/prowlarr:2.3.5.5327-ls143@sha256:c5de2a8758a05594319263e7691c1dce56899442ed1720d6eca216c0958f4caf
+          image: linuxserver/prowlarr:2.3.5.5327-ls145@sha256:4b52038b7b6452a20c145239fa07d8218d1541d736a96c43aa0a5f60141cab28
           imagePullPolicy: Always
           ports:
             - containerPort: 9696

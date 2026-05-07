@@ -25,6 +25,7 @@ configMapGenerator:
 resources:
   - namespace.yaml
   - client-files-pv.yaml
+  - mariadb-config-configmap.yaml
   - mariadb-pvc.yaml
   - mariadb-service.yaml
   - mariadb-statefulset.yaml
@@ -33,16 +34,11 @@ resources:
   - db-bootstrap-cronjob.yaml
   - ahbot-cleanup-cronjob.yaml
   - realm-upsert-cronjob.yaml
-  - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
   - client-extract-mmaps-cronjob.yaml
   - restart-rbac.yaml
   - restart-cronjob.yaml
-  - accountmgr-configmap.yaml
-  - accountmgr-assets-configmap.yaml
-  - accountmgr-deployment.yaml
-  - accountmgr-service.yaml
   - worldserver-soap-service.yaml
   - worldserver-soap-networkpolicy.yaml
   - authserver-config.yaml

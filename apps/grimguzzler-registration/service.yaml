@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: wotlk-accountmgr
+  name: grimguzzler-registration
   namespace: wotlk
 spec:
   selector:
-    app: wotlk-accountmgr
+    app: grimguzzler-registration
   ports:
     - name: http
       port: 80
