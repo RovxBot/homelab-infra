@@ -140,7 +140,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-f6af4b0bd1c875e9909489f24d68ee2694c5e44a
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-22807fd94b161f0a8f51a0027fbe702015bf082f
           imagePullPolicy: Always
           command:
             - bash
@@ -161,7 +161,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-f6af4b0bd1c875e9909489f24d68ee2694c5e44a
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-22807fd94b161f0a8f51a0027fbe702015bf082f
           imagePullPolicy: Always
           command:
             - sh
