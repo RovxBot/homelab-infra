@@ -26,8 +26,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install shellcheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIONLINT_VERSION="1.7.8"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            -o /tmp/actionlint.tgz
+          tar -xzf /tmp/actionlint.tgz -C /tmp
+          sudo mv /tmp/actionlint /usr/local/bin/actionlint
+          actionlint -version
+
       - name: Lint GitHub Actions workflows
-        uses: rhysd/actionlint@v1
+        shell: bash
+        run: |
+          set -euo pipefail
+          actionlint
 
   yamllint:
     runs-on: ubuntu-latest
