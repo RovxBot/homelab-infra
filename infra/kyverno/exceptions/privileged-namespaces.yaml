@@ -1,0 +1,19 @@
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: privileged-namespaces
+  namespace: kyverno
+spec:
+  exceptions:
+    - policyName: platform-pod-standards
+      ruleNames:
+        - require-runtime-hardening
+        - disallow-host-network
+  match:
+    any:
+      - resources:
+          namespaces:
+            - longhorn-system
+            - monitoring
+            - wireguard
+            - wotlk

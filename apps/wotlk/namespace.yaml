@@ -4,6 +4,10 @@ metadata:
   name: wotlk
   labels:
     # We use hostNetwork so the auth port can be 3724 (client cannot specify a custom port).
+    homelab.cooked.beer/owner: sam
     pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/audit-version: latest
     pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/warn-version: latest

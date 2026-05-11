@@ -21,7 +21,7 @@ spec:
       serviceAccountName: homepage
       initContainers:
         - name: sync-assets
-          image: bitnami/kubectl:latest@sha256:3220dcc839f55be732a29548043a1ddf635a0dd6c8781b0f2a0bcdc19029c7d3
+          image: bitnami/kubectl@sha256:3220dcc839f55be732a29548043a1ddf635a0dd6c8781b0f2a0bcdc19029c7d3
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsUser: 0

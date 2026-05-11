@@ -1,0 +1,210 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: platform-pod-standards
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+spec:
+  background: true
+  emitWarning: true
+  rules:
+    - name: require-owner-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      validate:
+        failureAction: Audit
+        message: Pods must carry the homelab owner label.
+        pattern:
+          metadata:
+            labels:
+              homelab.cooked.beer/owner: "?*"
+    - name: require-requests-and-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      validate:
+        failureAction: Audit
+        message: Containers must define CPU and memory requests and limits.
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+    - name: require-runtime-hardening
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      validate:
+        failureAction: Audit
+        message: >-
+          Containers should run as non-root, disable privilege escalation,
+          drop all capabilities, avoid privileged mode, and use RuntimeDefault
+          seccomp.
+        foreach:
+          - list: "request.object.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.runAsNonRoot || `false` }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || `true` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ element.securityContext.privileged || `false` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.securityContext.seccompProfile.type || '' }}"
+                    operator: NotEquals
+                    value: RuntimeDefault
+    - name: disallow-host-network
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      validate:
+        failureAction: Audit
+        message: hostNetwork should only be used via an explicit exception.
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.hostNetwork || `false` }}"
+                operator: Equals
+                value: true
+    - name: require-digest-pinned-images
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      validate:
+        failureAction: Audit
+        message: Container images should be pinned by digest.
+        pattern:
+          spec:
+            containers:
+              - image: "*@sha256:*"
+    - name: disallow-latest-tags
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      validate:
+        failureAction: Audit
+        message: latest tags are not allowed without an explicit exception.
+        foreach:
+          - list: "request.object.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ contains(element.image, ':latest') }}"
+                    operator: Equals
+                    value: true
+    - name: require-probes
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.template.spec.containers[].ports[].name || `[]` }}"
+            operator: AnyIn
+            value:
+              - http
+      validate:
+        failureAction: Audit
+        message: Long-running services should define readiness and liveness probes.
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - readinessProbe:
+                      {}
+                    livenessProbe:
+                      {}

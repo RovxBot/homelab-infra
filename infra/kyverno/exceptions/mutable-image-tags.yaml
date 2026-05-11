@@ -1,0 +1,32 @@
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: mutable-image-tags
+  namespace: kyverno
+spec:
+  exceptions:
+    - policyName: platform-pod-standards
+      ruleNames:
+        - require-digest-pinned-images
+  match:
+    any:
+      - resources:
+          namespaces:
+            - longhorn-system
+            - monitoring
+            - wireguard
+            - wotlk
+      - resources:
+          kinds:
+            - Deployment
+            - CronJob
+            - StatefulSet
+          names:
+            - cloudflared
+            - grimguzzler-registration
+            - homepage-assets
+            - pod-report
+          namespaces:
+            - cloudflared
+            - homepage
+            - wotlk
