@@ -192,7 +192,9 @@ jobs:
           file: ops/wotlk-images/Dockerfile
           target: db-import
           build-args: |
-            CAPPS_BUILD=none
+            # Playerbots test-staging wires AC_MODULES_LIST via the worldserver-side
+            # modules/scripts targets, so dbimport needs that build graph enabled.
+            CAPPS_BUILD=world-only
             CTOOLS_BUILD=db-only
             CWITH_WARNINGS=OFF
           cache-from: |
