@@ -25,6 +25,8 @@ spec:
     remediation:
       retries: 3
   values:
+    image:
+      registry: ghcr.io
     config:
       resourceFiltersExcludeNamespaces:
         - kyverno
@@ -34,12 +36,24 @@ spec:
         - kube-node-lease
     admissionController:
       replicas: 2
+      initContainer:
+        image:
+          registry: ghcr.io
+      container:
+        image:
+          registry: ghcr.io
     backgroundController:
       replicas: 1
+      image:
+        registry: ghcr.io
     cleanupController:
       replicas: 1
+      image:
+        registry: ghcr.io
     reportsController:
       replicas: 1
+      image:
+        registry: ghcr.io
     features:
       policyExceptions:
         enabled: true
