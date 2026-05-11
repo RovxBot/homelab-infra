@@ -123,7 +123,7 @@ jobs:
 
               name="$(basename "$repo" .git)"
               echo "Adding module: $repo@$ref -> modules/$name"
-              
+
               git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
             done < "${modules_file}"
           fi

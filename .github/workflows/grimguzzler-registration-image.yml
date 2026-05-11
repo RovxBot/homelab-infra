@@ -178,5 +178,5 @@ jobs:
               --base main \
               --head "${branch}" \
               --title "${title}" \
-              --body "${body}"
+            --body "${body}"
           fi

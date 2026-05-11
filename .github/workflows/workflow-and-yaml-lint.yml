@@ -1,0 +1,53 @@
+name: Workflow and YAML Lint
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".yamllint.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - ".yamllint.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-and-yaml-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint GitHub Actions workflows
+        uses: rhysd/actionlint@v1
+
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install yamllint
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet yamllint
+
+      - name: Lint YAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          yamllint -c .yamllint.yml .github/workflows
