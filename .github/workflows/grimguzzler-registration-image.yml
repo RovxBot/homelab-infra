@@ -51,15 +51,19 @@ jobs:
           ref_tag="$(echo "${ref}" | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
           repo_tag="$(echo "${repo}" | sed -E 's#^https?://##' | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
           repo_tag="${repo_tag,,}"
-          echo "UPSTREAM_REF=${ref}" >> "$GITHUB_ENV"
-          echo "UPSTREAM_REPO=${repo}" >> "$GITHUB_ENV"
-          echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
-          echo "REPO_TAG=${repo_tag}" >> "$GITHUB_ENV"
-          echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/grimguzzler-registration:buildcache-${repo_tag}-${ref_tag,,}" >> "$GITHUB_ENV"
-          echo "BUILD_CACHE_SCOPE=grimguzzler-registration-${repo_tag}-${ref_tag,,}" >> "$GITHUB_ENV"
-          echo "ref_tag=${ref_tag,,}" >> "$GITHUB_OUTPUT"
-          echo "build_cache_ref=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/grimguzzler-registration:buildcache-${repo_tag}-${ref_tag,,}" >> "$GITHUB_OUTPUT"
-          echo "build_cache_scope=grimguzzler-registration-${repo_tag}-${ref_tag,,}" >> "$GITHUB_OUTPUT"
+          {
+            echo "UPSTREAM_REF=${ref}"
+            echo "UPSTREAM_REPO=${repo}"
+            echo "REF_TAG=${ref_tag,,}"
+            echo "REPO_TAG=${repo_tag}"
+            echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/grimguzzler-registration:buildcache-${repo_tag}-${ref_tag,,}"
+            echo "BUILD_CACHE_SCOPE=grimguzzler-registration-${repo_tag}-${ref_tag,,}"
+          } >> "$GITHUB_ENV"
+          {
+            echo "ref_tag=${ref_tag,,}"
+            echo "build_cache_ref=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/grimguzzler-registration:buildcache-${repo_tag}-${ref_tag,,}"
+            echo "build_cache_scope=grimguzzler-registration-${repo_tag}-${ref_tag,,}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Prepare build context
         shell: bash
@@ -178,5 +182,5 @@ jobs:
               --base main \
               --head "${branch}" \
               --title "${title}" \
-              --body "${body}"
+            --body "${body}"
           fi

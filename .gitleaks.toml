@@ -1,0 +1,9 @@
+title = "homelab-infra gitleaks config"
+
+[allowlist]
+description = "Ignore encrypted SOPS payloads and generated Flux manifests."
+paths = [
+  '''^secrets/.*\.enc\.yaml$''',
+  '''^infra/wireguard/wireguard-client-conf\.enc\.yaml$''',
+  '''^clusters/.*/flux-system/gotk-components\.yaml$''',
+]

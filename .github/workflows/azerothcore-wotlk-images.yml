@@ -55,13 +55,17 @@ jobs:
           ref_tag="$(echo "${ref}" | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
           repo_tag="$(echo "${repo}" | sed -E 's#^https?://##' | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
           repo_tag="${repo_tag,,}"
-          echo "ACORE_REF=${ref}" >> "$GITHUB_ENV"
-          echo "ACORE_REPO=${repo}" >> "$GITHUB_ENV"
-          echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
-          echo "REPO_TAG=${repo_tag}" >> "$GITHUB_ENV"
-          echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/azerothcore-wotlk:buildcache-${repo_tag}-${ref_tag,,}" >> "$GITHUB_ENV"
-          echo "BUILD_CACHE_SCOPE=azerothcore-wotlk-${repo_tag}-${ref_tag,,}" >> "$GITHUB_ENV"
-          echo "ref_tag=${ref_tag,,}" >> "$GITHUB_OUTPUT"
+          {
+            echo "ACORE_REF=${ref}"
+            echo "ACORE_REPO=${repo}"
+            echo "REF_TAG=${ref_tag,,}"
+            echo "REPO_TAG=${repo_tag}"
+            echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/azerothcore-wotlk:buildcache-${repo_tag}-${ref_tag,,}"
+            echo "BUILD_CACHE_SCOPE=azerothcore-wotlk-${repo_tag}-${ref_tag,,}"
+          } >> "$GITHUB_ENV"
+          {
+            echo "ref_tag=${ref_tag,,}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Add swap space
         shell: bash
@@ -123,7 +127,7 @@ jobs:
 
               name="$(basename "$repo" .git)"
               echo "Adding module: $repo@$ref -> modules/$name"
-              
+
               git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
             done < "${modules_file}"
           fi

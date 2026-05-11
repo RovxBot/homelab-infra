@@ -1,0 +1,52 @@
+name: Terraform Validate
+
+on:
+  pull_request:
+    paths:
+      - "terraform/oci-free-tier/**"
+      - ".github/workflows/terraform-validate.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/oci-free-tier/**"
+      - ".github/workflows/terraform-validate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: terraform/oci-free-tier
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -diff -recursive
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Init TFLint
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --recursive

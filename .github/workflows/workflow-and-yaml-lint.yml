@@ -1,0 +1,75 @@
+name: Workflow and YAML Lint
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".yamllint.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - ".yamllint.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-and-yaml-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIONLINT_VERSION="1.7.8"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            -o /tmp/actionlint.tgz
+          tar -xzf /tmp/actionlint.tgz -C /tmp
+          sudo mv /tmp/actionlint /usr/local/bin/actionlint
+          actionlint -version
+
+      - name: Lint GitHub Actions workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          actionlint
+
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install yamllint
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet yamllint
+
+      - name: Lint YAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          yamllint -c .yamllint.yml .github/workflows
