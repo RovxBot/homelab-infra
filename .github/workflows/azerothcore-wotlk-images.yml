@@ -365,10 +365,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          tools_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
           world_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
 
-          docker run --rm --entrypoint bash "${tools_image}" -lc '
+          docker run --rm --entrypoint bash "${world_image}" -lc '
             set -euo pipefail
             for conf in \
               individualProgression.conf.dist \
@@ -436,7 +435,6 @@ jobs:
 
           if [[ "$scope" == "all" || "$scope" == "tools" ]]; then
             tools_tag="tools-${REF_TAG}-${IMAGE_SUFFIX}"
-            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/worldserver-deployment.yaml
             sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-cronjob.yaml
             sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-mmaps-cronjob.yaml
           fi
