@@ -1,0 +1,19 @@
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: wotlk-latest-tag
+  namespace: kyverno
+spec:
+  exceptions:
+    - policyName: platform-pod-standards
+      ruleNames:
+        - disallow-latest-tags
+  match:
+    any:
+      - resources:
+          kinds:
+            - CronJob
+          names:
+            - wotlk-weekly-restart
+          namespaces:
+            - wotlk

@@ -1,0 +1,17 @@
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: chart-managed-workloads
+  namespace: kyverno
+spec:
+  exceptions:
+    - policyName: platform-pod-standards
+      ruleNames:
+        - require-owner-label
+        - require-probes
+  match:
+    any:
+      - resources:
+          namespaces:
+            - longhorn-system
+            - monitoring
