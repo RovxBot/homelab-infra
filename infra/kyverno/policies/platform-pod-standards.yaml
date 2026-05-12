@@ -134,8 +134,8 @@ spec:
                   - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
                     operator: NotEquals
                     value: true
-                  - key: "{{ element.securityContext.allowPrivilegeEscalation || `true` }}"
-                    operator: NotEquals
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation == `false` }}"
+                    operator: Equals
                     value: false
                   - key: "{{ element.securityContext.privileged || `false` }}"
                     operator: NotEquals
@@ -153,8 +153,8 @@ spec:
                   - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
                     operator: NotEquals
                     value: true
-                  - key: "{{ element.securityContext.allowPrivilegeEscalation || `true` }}"
-                    operator: NotEquals
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation == `false` }}"
+                    operator: Equals
                     value: false
                   - key: "{{ element.securityContext.privileged || `false` }}"
                     operator: NotEquals
