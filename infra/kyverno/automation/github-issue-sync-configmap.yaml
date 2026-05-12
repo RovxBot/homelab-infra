@@ -81,6 +81,9 @@ data:
                 for result in report.get("results", []):
                     if result.get("result") != "fail":
                         continue
+                    policy = result.get("policy", "unknown-policy")
+                    if policy in IGNORED_POLICIES:
+                        continue
                     resource = (result.get("resources") or [{}])[0]
                     namespace = resource.get("namespace") or report_namespace or "cluster"
                     if EXCLUDE_NAMESPACE_RE and EXCLUDE_NAMESPACE_RE.match(namespace):
@@ -88,7 +91,6 @@ data:
                     observed_at = parse_result_time(result, report_created)
                     if observed_at is None or observed_at > CUTOFF:
                         continue
-                    policy = result.get("policy", "unknown-policy")
                     rule = result.get("rule", "unknown-rule")
                     kind = resource.get("kind", "Unknown")
                     name = resource.get("name", report_meta.get("name", "unknown-resource"))
@@ -222,6 +224,11 @@ data:
             kind.strip()
             for kind in os.getenv("IGNORED_SCOPE_KINDS", "Pod,ReplicaSet").split(",")
             if kind.strip()
+        }
+        IGNORED_POLICIES = {
+            policy.strip()
+            for policy in os.getenv("IGNORED_POLICIES", "platform-flux-guardrails").split(",")
+            if policy.strip()
         }
         EXCLUDE_NAMESPACES_RE = os.getenv(
             "EXCLUDE_NAMESPACES_RE",

@@ -24,6 +24,10 @@ spec:
       exclude:
         any:
           - resources:
+              kinds:
+                - PolicyReport
+                - ClusterPolicyReport
+          - resources:
               namespaces:
                 - flux-system
                 - kube-node-lease
