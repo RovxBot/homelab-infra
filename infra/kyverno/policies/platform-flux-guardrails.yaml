@@ -29,6 +29,8 @@ spec:
         any:
           - resources:
               kinds:
+                - Endpoints
+                - EndpointSlice
                 - PolicyReport
                 - ClusterPolicyReport
           - resources:
