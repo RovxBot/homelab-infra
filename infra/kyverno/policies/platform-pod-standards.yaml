@@ -131,7 +131,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.runAsNonRoot || `false` }}"
+                  - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
                     operator: NotEquals
                     value: true
                   - key: "{{ element.securityContext.allowPrivilegeEscalation || `true` }}"
@@ -150,7 +150,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.runAsNonRoot || `false` }}"
+                  - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
                     operator: NotEquals
                     value: true
                   - key: "{{ element.securityContext.allowPrivilegeEscalation || `true` }}"
