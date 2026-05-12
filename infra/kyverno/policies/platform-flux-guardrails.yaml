@@ -21,6 +21,10 @@ spec:
                 - CREATE
                 - UPDATE
                 - DELETE
+              selector:
+                matchExpressions:
+                  - key: kustomize.toolkit.fluxcd.io/name
+                    operator: Exists
       exclude:
         any:
           - resources:
@@ -34,11 +38,6 @@ spec:
                 - kube-public
                 - kube-system
                 - kyverno
-      preconditions:
-        all:
-          - key: "{{ request.object.metadata.labels.\"kustomize.toolkit.fluxcd.io/name\" || request.oldObject.metadata.labels.\"kustomize.toolkit.fluxcd.io/name\" || '' }}"
-            operator: NotEquals
-            value: ""
       validate:
         failureAction: Audit
         message: >-

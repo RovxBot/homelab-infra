@@ -23,16 +23,16 @@ data:
         return value.lower() in {"1", "true", "yes", "on"}
 
 
-    def api_get(url, headers=None):
+    def api_get(url, headers=None, ssl_context=None):
         request = urllib.request.Request(url, headers=headers or {})
-        with urllib.request.urlopen(request, context=SSL_CONTEXT, timeout=30) as response:
+        with urllib.request.urlopen(request, context=ssl_context or DEFAULT_SSL_CONTEXT, timeout=30) as response:
             return json.load(response)
 
 
-    def api_request(url, method="GET", payload=None, headers=None):
+    def api_request(url, method="GET", payload=None, headers=None, ssl_context=None):
         body = None if payload is None else json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(url, data=body, method=method, headers=headers or {})
-        with urllib.request.urlopen(request, context=SSL_CONTEXT, timeout=30) as response:
+        with urllib.request.urlopen(request, context=ssl_context or DEFAULT_SSL_CONTEXT, timeout=30) as response:
             if response.length == 0:
                 return None
             return json.load(response)
@@ -60,7 +60,7 @@ data:
 
     def list_kubernetes_resource(path):
         url = f"{KUBE_API}{path}"
-        return api_get(url, headers=KUBE_HEADERS)
+        return api_get(url, headers=KUBE_HEADERS, ssl_context=KUBE_SSL_CONTEXT)
 
 
     def load_failures():
@@ -210,7 +210,8 @@ data:
         with open(f"{SERVICEACCOUNT_DIR}/ca.crt", "rb") as handle:
             CA_FILE = handle.name
 
-        SSL_CONTEXT = ssl.create_default_context(cafile=CA_FILE)
+        KUBE_SSL_CONTEXT = ssl.create_default_context(cafile=CA_FILE)
+        DEFAULT_SSL_CONTEXT = ssl.create_default_context()
         KUBE_API = f"https://{os.environ['KUBERNETES_SERVICE_HOST']}:{os.environ['KUBERNETES_SERVICE_PORT_HTTPS']}"
         KUBE_HEADERS = {"Authorization": f"Bearer {TOKEN}", "Accept": "application/json"}
         GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
