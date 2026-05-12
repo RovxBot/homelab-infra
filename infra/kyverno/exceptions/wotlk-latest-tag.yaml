@@ -1,8 +1,14 @@
-apiVersion: kyverno.io/v2beta1
+apiVersion: kyverno.io/v2
 kind: PolicyException
 metadata:
   name: wotlk-latest-tag
   namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: The weekly WotLK restart job intentionally tracks the latest built image tag.
+    kyverno.cooked.beer/expires-at: "2026-08-31"
+    github.cooked.beer/issue-create: "true"
 spec:
   exceptions:
     - policyName: platform-pod-standards

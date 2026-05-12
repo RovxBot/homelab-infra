@@ -1,0 +1,232 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyverno-github-issue-sync
+  namespace: kyverno
+data:
+  sync.py: |
+    import json
+    import os
+    import re
+    import ssl
+    import sys
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    from datetime import datetime, timedelta, timezone
+
+
+    def env_bool(name, default=False):
+        value = os.getenv(name)
+        if value is None:
+            return default
+        return value.lower() in {"1", "true", "yes", "on"}
+
+
+    def api_get(url, headers=None):
+        request = urllib.request.Request(url, headers=headers or {})
+        with urllib.request.urlopen(request, context=SSL_CONTEXT, timeout=30) as response:
+            return json.load(response)
+
+
+    def api_request(url, method="GET", payload=None, headers=None):
+        body = None if payload is None else json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(url, data=body, method=method, headers=headers or {})
+        with urllib.request.urlopen(request, context=SSL_CONTEXT, timeout=30) as response:
+            if response.length == 0:
+                return None
+            return json.load(response)
+
+
+    def parse_result_time(result, fallback):
+        timestamp = result.get("timestamp")
+        if isinstance(timestamp, dict):
+            seconds = timestamp.get("seconds")
+            if seconds is not None:
+                return datetime.fromtimestamp(int(seconds), timezone.utc)
+        for candidate in (
+            result.get("timestamp"),
+            result.get("timestamp", {}).get("nanos") if isinstance(result.get("timestamp"), dict) else None,
+            fallback,
+        ):
+            if isinstance(candidate, str) and candidate:
+                normalized = candidate.replace("Z", "+00:00")
+                try:
+                    return datetime.fromisoformat(normalized)
+                except ValueError:
+                    pass
+        return None
+
+
+    def list_kubernetes_resource(path):
+        url = f"{KUBE_API}{path}"
+        return api_get(url, headers=KUBE_HEADERS)
+
+
+    def load_failures():
+        failures = {}
+        for path in (
+            "/apis/wgpolicyk8s.io/v1alpha2/clusterpolicyreports",
+            "/apis/wgpolicyk8s.io/v1alpha2/policyreports",
+        ):
+            response = list_kubernetes_resource(path)
+            for report in response.get("items", []):
+                report_meta = report.get("metadata", {})
+                report_namespace = report_meta.get("namespace", "")
+                report_scope = report.get("scope") or {}
+                report_scope_kind = report_scope.get("kind", "")
+                report_created = report_meta.get("creationTimestamp")
+                if report_scope_kind in IGNORED_SCOPE_KINDS:
+                    continue
+                for result in report.get("results", []):
+                    if result.get("result") != "fail":
+                        continue
+                    resource = (result.get("resources") or [{}])[0]
+                    namespace = resource.get("namespace") or report_namespace or "cluster"
+                    if EXCLUDE_NAMESPACE_RE and EXCLUDE_NAMESPACE_RE.match(namespace):
+                        continue
+                    observed_at = parse_result_time(result, report_created)
+                    if observed_at is None or observed_at > CUTOFF:
+                        continue
+                    policy = result.get("policy", "unknown-policy")
+                    rule = result.get("rule", "unknown-rule")
+                    kind = resource.get("kind", "Unknown")
+                    name = resource.get("name", report_meta.get("name", "unknown-resource"))
+                    key = (policy, rule, kind, namespace, name)
+                    failures[key] = {
+                        "policy": policy,
+                        "rule": rule,
+                        "kind": kind,
+                        "namespace": namespace,
+                        "name": name,
+                        "message": result.get("message", "Kyverno reported a persistent policy failure."),
+                        "observed_at": observed_at.isoformat(),
+                    }
+        return failures
+
+
+    def github_headers():
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "kyverno-github-issue-sync",
+        }
+        if GITHUB_TOKEN:
+            headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+        return headers
+
+
+    def list_open_issues():
+        if not GITHUB_OWNER or not GITHUB_REPO or not GITHUB_TOKEN:
+            return {}
+        query = urllib.parse.urlencode({"state": "open", "labels": ISSUE_LABEL, "per_page": 100})
+        url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/issues?{query}"
+        issues = api_get(url, headers=github_headers())
+        return {issue.get("title", ""): issue for issue in issues if title_prefix(issue.get("title", ""))}
+
+
+    def title_prefix(title):
+        return title.startswith(ISSUE_TITLE_PREFIX)
+
+
+    def issue_title(failure):
+        return (
+            f"{ISSUE_TITLE_PREFIX}{failure['policy']}/{failure['rule']} on "
+            f"{failure['kind']} {failure['namespace']}/{failure['name']}"
+        )
+
+
+    def issue_body(failure):
+        summary = {
+            "policy": failure["policy"],
+            "rule": failure["rule"],
+            "kind": failure["kind"],
+            "namespace": failure["namespace"],
+            "name": failure["name"],
+            "observedAt": failure["observed_at"],
+        }
+        return "\n".join(
+            [
+                "## Persistent Kyverno failure",
+                "",
+                failure["message"],
+                "",
+                "```json",
+                json.dumps(summary, indent=2, sort_keys=True),
+                "```",
+                "",
+                "This issue was created by the suspended-by-default Kyverno issue sync job once the failure aged past the persistence threshold.",
+            ]
+        )
+
+
+    def create_issue(failure):
+        title = issue_title(failure)
+        payload = {
+            "title": title,
+            "body": issue_body(failure),
+            "labels": [ISSUE_LABEL],
+        }
+        url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/issues"
+        return api_request(url, method="POST", payload=payload, headers=github_headers())
+
+
+    def close_issue(issue):
+        url = issue.get("url")
+        if not url:
+            return None
+        return api_request(url, method="PATCH", payload={"state": "closed"}, headers=github_headers())
+
+
+    def main():
+        failures = load_failures()
+        desired_titles = {issue_title(failure): failure for failure in failures.values()}
+        if not GITHUB_OWNER or not GITHUB_REPO or not GITHUB_TOKEN:
+            print(json.dumps({"mode": "dry-run", "reason": "missing GitHub config", "failures": list(desired_titles)}, indent=2))
+            return 0
+
+        existing = list_open_issues()
+        creates = [title for title in desired_titles if title not in existing]
+        closes = [title for title in existing if title_prefix(title) and title not in desired_titles]
+
+        if DRY_RUN:
+            print(json.dumps({"mode": "dry-run", "create": creates, "close": closes}, indent=2))
+            return 0
+
+        for title in creates:
+            create_issue(desired_titles[title])
+        for title in closes:
+            close_issue(existing[title])
+        print(json.dumps({"mode": "apply", "created": creates, "closed": closes}, indent=2))
+        return 0
+
+
+    if __name__ == "__main__":
+        SERVICEACCOUNT_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
+        with open(f"{SERVICEACCOUNT_DIR}/token", "r", encoding="utf-8") as handle:
+            TOKEN = handle.read().strip()
+        with open(f"{SERVICEACCOUNT_DIR}/ca.crt", "rb") as handle:
+            CA_FILE = handle.name
+
+        SSL_CONTEXT = ssl.create_default_context(cafile=CA_FILE)
+        KUBE_API = f"https://{os.environ['KUBERNETES_SERVICE_HOST']}:{os.environ['KUBERNETES_SERVICE_PORT_HTTPS']}"
+        KUBE_HEADERS = {"Authorization": f"Bearer {TOKEN}", "Accept": "application/json"}
+        GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+        GITHUB_OWNER = os.getenv("GITHUB_OWNER", "")
+        GITHUB_REPO = os.getenv("GITHUB_REPO", "homelab-infra")
+        ISSUE_LABEL = os.getenv("ISSUE_LABEL", "kyverno-policy")
+        ISSUE_TITLE_PREFIX = os.getenv("ISSUE_TITLE_PREFIX", "[kyverno] ")
+        DRY_RUN = env_bool("DRY_RUN", True)
+        PERSIST_FOR_HOURS = int(os.getenv("PERSIST_FOR_HOURS", "24"))
+        IGNORED_SCOPE_KINDS = {
+            kind.strip()
+            for kind in os.getenv("IGNORED_SCOPE_KINDS", "Pod,ReplicaSet").split(",")
+            if kind.strip()
+        }
+        EXCLUDE_NAMESPACES_RE = os.getenv(
+            "EXCLUDE_NAMESPACES_RE",
+            r"^(azure-arc.*|flux-system|kube-.*|kyverno|sops)$",
+        )
+        EXCLUDE_NAMESPACE_RE = re.compile(EXCLUDE_NAMESPACES_RE) if EXCLUDE_NAMESPACES_RE else None
+        CUTOFF = datetime.now(timezone.utc) - timedelta(hours=PERSIST_FOR_HOURS)
+        sys.exit(main())

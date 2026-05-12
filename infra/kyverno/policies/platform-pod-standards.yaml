@@ -16,7 +16,11 @@ spec:
         any:
           - resources:
               kinds:
-                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
       exclude:
         any:
           - resources:
@@ -28,17 +32,30 @@ spec:
                 - kyverno
       validate:
         failureAction: Audit
-        message: Pods must carry the homelab owner label.
-        pattern:
-          metadata:
-            labels:
-              homelab.cooked.beer/owner: "?*"
+        message: Workload pod templates must carry the homelab owner label.
+        anyPattern:
+          - spec:
+              template:
+                metadata:
+                  labels:
+                    homelab.cooked.beer/owner: "?*"
+          - spec:
+              jobTemplate:
+                spec:
+                  template:
+                    metadata:
+                      labels:
+                        homelab.cooked.beer/owner: "?*"
     - name: require-requests-and-limits
       match:
         any:
           - resources:
               kinds:
-                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
       exclude:
         any:
           - resources:
@@ -50,23 +67,50 @@ spec:
                 - kyverno
       validate:
         failureAction: Audit
-        message: Containers must define CPU and memory requests and limits.
-        pattern:
-          spec:
-            containers:
-              - resources:
-                  requests:
-                    cpu: "?*"
-                    memory: "?*"
-                  limits:
-                    cpu: "?*"
-                    memory: "?*"
+        message: Containers in workload pod templates must define CPU and memory requests and limits.
+        foreach:
+          - list: "request.object.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.requests.memory || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
+          - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.requests.memory || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
     - name: require-runtime-hardening
       match:
         any:
           - resources:
               kinds:
-                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
       exclude:
         any:
           - resources:
@@ -83,7 +127,7 @@ spec:
           drop all capabilities, avoid privileged mode, and use RuntimeDefault
           seccomp.
         foreach:
-          - list: "request.object.spec.containers[]"
+          - list: "request.object.spec.template.spec.containers[]"
             deny:
               conditions:
                 any:
@@ -99,7 +143,26 @@ spec:
                   - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
                     operator: NotEquals
                     value: true
-                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.securityContext.seccompProfile.type || '' }}"
+                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.template.spec.securityContext.seccompProfile.type || '' }}"
+                    operator: NotEquals
+                    value: RuntimeDefault
+          - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.runAsNonRoot || `false` }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || `true` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ element.securityContext.privileged || `false` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.jobTemplate.spec.template.spec.securityContext.seccompProfile.type || '' }}"
                     operator: NotEquals
                     value: RuntimeDefault
     - name: disallow-host-network
@@ -107,7 +170,11 @@ spec:
         any:
           - resources:
               kinds:
-                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
       exclude:
         any:
           - resources:
@@ -120,18 +187,27 @@ spec:
       validate:
         failureAction: Audit
         message: hostNetwork should only be used via an explicit exception.
-        deny:
-          conditions:
-            any:
-              - key: "{{ request.object.spec.hostNetwork || `false` }}"
-                operator: Equals
-                value: true
+        anyPattern:
+          - spec:
+              template:
+                spec:
+                  =(hostNetwork): false
+          - spec:
+              jobTemplate:
+                spec:
+                  template:
+                    spec:
+                      =(hostNetwork): false
     - name: require-digest-pinned-images
       match:
         any:
           - resources:
               kinds:
-                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
       exclude:
         any:
           - resources:
@@ -143,17 +219,32 @@ spec:
                 - kyverno
       validate:
         failureAction: Audit
-        message: Container images should be pinned by digest.
-        pattern:
-          spec:
-            containers:
-              - image: "*@sha256:*"
+        message: Container images in workload pod templates should be pinned by digest.
+        foreach:
+          - list: "request.object.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ contains(element.image || '', '@sha256:') }}"
+                    operator: Equals
+                    value: false
+          - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ contains(element.image || '', '@sha256:') }}"
+                    operator: Equals
+                    value: false
     - name: disallow-latest-tags
       match:
         any:
           - resources:
               kinds:
-                - Pod
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
       exclude:
         any:
           - resources:
@@ -167,11 +258,18 @@ spec:
         failureAction: Audit
         message: latest tags are not allowed without an explicit exception.
         foreach:
-          - list: "request.object.spec.containers[]"
+          - list: "request.object.spec.template.spec.containers[]"
             deny:
               conditions:
                 any:
-                  - key: "{{ contains(element.image, ':latest') }}"
+                  - key: "{{ contains(element.image || '', ':latest') }}"
+                    operator: Equals
+                    value: true
+          - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ contains(element.image || '', ':latest') }}"
                     operator: Equals
                     value: true
     - name: require-probes
@@ -181,6 +279,7 @@ spec:
               kinds:
                 - Deployment
                 - StatefulSet
+                - DaemonSet
       exclude:
         any:
           - resources:
@@ -190,21 +289,18 @@ spec:
                 - kube-public
                 - kube-system
                 - kyverno
-      preconditions:
-        all:
-          - key: "{{ request.object.spec.template.spec.containers[].ports[].name || `[]` }}"
-            operator: AnyIn
-            value:
-              - http
       validate:
         failureAction: Audit
-        message: Long-running services should define readiness and liveness probes.
-        pattern:
-          spec:
-            template:
-              spec:
-                containers:
-                  - readinessProbe:
-                      {}
-                    livenessProbe:
-                      {}
+        message: Containers that expose ports should define readiness and liveness probes.
+        foreach:
+          - list: "request.object.spec.template.spec.containers[]"
+            preconditions:
+              all:
+                - key: "{{ length(element.ports || `[]`) }}"
+                  operator: GreaterThanOrEquals
+                  value: 1
+            pattern:
+              readinessProbe:
+                {}
+              livenessProbe:
+                {}

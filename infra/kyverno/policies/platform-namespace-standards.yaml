@@ -21,12 +21,16 @@ spec:
         any:
           - resources:
               names:
+                - azure-arc
+                - azure-arc-auth
+                - azure-arc-release
                 - default
                 - kube-node-lease
                 - kube-public
                 - kube-system
+                - sops
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: >-
           Namespaces must declare PSA labels and an explicit owner label.
         pattern:

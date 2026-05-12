@@ -1,0 +1,125 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: platform-namespace-bootstrap
+  annotations:
+    policies.kyverno.io/title: Platform Namespace Bootstrap
+    policies.kyverno.io/category: Operations
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/subject: Namespace
+spec:
+  background: true
+  emitWarning: true
+  rules:
+    - name: generate-default-limitrange
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              selector:
+                matchLabels:
+                  homelab.cooked.beer/bootstrap: enabled
+      exclude:
+        any:
+          - resources:
+              names:
+                - default
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      generate:
+        synchronize: true
+        apiVersion: v1
+        kind: LimitRange
+        name: default-container-limits
+        namespace: "{{ request.object.metadata.name }}"
+        data:
+          metadata:
+            labels:
+              app.kubernetes.io/managed-by: kyverno
+              homelab.cooked.beer/bootstrap: enabled
+          spec:
+            limits:
+              - type: Container
+                defaultRequest:
+                  cpu: 100m
+                  memory: 128Mi
+                default:
+                  cpu: 500m
+                  memory: 512Mi
+    - name: generate-default-resourcequota
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              selector:
+                matchLabels:
+                  homelab.cooked.beer/bootstrap: enabled
+      exclude:
+        any:
+          - resources:
+              names:
+                - default
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      generate:
+        synchronize: true
+        apiVersion: v1
+        kind: ResourceQuota
+        name: namespace-defaults
+        namespace: "{{ request.object.metadata.name }}"
+        data:
+          metadata:
+            labels:
+              app.kubernetes.io/managed-by: kyverno
+              homelab.cooked.beer/bootstrap: enabled
+          spec:
+            hard:
+              pods: "20"
+              persistentvolumeclaims: "10"
+              requests.cpu: "4"
+              requests.memory: 8Gi
+              limits.cpu: "8"
+              limits.memory: 16Gi
+    - name: generate-default-networkpolicy
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              selector:
+                matchLabels:
+                  homelab.cooked.beer/bootstrap: enabled
+      exclude:
+        any:
+          - resources:
+              names:
+                - default
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      generate:
+        synchronize: true
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: default-deny
+        namespace: "{{ request.object.metadata.name }}"
+        data:
+          metadata:
+            labels:
+              app.kubernetes.io/managed-by: kyverno
+              homelab.cooked.beer/bootstrap: enabled
+          spec:
+            podSelector: {}
+            policyTypes:
+              - Ingress
+              - Egress

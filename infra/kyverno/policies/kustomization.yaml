@@ -3,3 +3,6 @@ kind: Kustomization
 resources:
   - platform-namespace-standards.yaml
   - platform-pod-standards.yaml
+  - policy-exception-accountability.yaml
+  - platform-flux-guardrails.yaml
+  - platform-namespace-bootstrap.yaml

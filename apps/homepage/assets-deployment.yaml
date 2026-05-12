@@ -19,13 +19,22 @@ spec:
         app: homepage-assets
     spec:
       serviceAccountName: homepage
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: sync-assets
           image: bitnami/kubectl@sha256:a8373525af6a362dd256fd70ddd2492c6ac273eb745942dd0a22d318869269ee
           imagePullPolicy: IfNotPresent
           securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
             runAsUser: 0
             runAsGroup: 0
+            seccompProfile:
+              type: RuntimeDefault
           command:
             - sh
             - -c
@@ -77,6 +86,17 @@ spec:
         - name: nginx
           image: nginxinc/nginx-unprivileged:1.30-alpine@sha256:808f7846d21a9c94cf53833e8807a00a33fd0b65cc47fb05b79efe366c2d201f
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 8080
               name: http

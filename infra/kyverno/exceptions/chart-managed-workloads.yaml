@@ -1,8 +1,14 @@
-apiVersion: kyverno.io/v2beta1
+apiVersion: kyverno.io/v2
 kind: PolicyException
 metadata:
   name: chart-managed-workloads
   namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: Helm-managed platform namespaces do not expose consistent workload owner labels or service probes.
+    kyverno.cooked.beer/expires-at: "2026-08-31"
+    github.cooked.beer/issue-create: "true"
 spec:
   exceptions:
     - policyName: platform-pod-standards
