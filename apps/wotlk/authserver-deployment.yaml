@@ -54,12 +54,27 @@ spec:
             - -lc
             - |
               set -eu
-              apk add --no-cache gettext >/dev/null
+              escape_sed_replacement() {
+                printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+              }
+
+              db_host="$(escape_sed_replacement "$DB_HOST")"
+              db_port="$(escape_sed_replacement "$DB_PORT")"
+              db_auth_db="$(escape_sed_replacement "$DB_AUTH_DB")"
+              db_user="$(escape_sed_replacement "$DB_USER")"
+              db_password="$(escape_sed_replacement "$DB_PASSWORD")"
+
               mkdir -p /etc-out
-              envsubst < /etc-tpl/authserver.conf > /etc-out/authserver.conf
+              sed \
+                -e "s|\${DB_HOST}|${db_host}|g" \
+                -e "s|\${DB_PORT}|${db_port}|g" \
+                -e "s|\${DB_AUTH_DB}|${db_auth_db}|g" \
+                -e "s|\${DB_USER}|${db_user}|g" \
+                -e "s|\${DB_PASSWORD}|${db_password}|g" \
+                /etc-tpl/authserver.conf > /etc-out/authserver.conf
           env:
             - name: DB_HOST
-              value: wotlk-mariadb.wotlk.svc.cluster.local
+              value: wotlk-mariadb-headless.wotlk.svc.cluster.local
             - name: DB_PORT
               value: "3306"
             - name: DB_AUTH_DB

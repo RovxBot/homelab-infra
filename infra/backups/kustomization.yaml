@@ -6,5 +6,4 @@ labels:
     pairs:
       homelab.cooked.beer/owner: sam
 resources:
-  - restic-cache-pvc.yaml
   - restic-immich-photos.yaml

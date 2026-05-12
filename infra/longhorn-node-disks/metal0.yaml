@@ -1,0 +1,12 @@
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: metal0
+  namespace: longhorn-system
+spec:
+  disks:
+    default-disk-081400000000:
+      allowScheduling: true
+      diskType: filesystem
+      path: /var/lib/longhorn/
+      storageReserved: 89284048896

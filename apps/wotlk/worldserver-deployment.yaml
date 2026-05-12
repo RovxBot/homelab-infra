@@ -87,22 +87,54 @@ spec:
             - -lc
             - |
               set -eu
-              apk add --no-cache gettext >/dev/null
+              escape_sed_replacement() {
+                printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+              }
+
+              db_host="$(escape_sed_replacement "$DB_HOST")"
+              db_port="$(escape_sed_replacement "$DB_PORT")"
+              db_auth_db="$(escape_sed_replacement "$DB_AUTH_DB")"
+              db_world_db="$(escape_sed_replacement "$DB_WORLD_DB")"
+              db_char_db="$(escape_sed_replacement "$DB_CHAR_DB")"
+              data_dir="$(escape_sed_replacement "$DATA_DIR")"
+              db_user="$(escape_sed_replacement "$DB_USER")"
+              db_password="$(escape_sed_replacement "$DB_PASSWORD")"
+              soap_username="$(escape_sed_replacement "$SOAP_USERNAME")"
+              soap_password="$(escape_sed_replacement "$SOAP_PASSWORD")"
+
+              render_file() {
+                src="$1"
+                dst="$2"
+
+                sed \
+                  -e "s|\${DB_HOST}|${db_host}|g" \
+                  -e "s|\${DB_PORT}|${db_port}|g" \
+                  -e "s|\${DB_AUTH_DB}|${db_auth_db}|g" \
+                  -e "s|\${DB_WORLD_DB}|${db_world_db}|g" \
+                  -e "s|\${DB_CHAR_DB}|${db_char_db}|g" \
+                  -e "s|\${DATA_DIR}|${data_dir}|g" \
+                  -e "s|\${DB_USER}|${db_user}|g" \
+                  -e "s|\${DB_PASSWORD}|${db_password}|g" \
+                  -e "s|\${SOAP_USERNAME}|${soap_username}|g" \
+                  -e "s|\${SOAP_PASSWORD}|${soap_password}|g" \
+                  "$src" > "$dst"
+              }
+
               mkdir -p /etc-out/modules
-              envsubst < /etc-tpl/worldserver.conf > /etc-out/worldserver.conf
-              envsubst < /etc-tpl/playerbots.conf > /etc-out/modules/playerbots.conf
-              envsubst < /etc-tpl/mod_ahbot.conf > /etc-out/modules/mod_ahbot.conf
-              envsubst < /etc-tpl/individualProgression.conf > /etc-out/modules/individualProgression.conf
-              envsubst < /etc-tpl/transmog.conf > /etc-out/modules/transmog.conf
-              envsubst < /etc-tpl/mod-double-xp-weekend.conf > /etc-out/modules/mod-double-xp-weekend.conf
-              envsubst < /etc-tpl/mod_customnpcs.conf > /etc-out/modules/mod_customnpcs.conf
-              envsubst < /etc-tpl/mod_grimtokendailies.conf > /etc-out/modules/mod_grimtokendailies.conf
-              envsubst < /etc-tpl/mod_guildfunds.conf > /etc-out/modules/mod_guildfunds.conf
-              envsubst < /etc-tpl/mod_player_bot_level_brackets.conf > /etc-out/modules/mod_player_bot_level_brackets.conf
+              render_file /etc-tpl/worldserver.conf /etc-out/worldserver.conf
+              render_file /etc-tpl/playerbots.conf /etc-out/modules/playerbots.conf
+              render_file /etc-tpl/mod_ahbot.conf /etc-out/modules/mod_ahbot.conf
+              render_file /etc-tpl/individualProgression.conf /etc-out/modules/individualProgression.conf
+              render_file /etc-tpl/transmog.conf /etc-out/modules/transmog.conf
+              render_file /etc-tpl/mod-double-xp-weekend.conf /etc-out/modules/mod-double-xp-weekend.conf
+              render_file /etc-tpl/mod_customnpcs.conf /etc-out/modules/mod_customnpcs.conf
+              render_file /etc-tpl/mod_grimtokendailies.conf /etc-out/modules/mod_grimtokendailies.conf
+              render_file /etc-tpl/mod_guildfunds.conf /etc-out/modules/mod_guildfunds.conf
+              render_file /etc-tpl/mod_player_bot_level_brackets.conf /etc-out/modules/mod_player_bot_level_brackets.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
-              value: wotlk-mariadb.wotlk.svc.cluster.local
+              value: wotlk-mariadb-headless.wotlk.svc.cluster.local
             - name: DB_PORT
               value: "3306"
             - name: DB_AUTH_DB
@@ -185,7 +217,7 @@ spec:
             - name: AC_SOURCE_DIRECTORY
               value: /acore-src
             - name: DB_HOST
-              value: wotlk-mariadb.wotlk.svc.cluster.local
+              value: wotlk-mariadb-headless.wotlk.svc.cluster.local
             - name: DB_PORT
               value: "3306"
             - name: DB_USER

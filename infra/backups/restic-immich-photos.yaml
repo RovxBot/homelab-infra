@@ -62,8 +62,7 @@ spec:
               persistentVolumeClaim:
                 claimName: nfs-immich-uploads
             - name: cache
-              persistentVolumeClaim:
-                claimName: restic-cache
+              emptyDir: {}
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -122,5 +121,4 @@ spec:
                   mountPath: /cache
           volumes:
             - name: cache
-              persistentVolumeClaim:
-                claimName: restic-cache
+              emptyDir: {}
