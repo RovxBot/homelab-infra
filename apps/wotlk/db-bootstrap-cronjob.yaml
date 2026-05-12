@@ -88,8 +88,8 @@ spec:
                   value: "grim.cooked.beer"
                 - name: REALM_LOCAL_ADDRESS
                   # Local address for clients on the "local subnet".
-                  # Keep it the same as REALM_ADDRESS for consistent client config.
-                  value: "grim.cooked.beer"
+                  # Authserver must be able to resolve this locally; use the metal7 LAN IP.
+                  value: "192.168.1.197"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT
