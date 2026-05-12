@@ -63,6 +63,7 @@ spec:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
           volumeMounts:
             - name: config
               mountPath: /etc/cloudflared/config.yaml
