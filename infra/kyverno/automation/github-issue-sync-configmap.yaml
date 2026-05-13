@@ -85,15 +85,22 @@ data:
                     if policy in IGNORED_POLICIES:
                         continue
                     resource = (result.get("resources") or [{}])[0]
-                    namespace = resource.get("namespace") or report_namespace or "cluster"
+                    kind = resource.get("kind") or report_scope.get("kind") or "Unknown"
+                    name = resource.get("name") or report_scope.get("name") or report_meta.get("name", "unknown-resource")
+                    namespace = (
+                        resource.get("namespace")
+                        or report_scope.get("namespace")
+                        or report_namespace
+                        or "cluster"
+                    )
+                    if kind == "Namespace" and EXCLUDE_NAMESPACE_RE and EXCLUDE_NAMESPACE_RE.match(name):
+                        continue
                     if EXCLUDE_NAMESPACE_RE and EXCLUDE_NAMESPACE_RE.match(namespace):
                         continue
                     observed_at = parse_result_time(result, report_created)
                     if observed_at is None or observed_at > CUTOFF:
                         continue
                     rule = result.get("rule", "unknown-rule")
-                    kind = resource.get("kind", "Unknown")
-                    name = resource.get("name", report_meta.get("name", "unknown-resource"))
                     key = (policy, rule, kind, namespace, name)
                     failures[key] = {
                         "policy": policy,
@@ -157,7 +164,7 @@ data:
                 json.dumps(summary, indent=2, sort_keys=True),
                 "```",
                 "",
-                "This issue was created by the suspended-by-default Kyverno issue sync job once the failure aged past the persistence threshold.",
+                "This issue was created automatically after the failure remained present past the configured persistence threshold.",
             ]
         )
 

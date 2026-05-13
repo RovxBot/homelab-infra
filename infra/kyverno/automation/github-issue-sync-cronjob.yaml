@@ -28,7 +28,7 @@ spec:
                 - /opt/kyverno-github-issue-sync/sync.py
               env:
                 - name: DRY_RUN
-                  value: "true"
+                  value: "false"
                 - name: PERSIST_FOR_HOURS
                   value: "24"
                 - name: PYTHONDONTWRITEBYTECODE
@@ -42,7 +42,7 @@ spec:
                 - name: ISSUE_TITLE_PREFIX
                   value: "[kyverno] "
                 - name: IGNORED_SCOPE_KINDS
-                  value: Pod,ReplicaSet
+                  value: Pod,ReplicaSet,Job
                 - name: IGNORED_POLICIES
                   value: platform-flux-guardrails
                 - name: EXCLUDE_NAMESPACES_RE

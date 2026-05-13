@@ -32,6 +32,35 @@ This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux a
 2. Commit + push to `main`.
 3. Flux reconciles and applies changes automatically.
 
+## Policy enforcement
+
+- `Repo Checks` renders the Flux-managed manifests, validates them with `kubeconform`, checks unresolved secret references, and runs the Kyverno baseline gate before merge.
+- The Kyverno gate compares rendered repo-managed resources against the policies in `infra/kyverno/policies` and the accepted debt baseline in `.github/kyverno-baseline.yaml`.
+- New policy failures break CI. Resolved baseline entries also break CI until they are removed from `.github/kyverno-baseline.yaml`.
+- Persistent live-cluster policy failures are mirrored into GitHub issues by `infra/kyverno/automation/github-issue-sync-cronjob.yaml` once they remain present past the configured threshold.
+
+To intentionally refresh the accepted baseline after review:
+
+```bash
+python3 scripts/ci/kyverno_gate.py generate-baseline \
+  --repo-root . \
+  --cluster-root clusters/home \
+  --baseline .github/kyverno-baseline.yaml \
+  --kyverno-bin /path/to/kyverno \
+  --work-dir .work/kyverno-gate
+```
+
+To verify the gate locally without changing the baseline:
+
+```bash
+python3 scripts/ci/kyverno_gate.py check \
+  --repo-root . \
+  --cluster-root clusters/home \
+  --baseline .github/kyverno-baseline.yaml \
+  --kyverno-bin /path/to/kyverno \
+  --work-dir .work/kyverno-gate
+```
+
 Manual reconcile examples:
 
 ```bash
