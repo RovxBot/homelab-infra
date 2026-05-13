@@ -58,6 +58,16 @@ jobs:
           sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           kubeconform -v
 
+      - name: Install Kyverno CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          KYVERNO_VERSION="1.15.2"
+          curl -fsSL "https://github.com/kyverno/kyverno/releases/download/v${KYVERNO_VERSION}/kyverno-cli_v${KYVERNO_VERSION}_linux_x86_64.tar.gz" -o /tmp/kyverno.tgz
+          tar -xzf /tmp/kyverno.tgz -C /tmp kyverno
+          sudo mv /tmp/kyverno /usr/local/bin/kyverno
+          kyverno version
+
       - name: Validate rendered manifests
         shell: bash
         run: |
@@ -70,3 +80,21 @@ jobs:
           set -euo pipefail
           python3 -m pip install --quiet pyyaml
           python3 scripts/ci/check_secret_refs.py .work/rendered.yaml
+
+      - name: Run Kyverno baseline gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/kyverno_gate.py check \
+            --repo-root . \
+            --cluster-root clusters/home \
+            --baseline .github/kyverno-baseline.yaml \
+            --kyverno-bin /usr/local/bin/kyverno \
+            --work-dir .work/kyverno-gate
+
+      - name: Upload Kyverno gate artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyverno-gate-artifacts
+          path: .work/kyverno-gate
