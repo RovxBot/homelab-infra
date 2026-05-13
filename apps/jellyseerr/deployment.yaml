@@ -27,6 +27,8 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
+              add:
+                - CHOWN
               drop:
                 - ALL
             runAsUser: 0
