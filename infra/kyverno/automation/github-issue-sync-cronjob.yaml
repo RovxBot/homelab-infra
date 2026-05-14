@@ -21,7 +21,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: sync
-              image: python:3.13-alpine
+              image: python:3.14-alpine@sha256:a3de013592ea520507c1f18d880592338bd21abfe706237e68ed4126e21b6900
               imagePullPolicy: IfNotPresent
               command:
                 - python
