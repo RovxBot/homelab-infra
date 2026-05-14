@@ -2,9 +2,6 @@ name: Workflow and YAML Lint
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/**"
-      - ".yamllint.yml"
   push:
     branches:
       - main
@@ -25,8 +22,44 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect workflow changes
+        id: changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git fetch --no-tags origin "$BASE_REF"
+            range="$(git merge-base HEAD "origin/$BASE_REF")...HEAD"
+          elif [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            range="$BEFORE_SHA...HEAD"
+          else
+            range="$(git rev-list --max-parents=0 HEAD | tail -n 1)...HEAD"
+          fi
+
+          changed_files="$(git diff --name-only "$range")"
+          printf 'Changed files in %s:\n%s\n' "$range" "$changed_files"
+
+          if echo "$changed_files" | grep -Eq '(^\.github/workflows/|^\.yamllint\.yml$)'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip when workflow files are unchanged
+        if: steps.changes.outputs.should_run != 'true'
+        shell: bash
+        run: echo "No workflow or yamllint config changes detected; actionlint is not needed."
 
       - name: Install shellcheck
+        if: steps.changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -34,6 +67,7 @@ jobs:
           sudo apt-get install -y shellcheck
 
       - name: Install actionlint
+        if: steps.changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -46,6 +80,7 @@ jobs:
           actionlint -version
 
       - name: Lint GitHub Actions workflows
+        if: steps.changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -56,19 +91,57 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect workflow changes
+        id: changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git fetch --no-tags origin "$BASE_REF"
+            range="$(git merge-base HEAD "origin/$BASE_REF")...HEAD"
+          elif [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            range="$BEFORE_SHA...HEAD"
+          else
+            range="$(git rev-list --max-parents=0 HEAD | tail -n 1)...HEAD"
+          fi
+
+          changed_files="$(git diff --name-only "$range")"
+          printf 'Changed files in %s:\n%s\n' "$range" "$changed_files"
+
+          if echo "$changed_files" | grep -Eq '(^\.github/workflows/|^\.yamllint\.yml$)'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip when workflow files are unchanged
+        if: steps.changes.outputs.should_run != 'true'
+        shell: bash
+        run: echo "No workflow or yamllint config changes detected; yamllint is not needed."
 
       - name: Setup Python
+        if: steps.changes.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install yamllint
+        if: steps.changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
           python -m pip install --quiet yamllint
 
       - name: Lint YAML
+        if: steps.changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
