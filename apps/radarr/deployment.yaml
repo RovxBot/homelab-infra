@@ -15,6 +15,11 @@ spec:
       labels:
         app: radarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       priorityClassName: media-low
       affinity:
         nodeAffinity:
@@ -62,6 +67,13 @@ spec:
               value: "1000"
             - name: TZ
               value: Australia/Melbourne
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           resources:
             requests:
               cpu: 50m

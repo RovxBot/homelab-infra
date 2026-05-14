@@ -20,6 +20,10 @@ spec:
     spec:
       serviceAccountName: homepage
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
         seccompProfile:
           type: RuntimeDefault
       initContainers:
@@ -31,8 +35,8 @@ spec:
             capabilities:
               drop:
                 - ALL
-            runAsUser: 0
-            runAsGroup: 0
+            runAsUser: 101
+            runAsGroup: 101
             seccompProfile:
               type: RuntimeDefault
           command:
@@ -84,6 +88,13 @@ spec:
               mountPath: /usr/share/nginx/html
             - name: tmp
               mountPath: /tmp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
       containers:
         - name: nginx
           image: nginxinc/nginx-unprivileged:1.30-alpine@sha256:808f7846d21a9c94cf53833e8807a00a33fd0b65cc47fb05b79efe366c2d201f
