@@ -14,13 +14,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-repo-check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.changes.outputs.should_run }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect manifest-relevant changes
+        id: changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags origin "$BASE_REF"
+          range="$(git merge-base HEAD "origin/$BASE_REF")...HEAD"
+          changed_files="$(git diff --name-only "$range")"
+          printf 'Changed files in %s:\n%s\n' "$range" "$changed_files"
+
+          if echo "$changed_files" | grep -Eq '^(\.github/workflows/ci\.yml|\.github/kyverno-baseline\.yaml|apps/|clusters/|infra/|scripts/ci/|secrets/)'; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   repo-checks:
+    needs: detect-repo-check-changes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Ensure forbidden files are not tracked
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -30,7 +69,13 @@ jobs:
             exit 1
           fi
 
+      - name: Skip expensive checks when manifest files are unchanged
+        if: needs.detect-repo-check-changes.outputs.should_run != 'true'
+        shell: bash
+        run: echo "No manifest-relevant changes detected; repo checks are not needed."
+
       - name: Install kustomize
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -41,6 +86,7 @@ jobs:
           kustomize version
 
       - name: Render Flux entrypoint
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -49,6 +95,7 @@ jobs:
           test -s .work/rendered.yaml
 
       - name: Install kubeconform
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -59,6 +106,7 @@ jobs:
           kubeconform -v
 
       - name: Install Kyverno CLI
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -69,12 +117,14 @@ jobs:
           kyverno version
 
       - name: Validate rendered manifests
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
           kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.34.0 .work/rendered.yaml
 
       - name: Check unresolved Secret references
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -82,6 +132,7 @@ jobs:
           python3 scripts/ci/check_secret_refs.py .work/rendered.yaml
 
       - name: Run Kyverno baseline gate
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -93,7 +144,7 @@ jobs:
             --work-dir .work/kyverno-gate
 
       - name: Upload Kyverno gate artifacts
-        if: failure()
+        if: failure() && needs.detect-repo-check-changes.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: kyverno-gate-artifacts
