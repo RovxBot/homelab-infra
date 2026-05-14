@@ -183,56 +183,101 @@ def write_documents(documents: list[dict[str, Any]], output_dir: Path) -> list[P
     return written
 
 
-def evaluate_resource(
+def load_policy_reports(raw_output: str) -> list[dict[str, Any]]:
+    reports: list[dict[str, Any]] = []
+    for document in yaml.safe_load_all(raw_output):
+        if isinstance(document, dict):
+            reports.append(document)
+    return reports
+
+
+def extract_result_subjects(result: dict[str, Any]) -> list[dict[str, str]]:
+    raw_subjects: list[dict[str, Any]] = []
+    for key in ("subjects", "resources"):
+        value = result.get(key)
+        if isinstance(value, list):
+            raw_subjects.extend(item for item in value if isinstance(item, dict))
+
+    for key in ("subject", "resource", "scope"):
+        value = result.get(key)
+        if isinstance(value, dict):
+            raw_subjects.append(value)
+
+    subjects: list[dict[str, str]] = []
+    for subject in raw_subjects:
+        kind = str(subject.get("kind", "Unknown"))
+        name = str(subject.get("name", "unknown"))
+        namespace = str(subject.get("namespace") or "cluster")
+        if kind == "Namespace":
+            namespace = "cluster"
+        subjects.append(
+            {
+                "kind": kind,
+                "namespace": namespace,
+                "name": name,
+            }
+        )
+    return subjects
+
+
+def evaluate_resources(
     *,
     kyverno_bin: Path,
     repo_root: Path,
     policy_dir: Path,
     exception_files: list[Path],
-    resource_file: Path,
-    resource_doc: dict[str, Any],
+    resource_dir: Path,
 ) -> list[FailureRecord]:
     command = [
         str(kyverno_bin),
         "apply",
         str(policy_dir),
         "--resource",
-        str(resource_file),
+        str(resource_dir),
         "--policy-report",
         "--output-format",
         "json",
+        "--continue-on-fail",
     ]
     for exception_file in exception_files:
         command.extend(["-e", str(exception_file)])
     result = run_command(command, cwd=repo_root)
     if result.returncode not in {0, 1}:
         raise RuntimeError(
-            f"kyverno apply failed for {resource_file.name}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            f"kyverno apply failed for {resource_dir.name}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
     if not result.stdout.strip():
         return []
 
-    report = json.loads(result.stdout)
     records: list[FailureRecord] = []
-    metadata = resource_doc.get("metadata") or {}
-    resource_kind = str(resource_doc.get("kind", "Unknown"))
-    resource_name = str(metadata.get("name", "unknown"))
-    resource_namespace = str(metadata.get("namespace", "cluster"))
-    if resource_kind == "Namespace":
-        resource_namespace = "cluster"
-    for item in report.get("results", []):
-        if item.get("result") != "fail":
-            continue
-        records.append(
-            FailureRecord(
-                policy=str(item.get("policy", "unknown-policy")),
-                rule=str(item.get("rule", "unknown-rule")),
-                kind=resource_kind,
-                namespace=resource_namespace,
-                name=resource_name,
-                message=str(item.get("message", "Kyverno reported a failure.")),
-            )
-        )
+    reports = load_policy_reports(result.stdout)
+    for report in reports:
+        for item in report.get("results", []):
+            if item.get("result") != "fail":
+                continue
+
+            subjects = extract_result_subjects(item)
+            if not subjects:
+                raise RuntimeError(
+                    "Kyverno policy report failure result did not include a resource subject\n"
+                    f"Result:\n{json.dumps(item, indent=2, sort_keys=True)}"
+                )
+
+            for subject in subjects:
+                records.append(
+                    FailureRecord(
+                        policy=str(item.get("policy", "unknown-policy")),
+                        rule=str(item.get("rule", "unknown-rule")),
+                        kind=subject["kind"],
+                        namespace=subject["namespace"],
+                        name=subject["name"],
+                        message=str(
+                            item.get("message")
+                            or item.get("description")
+                            or "Kyverno reported a failure."
+                        ),
+                    )
+                )
     return records
 
 
@@ -272,20 +317,17 @@ def collect_failures(repo_root: Path, cluster_root: Path, kyverno_bin: Path, wor
     resource_dir = work_dir / "resources"
     write_documents(policy_documents, policy_dir)
     exception_files = write_documents(exception_documents, exception_dir)
-    resource_files = write_documents(filtered_documents, resource_dir)
+    write_documents(filtered_documents, resource_dir)
 
     failures: dict[FailureKey, FailureRecord] = {}
-    for resource_file in resource_files:
-        resource_doc = load_first_document(resource_file)
-        for record in evaluate_resource(
-            kyverno_bin=kyverno_bin,
-            repo_root=repo_root,
-            policy_dir=policy_dir,
-            exception_files=exception_files,
-            resource_file=resource_file,
-            resource_doc=resource_doc,
-        ):
-            failures[record.key()] = record
+    for record in evaluate_resources(
+        kyverno_bin=kyverno_bin,
+        repo_root=repo_root,
+        policy_dir=policy_dir,
+        exception_files=exception_files,
+        resource_dir=resource_dir,
+    ):
+        failures[record.key()] = record
 
     sorted_failures = [failures[key] for key in sorted(failures)]
     (work_dir / "actual-failures.json").write_text(
