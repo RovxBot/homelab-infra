@@ -1,157 +1,137 @@
 version: 1
 acceptedFailures:
-- policy: platform-pod-standards
-  rule: require-probes
-  kind: Deployment
-  namespace: homepage
-  name: pod-report
-- policy: platform-pod-standards
-  rule: require-probes
-  kind: Deployment
-  namespace: media
-  name: prowlarr
-- policy: platform-pod-standards
-  rule: require-probes
-  kind: Deployment
-  namespace: media
-  name: sabnzbd
-- policy: platform-pod-standards
-  rule: require-probes
-  kind: Deployment
-  namespace: media
-  name: sonarr
-- policy: platform-pod-standards
-  rule: require-probes
-  kind: Deployment
-  namespace: wotlk
-  name: wotlk-authserver
-- policy: platform-pod-standards
-  rule: require-probes
-  kind: Deployment
-  namespace: wotlk
-  name: wotlk-worldserver
-- policy: platform-pod-standards
-  rule: require-probes
-  kind: StatefulSet
-  namespace: wotlk
-  name: wotlk-mariadb
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: immich
-  name: restic-immich-photos
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: immich
-  name: restic-immich-photos-maintenance
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: wotlk
-  name: wotlk-ahbot-cleanup
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: wotlk
-  name: wotlk-client-extract
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: wotlk
-  name: wotlk-client-extract-mmaps
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: wotlk
-  name: wotlk-db-bootstrap
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: wotlk
-  name: wotlk-realm-upsert
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: CronJob
-  namespace: wotlk
-  name: wotlk-weekly-restart
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: Deployment
-  namespace: homepage
-  name: pod-report
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: Deployment
-  namespace: media
-  name: jellyfin
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: Deployment
-  namespace: media
-  name: prowlarr
-- policy: platform-pod-standards
-  rule: require-requests-and-limits
-  kind: Deployment
-  namespace: media
-  name: sabnzbd
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: CronJob
-  namespace: immich
-  name: restic-immich-photos
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: CronJob
-  namespace: immich
-  name: restic-immich-photos-maintenance
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: immich
-  name: immich-machine-learning
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: immich
-  name: immich-postgres
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: immich
-  name: immich-redis
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: immich
-  name: immich-server
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: media
-  name: jellyfin
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: media
-  name: prowlarr
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: media
-  name: radarr
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: media
-  name: sabnzbd
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: media
-  name: sonarr
-- policy: platform-pod-standards
-  rule: require-runtime-hardening
-  kind: Deployment
-  namespace: security
-  name: vaultwarden
+  - policy: platform-pod-standards
+    rule: require-probes
+    kind: Deployment
+    namespace: media
+    name: prowlarr
+  - policy: platform-pod-standards
+    rule: require-probes
+    kind: Deployment
+    namespace: media
+    name: sabnzbd
+  - policy: platform-pod-standards
+    rule: require-probes
+    kind: Deployment
+    namespace: media
+    name: sonarr
+  - policy: platform-pod-standards
+    rule: require-probes
+    kind: Deployment
+    namespace: wotlk
+    name: wotlk-authserver
+  - policy: platform-pod-standards
+    rule: require-probes
+    kind: Deployment
+    namespace: wotlk
+    name: wotlk-worldserver
+  - policy: platform-pod-standards
+    rule: require-probes
+    kind: StatefulSet
+    namespace: wotlk
+    name: wotlk-mariadb
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: immich
+    name: restic-immich-photos
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: immich
+    name: restic-immich-photos-maintenance
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: wotlk
+    name: wotlk-ahbot-cleanup
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: wotlk
+    name: wotlk-client-extract
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: wotlk
+    name: wotlk-client-extract-mmaps
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: wotlk
+    name: wotlk-db-bootstrap
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: wotlk
+    name: wotlk-realm-upsert
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: CronJob
+    namespace: wotlk
+    name: wotlk-weekly-restart
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: Deployment
+    namespace: media
+    name: jellyfin
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: Deployment
+    namespace: media
+    name: prowlarr
+  - policy: platform-pod-standards
+    rule: require-requests-and-limits
+    kind: Deployment
+    namespace: media
+    name: sabnzbd
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: CronJob
+    namespace: immich
+    name: restic-immich-photos
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: CronJob
+    namespace: immich
+    name: restic-immich-photos-maintenance
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: immich
+    name: immich-machine-learning
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: immich
+    name: immich-postgres
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: immich
+    name: immich-redis
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: immich
+    name: immich-server
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: media
+    name: jellyfin
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: media
+    name: prowlarr
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: media
+    name: sabnzbd
+  - policy: platform-pod-standards
+    rule: require-runtime-hardening
+    kind: Deployment
+    namespace: media
+    name: sonarr
