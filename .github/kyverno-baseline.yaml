@@ -3,21 +3,6 @@ acceptedFailures:
   - policy: platform-pod-standards
     rule: require-probes
     kind: Deployment
-    namespace: media
-    name: prowlarr
-  - policy: platform-pod-standards
-    rule: require-probes
-    kind: Deployment
-    namespace: media
-    name: sabnzbd
-  - policy: platform-pod-standards
-    rule: require-probes
-    kind: Deployment
-    namespace: media
-    name: sonarr
-  - policy: platform-pod-standards
-    rule: require-probes
-    kind: Deployment
     namespace: wotlk
     name: wotlk-authserver
   - policy: platform-pod-standards
@@ -71,21 +56,6 @@ acceptedFailures:
     namespace: wotlk
     name: wotlk-weekly-restart
   - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: Deployment
-    namespace: media
-    name: jellyfin
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: Deployment
-    namespace: media
-    name: prowlarr
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: Deployment
-    namespace: media
-    name: sabnzbd
-  - policy: platform-pod-standards
     rule: require-runtime-hardening
     kind: CronJob
     namespace: immich
@@ -115,23 +85,3 @@ acceptedFailures:
     kind: Deployment
     namespace: immich
     name: immich-server
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: media
-    name: jellyfin
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: media
-    name: prowlarr
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: media
-    name: sabnzbd
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: media
-    name: sonarr
