@@ -85,7 +85,39 @@ spec:
                   - key: "{{ element.resources.limits.memory || '' }}"
                     operator: Equals
                     value: ""
+          - list: "request.object.spec.template.spec.initContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.requests.memory || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
           - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.requests.memory || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
+          - list: "request.object.spec.jobTemplate.spec.template.spec.initContainers[]"
             deny:
               conditions:
                 any:
@@ -146,7 +178,45 @@ spec:
                   - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.template.spec.securityContext.seccompProfile.type || '' }}"
                     operator: NotEquals
                     value: RuntimeDefault
+          - list: "request.object.spec.template.spec.initContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation == `false` }}"
+                    operator: Equals
+                    value: false
+                  - key: "{{ element.securityContext.privileged || `false` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.template.spec.securityContext.seccompProfile.type || '' }}"
+                    operator: NotEquals
+                    value: RuntimeDefault
           - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation == `false` }}"
+                    operator: Equals
+                    value: false
+                  - key: "{{ element.securityContext.privileged || `false` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.jobTemplate.spec.template.spec.securityContext.seccompProfile.type || '' }}"
+                    operator: NotEquals
+                    value: RuntimeDefault
+          - list: "request.object.spec.jobTemplate.spec.template.spec.initContainers[]"
             deny:
               conditions:
                 any:
