@@ -132,6 +132,7 @@ Suggested Terraform Cloud normal variables:
 - This module assumes the Matrix host name is the same host used for Synapse, Element Web, and federation, for example `matrix.example.com`.
 - Synapse is configured with `enable_registration = false`; create users explicitly after bootstrap.
 - coturn is exposed directly on the Matrix VM because TURN works better with a public IP than through an extra proxy layer.
+- If you populate `wireguard_peer_config`, include an explicit `MTU = 1370` in the `wg0.conf` payload for this homelab path. OCI's public NIC advertises a jumbo MTU, which otherwise leads WireGuard to derive an oversized tunnel MTU on the VPS.
 
 ## Source references
 
