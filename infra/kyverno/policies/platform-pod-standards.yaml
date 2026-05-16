@@ -255,7 +255,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: hostNetwork should only be used via an explicit exception.
         anyPattern:
           - spec:
@@ -325,7 +325,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: latest tags are not allowed without an explicit exception.
         foreach:
           - list: "request.object.spec.template.spec.containers[]"
