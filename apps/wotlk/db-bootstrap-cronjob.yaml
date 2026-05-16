@@ -23,6 +23,13 @@ spec:
           initContainers:
             - name: clone-acore
               image: alpine/git:2.47.2
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
               env:
                 - name: ACORE_REPO
                   valueFrom:
@@ -47,6 +54,13 @@ spec:
           containers:
             - name: mariadb-client
               image: mysql:8.0
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
               env:
                 - name: DB_HOST
                   value: wotlk-mariadb.wotlk.svc.cluster.local
