@@ -15,33 +15,3 @@ acceptedFailures:
     kind: StatefulSet
     namespace: wotlk
     name: wotlk-mariadb
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
-    namespace: wotlk
-    name: wotlk-ahbot-cleanup
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
-    namespace: wotlk
-    name: wotlk-client-extract
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
-    namespace: wotlk
-    name: wotlk-client-extract-mmaps
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
-    namespace: wotlk
-    name: wotlk-db-bootstrap
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
-    namespace: wotlk
-    name: wotlk-realm-upsert
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
-    namespace: wotlk
-    name: wotlk-weekly-restart
