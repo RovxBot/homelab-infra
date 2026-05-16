@@ -16,6 +16,12 @@ spec:
       labels:
         app: prowlarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       priorityClassName: media-low
       containers:
         - name: prowlarr
@@ -26,9 +32,6 @@ spec:
             capabilities:
               drop:
                 - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
             seccompProfile:
               type: RuntimeDefault
           ports:
@@ -58,6 +61,10 @@ spec:
               value: "1000"
             - name: TZ
               value: Australia/Melbourne
+            - name: LSIO_NON_ROOT_USER
+              value: "1"
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
           resources:
             requests:
               cpu: 50m
@@ -68,7 +75,11 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: run
+              mountPath: /run
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: prowlarr-config
+        - name: run
+          emptyDir: {}
