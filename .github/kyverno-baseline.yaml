@@ -18,16 +18,6 @@ acceptedFailures:
   - policy: platform-pod-standards
     rule: require-requests-and-limits
     kind: CronJob
-    namespace: immich
-    name: restic-immich-photos
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
-    namespace: immich
-    name: restic-immich-photos-maintenance
-  - policy: platform-pod-standards
-    rule: require-requests-and-limits
-    kind: CronJob
     namespace: wotlk
     name: wotlk-ahbot-cleanup
   - policy: platform-pod-standards
@@ -55,13 +45,3 @@ acceptedFailures:
     kind: CronJob
     namespace: wotlk
     name: wotlk-weekly-restart
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: CronJob
-    namespace: immich
-    name: restic-immich-photos
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: CronJob
-    namespace: immich
-    name: restic-immich-photos-maintenance
