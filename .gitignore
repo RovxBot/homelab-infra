@@ -16,6 +16,8 @@ age-key.txt
 .env
 .env.*
 .terraform/
+terraform/oci-free-tier/*.auto.tfvars.json
+terraform/oci-free-tier/terraform.cloud.tf
 *.tfstate
 *.tfstate.*
 crash.log

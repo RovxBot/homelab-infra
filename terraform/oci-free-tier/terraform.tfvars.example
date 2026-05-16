@@ -44,9 +44,12 @@ matrix_acme_email    = "ops@example.com"
 # matrix_turn_max_port = 49200
 
 # Optional: if set, cloud-init writes /etc/wireguard/wg0.conf and starts wg-quick@wg0.
+# The repo-managed path is terraform/oci-free-tier/wireguard-peer-config.enc.yaml.
+# Prefer that file over inlining this secret in terraform.tfvars or Terraform Cloud.
 # wireguard_peer_config = <<-EOT
 # [Interface]
 # Address = 10.77.0.1/24
+# MTU = 1370
 # ListenPort = 51820
 # PrivateKey = ...
 #
