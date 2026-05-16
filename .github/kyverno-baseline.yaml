@@ -65,23 +65,3 @@ acceptedFailures:
     kind: CronJob
     namespace: immich
     name: restic-immich-photos-maintenance
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: immich
-    name: immich-machine-learning
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: immich
-    name: immich-postgres
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: immich
-    name: immich-redis
-  - policy: platform-pod-standards
-    rule: require-runtime-hardening
-    kind: Deployment
-    namespace: immich
-    name: immich-server
