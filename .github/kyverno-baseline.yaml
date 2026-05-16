@@ -1,17 +1,2 @@
 version: 1
 acceptedFailures:
-  - policy: platform-pod-standards
-    rule: require-probes
-    kind: Deployment
-    namespace: wotlk
-    name: wotlk-authserver
-  - policy: platform-pod-standards
-    rule: require-probes
-    kind: Deployment
-    namespace: wotlk
-    name: wotlk-worldserver
-  - policy: platform-pod-standards
-    rule: require-probes
-    kind: StatefulSet
-    namespace: wotlk
-    name: wotlk-mariadb
