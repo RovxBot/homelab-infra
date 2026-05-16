@@ -153,7 +153,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: >-
           Containers should run as non-root, disable privilege escalation,
           drop all capabilities, avoid privileged mode, and use RuntimeDefault
