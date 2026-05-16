@@ -16,10 +16,27 @@ spec:
       labels:
         app: sabnzbd
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: media-low
       initContainers:
         - name: ensure-download-dirs
           image: alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
           command:
             - sh
             - -lc
@@ -30,13 +47,44 @@ spec:
           volumeMounts:
             - name: downloads
               mountPath: /downloads
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
       containers:
         - name: sabnzbd
           image: linuxserver/sabnzbd:5.0.2-ls254@sha256:52651d44a649e135ce9cb3758ecd0294b96e6979219d9b653af724f9d198e861
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 8080
               name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           env:
             - name: PUID
               value: "1000"
@@ -44,9 +92,22 @@ spec:
               value: "1000"
             - name: TZ
               value: Australia/Melbourne
+            - name: LSIO_NON_ROOT_USER
+              value: "1"
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 300Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: run
+              mountPath: /run
             # Downloads on NAS #2 (192.168.1.154) - /volume1/Plex Media
             # Downloads go to /downloads/Downloads (in-progress and complete)
             - name: downloads
@@ -55,6 +116,8 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: sabnzbd-config
+        - name: run
+          emptyDir: {}
         - name: downloads
           persistentVolumeClaim:
             claimName: nfs-plex-media
