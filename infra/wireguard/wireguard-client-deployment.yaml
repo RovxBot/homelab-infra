@@ -28,7 +28,7 @@ spec:
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: stage-wireguard-config
-          image: busybox:1.36.1
+          image: busybox:1.37.0@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
