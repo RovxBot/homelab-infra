@@ -66,7 +66,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: Containers in workload pod templates must define CPU and memory requests and limits.
         foreach:
           - list: "request.object.spec.template.spec.containers[]"
@@ -85,7 +85,39 @@ spec:
                   - key: "{{ element.resources.limits.memory || '' }}"
                     operator: Equals
                     value: ""
+          - list: "request.object.spec.template.spec.initContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.requests.memory || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
           - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.requests.memory || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""
+          - list: "request.object.spec.jobTemplate.spec.template.spec.initContainers[]"
             deny:
               conditions:
                 any:
@@ -121,7 +153,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: >-
           Containers should run as non-root, disable privilege escalation,
           drop all capabilities, avoid privileged mode, and use RuntimeDefault
@@ -146,7 +178,45 @@ spec:
                   - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.template.spec.securityContext.seccompProfile.type || '' }}"
                     operator: NotEquals
                     value: RuntimeDefault
+          - list: "request.object.spec.template.spec.initContainers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation == `false` }}"
+                    operator: Equals
+                    value: false
+                  - key: "{{ element.securityContext.privileged || `false` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.template.spec.securityContext.seccompProfile.type || '' }}"
+                    operator: NotEquals
+                    value: RuntimeDefault
           - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.runAsNonRoot || request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || `false` }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation == `false` }}"
+                    operator: Equals
+                    value: false
+                  - key: "{{ element.securityContext.privileged || `false` }}"
+                    operator: NotEquals
+                    value: false
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.seccompProfile.type || request.object.spec.jobTemplate.spec.template.spec.securityContext.seccompProfile.type || '' }}"
+                    operator: NotEquals
+                    value: RuntimeDefault
+          - list: "request.object.spec.jobTemplate.spec.template.spec.initContainers[]"
             deny:
               conditions:
                 any:
@@ -185,7 +255,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: hostNetwork should only be used via an explicit exception.
         anyPattern:
           - spec:
@@ -255,7 +325,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: latest tags are not allowed without an explicit exception.
         foreach:
           - list: "request.object.spec.template.spec.containers[]"

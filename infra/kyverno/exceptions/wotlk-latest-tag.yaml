@@ -23,3 +23,10 @@ spec:
             - wotlk-weekly-restart
           namespaces:
             - wotlk
+      - resources:
+          kinds:
+            - Job
+          names:
+            - wotlk-weekly-restart*
+          namespaces:
+            - wotlk

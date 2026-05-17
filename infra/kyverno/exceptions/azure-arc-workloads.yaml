@@ -1,12 +1,12 @@
 apiVersion: kyverno.io/v2
 kind: PolicyException
 metadata:
-  name: chart-managed-workloads
+  name: azure-arc-workloads
   namespace: kyverno
   labels:
     homelab.cooked.beer/owner: platform
   annotations:
-    kyverno.cooked.beer/reason: Helm-managed platform namespaces do not expose consistent workload owner labels, service probes, or resource budgets.
+    kyverno.cooked.beer/reason: Azure Arc agents are vendor-managed and do not expose repo-controlled resource budgets.
     kyverno.cooked.beer/expires-at: "2026-08-31"
     github.cooked.beer/issue-create: "true"
 spec:
@@ -14,8 +14,6 @@ spec:
     - policyName: platform-pod-standards
       ruleNames:
         - require-requests-and-limits
-        - require-owner-label
-        - require-probes
   match:
     any:
       - resources:
@@ -27,5 +25,4 @@ spec:
             - Job
             - CronJob
           namespaces:
-            - longhorn-system
-            - monitoring
+            - azure-arc

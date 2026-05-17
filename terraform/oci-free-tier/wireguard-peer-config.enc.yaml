@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: wireguard-peer-config
+    annotations:
+        homelab.cooked.beer/usage: terraform-cli-input
+        homelab.cooked.beer/managed-by: sops
+type: Opaque
+stringData:
+    wireguard_peer_config: ENC[AES256_GCM,data:u1Z6GPZuu713fTLNRfhM97Mko4NjTzOnzkzmWTtrPC/+buv3bsJCOTe526V5E135TdV896ai4TqveUX3tUHzgDDpmeSTHAmYf01mfI7qN5mIVZs6+RYttUjE1AcIWVDT9K1NK0P4xQqePh83lxjODr6GcmCPbzfjd348FfySIF3+YdIey7riVhJamxw/+Ufm5rgBM6xDsM4QM5xNAgJl/EGlMB5Ooto5Xk9n8cdB1bFD2XYe/f9JuaDU4aIRCTvGxRQE8+LDzVwuQk+YroI+MyWe3QIR/snxYWzImaf7OCr53UpzVqjefJ2N8mvqjIt4qWWDMDCYgo0lORzt3jgYYCckG0jFcz5hUO5TCjT3voP6x/IiQ9N8dMty3IE8da4aBsxAjZA+bebYU7+FSGp8J5lsdNWzOrHrbcjr6rB7RgkNHwHc6W/PIJZwP19Nz3UFB1faLEofOVCOetw6JKVFp+uN3VwU2iRratZClKm+qExzT9PB+myjH28yFbk/4crQ/nF8GZCEpM8hvFs16xNbqXp1j+xApETBg/Aca/PqBME32QWlUOvwV1gHOUkN6jZouqg1veM8hKJSAomdDbm4+EPJ+tlzND9NyNQxNWFZOn4xsio7LDuSGJXs0tD2LuI2qqD6YiDarPMiSQtQv1nKKHUMvhDALjndb4yDSc1NdGbljHEBjR+y4hjgAXI/2cBGtuOE4HpntZ8B+XffrTqZYnQS072x4ITNqI7C01wey3jOBxAi1hLzORuc6sjAvqFThyNKUHQn2xnwdsibhOtUW/iSyn2DOubZ,iv:+dlRcXErO2iAcBwrEAIxYxQN897ywbBe8PCQoJVthQI=,tag:6BOVkaaHlAEc5VQnvRLhyA==,type:str]
+sops:
+    age:
+        - recipient: age12zt98j083qhangw8wg3zhy5zccp6qpw0e677m5jncgdmp94a84rqzvedat
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBiMmhoMVBvRHlDNjI3OFVv
+            aHN4RzNBM3hoYSt2dWVVZ0pETXFvWUh2cFRzCjMzUGM0a01yU0JPZWcxTkJFN21E
+            Z0hUaTc2Ryt2aDIzSmtBeG53eTBaZ2sKLS0tIHF2Zk5MZEpEZnhlaFg3YXVFMFkx
+            d3FCbkZuY1J1bzFKYU9XRWhrOWxEamcKT5Yq8QlNukkxLJ7fGqX0yF+o8Jy2gcXc
+            xjrCAFaeQZZSrSJUcM12sN+vHl8Z0p7rqbsluUJhGGoQ1ak38GOmWA==
+            -----END AGE ENCRYPTED FILE-----
+    lastmodified: "2026-05-16T05:13:35Z"
+    mac: ENC[AES256_GCM,data:8BV51W+xDPsfRbtoIDRs1DC2vssU8vbaPc/cgtQaTwgZZxx9YYMRrcF9B5+DD/TO6J2WLL2gklAMSZqMq2hQ5TV4R7A0vRE6ZsD5ddIjI1EVZ547vuGVzi6qbS0P76rj9PcckrqiQ/xfT/bEWPG8xx9cwKM9SrIENN8X6eQ0XTw=,iv:2x2LdyY6caULs2UxL7cGtFEbkAd/FIw0W8Dl8Ub1su4=,tag:lVQJgs2ePbIJytjDIjrdFw==,type:str]
+    encrypted_regex: ^(data|stringData)$
+    version: 3.11.0
