@@ -8,6 +8,7 @@ This folder contains the Oracle-side pieces for exposing selected home services 
 - `3724/TCP` forwards over WireGuard to the home authserver.
 - `8443/TCP` forwards over WireGuard to the home worldserver (`8085` on `metal7`).
 - `immich.cooked.beer` terminates TLS on the VPS and proxies over WireGuard to `192.168.1.197:30283`.
+- `jellyfin.cooked.beer` terminates TLS on the VPS and proxies over WireGuard to `192.168.1.197:32096`.
 
 ## Why the WotLK world port moves off 443
 
@@ -23,7 +24,7 @@ Relevant current cluster settings:
 ## Files
 
 - `vps-public-edge.sh`: iptables rules for web ingress plus WireGuard forwarding.
-- `Caddyfile`: TLS reverse proxy config for `immich.cooked.beer`.
+- `Caddyfile`: TLS reverse proxy config for `immich.cooked.beer` and `jellyfin.cooked.beer`.
 
 ## Oracle setup order
 
@@ -32,7 +33,7 @@ Relevant current cluster settings:
 3. Put `Caddyfile` at `/etc/caddy/Caddyfile`.
 4. Run `vps-public-edge.sh` as root to install the iptables rules.
 5. Open Oracle NSG/VCN ingress for `80/TCP`, `443/TCP`, `3724/TCP`, and `8443/TCP`.
-6. Point `immich.cooked.beer` DNS at the VPS public IP instead of the Cloudflare Tunnel.
+6. Point `immich.cooked.beer` and `jellyfin.cooked.beer` DNS at the VPS public IP.
 7. Update the WotLK realm to advertise `8443` instead of `443`.
 
 ## Example systemd bootstrap
@@ -54,6 +55,7 @@ WantedBy=multi-user.target
 
 ## Notes
 
-- `immich.cooked.beer` should be DNS-only in Cloudflare if you keep Cloudflare DNS in front of the VPS.
-- The Caddy config assumes `metal7` remains reachable at `192.168.1.197` over WireGuard and that Immich stays on NodePort `30283`.
+- `immich.cooked.beer` and `jellyfin.cooked.beer` should be DNS-only in Cloudflare if you keep Cloudflare DNS in front of the VPS.
+- The Caddy config assumes `metal7` remains reachable at `192.168.1.197` over WireGuard and that Immich stays on NodePort `30283` while Jellyfin stays on NodePort `32096`.
+- Set an explicit `MTU = 1370` in the Oracle-side `wg0.conf`. OCI exposes a jumbo-MTU NIC, and letting WireGuard auto-derive an MTU from that can produce an oversized tunnel MTU for Internet-bound traffic.
 - This repo still contains the legacy `vps-wotlk-forwarding.sh` script for the old `443 -> 8085` arrangement.

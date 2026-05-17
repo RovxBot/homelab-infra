@@ -33,6 +33,13 @@ spec:
             - name: extract
               image: ghcr.io/rovxbot/azerothcore-wotlk:tools-test-staging-22807fd94b161f0a8f51a0027fbe702015bf082f
               imagePullPolicy: Always
+              resources:
+                requests:
+                  cpu: "2"
+                  memory: 4Gi
+                limits:
+                  cpu: "6"
+                  memory: 16Gi
               env:
                 - name: WOTLK_SKIP_MMAPS
                   value: "false"

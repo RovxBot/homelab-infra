@@ -22,16 +22,53 @@ spec:
       # Pin to a single node so we only have one tunnel + NAT gateway.
       nodeSelector:
         kubernetes.io/hostname: metal7
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
       terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: stage-wireguard-config
+          image: busybox:1.37.0@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - sh
+            - -lc
+            - |
+              install -d -m 700 /config/wg_confs
+              install -m 600 /source/vps.conf /config/wg_confs/vps.conf
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: wgconfs
+              mountPath: /source
+              readOnly: true
       volumes:
         - name: config
           emptyDir: {}
         - name: wgconfs
           secret:
             secretName: wireguard-client-conf
+            defaultMode: 0440
             items:
               - key: wg0.conf
                 path: vps.conf
+      
       containers:
         - name: wireguard
           image: lscr.io/linuxserver/wireguard@sha256:b4fdb5b5bbbdcd6c7a4433c8fe98b0b00bf8684c62542571a705543ac4a8e75c
@@ -65,9 +102,6 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: wgconfs
-              mountPath: /config/wg_confs
-              readOnly: true
           readinessProbe:
             exec:
               command:

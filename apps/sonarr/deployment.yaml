@@ -15,6 +15,12 @@ spec:
       labels:
         app: sonarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       priorityClassName: media-low
       affinity:
         nodeAffinity:
@@ -35,9 +41,33 @@ spec:
         - name: sonarr
           image: linuxserver/sonarr:4.0.17.2952-ls311@sha256:60f3b6b5c7647ba2bafd81163acfe34b11117b9b834ebd7fbcc3e5f1b309c7ef
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 8989
               name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           env:
             - name: PUID
               value: "1000"
@@ -45,6 +75,10 @@ spec:
               value: "1000"
             - name: TZ
               value: Australia/Melbourne
+            - name: LSIO_NON_ROOT_USER
+              value: "1"
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
           resources:
             requests:
               cpu: 50m
@@ -55,6 +89,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: run
+              mountPath: /run
             # Plex Media NFS share - contains TV Shows and Downloads
             - name: plex-media
               mountPath: /data
@@ -65,6 +101,8 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: sonarr-config
+        - name: run
+          emptyDir: {}
         - name: plex-media
           persistentVolumeClaim:
             claimName: nfs-plex-media

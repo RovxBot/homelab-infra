@@ -106,6 +106,20 @@ terraform apply
 
 6. Create the first Matrix admin user with the `matrix_admin_bootstrap_command` output, then run the printed `register_new_matrix_user` command over SSH.
 
+### Managed WireGuard peer config
+
+The Oracle `wg0.conf` bootstrap source can live in the repo as [terraform/oci-free-tier/wireguard-peer-config.enc.yaml](/Users/sam/Git/homelab-infra/terraform/oci-free-tier/wireguard-peer-config.enc.yaml). This file is SOPS-encrypted and stores `stringData.wireguard_peer_config`.
+
+Materialize it for local Terraform runs with:
+
+```bash
+export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
+python3 terraform/oci-free-tier/materialize_terraform_secret_vars.py \
+  --input terraform/oci-free-tier/wireguard-peer-config.enc.yaml \
+  --output terraform/oci-free-tier/wireguard.secrets.auto.tfvars.json
+terraform -chdir=terraform/oci-free-tier plan -var-file=wireguard.secrets.auto.tfvars.json
+```
+
 ## Terraform Cloud
 
 If you do not want to run Terraform locally, this repo includes [terraform-oci-free-tier.yml](/Users/sam/Git/homelab-infra/.github/workflows/terraform-oci-free-tier.yml).
@@ -113,7 +127,6 @@ If you do not want to run Terraform locally, this repo includes [terraform-oci-f
 Suggested Terraform Cloud sensitive variables:
 
 - `private_key_pem`
-- `wireguard_peer_config`
 
 Suggested Terraform Cloud normal variables:
 
@@ -127,11 +140,17 @@ Suggested Terraform Cloud normal variables:
 - `matrix_server_name`
 - `matrix_acme_email`
 
+Repository workflow prerequisites:
+
+- Add a repository secret named `SOPS_AGE_KEY` containing the private age key that matches [.sops.yaml](/Users/sam/Git/homelab-infra/.sops.yaml).
+- Keep the Oracle peer config in [terraform/oci-free-tier/wireguard-peer-config.enc.yaml](/Users/sam/Git/homelab-infra/terraform/oci-free-tier/wireguard-peer-config.enc.yaml) instead of a Terraform Cloud workspace variable.
+
 ## Notes
 
 - This module assumes the Matrix host name is the same host used for Synapse, Element Web, and federation, for example `matrix.example.com`.
 - Synapse is configured with `enable_registration = false`; create users explicitly after bootstrap.
 - coturn is exposed directly on the Matrix VM because TURN works better with a public IP than through an extra proxy layer.
+- If you populate `wireguard_peer_config`, include an explicit `MTU = 1370` in the `wg0.conf` payload for this homelab path. OCI's public NIC advertises a jumbo MTU, which otherwise leads WireGuard to derive an oversized tunnel MTU on the VPS.
 
 ## Source references
 

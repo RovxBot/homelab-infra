@@ -26,6 +26,13 @@ spec:
       initContainers:
         - name: clone-acore
           image: alpine/git:2.47.2
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
           env:
             - name: ACORE_REPO
               valueFrom:
@@ -82,6 +89,13 @@ spec:
               readOnly: true
         - name: render-config
           image: alpine:3.20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
           command:
             - sh
             - -lc
@@ -174,6 +188,13 @@ spec:
         - name: seed-module-config
           image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-22807fd94b161f0a8f51a0027fbe702015bf082f
           imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
           command:
             - bash
             - -lc
@@ -239,6 +260,18 @@ spec:
             - name: soap
               containerPort: 7878
               protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: world
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: world
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           volumeMounts:
             - name: etc
               mountPath: /azerothcore/env/dist/etc

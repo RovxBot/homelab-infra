@@ -19,7 +19,8 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
-        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       priorityClassName: media-low
       affinity:
         nodeAffinity:
@@ -61,12 +62,12 @@ spec:
             timeoutSeconds: 2
             failureThreshold: 3
           env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
             - name: TZ
               value: Australia/Melbourne
+            - name: LSIO_NON_ROOT_USER
+              value: "1"
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -84,6 +85,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: run
+              mountPath: /run
             # Movies on NAS #1 (192.168.1.153) - /volume1/emby_media
             # Inside Radarr use /movies/Movies
             - name: movies
@@ -96,6 +99,8 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: radarr-config
+        - name: run
+          emptyDir: {}
         - name: movies
           persistentVolumeClaim:
             claimName: nfs-emby-media
