@@ -260,6 +260,12 @@ spec:
             - name: soap
               containerPort: 7878
               protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: world
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 60
           readinessProbe:
             tcpSocket:
               port: world
