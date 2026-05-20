@@ -4,6 +4,7 @@ resources:
   - metal0.yaml
   - metal2.yaml
   - metal3.yaml
+  - metal4.yaml
   - metal5.yaml
   - metal6.yaml
   - metal7.yaml
