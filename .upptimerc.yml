@@ -1,0 +1,38 @@
+owner: RovxBot
+repo: homelab-infra
+user-agent: RovxBot
+skipDeleteIssues: true
+skipDescriptionUpdate: true
+skipTopicsUpdate: true
+skipHomepageUpdate: true
+
+sites:
+  # Start with the verified public endpoints only. Add assets, jellyfin, and
+  # immich after confirming GitHub-hosted runners can reach them reliably.
+  - name: Homepage
+    url: https://homepage.cooked.beer
+  - name: Vaultwarden
+    url: https://vault.cooked.beer
+  - name: Radarr
+    url: https://radarr.cooked.beer
+  - name: Sonarr
+    url: https://sonarr.cooked.beer
+  - name: Prowlarr
+    url: https://prowlarr.cooked.beer
+  - name: SABnzbd
+    url: https://sabnzbd.cooked.beer
+  - name: Jellyseerr
+    url: https://jellyseerr.cooked.beer
+  - name: Grimguzzler Registration
+    url: https://grimguzzler.cooked.beer
+
+status-website:
+  cname: status.cooked.beer
+  name: Cooked Beer Status
+  introTitle: Cooked Beer Status
+  introMessage: Public uptime monitoring for the internet-facing services tracked from this repository.
+  navbar:
+    - title: Status
+      href: /
+    - title: Repository
+      href: https://github.com/$OWNER/$REPO
