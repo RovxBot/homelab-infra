@@ -5,8 +5,8 @@ This folder contains the Oracle-side pieces for exposing selected home services 
 ## Intended layout
 
 - `80/TCP` and `443/TCP` terminate on the VPS itself for web apps.
-- `3724/TCP` forwards over WireGuard to the home authserver.
-- `8443/TCP` forwards over WireGuard to the home worldserver (`8085` on `metal7`).
+- `3724/TCP` forwards over WireGuard to the home authserver on `metal7`.
+- `8443/TCP` forwards over WireGuard to the home worldserver (`8085` on `metal4`).
 - `immich.cooked.beer` terminates TLS on the VPS and proxies over WireGuard to `192.168.1.197:30283`.
 - `jellyfin.cooked.beer` terminates TLS on the VPS and proxies over WireGuard to `192.168.1.197:32096`.
 
@@ -26,9 +26,11 @@ Relevant current cluster settings:
 - `vps-public-edge.sh`: iptables rules for web ingress plus WireGuard forwarding.
 - `Caddyfile`: TLS reverse proxy config for `immich.cooked.beer` and `jellyfin.cooked.beer`.
 
+`vps-public-edge.sh` accepts separate backend overrides via `WOTLK_AUTH_HOME_IP` and `WOTLK_WORLD_HOME_IP` if auth and world do not live on the same node.
+
 ## Oracle setup order
 
-1. Install and configure WireGuard on the VPS so `wg0` can reach `192.168.1.197`.
+1. Install and configure WireGuard on the VPS so `wg0` can reach the required home backend IPs, currently `192.168.1.197` and `192.168.1.47`.
 2. Install Caddy on the VPS.
 3. Put `Caddyfile` at `/etc/caddy/Caddyfile`.
 4. Run `vps-public-edge.sh` as root to install the iptables rules.
@@ -56,6 +58,7 @@ WantedBy=multi-user.target
 ## Notes
 
 - `immich.cooked.beer` and `jellyfin.cooked.beer` should be DNS-only in Cloudflare if you keep Cloudflare DNS in front of the VPS.
-- The Caddy config assumes `metal7` remains reachable at `192.168.1.197` over WireGuard and that Immich stays on NodePort `30283` while Jellyfin stays on NodePort `32096`.
+- The Caddy config still targets `metal7` at `192.168.1.197` for the Immich and Jellyfin NodePorts; that remains valid because those Services are exposed with `externalTrafficPolicy: Cluster`.
+- The WoTLK forwarding scripts now default auth traffic to `192.168.1.197` and world traffic to `192.168.1.47`.
 - Set an explicit `MTU = 1370` in the Oracle-side `wg0.conf`. OCI exposes a jumbo-MTU NIC, and letting WireGuard auto-derive an MTU from that can produce an oversized tunnel MTU for Internet-bound traffic.
 - This repo still contains the legacy `vps-wotlk-forwarding.sh` script for the old `443 -> 8085` arrangement.

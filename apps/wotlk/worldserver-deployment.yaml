@@ -22,7 +22,7 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
-        kubernetes.io/hostname: metal7
+          kubernetes.io/hostname: metal4
       initContainers:
         - name: clone-acore
           image: alpine/git:2.47.2
@@ -186,7 +186,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-4cb3cb6ad61e47a6c397abbb9635df85fed401e4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-152573935d88d4d094f6e6e9e8ff30c126142b74
           imagePullPolicy: Always
           resources:
             requests:
@@ -214,7 +214,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-4cb3cb6ad61e47a6c397abbb9635df85fed401e4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-152573935d88d4d094f6e6e9e8ff30c126142b74
           imagePullPolicy: Always
           command:
             - sh
