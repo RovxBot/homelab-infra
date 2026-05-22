@@ -27,7 +27,7 @@ sites:
     url: https://grimguzzler.cooked.beer
 
 status-website:
-  cname: status.cooked.beer
+  baseUrl: /homelab-infra
   name: Cooked Beer Status
   introTitle: Cooked Beer Status
   introMessage: Public uptime monitoring for the internet-facing services tracked from this repository.
