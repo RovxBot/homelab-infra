@@ -1,0 +1,160 @@
+[
+  {
+    "name": "Homepage",
+    "url": "https://homepage.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/homepage.cooked.beer.ico",
+    "slug": "homepage",
+    "status": "down",
+    "uptime": "11.08%",
+    "uptimeDay": "11.08%",
+    "uptimeWeek": "11.08%",
+    "uptimeMonth": "11.08%",
+    "uptimeYear": "11.08%",
+    "time": 20,
+    "timeDay": 20,
+    "timeWeek": 20,
+    "timeMonth": 20,
+    "timeYear": 20,
+    "dailyMinutesDown": {
+      "2026-05-22": 2
+    }
+  },
+  {
+    "name": "Vaultwarden",
+    "url": "https://vault.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/vault.cooked.beer.ico",
+    "slug": "vaultwarden",
+    "status": "down",
+    "uptime": "11.93%",
+    "uptimeDay": "11.93%",
+    "uptimeWeek": "11.93%",
+    "uptimeMonth": "11.93%",
+    "uptimeYear": "11.93%",
+    "time": 17,
+    "timeDay": 17,
+    "timeWeek": 17,
+    "timeMonth": 17,
+    "timeYear": 17,
+    "dailyMinutesDown": {
+      "2026-05-22": 1
+    }
+  },
+  {
+    "name": "Radarr",
+    "url": "https://radarr.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/radarr.cooked.beer.ico",
+    "slug": "radarr",
+    "status": "down",
+    "uptime": "13.35%",
+    "uptimeDay": "13.35%",
+    "uptimeWeek": "13.35%",
+    "uptimeMonth": "13.35%",
+    "uptimeYear": "13.35%",
+    "time": 17,
+    "timeDay": 17,
+    "timeWeek": 17,
+    "timeMonth": 17,
+    "timeYear": 17,
+    "dailyMinutesDown": {
+      "2026-05-22": 1
+    }
+  },
+  {
+    "name": "Sonarr",
+    "url": "https://sonarr.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/sonarr.cooked.beer.ico",
+    "slug": "sonarr",
+    "status": "down",
+    "uptime": "16.77%",
+    "uptimeDay": "16.77%",
+    "uptimeWeek": "16.77%",
+    "uptimeMonth": "16.77%",
+    "uptimeYear": "16.77%",
+    "time": 14,
+    "timeDay": 14,
+    "timeWeek": 14,
+    "timeMonth": 14,
+    "timeYear": 14,
+    "dailyMinutesDown": {
+      "2026-05-22": 1
+    }
+  },
+  {
+    "name": "Prowlarr",
+    "url": "https://prowlarr.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/prowlarr.cooked.beer.ico",
+    "slug": "prowlarr",
+    "status": "down",
+    "uptime": "19.77%",
+    "uptimeDay": "19.77%",
+    "uptimeWeek": "19.77%",
+    "uptimeMonth": "19.77%",
+    "uptimeYear": "19.77%",
+    "time": 17,
+    "timeDay": 17,
+    "timeWeek": 17,
+    "timeMonth": 17,
+    "timeYear": 17,
+    "dailyMinutesDown": {
+      "2026-05-22": 1
+    }
+  },
+  {
+    "name": "SABnzbd",
+    "url": "https://sabnzbd.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/sabnzbd.cooked.beer.ico",
+    "slug": "sa-bnzbd",
+    "status": "down",
+    "uptime": "26.76%",
+    "uptimeDay": "26.76%",
+    "uptimeWeek": "26.76%",
+    "uptimeMonth": "26.76%",
+    "uptimeYear": "26.76%",
+    "time": 19,
+    "timeDay": 19,
+    "timeWeek": 19,
+    "timeMonth": 19,
+    "timeYear": 19,
+    "dailyMinutesDown": {
+      "2026-05-22": 1
+    }
+  },
+  {
+    "name": "Jellyseerr",
+    "url": "https://jellyseerr.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/jellyseerr.cooked.beer.ico",
+    "slug": "jellyseerr",
+    "status": "down",
+    "uptime": "36.62%",
+    "uptimeDay": "36.62%",
+    "uptimeWeek": "36.62%",
+    "uptimeMonth": "36.62%",
+    "uptimeYear": "36.62%",
+    "time": 16,
+    "timeDay": 16,
+    "timeWeek": 16,
+    "timeMonth": 16,
+    "timeYear": 16,
+    "dailyMinutesDown": {
+      "2026-05-22": 0
+    }
+  },
+  {
+    "name": "Grimguzzler Registration",
+    "url": "https://grimguzzler.cooked.beer",
+    "icon": "https://icons.duckduckgo.com/ip3/grimguzzler.cooked.beer.ico",
+    "slug": "grimguzzler-registration",
+    "status": "down",
+    "uptime": "100.00%",
+    "uptimeDay": "100.00%",
+    "uptimeWeek": "100.00%",
+    "uptimeMonth": "100.00%",
+    "uptimeYear": "100.00%",
+    "time": 20,
+    "timeDay": 20,
+    "timeWeek": 20,
+    "timeMonth": 20,
+    "timeYear": 20,
+    "dailyMinutesDown": {}
+  }
+]
