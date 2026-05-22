@@ -22,7 +22,7 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
-        kubernetes.io/hostname: metal7
+          kubernetes.io/hostname: metal4
       initContainers:
         - name: clone-acore
           image: alpine/git:2.47.2
