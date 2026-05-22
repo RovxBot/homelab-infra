@@ -1,0 +1,135 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gatus
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: gatus
+      version: 1.5.0
+      sourceRef:
+        kind: HelmRepository
+        name: twin
+        namespace: flux-system
+      interval: 12h
+  values:
+    persistence:
+      enabled: true
+      storageClassName: longhorn
+      accessModes:
+        - ReadWriteOnce
+      size: 1Gi
+    serviceMonitor:
+      enabled: false
+    env:
+      GATUS_GITHUB_TOKEN:
+        valueFrom:
+          secretKeyRef:
+            name: gatus-github-token
+            key: token
+    config:
+      storage:
+        type: sqlite
+        path: /data/data.db
+      alerting:
+        github:
+          repository-url: https://github.com/RovxBot/homelab-infra
+          token: ${GATUS_GITHUB_TOKEN}
+          default-alert:
+            description: Internal service health check failed
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+      endpoints:
+        - name: homepage
+          group: internal
+          url: http://homepage.homepage.svc.cluster.local:3000
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: vaultwarden
+          group: internal
+          url: http://vaultwarden.security.svc.cluster.local:80
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: radarr
+          group: internal
+          url: http://radarr.media.svc.cluster.local:7878
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: sonarr-ping
+          group: internal
+          url: http://sonarr.media.svc.cluster.local:8989/ping
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: prowlarr-ping
+          group: internal
+          url: http://prowlarr.media.svc.cluster.local:9696/ping
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: sabnzbd
+          group: internal
+          url: http://sabnzbd.media.svc.cluster.local:8080
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: jellyseerr-login
+          group: internal
+          url: http://jellyseerr.media.svc.cluster.local:5055/login
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: jellyfin
+          group: internal
+          url: http://jellyfin.media.svc.cluster.local:8096
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: immich-server
+          group: internal
+          url: http://immich-server.immich.svc.cluster.local:2283
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: longhorn-frontend
+          group: internal
+          url: http://longhorn-frontend.longhorn-system.svc.cluster.local:80
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github

@@ -4,8 +4,10 @@ resources:
   - namespace.yaml
   - prometheus-community-helmrepository.yaml
   - grafana-helmrepository.yaml
+  - gatus-helmrepository.yaml
   - kube-prometheus-stack-helmrelease.yaml
   - blackbox-exporter-helmrelease.yaml
+  - gatus-helmrelease.yaml
   - loki-helmrelease.yaml
   - promtail-helmrelease.yaml
 
