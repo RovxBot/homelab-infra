@@ -14,23 +14,47 @@
 # * More by Anand Chowdhary: https://anandchowdhary.com
 
 
-name: Static Site CI
+name: Setup CI
 on:
-  schedule:
-    - cron: "0 1 * * *"
+  push:
+    paths:
+      - ".upptimerc.yml"
   repository_dispatch:
-    types: [static_site]
+    types: [setup]
   workflow_dispatch:
 jobs:
   release:
-    name: Build and deploy site
+    name: Setup Upptime
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           ref: ${{ github.head_ref }}
+          token: ${{ secrets.GH_PAT || github.token }}
+      - name: Update template
+        uses: upptime/uptime-monitor@v1.41.5
+        with:
+          command: "update-template"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT || github.token }}
+      - name: Update response time
+        uses: upptime/uptime-monitor@v1.41.5
+        with:
+          command: "response-time"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT || github.token }}
+          SECRETS_CONTEXT: ${{ toJson(secrets) }}
+      - name: Update summary in README
+        uses: upptime/uptime-monitor@v1.41.5
+        with:
+          command: "readme"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT || github.token }}
+      - name: Generate graphs
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Graphs CI
           token: ${{ secrets.GH_PAT || github.token }}
       - name: Generate site
         uses: upptime/uptime-monitor@v1.41.5
