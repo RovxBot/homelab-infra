@@ -30,7 +30,7 @@ spec:
         kubernetes.io/hostname: metal4
       initContainers:
         - name: configure-nvenc
-          image: busybox:1.37.0@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
+          image: busybox:1.38.0@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
@@ -62,7 +62,7 @@ spec:
               mountPath: /config
       containers:
         - name: jellyfin
-          image: jellyfin/jellyfin:10.11.9@sha256:bc9fa8e1462fffe3d8d4255fc62af478602641f4c0e5f4875fea8563d1189837
+          image: jellyfin/jellyfin:10.11.10@sha256:f66273e014b307e4ac46778845ebc1e9ee24b2e57c1fc17d5ec5ac3015649bfa
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
