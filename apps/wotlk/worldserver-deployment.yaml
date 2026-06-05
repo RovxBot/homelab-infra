@@ -82,6 +82,46 @@ spec:
                 done < /modules/modules.txt
               fi
 
+              # Some mod-playerbots text updates were changed after release to
+              # hardcode ids that collide with databases bootstrapped from the
+              # older auto-increment versions. Keep those updates replayable by
+              # letting MySQL allocate text ids while preserving their names.
+              for f in /acore-src/modules/mod-playerbots/data/sql/playerbots/updates/*.sql; do
+                [ -f "$f" ] || continue
+                grep -q 'INSERT INTO `\{0,1\}ai_playerbot_texts`\{0,1\}' "$f" || continue
+
+                awk '
+                  /INSERT INTO `?ai_playerbot_texts`?/ {
+                    in_text_insert = 1
+                    in_values = 0
+                  }
+
+                  in_text_insert {
+                    gsub(/`id`,[[:space:]]*/, "")
+                    gsub(/id,[[:space:]]*/, "")
+
+                    if ($0 ~ /VALUES/) {
+                      in_values = 1
+                    }
+
+                    if (in_values) {
+                      sub(/\([[:space:]]*[0-9]+,[[:space:]]*/, "(")
+                      if ($0 ~ /^[[:space:]]*[0-9]+,[[:space:]]*$/) {
+                        next
+                      }
+                    }
+
+                    if ($0 ~ /;[[:space:]]*$/) {
+                      in_text_insert = 0
+                      in_values = 0
+                    }
+                  }
+
+                  { print }
+                ' "$f" > "${f}.tmp"
+                mv "${f}.tmp" "$f"
+              done
+
           volumeMounts:
             - name: acore-src
               mountPath: /acore-src
