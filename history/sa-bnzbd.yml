@@ -1,7 +1,7 @@
 url: https://sabnzbd.cooked.beer
-status: down
-code: 403
-responseTime: 16
-lastUpdated: 2026-06-06T23:54:04.829Z
+status: up
+code: 302
+responseTime: 29
+lastUpdated: 2026-06-07T02:34:01.204Z
 startTime: 2026-05-22T05:56:13.948Z
 generator: Upptime <https://github.com/upptime/upptime>
