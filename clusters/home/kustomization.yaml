@@ -9,5 +9,6 @@ resources:
   - apps/arr-kustomization.yaml
   - apps/homepage-kustomization.yaml
   - apps/grimguzzler-registration-kustomization.yaml
+  - apps/invoiceninja-kustomization.yaml
   - apps/wotlk-kustomization.yaml
   - infrastructure/longhorn-node-disks-kustomization.yaml
