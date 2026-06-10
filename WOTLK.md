@@ -5,6 +5,7 @@ This repo contains my WotLK (AzerothCore + Playerbots) deployment and related to
 ## What is included
 
 - Auth server, world server, and MariaDB statefulset
+- Deterministic `db-import` init containers that apply schema/data updates before the servers start
 - World/auth configuration templates
 - CronJobs for realm updates, bot maintenance, and custom content
 - Optional account management portal assets
@@ -30,6 +31,7 @@ Tags vary by build and component. The deployments in `apps/wotlk/` reference the
 2. Update the image tags in:
    - `apps/wotlk/worldserver-deployment.yaml`
    - `apps/wotlk/authserver-deployment.yaml`
+   - `db-import` initContainer tags inside those deployment manifests
    - `apps/wotlk/db-bootstrap-cronjob.yaml` (if used)
 3. Commit + push to `main` so Flux applies the changes.
 
