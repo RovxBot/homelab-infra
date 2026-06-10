@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: mysql
-          image: mysql:8.4@sha256:14690274f4967ba207939c97dd79a8d6604f1d532218ea6be69c0001ddd2d45f
+          image: mysql:9.7@sha256:c11782aa2a96624c1efc121768641d96954faa136d6aa82751b032d8c426ffbc
           imagePullPolicy: IfNotPresent
           env:
             - name: MYSQL_DATABASE
