@@ -110,7 +110,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-test-staging-4590b77489ac457a0a9d366b612824dbcbc2ef22
+          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-test-staging-643a4c501d28eae57a3a6caf150b85087837cf32
           imagePullPolicy: Always
           resources:
             requests:
@@ -135,7 +135,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: authserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-test-staging-4590b77489ac457a0a9d366b612824dbcbc2ef22
+          image: ghcr.io/rovxbot/azerothcore-wotlk:authserver-test-staging-643a4c501d28eae57a3a6caf150b85087837cf32
           imagePullPolicy: Always
           env:
             - name: TZ
