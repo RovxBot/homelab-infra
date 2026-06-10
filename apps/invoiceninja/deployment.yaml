@@ -74,7 +74,7 @@ spec:
               cpu: "1"
               memory: 1Gi
         - name: nginx
-          image: nginxinc/nginx-unprivileged:1.27-alpine
+          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:85bcbc6b2edd325462560c597d784ecee415024f1c6a004e53ac5f202b8ca561
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
