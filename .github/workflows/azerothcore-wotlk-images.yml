@@ -142,7 +142,7 @@ jobs:
 
           # Extend dbimport so the pinned db-import image can migrate the
           # separate playerbots database alongside the core databases.
-          git -C .work/acore apply "${GITHUB_WORKSPACE}/ops/wotlk-images/dbimport-playerbots.patch"
+          perl -0pi -e 's|\n    loader\n        \\.AddDatabase\\(LoginDatabase, "Login"\\)\n        \\.AddDatabase\\(CharacterDatabase, "Character"\\)\n        \\.AddDatabase\\(WorldDatabase, "World"\\);|\n#ifdef MOD_PLAYERBOTS\n    loader.AddDatabase(PlayerbotsDatabase, "Playerbots");\n#endif\n    loader\n        .AddDatabase(LoginDatabase, "Login")\n        .AddDatabase(CharacterDatabase, "Character")\n        .AddDatabase(WorldDatabase, "World");|s' .work/acore/src/tools/dbimport/Main.cpp
 
       - name: Build and push authserver
         if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'authserver' }}
@@ -189,7 +189,7 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}-${{ github.sha }}
 
       - name: Build and push db-import
-        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' }}
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' || inputs.build_scope == 'worldserver' || inputs.build_scope == 'authserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           context: .work/acore
@@ -265,7 +265,7 @@ jobs:
             docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
           fi
 
-          if [[ "$scope" == "all" || "$scope" == "db-import" ]]; then
+          if [[ "$scope" == "all" || "$scope" == "db-import" || "$scope" == "worldserver" || "$scope" == "authserver" ]]; then
             docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
           fi
 
@@ -324,7 +324,7 @@ jobs:
           '
 
       - name: Smoke test db-import image
-        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' }}
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' || inputs.build_scope == 'worldserver' || inputs.build_scope == 'authserver' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -438,7 +438,7 @@ jobs:
             sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)worldserver-[A-Za-z0-9._-]+#\1${world_tag}#g" apps/wotlk/worldserver-deployment.yaml
           fi
 
-          if [[ "$scope" == "all" || "$scope" == "db-import" ]]; then
+          if [[ "$scope" == "all" || "$scope" == "db-import" || "$scope" == "worldserver" || "$scope" == "authserver" ]]; then
             db_import_tag="db-import-${REF_TAG}-${IMAGE_SUFFIX}"
             sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)db-import-[A-Za-z0-9._-]+#\1${db_import_tag}#g" apps/wotlk/authserver-deployment.yaml
             sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)db-import-[A-Za-z0-9._-]+#\1${db_import_tag}#g" apps/wotlk/worldserver-deployment.yaml

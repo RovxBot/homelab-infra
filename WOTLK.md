@@ -35,6 +35,9 @@ Tags vary by build and component. The deployments in `apps/wotlk/` reference the
    - `apps/wotlk/db-bootstrap-cronjob.yaml` (if used)
 3. Commit + push to `main` so Flux applies the changes.
 
+Important:
+- `db-import` must be rebuilt and redeployed whenever `worldserver` or `authserver` images are rebuilt for an AzerothCore update, because it is the component that applies the database migrations before the servers start.
+
 ## Licensing and upstreams
 
 This repo is MIT licensed (see `LICENSE`) and is free to use. Upstream components have their own licenses and must be respected:
