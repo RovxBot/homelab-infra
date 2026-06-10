@@ -1,0 +1,16 @@
+diff --git a/src/tools/dbimport/Main.cpp b/src/tools/dbimport/Main.cpp
+index 863c056..34ef37d 100644
+--- a/src/tools/dbimport/Main.cpp
++++ b/src/tools/dbimport/Main.cpp
+@@ -112,6 +112,9 @@ bool StartDB()
+         (modules == "all") ? DatabaseLoader("dbimport", DatabaseLoader::DATABASE_MASK_ALL, AC_MODULES_LIST) :
+         DatabaseLoader("dbimport", DatabaseLoader::DATABASE_MASK_ALL, modules);
+ 
++    // Keep playerbots migrations in the same deterministic db-import step as the core databases.
++    // This avoids relying on worldserver startup to mutate schema against a moving source checkout.
++#ifdef MOD_PLAYERBOTS
++    loader.AddDatabase(PlayerbotsDatabase, "Playerbots");
++#endif
+     loader
+         .AddDatabase(LoginDatabase, "Login")
+         .AddDatabase(CharacterDatabase, "Character")

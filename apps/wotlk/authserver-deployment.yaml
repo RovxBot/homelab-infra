@@ -24,36 +24,49 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: metal7
       initContainers:
-        - name: clone-acore
-          image: alpine/git:2.47.2
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 256Mi
+        - name: db-import
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-643a4c501d28eae57a3a6caf150b85087837cf32
+          imagePullPolicy: Always
           env:
-            - name: ACORE_REPO
+            - name: TZ
+              value: Australia/Adelaide
+            - name: AC_DISABLE_INTERACTIVE
+              value: "1"
+            - name: AC_UPDATES_ENABLE_DATABASES
+              value: "1"
+            - name: AC_UPDATES_AUTO_SETUP
+              value: "1"
+            - name: AC_UPDATES_ALLOWED_MODULES
+              value: all
+            - name: AC_SOURCE_DIRECTORY
+              value: /azerothcore
+            - name: DB_HOST
+              value: wotlk-mariadb-headless.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
               valueFrom:
-                configMapKeyRef:
-                  name: wotlk-acore-source
-                  key: ACORE_REPO
-            - name: ACORE_REF
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: wotlk-acore-source
-                  key: ACORE_REF
-          command:
-            - sh
-            - -lc
-            - |
-              set -eu
-              rm -rf /acore-src/*
-              git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" /acore-src
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: AC_LOGIN_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_auth"
+            - name: AC_WORLD_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_world"
+            - name: AC_CHARACTER_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_characters"
+            - name: AC_PLAYERBOTS_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_playerbots"
           volumeMounts:
-            - name: acore-src
-              mountPath: /acore-src
+            - name: dbimport-etc
+              mountPath: /azerothcore/env/dist/etc
+            - name: dbimport-logs
+              mountPath: /azerothcore/env/dist/logs
         - name: render-config
           image: alpine:3.20
           resources:
@@ -141,11 +154,7 @@ spec:
             - name: TZ
               value: Australia/Adelaide
             - name: AC_UPDATES_ENABLE_DATABASES
-              value: "1"
-            - name: AC_UPDATES_AUTO_SETUP
-              value: "1"
-            - name: AC_SOURCE_DIRECTORY
-              value: /acore-src
+              value: "0"
           ports:
             - name: auth
               containerPort: 3724
@@ -167,9 +176,6 @@ spec:
               mountPath: /azerothcore/env/dist/etc
             - name: logs
               mountPath: /azerothcore/env/dist/logs
-            - name: acore-src
-              mountPath: /acore-src
-              readOnly: true
           resources:
             requests:
               cpu: 250m
@@ -185,5 +191,7 @@ spec:
           emptyDir: {}
         - name: logs
           emptyDir: {}
-        - name: acore-src
+        - name: dbimport-etc
+          emptyDir: {}
+        - name: dbimport-logs
           emptyDir: {}

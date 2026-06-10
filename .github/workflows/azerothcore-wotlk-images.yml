@@ -140,6 +140,10 @@ jobs:
           test -d .work/acore/modules/mod-customnpcs/src
           test -f .work/acore/modules/mod-customnpcs/CMakeLists.txt
 
+          # Extend dbimport so the pinned db-import image can migrate the
+          # separate playerbots database alongside the core databases.
+          git -C .work/acore apply "${GITHUB_WORKSPACE}/ops/wotlk-images/dbimport-playerbots.patch"
+
       - name: Build and push authserver
         if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'authserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
@@ -331,6 +335,7 @@ jobs:
               echo "db-import image is missing expected SQL or bin assets" >&2
               exit 1
             }
+            test -f /azerothcore/modules/mod-playerbots/data/sql/playerbots/base/version_db_playerbots.sql
           '
 
       - name: Smoke test tools image
@@ -431,6 +436,12 @@ jobs:
           if [[ "$scope" == "all" || "$scope" == "worldserver" ]]; then
             world_tag="worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
             sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)worldserver-[A-Za-z0-9._-]+#\1${world_tag}#g" apps/wotlk/worldserver-deployment.yaml
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "db-import" ]]; then
+            db_import_tag="db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)db-import-[A-Za-z0-9._-]+#\1${db_import_tag}#g" apps/wotlk/authserver-deployment.yaml
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)db-import-[A-Za-z0-9._-]+#\1${db_import_tag}#g" apps/wotlk/worldserver-deployment.yaml
           fi
 
           if [[ "$scope" == "all" || "$scope" == "tools" ]]; then

@@ -24,110 +24,49 @@ spec:
       nodeSelector:
           kubernetes.io/hostname: metal4
       initContainers:
-        - name: clone-acore
-          image: alpine/git:2.47.2
-          resources:
-            requests:
-              cpu: 250m
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 512Mi
+        - name: db-import
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-643a4c501d28eae57a3a6caf150b85087837cf32
+          imagePullPolicy: Always
           env:
-            - name: ACORE_REPO
+            - name: TZ
+              value: Australia/Adelaide
+            - name: AC_DISABLE_INTERACTIVE
+              value: "1"
+            - name: AC_UPDATES_ENABLE_DATABASES
+              value: "14"
+            - name: AC_UPDATES_AUTO_SETUP
+              value: "1"
+            - name: AC_UPDATES_ALLOWED_MODULES
+              value: all
+            - name: AC_SOURCE_DIRECTORY
+              value: /azerothcore
+            - name: DB_HOST
+              value: wotlk-mariadb-headless.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
               valueFrom:
-                configMapKeyRef:
-                  name: wotlk-acore-source
-                  key: ACORE_REPO
-            - name: ACORE_REF
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: wotlk-acore-source
-                  key: ACORE_REF
-          command:
-            - sh
-            - -lc
-            - |
-              set -eu
-              rm -rf /acore-src/*
-              git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" /acore-src
-              mkdir -p /acore-src/modules
-
-              # Clone module repos so the in-server DB updater can find their SQL folders.
-              if [ -f /modules/modules.txt ]; then
-                while IFS= read -r line || [ -n "$line" ]; do
-                  line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-                  [ -z "$line" ] && continue
-                  case "$line" in
-                    \#*) continue ;;
-                  esac
-
-                  repo="$line"
-                  ref="master"
-                  case "$line" in
-                    *@*)
-                      repo="${line%@*}"
-                      ref="${line##*@}"
-                      ;;
-                  esac
-
-                  name="$(basename "$repo" .git)"
-                  echo "Adding module: $repo@$ref -> modules/$name"
-                  if [ "$name" = "mod-playerbots" ]; then
-                    git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name"
-                  else
-                    # Don't fail the whole pod if an optional module is temporarily unavailable.
-                    git clone --depth=1 --branch "$ref" "$repo" "/acore-src/modules/$name" || true
-                  fi
-                done < /modules/modules.txt
-              fi
-
-              # Some mod-playerbots text updates were changed after release to
-              # hardcode ids that collide with databases bootstrapped from the
-              # older auto-increment versions. Keep those updates replayable by
-              # letting MySQL allocate text ids while preserving their names.
-              for f in /acore-src/modules/mod-playerbots/data/sql/playerbots/updates/*.sql; do
-                [ -f "$f" ] || continue
-                grep -q 'INSERT INTO `\{0,1\}ai_playerbot_texts`\{0,1\}' "$f" || continue
-
-                awk '
-                  /INSERT INTO `?ai_playerbot_texts`?/ {
-                    in_text_insert = 1
-                    in_values = 0
-                  }
-
-                  in_text_insert {
-                    gsub(/`id`,[[:space:]]*/, "")
-                    gsub(/id,[[:space:]]*/, "")
-
-                    if ($0 ~ /VALUES/) {
-                      in_values = 1
-                    }
-
-                    if (in_values) {
-                      sub(/\([[:space:]]*[0-9]+,[[:space:]]*/, "(")
-                      if ($0 ~ /^[[:space:]]*[0-9]+,[[:space:]]*$/) {
-                        next
-                      }
-                    }
-
-                    if ($0 ~ /;[[:space:]]*$/) {
-                      in_text_insert = 0
-                      in_values = 0
-                    }
-                  }
-
-                  { print }
-                ' "$f" > "${f}.tmp"
-                mv "${f}.tmp" "$f"
-              done
-
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: AC_LOGIN_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_auth"
+            - name: AC_WORLD_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_world"
+            - name: AC_CHARACTER_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_characters"
+            - name: AC_PLAYERBOTS_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_playerbots"
           volumeMounts:
-            - name: acore-src
-              mountPath: /acore-src
-            - name: modules-list
-              mountPath: /modules
-              readOnly: true
+            - name: dbimport-etc
+              mountPath: /azerothcore/env/dist/etc
+            - name: dbimport-logs
+              mountPath: /azerothcore/env/dist/logs
         - name: render-config
           image: alpine:3.20
           resources:
@@ -273,11 +212,9 @@ spec:
             - name: TZ
               value: Australia/Adelaide
             - name: AC_UPDATES_ENABLE_DATABASES
-              value: "7"
-            - name: AC_UPDATES_AUTO_SETUP
-              value: "1"
-            - name: AC_SOURCE_DIRECTORY
-              value: /acore-src
+              value: "0"
+            - name: AC_PLAYERBOTS_UPDATES_ENABLE_DATABASES
+              value: "0"
             - name: DB_HOST
               value: wotlk-mariadb-headless.wotlk.svc.cluster.local
             - name: DB_PORT
@@ -326,9 +263,6 @@ spec:
               mountPath: /azerothcore/env/dist/logs
             - name: data
               mountPath: /azerothcore/env/dist/data
-            - name: acore-src
-              mountPath: /acore-src
-              readOnly: true
           resources:
             requests:
               cpu: "2"
@@ -347,8 +281,7 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: wotlk-data-rwx
-        - name: acore-src
+        - name: dbimport-etc
           emptyDir: {}
-        - name: modules-list
-          configMap:
-            name: wotlk-modules-list
+        - name: dbimport-logs
+          emptyDir: {}
