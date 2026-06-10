@@ -27,6 +27,13 @@ spec:
         - name: db-import
           image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-643a4c501d28eae57a3a6caf150b85087837cf32
           imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
           env:
             - name: TZ
               value: Australia/Adelaide
