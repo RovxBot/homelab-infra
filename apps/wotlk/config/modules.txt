@@ -17,3 +17,4 @@ https://github.com/RovxBot/mod-customnpcs.git@master
 https://github.com/RovxBot/mod-grimtokendailies.git@master
 https://github.com/RovxBot/mod-guildfunds.git@master
 https://github.com/DustinHendrickson/mod-player-bot-level-brackets.git@main
+https://github.com/Wishmaster117/mod-multibot-bridge@main
