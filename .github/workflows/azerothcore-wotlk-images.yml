@@ -132,6 +132,32 @@ jobs:
             done < "${modules_file}"
           fi
 
+          # Some modules rely on AzerothCore's auto-collected sources but do not
+          # ship a module-level CMakeLists.txt. Generate a tiny compatibility
+          # shim so their conf/*.conf.dist files still get installed into the
+          # image alongside modules that provide their own CMake glue.
+          find .work/acore/modules -mindepth 1 -maxdepth 1 -type d | while read -r module_dir; do
+            if [[ -f "${module_dir}/CMakeLists.txt" ]]; then
+              continue
+            fi
+
+            if ! compgen -G "${module_dir}/conf/*.conf.dist" > /dev/null; then
+              continue
+            fi
+
+            printf '%s\n' \
+              '# Auto-generated compatibility shim for modules without module-level CMake.' \
+              '# AzerothCore still auto-collects src/ for compilation; this only installs' \
+              '# module configuration templates into env/ref/etc/modules.' \
+              'if(COMMAND CopyModuleConfig)' \
+              '  file(GLOB MODULE_CONF_DIST_FILES "${CMAKE_CURRENT_LIST_DIR}/conf/*.conf.dist")' \
+              '  foreach(MODULE_CONF_DIST_FILE ${MODULE_CONF_DIST_FILES})' \
+              '    CopyModuleConfig("${MODULE_CONF_DIST_FILE}")' \
+              '  endforeach()' \
+              'endif()' \
+              > "${module_dir}/CMakeLists.txt"
+          done
+
           # Compatibility fixes for custom modules on Playerbot branch.
           # These modules ship CMake APIs not available in this core fork.
           rm -f .work/acore/modules/mod-grimtokendailies/CMakeLists.txt || true
@@ -377,6 +403,7 @@ jobs:
             for conf in \
               individualProgression.conf.dist \
               playerbots.conf.dist \
+              MultiBotBridge.conf.dist \
               mod_ahbot.conf.dist \
               transmog.conf.dist \
               mod-double-xp-weekend.conf.dist \
@@ -398,6 +425,26 @@ jobs:
                   strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
                 else
                   grep -aEq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" "$path"
+                fi
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
+          '
+
+          docker run --rm --entrypoint bash "${world_image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                if command -v strings >/dev/null 2>&1; then
+                  strings "$path" | grep -Eq "mod-multibot-bridge|MultiBotBridge|Addmod_multibot_bridgeScripts|MBOT"
+                else
+                  grep -aEq "mod-multibot-bridge|MultiBotBridge|Addmod_multibot_bridgeScripts|MBOT" "$path"
                 fi
                 exit 0
               fi
