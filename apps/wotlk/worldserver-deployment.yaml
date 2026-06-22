@@ -25,7 +25,7 @@ spec:
           kubernetes.io/hostname: metal4
       initContainers:
         - name: db-import
-          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-dd241ceb10cdd0afa7c994790b29166db24848b4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-7aa0cf25e2ddfbe9f86162c2ea37e2cb2c71c3c5
           imagePullPolicy: Always
           resources:
             requests:
@@ -124,6 +124,7 @@ spec:
               mkdir -p /etc-out/modules
               render_file /etc-tpl/worldserver.conf /etc-out/worldserver.conf
               render_file /etc-tpl/playerbots.conf /etc-out/modules/playerbots.conf
+              render_file /etc-tpl/MultiBotBridge.conf /etc-out/modules/MultiBotBridge.conf
               render_file /etc-tpl/mod_ahbot.conf /etc-out/modules/mod_ahbot.conf
               render_file /etc-tpl/individualProgression.conf /etc-out/modules/individualProgression.conf
               render_file /etc-tpl/transmog.conf /etc-out/modules/transmog.conf
@@ -173,7 +174,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-dd241ceb10cdd0afa7c994790b29166db24848b4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-7aa0cf25e2ddfbe9f86162c2ea37e2cb2c71c3c5
           imagePullPolicy: Always
           resources:
             requests:
@@ -201,7 +202,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-dd241ceb10cdd0afa7c994790b29166db24848b4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-7aa0cf25e2ddfbe9f86162c2ea37e2cb2c71c3c5
           imagePullPolicy: Always
           command:
             - sh
