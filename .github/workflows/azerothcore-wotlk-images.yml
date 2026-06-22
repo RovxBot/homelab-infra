@@ -139,6 +139,7 @@ jobs:
               return 0
             fi
 
+            # shellcheck disable=SC2016  # Writing literal CMake variables into the shim file.
             printf '%s\n' \
               '# Auto-generated compatibility shim for modules without module-level CMake.' \
               '# AzerothCore still auto-collects src/ for compilation; this only installs' \
