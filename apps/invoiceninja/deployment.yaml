@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: invoiceninja
-          image: invoiceninja/invoiceninja:5.13.24@sha256:e94b961c4c1158c591213480624908c2f7276c733d51957523bbfb5158b7ae43
+          image: invoiceninja/invoiceninja:5.13.25@sha256:4d2824c1ce5f64888c2f5935c793bec8ba6a526f99c0b7fec4751ce73694102f
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9000
@@ -74,7 +74,7 @@ spec:
               cpu: "1"
               memory: 1Gi
         - name: nginx
-          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:26b5d4920434bc4d8c17a68201488cf4b3d2391f0d25305cdfe66ccdc6d18aa4
+          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:054e14f543eb688809d59ec2ad1644d1a61678e247c87a318ad605977eb37eaf
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
