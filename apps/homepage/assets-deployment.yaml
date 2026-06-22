@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: sync-assets
-          image: bitnami/kubectl@sha256:08afc880eea24f36572644ccae85fb3e573a6ff1b7161135a3ae9a5eab222df2
+          image: bitnami/kubectl@sha256:b9f4412e53f09d76b0991cdd29c0feff4c1d1e112b307e0ab155e5b050a9f4ec
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -97,7 +97,7 @@ spec:
               memory: 256Mi
       containers:
         - name: nginx
-          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:26b5d4920434bc4d8c17a68201488cf4b3d2391f0d25305cdfe66ccdc6d18aa4
+          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:054e14f543eb688809d59ec2ad1644d1a61678e247c87a318ad605977eb37eaf
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
