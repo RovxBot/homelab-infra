@@ -113,7 +113,7 @@ jobs:
 
           if [[ -n "${modules_file}" ]]; then
             echo "Reading modules from: ${modules_file}"
-            while IFS= read -r line; do
+            while IFS= read -r line || [[ -n "$line" ]]; do
               line="${line#"${line%%[![:space:]]*}"}" # ltrim
               [[ -z "$line" ]] && continue
               [[ "$line" == \#* ]] && continue
@@ -139,6 +139,7 @@ jobs:
               return 0
             fi
 
+            # shellcheck disable=SC2016  # Writing literal CMake variables into the shim file.
             printf '%s\n' \
               '# Auto-generated compatibility shim for modules without module-level CMake.' \
               '# AzerothCore still auto-collects src/ for compilation; this only installs' \
