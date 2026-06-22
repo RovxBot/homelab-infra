@@ -12,6 +12,7 @@ configMapGenerator:
     files:
       - worldserver.conf=config/worldserver.conf
       - playerbots.conf=config/playerbots.conf
+      - MultiBotBridge.conf=config/MultiBotBridge.conf
       - mod_ahbot.conf=config/mod_ahbot.conf
       - individualProgression.conf=config/individualProgression.conf
       - transmog.conf=config/transmog.conf

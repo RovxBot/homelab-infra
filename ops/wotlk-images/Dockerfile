@@ -130,6 +130,13 @@ RUN --mount=type=cache,id=ccache,target=/ccache,sharing=locked \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
 
+# Keep module config templates in the runtime image even when a third-party
+# module does not install conf/*.conf.dist through CMake.
+FROM build AS module-conf-assets
+
+RUN mkdir -p /module-conf-assets \
+    && find /azerothcore/modules -type f -path '*/conf/*.conf.dist' -exec cp {} /module-conf-assets/ \;
+
 FROM skeleton AS runtime
 
 ARG USER_ID=1000
@@ -145,6 +152,7 @@ RUN /usr/local/bin/apt-update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /azerothcore/env/dist/etc/ /azerothcore/env/ref/etc
+COPY --from=module-conf-assets /module-conf-assets/ /azerothcore/env/ref/etc/modules/
 
 VOLUME /azerothcore/env/dist/etc
 
