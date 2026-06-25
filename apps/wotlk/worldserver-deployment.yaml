@@ -25,7 +25,7 @@ spec:
           kubernetes.io/hostname: metal4
       initContainers:
         - name: db-import
-          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-7aa0cf25e2ddfbe9f86162c2ea37e2cb2c71c3c5
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-e9b9ea4686c07f6c7930edc182de047666fdbf75
           imagePullPolicy: Always
           resources:
             requests:
@@ -174,7 +174,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-7aa0cf25e2ddfbe9f86162c2ea37e2cb2c71c3c5
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-e9b9ea4686c07f6c7930edc182de047666fdbf75
           imagePullPolicy: Always
           resources:
             requests:
@@ -202,7 +202,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-7aa0cf25e2ddfbe9f86162c2ea37e2cb2c71c3c5
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-e9b9ea4686c07f6c7930edc182de047666fdbf75
           imagePullPolicy: Always
           command:
             - sh
@@ -278,6 +278,46 @@ spec:
             limits:
               cpu: "6"
               memory: 16Gi
+        - name: aq40-log-collector
+          image: alpine:3.20
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              src=/azerothcore/env/dist/logs/AQ40.log
+              archive_dir=/azerothcore/env/dist/data/aq40-logs
+              pod_name="${HOSTNAME:-wotlk-worldserver}"
+              timestamp="$(date '+%Y%m%d-%H%M%S')"
+              dest="${archive_dir}/${pod_name}-${timestamp}-aq40.log"
+              latest="${archive_dir}/latest.log"
+
+              mkdir -p "${archive_dir}"
+              ln -sf "$(basename "${dest}")" "${latest}"
+              printf '# aq40 collector pod=%s started_at=%s source=%s\n' \
+                "${pod_name}" "$(date '+%Y-%m-%dT%H:%M:%S%z')" "${src}" >> "${dest}"
+
+              until [ -f "${src}" ]; do
+                sleep 2
+              done
+
+              tail -n +1 -F "${src}" | tee -a "${dest}"
+          env:
+            - name: TZ
+              value: Australia/Adelaide
+          volumeMounts:
+            - name: logs
+              mountPath: /azerothcore/env/dist/logs
+              readOnly: true
+            - name: data
+              mountPath: /azerothcore/env/dist/data
       volumes:
         - name: config-tpl
           configMap:

@@ -132,6 +132,13 @@ jobs:
             done < "${modules_file}"
           fi
 
+          if [[ -d .work/acore/modules/mod-playerbots ]] && \
+             ! grep -q "aq40StrategyLog" .work/acore/modules/mod-playerbots/src/PlayerbotAIConfig.h; then
+            echo "Applying local AQ40 strategy logging patch to mod-playerbots build context"
+            git -C .work/acore/modules/mod-playerbots apply \
+              "$PWD/ops/wotlk-images/patches/mod-playerbots-aq40-logging.patch"
+          fi
+
           write_module_conf_install_shim() {
             local module_dir="$1"
 
