@@ -4,3 +4,10 @@ metadata:
   name: recurring-job-max-retention
   namespace: longhorn-system
 value: "10"
+---
+apiVersion: longhorn.io/v1beta2
+kind: Setting
+metadata:
+  name: storage-minimal-available-percentage
+  namespace: longhorn-system
+value: "20"

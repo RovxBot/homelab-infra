@@ -1,7 +1,6 @@
 # homelab-infra
 
 [![WotLK Images](https://github.com/RovxBot/homelab-infra/actions/workflows/azerothcore-wotlk-images.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/azerothcore-wotlk-images.yml)
-[![Mangos Images](https://github.com/RovxBot/homelab-infra/actions/workflows/mangoszero-images.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/mangoszero-images.yml)
 [![Renovate](https://github.com/RovxBot/homelab-infra/actions/workflows/renovate.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/renovate.yml)
 
 This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux and includes infrastructure, apps, and game servers. The goal is learn-by-building, so expect opinionated choices and ongoing experimentation.
@@ -12,22 +11,55 @@ This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux a
 - GitOps: Flux (repo is the source of truth)
 - Storage: Longhorn (with per-node disk layout)
 - Observability: kube-prometheus-stack, Loki + Promtail, blackbox exporter
-- Access: Cloudflared tunnel, Tailscale, WireGuard
-- Apps: media stack, Immich, Vaultwarden, WoW servers, and more
+- Access: Cloudflared tunnel, WireGuard
+- Apps: media stack, Immich, Vaultwarden, WotLK server, and more
 
 ## Repo layout
 
 - `clusters/`: Flux entrypoint and Kustomizations for the home cluster
-- `apps/`: application manifests (media stack, Immich, Vaultwarden, WoW servers, etc.)
+- `apps/`: application manifests (media stack, Immich, Vaultwarden, WotLK server, etc.)
 - `infra/`: shared infrastructure (Longhorn, monitoring, Cloudflared, WireGuard, namespaces)
 - `secrets/`: SOPS-encrypted Kubernetes secrets (`*.enc.yaml`)
 - `ops/`: operational helpers (SQL, build inputs, scripts)
+
+## Deployment status
+
+- Active in this cluster: `apps/wotlk`, `apps/homepage`, `clusters/home/apps/media`, `clusters/home/apps/arr`, and `clusters/home/infrastructure`.
 
 ## How changes deploy
 
 1. Edit manifests in this repo.
 2. Commit + push to `main`.
 3. Flux reconciles and applies changes automatically.
+
+## Policy enforcement
+
+- `Repo Checks` renders the Flux-managed manifests, validates them with `kubeconform`, checks unresolved secret references, and runs the Kyverno baseline gate before merge.
+- The Kyverno gate compares rendered repo-managed resources against the policies in `infra/kyverno/policies` and the accepted debt baseline in `.github/kyverno-baseline.yaml`.
+- New policy failures break CI. Resolved baseline entries also break CI until they are removed from `.github/kyverno-baseline.yaml`.
+- Persistent live-cluster policy failures are mirrored into GitHub issues by `infra/kyverno/automation/github-issue-sync-cronjob.yaml` once they remain present past the configured threshold.
+
+To intentionally refresh the accepted baseline after review:
+
+```bash
+python3 scripts/ci/kyverno_gate.py generate-baseline \
+  --repo-root . \
+  --cluster-root clusters/home \
+  --baseline .github/kyverno-baseline.yaml \
+  --kyverno-bin /path/to/kyverno \
+  --work-dir .work/kyverno-gate
+```
+
+To verify the gate locally without changing the baseline:
+
+```bash
+python3 scripts/ci/kyverno_gate.py check \
+  --repo-root . \
+  --cluster-root clusters/home \
+  --baseline .github/kyverno-baseline.yaml \
+  --kyverno-bin /path/to/kyverno \
+  --work-dir .work/kyverno-gate
+```
 
 Manual reconcile examples:
 
@@ -103,7 +135,7 @@ You will need to edit manifests to match your environment:
 
 - Storage: `infra/longhorn-node-disks/*.yaml` (node names, disk paths)
 - Public access: `infra/cloudflared/config.yaml` (hostnames and services)
-- Mesh/VPN: `infra/tailscale/*`, `infra/wireguard/*`
+- VPN: `infra/wireguard/*`
 - Backups: `infra/backups/*` and `secrets/*`
 - Namespaces: `infra/namespaces/*`
 
@@ -134,3 +166,4 @@ To add a new app:
 - Contributing: `CONTRIBUTING.md`
 - License: `LICENSE`
 - WotLK server details and images: `WOTLK.md`
+- Azure Arc onboarding runbook: `ops/azure-arc/README.md`

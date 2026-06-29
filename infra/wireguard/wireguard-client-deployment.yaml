@@ -22,19 +22,56 @@ spec:
       # Pin to a single node so we only have one tunnel + NAT gateway.
       nodeSelector:
         kubernetes.io/hostname: metal7
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
       terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: stage-wireguard-config
+          image: busybox:1.38.0@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - sh
+            - -lc
+            - |
+              install -d -m 700 /config/wg_confs
+              install -m 600 /source/vps.conf /config/wg_confs/vps.conf
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: wgconfs
+              mountPath: /source
+              readOnly: true
       volumes:
         - name: config
           emptyDir: {}
         - name: wgconfs
           secret:
             secretName: wireguard-client-conf
+            defaultMode: 0440
             items:
               - key: wg0.conf
                 path: vps.conf
+      
       containers:
         - name: wireguard
-          image: lscr.io/linuxserver/wireguard:latest@sha256:72a3c0b6eb67bcecf0138092a7a66220c081246083c7f1e0d078c186560e745b
+          image: lscr.io/linuxserver/wireguard@sha256:ad0501c857edad4059f90c9b536338cb105bbb5f3fc82070986d36b937c897ca
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
@@ -65,9 +102,6 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: wgconfs
-              mountPath: /config/wg_confs
-              readOnly: true
           readinessProbe:
             exec:
               command:

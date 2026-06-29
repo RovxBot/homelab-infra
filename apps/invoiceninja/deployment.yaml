@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invoiceninja
+  namespace: invoiceninja
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: invoiceninja
+  template:
+    metadata:
+      labels:
+        app: invoiceninja
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1500
+        runAsGroup: 1500
+        fsGroup: 1500
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: invoiceninja
+          image: invoiceninja/invoiceninja:5.13.26@sha256:d1eec88a8134481b19a0d78107abc6a72bf29987e310cc82f3b81dfcb02decf1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9000
+              name: fastcgi
+          startupProbe:
+            tcpSocket:
+              port: fastcgi
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: fastcgi
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - php-fpm
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          envFrom:
+            - secretRef:
+                name: invoiceninja-env
+          env:
+            - name: TZ
+              value: Australia/Adelaide
+          volumeMounts:
+            - name: public
+              mountPath: /var/www/app/public
+            - name: data
+              mountPath: /var/www/app/storage
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:054e14f543eb688809d59ec2ad1644d1a61678e247c87a318ad605977eb37eaf
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
+            - name: public
+              mountPath: /var/www/app/public
+              readOnly: true
+            - name: data
+              mountPath: /var/www/app/storage
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: invoiceninja-nginx
+        - name: public
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: invoiceninja-data

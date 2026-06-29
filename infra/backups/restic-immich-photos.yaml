@@ -4,7 +4,7 @@ metadata:
   name: restic-immich-photos
   namespace: immich
 spec:
-  schedule: "45 4 * * 0"
+  schedule: "45 4 1,15 * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 2
@@ -14,11 +14,23 @@ spec:
       backoffLimit: 1
       template:
         spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
           restartPolicy: Never
           containers:
             - name: restic
-              image: restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76
+              image: restic/restic:0.19.0@sha256:7f44e0057b82348597568ea209360762d0b38f8e1dbc8ad859661ac1055e45f2
               imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
               env:
                 - name: RESTIC_RETRY_LOCK
                   value: 2m
@@ -51,18 +63,100 @@ spec:
                     --host k8s \
                     --tag immich \
                     --one-file-system
-                  restic forget \
-                    --keep-weekly 2 \
-                    --prune
               volumeMounts:
                 - name: photos
                   mountPath: /data
                   readOnly: true
                 - name: cache
                   mountPath: /cache
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
           volumes:
             - name: photos
               persistentVolumeClaim:
                 claimName: nfs-immich-uploads
+            - name: cache
+              emptyDir: {}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: restic-immich-photos-maintenance
+  namespace: immich
+spec:
+  schedule: "15 5 1 * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      backoffLimit: 1
+      template:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          restartPolicy: Never
+          containers:
+            - name: restic
+              image: restic/restic:0.19.0@sha256:7f44e0057b82348597568ea209360762d0b38f8e1dbc8ad859661ac1055e45f2
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              env:
+                - name: RESTIC_RETRY_LOCK
+                  value: 2m
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: restic-b2-photos
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: restic-b2-photos
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: RESTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: restic-b2-photos
+                      key: RESTIC_PASSWORD
+                - name: RESTIC_REPOSITORY
+                  value: "s3:https://s3.us-east-005.backblazeb2.com/cooked-photos/restic/immich-uploads"
+                - name: RESTIC_CACHE_DIR
+                  value: /cache
+              command:
+                - sh
+                - -lc
+                - |
+                  set -euo pipefail
+                  restic snapshots >/dev/null 2>&1 || restic init
+                  restic forget \
+                    --keep-weekly 2 \
+                    --prune
+              volumeMounts:
+                - name: cache
+                  mountPath: /cache
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+          volumes:
             - name: cache
               emptyDir: {}

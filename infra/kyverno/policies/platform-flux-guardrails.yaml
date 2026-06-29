@@ -1,0 +1,55 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: platform-flux-guardrails
+  annotations:
+    policies.kyverno.io/title: Platform Flux Guardrails
+    policies.kyverno.io/category: GitOps
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Flux-managed resources
+spec:
+  background: false
+  emitWarning: true
+  rules:
+    - name: audit-manual-edits-to-flux-managed-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - "*"
+              operations:
+                - CREATE
+                - UPDATE
+                - DELETE
+              selector:
+                matchExpressions:
+                  - key: kustomize.toolkit.fluxcd.io/name
+                    operator: Exists
+      exclude:
+        any:
+          - resources:
+              kinds:
+                - Endpoints
+                - EndpointSlice
+                - PolicyReport
+                - ClusterPolicyReport
+          - resources:
+              namespaces:
+                - flux-system
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - kyverno
+      validate:
+        failureAction: Audit
+        message: >-
+          Flux-managed resources should be changed through Git and reconciled by
+          Flux controllers instead of being edited manually in-cluster.
+        deny:
+          conditions:
+            all:
+              - key: "{{ request.userInfo.username || '' }}"
+                operator: AnyNotIn
+                value:
+                  - system:serviceaccount:flux-system:helm-controller
+                  - system:serviceaccount:flux-system:kustomize-controller

@@ -1,0 +1,69 @@
+owner: RovxBot
+repo: homelab-infra
+user-agent: RovxBot
+skipDeleteIssues: true
+skipDescriptionUpdate: true
+skipTopicsUpdate: true
+skipHomepageUpdate: true
+
+sites:
+  # Start with the verified public endpoints only. Add assets, jellyfin, and
+  # immich after confirming GitHub-hosted runners can reach them reliably.
+  - name: Homepage
+    url: https://homepage.cooked.beer
+    type: globalping
+    location: sydney
+    headers:
+      - "Cf-Access-Client-Id: $CF_ACCESS_CLIENT_ID"
+      - "Cf-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
+  - name: Vaultwarden
+    url: https://vault.cooked.beer
+    type: globalping
+    location: sydney
+  - name: Radarr
+    url: https://radarr.cooked.beer
+    type: globalping
+    location: sydney
+    headers:
+      - "Cf-Access-Client-Id: $CF_ACCESS_CLIENT_ID"
+      - "Cf-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
+  - name: Sonarr
+    url: https://sonarr.cooked.beer
+    type: globalping
+    location: sydney
+    headers:
+      - "Cf-Access-Client-Id: $CF_ACCESS_CLIENT_ID"
+      - "Cf-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
+  - name: Prowlarr
+    url: https://prowlarr.cooked.beer
+    type: globalping
+    location: sydney
+    headers:
+      - "Cf-Access-Client-Id: $CF_ACCESS_CLIENT_ID"
+      - "Cf-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
+  - name: SABnzbd
+    url: https://sabnzbd.cooked.beer
+    type: globalping
+    location: sydney
+    headers:
+      - "Cf-Access-Client-Id: $CF_ACCESS_CLIENT_ID"
+      - "Cf-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
+  - name: Jellyseerr
+    url: https://jellyseerr.cooked.beer
+    type: globalping
+    location: sydney
+  - name: Grimguzzler Registration
+    url: https://grimguzzler.cooked.beer
+    type: globalping
+    location: sydney
+
+status-website:
+  baseUrl: /homelab-infra
+  name: Cooked Beer Status
+  introTitle: Cooked Beer Status
+  introMessage: Public uptime monitoring for the internet-facing services tracked from this repository.
+  navbar:
+    - title: Status
+      href: /
+    - title: Repository
+      href: https://github.com/$OWNER/$REPO

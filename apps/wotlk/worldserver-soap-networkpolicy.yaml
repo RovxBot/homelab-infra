@@ -12,7 +12,7 @@ spec:
     - from:
         - podSelector:
             matchLabels:
-              app: wotlk-accountmgr
+              app: grimguzzler-registration
       ports:
         - protocol: TCP
           port: 7878

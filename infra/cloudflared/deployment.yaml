@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: cloudflared
-          image: cloudflare/cloudflared:latest@sha256:404528c1cd63c3eb882c257ae524919e4376115e6fe57befca8d603656a91a4c
+          image: cloudflare/cloudflared@sha256:6d91c121b803126f7a5344005d17a9324788fc09d305b6e2560ec6040a7ae283
           imagePullPolicy: IfNotPresent
           ports:
             - name: metrics
@@ -63,6 +63,9 @@ spec:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: config
               mountPath: /etc/cloudflared/config.yaml

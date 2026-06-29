@@ -1,19 +1,8 @@
 ---
 - greeting:
-    text_size: 2xl
-    text: cooked.beer // Mission Control
-    subtext: Stay curious, ship often
-
-- search:
-    provider: duckduckgo
-    showSearchSuggestions: true
-    target: _blank
-
-- datetime:
     text_size: xl
-    format:
-      dateStyle: medium
-      timeStyle: short
+    text: cooked.beer // Mission Control
+    subtext: Homelab telemetry, services, and side quests
 
 - kubernetes:
     cluster:
@@ -21,14 +10,23 @@
       cpu: true
       memory: true
       showLabel: true
+      label: homelab
     nodes:
-      show: true
-      cpu: true
-      memory: true
-      showLabel: true
+      show: false
 
 - longhorn:
-    expanded: true
+    expanded: false
     total: true
-    labels: true
-    nodes: true
+    labels: false
+    nodes: false
+
+- search:
+    provider: duckduckgo
+    showSearchSuggestions: true
+    target: _blank
+
+- datetime:
+    text_size: lg
+    format:
+      dateStyle: medium
+      timeStyle: short

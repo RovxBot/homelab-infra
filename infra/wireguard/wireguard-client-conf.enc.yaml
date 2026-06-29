@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: wireguard-client-conf
+    namespace: wireguard
+type: Opaque
+stringData:
+    wg0.conf: ENC[AES256_GCM,data:duNa1WQo5hK0XdQKTZEU49Y9R0K2pAfxUDH2uZGKimAq3eiKS+3IP6sNxP25kopEToMGBUcfrWfr3Rqn+wViXqvFpksTdv5UhDVOFJM/SUZzZLb4S1k8O406m3bJb4ZPJhGiwtPwba2FoOOcic5DiGXPRj+2wqbBHfsA5hjuE3LT3192Tp3STN9cABx6fZJIwgj1J6i+Fq9j0U2DTTZUCHzADmbckYWm0IhrB2wckhWrulvjxFKlzkR3AFMga7XA8w537lla7dQ/29cpaj27jAOpp6JNybrxHGg8uNRvJ1E4HF2LraB219reEDnh8PraA8Dbc7X0Rinx7Dl3za4090awebC4IEP9obCbGCkz5ojq7zvsy6rggR0qH68VBY9LPiDQG5TsLhL3H+aqEMmdlav/f+R7hO+4LUK/WBP69TeuJJWTLqbV11kJq4Rlbgx9+xTMEiba3iaFp7YfJ8Tgbhf6li+S6y720hW/lujxOe0Ke6Ai9Uz8mXHFJhsiIM/jrCFxQKGYzhkCxpITrwuqqje8Iv8BbrSuG4wiL7UMp2YH9ppvKeySaho7DLSfJeVvL3qnKpDqoIFpeRt9shmgnQdca8HKnapk2U/C0lfMIIHkjGPjBJpBuJFVNourFQzUJ6/aHGKSSKG5MyZc5wvMhBVOgKBmlYlWjV7x7F/BrdEkQdEDSj9MsHHd0I8nRDjuuT+6SRLaX6V8qfnKabsLVFPWzkJshtqO7q5CASVU7ARAxEb9VdiNKm6Olg5p,iv:rgXimjhIDJjjMfNbUi0ScrnuntPiOjGV/B+CE4thQIQ=,tag:wG2N5Y9yYiB5KY5pyQtvcA==,type:str]
+sops:
+    age:
+        - recipient: age12zt98j083qhangw8wg3zhy5zccp6qpw0e677m5jncgdmp94a84rqzvedat
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBoc3JBRERVWEJhaHpzUnRG
+            ZWdsWHJyRXNYbDlrODVjeHk3VWk2aTJZYUFNCit4TVdWeVphbFJPZGlTZ2p5WUpP
+            SVd6emJrMVRmeHNialNyTXVYQ1Zla00KLS0tIEs0KzhMY1BuenUyK3l6NHVNNDhy
+            NWpVdWxTRnVndW81UStoNTVtVWhTQTgKsKAOhfHIK6UxmXX7LUCa4iKHrEL5Jkay
+            9VqZLtPl2ZtlNwqZ/sNMKZYQHTD2piVGFmuRkbBl6FMTFTxhh6Cksw==
+            -----END AGE ENCRYPTED FILE-----
+    lastmodified: "2026-03-16T08:54:33Z"
+    mac: ENC[AES256_GCM,data:uV0TGzrIjw8mS/TA4Tv6O+L9B8Bv4Dj1ZyrlAbXs/RIUcjAXxIBVZINTEz9vJxAV+qatCq3W6xfCCEgIJEld/B59FUEoeVwkbQBHC+ahNLT5Hh9UNMaplWAuTfrddSAJEtFOQ0G0L49z06BnF5zxdRlAlfmoXVeE0mBF5vkHnGw=,iv:0Uo5EfLZ5ZBYcXV9kXNp6RMgBqNV/lAIWk52r+V0NIQ=,tag:gUmojDebrjmlsJtvxjI6hw==,type:str]
+    encrypted_regex: ^(data|stringData)$
+    version: 3.11.0

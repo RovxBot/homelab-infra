@@ -16,13 +16,44 @@ spec:
       labels:
         app: prowlarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: media-low
       containers:
         - name: prowlarr
-          image: linuxserver/prowlarr:2.3.0.5236-ls134@sha256:67a8aaedcfd6989f3030b937a6a07007310b1dfc7ee8df16d2cbfa48d1c1158c
+          image: linuxserver/prowlarr:2.4.0.5397-ls151@sha256:3950b5e48cf4ba9dab78fe14038dd7f062e66b7b4ab368b02c94a13f6a3dae9f
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 9696
               name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           env:
             - name: PUID
               value: "1000"
@@ -30,10 +61,25 @@ spec:
               value: "1000"
             - name: TZ
               value: Australia/Melbourne
+            - name: LSIO_NON_ROOT_USER
+              value: "1"
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 300Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: run
+              mountPath: /run
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: prowlarr-config
+        - name: run
+          emptyDir: {}

@@ -1,0 +1,60 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kyverno
+  namespace: kyverno
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kyverno
+      version: 3.8.0
+      sourceRef:
+        kind: HelmRepository
+        name: kyverno
+        namespace: flux-system
+      interval: 12h
+  install:
+    crds: CreateReplace
+    timeout: 15m
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    timeout: 15m
+    remediation:
+      retries: 3
+  values:
+    image:
+      registry: ghcr.io
+    config:
+      resourceFiltersExcludeNamespaces:
+        - kyverno
+        - flux-system
+        - kube-system
+        - kube-public
+        - kube-node-lease
+    admissionController:
+      replicas: 2
+      initContainer:
+        image:
+          registry: ghcr.io
+      container:
+        image:
+          registry: ghcr.io
+    backgroundController:
+      replicas: 1
+      image:
+        registry: ghcr.io
+    cleanupController:
+      replicas: 1
+      image:
+        registry: ghcr.io
+    reportsController:
+      replicas: 1
+      image:
+        registry: ghcr.io
+    features:
+      policyExceptions:
+        enabled: true
+        namespace: kyverno

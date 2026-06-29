@@ -1,43 +1,55 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: wotlk
+labels:
+  - includeSelectors: false
+    includeTemplates: true
+    pairs:
+      homelab.cooked.beer/owner: sam
 
 configMapGenerator:
   - name: wotlk-worldserver-config
     files:
       - worldserver.conf=config/worldserver.conf
       - playerbots.conf=config/playerbots.conf
+      - MultiBotBridge.conf=config/MultiBotBridge.conf
       - mod_ahbot.conf=config/mod_ahbot.conf
       - individualProgression.conf=config/individualProgression.conf
       - transmog.conf=config/transmog.conf
-      - mod_ollama_chat.conf=config/mod_ollama_chat.conf
       - mod-double-xp-weekend.conf=config/mod-double-xp-weekend.conf
+      - mod_customnpcs.conf=config/mod_customnpcs.conf
+      - mod_grimtokendailies.conf=config/mod_grimtokendailies.conf
+      - mod_guildfunds.conf=config/mod_guildfunds.conf
+      - mod_player_bot_level_brackets.conf=config/mod_player_bot_level_brackets.conf
+    options:
+      disableNameSuffixHash: false
+  - name: wotlk-modules-list
+    files:
+      - modules.txt=config/modules.txt
     options:
       disableNameSuffixHash: false
 resources:
   - namespace.yaml
   - client-files-pv.yaml
+  - mariadb-config-configmap.yaml
   - mariadb-pvc.yaml
   - mariadb-service.yaml
+  - mariadb-headless-service.yaml
   - mariadb-statefulset.yaml
   - data-pvc-rwx.yaml
   - acore-source-configmap.yaml
   - db-bootstrap-cronjob.yaml
   - ahbot-cleanup-cronjob.yaml
   - realm-upsert-cronjob.yaml
-  - tokenstore-dailies-cronjob.yaml
-  - stats-snapshot-cronjob.yaml
   - mmaps-config-configmap.yaml
   - client-extract-cronjob.yaml
   - client-extract-mmaps-cronjob.yaml
   - restart-rbac.yaml
   - restart-cronjob.yaml
-  - accountmgr-configmap.yaml
-  - accountmgr-assets-configmap.yaml
-  - accountmgr-deployment.yaml
-  - accountmgr-service.yaml
   - worldserver-soap-service.yaml
   - worldserver-soap-networkpolicy.yaml
   - authserver-config.yaml
   - authserver-deployment.yaml
   - worldserver-deployment.yaml
+  - ../../secrets/wotlk-soap-auth.enc.yaml
+  - ../../secrets/wotlk-accountmgr-invite.enc.yaml

@@ -1,0 +1,45 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: platform-namespace-standards
+  annotations:
+    policies.kyverno.io/title: Platform Namespace Standards
+    policies.kyverno.io/category: Governance
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Namespace
+spec:
+  background: true
+  emitWarning: true
+  rules:
+    - name: require-psa-and-owner-labels
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+      exclude:
+        any:
+          - resources:
+              names:
+                - azure-arc
+                - azure-arc-auth
+                - azure-arc-release
+                - default
+                - kube-node-lease
+                - kube-public
+                - kube-system
+                - sops
+      validate:
+        failureAction: Enforce
+        message: >-
+          Namespaces must declare PSA labels and an explicit owner label.
+        pattern:
+          metadata:
+            labels:
+              homelab.cooked.beer/owner: "?*"
+              pod-security.kubernetes.io/enforce: "?*"
+              pod-security.kubernetes.io/enforce-version: "?*"
+              pod-security.kubernetes.io/audit: "?*"
+              pod-security.kubernetes.io/audit-version: "?*"
+              pod-security.kubernetes.io/warn: "?*"
+              pod-security.kubernetes.io/warn-version: "?*"

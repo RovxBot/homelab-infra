@@ -1,0 +1,41 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: policy-exception-accountability
+  annotations:
+    policies.kyverno.io/title: Policy Exception Accountability
+    policies.kyverno.io/category: Governance
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: PolicyException
+spec:
+  background: true
+  emitWarning: true
+  rules:
+    - name: require-owner-reason-expiry-and-issue-tracking
+      match:
+        any:
+          - resources:
+              kinds:
+                - PolicyException
+              namespaces:
+                - kyverno
+      validate:
+        failureAction: Enforce
+        message: >-
+          Policy exceptions must declare an owner, a reason, an expiry date,
+          and either a GitHub issue URL or an explicit auto-create marker.
+        anyPattern:
+          - metadata:
+              labels:
+                homelab.cooked.beer/owner: "?*"
+              annotations:
+                kyverno.cooked.beer/reason: "?*"
+                kyverno.cooked.beer/expires-at: "?*"
+                github.cooked.beer/issue-url: https://github.com/*/issues/*
+          - metadata:
+              labels:
+                homelab.cooked.beer/owner: "?*"
+              annotations:
+                kyverno.cooked.beer/reason: "?*"
+                kyverno.cooked.beer/expires-at: "?*"
+                github.cooked.beer/issue-create: "true"

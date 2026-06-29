@@ -31,8 +31,15 @@ spec:
                 name: wotlk-mmaps-config
           containers:
             - name: extract
-              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-playerbot-f00a914e5fecd437888ba318b3e434e4e0a66025
+              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-test-staging-8e62f68abf072ab01fb8484c774b2dba7a4d76d5
               imagePullPolicy: Always
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
               env:
                 # mmaps generation is very slow; enable manually when you're ready.
                 - name: WOTLK_SKIP_MMAPS

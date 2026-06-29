@@ -4,7 +4,8 @@ resources:
   - dashboards/homelab-overview-dashboard.yaml
   - dashboards/logs-overview-dashboard.yaml
   - datasources/loki-datasource.yaml
-  - alertmanager/alertmanager-config.yaml
+  - ../../secrets/alertmanager-config.enc.yaml
+  - ../../secrets/alertmanager-smtp-auth.enc.yaml
   - probes/blackbox-internal.yaml
   - probes/blackbox-external.yaml
   - rules/blackbox-alerts.yaml

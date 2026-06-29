@@ -20,6 +20,13 @@ spec:
           containers:
             - name: mariadb-client
               image: mysql:8.0
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
               env:
                 - name: DB_HOST
                   value: wotlk-mariadb.wotlk.svc.cluster.local

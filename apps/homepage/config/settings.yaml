@@ -1,14 +1,17 @@
 ---
 title: cooked.beer // Mission Control
+description: Homelab services, storage, and game worlds
 theme: dark
 color: violet
-headerStyle: boxedWidgets
+headerStyle: clean
+fullWidth: true
+maxGroupColumns: 6
 hideVersion: true
 useEqualHeights: true
 statusStyle: badge
 
 background:
-  image: /assets/998981.jpg
+  image: https://homepage.cooked.beer/assets/998981.jpg
   opacity: 34
   blur: sm
   saturate: 135
@@ -26,21 +29,21 @@ providers:
     url: http://longhorn-frontend.longhorn-system.svc.cluster.local
 
 layout:
-  Mission Control:
+  Core Ops:
     style: row
     columns: 3
-  Media Stack:
+  Media:
     style: row
     columns: 3
   Game Worlds:
     style: row
     columns: 3
-  Security & Access:
+  Security:
     style: row
     columns: 3
-  Storage & Cluster:
+  Storage:
     style: row
     columns: 2
-  Personal:
+  Links:
     style: row
     columns: 3

@@ -18,10 +18,57 @@ spec:
       labels:
         app: jellyfin
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      runtimeClassName: nvidia
+      nodeSelector:
+        kubernetes.io/hostname: metal4
+      initContainers:
+        - name: configure-nvenc
+          image: busybox:1.38.0@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          command:
+            - sh
+            - -lc
+            - |
+              set -eu
+              encoding=/config/config/encoding.xml
+              if [ -f "$encoding" ]; then
+                sed -i 's#<HardwareAccelerationType>none</HardwareAccelerationType>#<HardwareAccelerationType>nvenc</HardwareAccelerationType>#' "$encoding"
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /config
       containers:
         - name: jellyfin
-          image: jellyfin/jellyfin:10.11.6@sha256:333b647716631443a43c7fabac4b0c46b4e2f036bad19547e00958f10f721b85
+          image: jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8096
               name: http
@@ -47,6 +94,8 @@ spec:
               value: Australia/Melbourne
             - name: JELLYFIN_DATA_DIR
               value: /config
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,video,utility
           volumeMounts:
             - name: config
               mountPath: /config
@@ -62,6 +111,10 @@ spec:
             requests:
               cpu: 200m
               memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              nvidia.com/gpu: "1"
       volumes:
         - name: config
           persistentVolumeClaim:

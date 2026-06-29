@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grimguzzler-registration
+  namespace: wotlk
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: grimguzzler-registration
+  template:
+    metadata:
+      labels:
+        app: grimguzzler-registration
+    spec:
+      containers:
+        - name: grimguzzler-registration
+          image: ghcr.io/rovxbot/grimguzzler-registration:master-99cb631154808c0dbac675a1133fdaf30190ac60
+          imagePullPolicy: Always
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          env:
+            - name: BASE_URL
+              value: https://grimguzzler.cooked.beer
+            - name: PAGE_TITLE
+              value: Grim Guzzler
+            - name: REALMLIST_HOST
+              value: grim.cooked.beer
+            - name: REALM_ID
+              value: "1"
+            - name: REALM_NAME
+              value: Grim Guzzler
+            - name: TEMPLATE
+              value: advance
+            - name: GAME_VERSION
+              value: 3.3.5a (12340)
+            - name: EXPANSION
+              value: "2"
+            - name: SERVER_CORE
+              value: "1"
+            - name: SRP6_SUPPORT
+              value: "true"
+            - name: SRP6_VERSION
+              value: "2"
+            - name: DISABLE_ONLINE_PLAYERS
+              value: "true"
+            - name: DISABLE_TOP_PLAYERS
+              value: "true"
+            - name: CAPTCHA_TYPE
+              value: "0"
+            - name: DB_HOST
+              value: wotlk-mariadb.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_AUTH_DB
+              value: acore_auth
+            - name: DB_CHAR_DB
+              value: acore_characters
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: SOAP_FOR_REGISTER
+              value: "true"
+            - name: SOAP_URL
+              value: http://wotlk-worldserver-soap.wotlk.svc.cluster.local:7878/
+            - name: SOAP_HOST
+              value: wotlk-worldserver-soap.wotlk.svc.cluster.local
+            - name: SOAP_PORT
+              value: "7878"
+            - name: SOAP_URI
+              value: urn:AC
+            - name: SOAP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-soap-auth
+                  key: SOAP_USERNAME
+            - name: SOAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-soap-auth
+                  key: SOAP_PASSWORD
+            - name: SOAP_CREATE_ACCOUNT_COMMAND
+              value: account create {USERNAME} {PASSWORD} {EMAIL}
+            - name: SOAP_ADDON_COMMAND
+              value: account set addon {USERNAME} {EXPANSION}
+            - name: ALLOW_SIGNUP
+              value: "true"
+            - name: INVITE_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-accountmgr-invite
+                  key: INVITE_CODE
+            - name: STORE_ENABLED
+              value: "true"
+            - name: STORE_TOKEN_ITEM_ID
+              value: "90000"
+            - name: STORE_CATALOG_FILE
+              value: /var/www/html/application/config/store-services.php
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: registration-config
+              mountPath: /var/www/html/application/config/config.php
+              subPath: config.php
+              readOnly: true
+            - name: registration-store-services
+              mountPath: /var/www/html/application/config/store-services.php
+              subPath: store-services.php
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: registration-config
+          configMap:
+            name: grimguzzler-registration-config
+        - name: registration-store-services
+          configMap:
+            name: grimguzzler-registration-store-services

@@ -1,0 +1,186 @@
+name: Build Grim Guzzler registration image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      ref_tag: ${{ steps.read_upstream_ref.outputs.ref_tag }}
+      image_suffix: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase image owner
+        id: lowercase_owner
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner_lc="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "OWNER_LC=${owner_lc}" >> "$GITHUB_ENV"
+          echo "owner_lc=${owner_lc}" >> "$GITHUB_OUTPUT"
+
+      - name: Read upstream ref
+        id: read_upstream_ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$(cat ops/grimguzzler-registration/source.repo 2>/dev/null || true)"
+          if [[ -z "${repo}" ]]; then
+            repo="https://github.com/RovxBot/WoWSimpleRegistration.git"
+          fi
+          ref="$(cat ops/grimguzzler-registration/source.ref 2>/dev/null || true)"
+          if [[ -z "${ref}" ]]; then
+            ref="master"
+          fi
+          ref_tag="$(echo "${ref}" | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
+          repo_tag="$(echo "${repo}" | sed -E 's#^https?://##' | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
+          repo_tag="${repo_tag,,}"
+          {
+            echo "UPSTREAM_REF=${ref}"
+            echo "UPSTREAM_REPO=${repo}"
+            echo "REF_TAG=${ref_tag,,}"
+            echo "REPO_TAG=${repo_tag}"
+            echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/grimguzzler-registration:buildcache-${repo_tag}-${ref_tag,,}"
+            echo "BUILD_CACHE_SCOPE=grimguzzler-registration-${repo_tag}-${ref_tag,,}"
+          } >> "$GITHUB_ENV"
+          {
+            echo "ref_tag=${ref_tag,,}"
+            echo "build_cache_ref=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/grimguzzler-registration:buildcache-${repo_tag}-${ref_tag,,}"
+            echo "build_cache_scope=grimguzzler-registration-${repo_tag}-${ref_tag,,}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .work
+          mkdir -p .work
+          git clone --depth=1 --branch "${UPSTREAM_REF}" "${UPSTREAM_REPO}" .work/registration
+
+      - name: Build and push image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: .work/registration
+          file: ops/grimguzzler-registration/Dockerfile
+          cache-from: |
+            type=gha,scope=${{ steps.read_upstream_ref.outputs.build_cache_scope }}
+            type=registry,ref=${{ steps.read_upstream_ref.outputs.build_cache_ref }}
+          cache-to: |
+            type=gha,scope=${{ steps.read_upstream_ref.outputs.build_cache_scope }},mode=max
+            type=registry,ref=${{ steps.read_upstream_ref.outputs.build_cache_ref }},mode=max
+          push: true
+          tags: |
+            ghcr.io/${{ steps.lowercase_owner.outputs.owner_lc }}/grimguzzler-registration:${{ steps.read_upstream_ref.outputs.ref_tag }}
+            ghcr.io/${{ steps.lowercase_owner.outputs.owner_lc }}/grimguzzler-registration:${{ steps.read_upstream_ref.outputs.ref_tag }}-${{ github.sha }}
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      REF_TAG: ${{ needs.build.outputs.ref_tag }}
+      IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+    steps:
+      - name: Lowercase image owner
+        shell: bash
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull built image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "ghcr.io/${OWNER_LC}/grimguzzler-registration:${REF_TAG}-${IMAGE_SUFFIX}"
+
+      - name: Smoke test image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/grimguzzler-registration:${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint /bin/sh "${image}" -c '
+            set -eu
+            test -f /var/www/html/index.php
+            test -f /var/www/html/application/vendor/autoload.php
+            apache2ctl -t
+            for ext in gd gmp mbstring pdo_mysql soap zip; do
+              php -m | grep -qi "^${ext}$"
+            done
+          '
+
+  update-manifests-pr:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - smoke-test
+    env:
+      REF_TAG: ${{ needs.build.outputs.ref_tag }}
+      IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+      GH_TOKEN: ${{ secrets.WORKFLOW_PR_TOKEN || secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WORKFLOW_PR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Update deployment image tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_tag="${REF_TAG}-${IMAGE_SUFFIX}"
+          sed -i -E "s#(ghcr\.io/.*/grimguzzler-registration:)[A-Za-z0-9._-]+#\\1${image_tag}#g" apps/grimguzzler-registration/deployment.yaml
+
+      - name: Create pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- apps/grimguzzler-registration/deployment.yaml; then
+            echo "No manifest changes detected."
+            exit 0
+          fi
+
+          branch="ci/grimguzzler-registration-image-update-${REF_TAG}"
+          short_sha="${IMAGE_SUFFIX::7}"
+          title="Update Grim Guzzler registration image to ${REF_TAG}-${short_sha}"
+          body="Built and pushed a fresh Grim Guzzler registration image to GHCR, then updated the deployed manifest for review."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${branch}" || true
+          git checkout -B "${branch}"
+          git add apps/grimguzzler-registration/deployment.yaml
+          git commit -m "${title}"
+          git push --force-with-lease --set-upstream origin "${branch}"
+
+          pr_number="$(gh pr list --base main --head "${branch}" --state open --json number --jq '.[0].number // empty')"
+
+          if [[ -n "${pr_number}" ]]; then
+            gh pr edit "${pr_number}" \
+              --title "${title}" \
+              --body "${body}"
+          else
+            gh pr create \
+              --base main \
+              --head "${branch}" \
+              --title "${title}" \
+            --body "${body}"
+          fi

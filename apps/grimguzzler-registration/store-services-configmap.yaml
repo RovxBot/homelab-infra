@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grimguzzler-registration-store-services
+  namespace: wotlk
+data:
+  store-services.php: |
+    <?php
+
+    return array(
+        array(
+            'id' => 'rename',
+            'title' => 'Character Rename',
+            'description' => 'Flags a character for a rename at the next login.',
+            'price' => 5,
+            'scope' => 'character',
+            'soap_command' => 'character rename {TARGET_CHARACTER}',
+        ),
+        array(
+            'id' => 'customize',
+            'title' => 'Character Customize',
+            'description' => 'Flags a character for appearance customization at the next login.',
+            'price' => 10,
+            'scope' => 'character',
+            'soap_command' => 'character customize {TARGET_CHARACTER}',
+        ),
+        array(
+            'id' => 'changefaction',
+            'title' => 'Faction Change',
+            'description' => 'Flags a character for a faction change at the next login.',
+            'price' => 15,
+            'scope' => 'character',
+            'soap_command' => 'character changefaction {TARGET_CHARACTER}',
+        ),
+        array(
+            'id' => 'changerace',
+            'title' => 'Race Change',
+            'description' => 'Flags a character for a race change at the next login.',
+            'price' => 15,
+            'scope' => 'character',
+            'soap_command' => 'character changerace {TARGET_CHARACTER}',
+        ),
+    );

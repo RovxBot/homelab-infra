@@ -15,11 +15,23 @@ spec:
       labels:
         app: immich-machine-learning
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       nodeSelector:
         node-role.kubernetes.io/worker: ""
       containers:
         - name: machine-learning
-          image: ghcr.io/immich-app/immich-machine-learning:v2.5.6@sha256:b213fa3c82d27a21a299c46ffbb38a091f18384db1ad67d409a3b34fe0fce556
+          image: ghcr.io/immich-app/immich-machine-learning:v2.7.5@sha256:a2501141440f10516d329fdfba2c68082e19eb9ba6016c061ac80d23beadf7f3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 3003
               name: http
@@ -43,6 +55,12 @@ spec:
           env:
             - name: TZ
               value: "Australia/Melbourne"
+            - name: HOME
+              value: "/cache"
+            - name: XDG_CONFIG_HOME
+              value: "/cache/.config"
+            - name: MPLCONFIGDIR
+              value: "/cache/matplotlib"
           volumeMounts:
             - name: model-cache
               mountPath: /cache

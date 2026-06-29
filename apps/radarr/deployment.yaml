@@ -15,6 +15,12 @@ spec:
       labels:
         app: radarr
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       priorityClassName: media-low
       affinity:
         nodeAffinity:
@@ -33,18 +39,42 @@ spec:
                       - metal5
       containers:
         - name: radarr
-          image: linuxserver/radarr:6.0.4.10291-ls289@sha256:6c0948b42c149e36bb3dbc0b64d36c77b2d3c9dccf1b424c4f72af1e57ba0c21
+          image: linuxserver/radarr:6.2.1.10461-ls308@sha256:39da107b5a9371fdaa651bd188049b863716a815385eb3a30d41071b7e1aeb33
           imagePullPolicy: Always
           ports:
             - containerPort: 7878
               name: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
             - name: TZ
               value: Australia/Melbourne
+            - name: LSIO_NON_ROOT_USER
+              value: "1"
+            - name: S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES
+              value: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           resources:
             requests:
               cpu: 50m
@@ -55,6 +85,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: run
+              mountPath: /run
             # Movies on NAS #1 (192.168.1.153) - /volume1/emby_media
             # Inside Radarr use /movies/Movies
             - name: movies
@@ -67,6 +99,8 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: radarr-config
+        - name: run
+          emptyDir: {}
         - name: movies
           persistentVolumeClaim:
             claimName: nfs-emby-media

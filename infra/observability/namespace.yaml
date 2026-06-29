@@ -3,6 +3,7 @@ kind: Namespace
 metadata:
   name: monitoring
   labels:
+    homelab.cooked.beer/owner: sam
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: privileged

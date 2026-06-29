@@ -9,5 +9,7 @@ spec:
   cron: "15 4 * * 0"
   retain: 2
   concurrency: 1
+  parameters:
+    volume-backup-policy: disabled
   groups:
     - system-backup

@@ -1,0 +1,107 @@
+name: Observability incident
+description: Track a public or internal availability incident.
+title: "[Incident]: "
+labels:
+  - observability
+  - incident
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for manual incident tracking.
+
+        Maintainer hygiene:
+        - Add exactly one scope label: `internal` or `public`.
+        - Add `source:gatus` or `source:upptime` only when automation did not already do it.
+        - Add `resolved` when the incident is closed, and remove it if the incident is reopened.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      description: Which monitoring surface is affected?
+      options:
+        - internal
+        - public
+        - unsure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Detection source
+      description: How was the incident discovered?
+      options:
+        - gatus
+        - upptime
+        - manual
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: endpoint
+    attributes:
+      label: Affected endpoint or service
+      description: URL, service name, or cluster-local target.
+      placeholder: https://homepage.cooked.beer or homepage.homepage.svc.cluster.local:3000
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact summary
+      description: What is broken and who is affected?
+      placeholder: Public homepage unavailable, login and asset loads failing.
+    validations:
+      required: true
+
+  - type: input
+    id: detected_at
+    attributes:
+      label: Detected at (UTC)
+      description: Use ISO 8601 when possible.
+      placeholder: 2026-05-18T14:30:00Z
+    validations:
+      required: false
+
+  - type: textarea
+    id: symptoms
+    attributes:
+      label: Symptoms and evidence
+      description: Include alert text, failed checks, logs, screenshots, or links.
+      placeholder: |
+        - Gatus alert title:
+        - Upptime issue link:
+        - kubectl output:
+        - external repro:
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Mitigation or rollback
+      description: What changed to reduce or stop impact?
+      placeholder: Reverted ingress change and reconciled Flux.
+    validations:
+      required: false
+
+  - type: textarea
+    id: recovery_validation
+    attributes:
+      label: Recovery validation
+      description: How was recovery confirmed?
+      placeholder: Endpoint returned 200 from outside the cluster and internal health checks recovered.
+    validations:
+      required: false
+
+  - type: textarea
+    id: follow_up
+    attributes:
+      label: Follow-up work
+      description: Record permanent fixes, owner handoff, or cleanup.
+    validations:
+      required: false

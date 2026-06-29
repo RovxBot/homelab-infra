@@ -23,6 +23,13 @@ spec:
           initContainers:
             - name: clone-acore
               image: alpine/git:2.47.2
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
               env:
                 - name: ACORE_REPO
                   valueFrom:
@@ -47,6 +54,13 @@ spec:
           containers:
             - name: mariadb-client
               image: mysql:8.0
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
               env:
                 - name: DB_HOST
                   value: wotlk-mariadb.wotlk.svc.cluster.local
@@ -84,16 +98,13 @@ spec:
                 - name: REALM_NAME
                   value: "Grim Guzzler"
                 - name: REALM_ADDRESS
-                  # Public address clients should connect to.
                   value: "grim.cooked.beer"
                 - name: REALM_LOCAL_ADDRESS
-                  # Local address for clients on the "local subnet".
-                  # Keep it the same as REALM_ADDRESS for consistent client config.
-                  value: "grim.cooked.beer"
+                  value: "192.168.1.47"
                 - name: REALM_LOCAL_SUBNET
                   value: "255.255.255.0"
                 - name: REALM_WORLD_PORT
-                  value: "443"
+                  value: "8443"
                 - name: REALM_FLAG
                   value: "0"
                 - name: REALM_GAMEBUILD

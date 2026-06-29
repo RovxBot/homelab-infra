@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kyverno-github-issue-sync
+  namespace: kyverno
+spec:
+  schedule: 15 * * * *
+  suspend: false
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: kyverno-github-issue-sync
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          restartPolicy: OnFailure
+          containers:
+            - name: sync
+              image: python:3.14-alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - /opt/kyverno-github-issue-sync/sync.py
+              env:
+                - name: DRY_RUN
+                  value: "false"
+                - name: PERSIST_FOR_HOURS
+                  value: "24"
+                - name: PYTHONDONTWRITEBYTECODE
+                  value: "1"
+                - name: GITHUB_OWNER
+                  value: RovxBot
+                - name: GITHUB_REPO
+                  value: homelab-infra
+                - name: ISSUE_LABEL
+                  value: kyverno-policy
+                - name: ISSUE_TITLE_PREFIX
+                  value: "[kyverno] "
+                - name: IGNORED_SCOPE_KINDS
+                  value: Pod,ReplicaSet,Job
+                - name: IGNORED_POLICIES
+                  value: platform-flux-guardrails
+                - name: EXCLUDE_NAMESPACES_RE
+                  value: ^(azure-arc.*|flux-system|kube-.*|kyverno|sops)$
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: kyverno-github-issue-sync
+                      key: token
+                      optional: true
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 65532
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              volumeMounts:
+                - name: script
+                  mountPath: /opt/kyverno-github-issue-sync
+                  readOnly: true
+          volumes:
+            - name: script
+              configMap:
+                name: kyverno-github-issue-sync
+                defaultMode: 0555

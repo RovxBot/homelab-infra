@@ -19,13 +19,26 @@ spec:
         app: homepage-assets
     spec:
       serviceAccountName: homepage
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: sync-assets
-          image: bitnami/kubectl:latest@sha256:4c5f63828f5170142d714cdf1f96bad9e223f7ad79bd67d6d6b21e59a188c514
+          image: bitnami/kubectl@sha256:b9f4412e53f09d76b0991cdd29c0feff4c1d1e112b307e0ab155e5b050a9f4ec
           imagePullPolicy: IfNotPresent
           securityContext:
-            runAsUser: 0
-            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 101
+            runAsGroup: 101
+            seccompProfile:
+              type: RuntimeDefault
           command:
             - sh
             - -c
@@ -73,10 +86,30 @@ spec:
           volumeMounts:
             - name: assets
               mountPath: /usr/share/nginx/html
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
       containers:
         - name: nginx
-          image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:bae24904860527735a08e04722a92add40784b91e61389b710367c7d0e6d3b25
+          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:054e14f543eb688809d59ec2ad1644d1a61678e247c87a318ad605977eb37eaf
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 8080
               name: http
@@ -101,6 +134,8 @@ spec:
             - name: assets
               mountPath: /usr/share/nginx/html
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               cpu: 20m
@@ -112,3 +147,5 @@ spec:
         - name: assets
           persistentVolumeClaim:
             claimName: homepage-assets
+        - name: tmp
+          emptyDir: {}

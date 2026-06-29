@@ -5,6 +5,8 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
+  wait: true
+  timeout: 10m
   path: ./clusters/home/infrastructure
   prune: true
   sourceRef:

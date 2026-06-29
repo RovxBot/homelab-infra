@@ -2,19 +2,35 @@ name: Build AzerothCore WotLK images
 
 on:
   workflow_dispatch:
+    inputs:
+      build_scope:
+        description: Images to build
+        type: choice
+        default: all
+        options:
+          - all
+          - worldserver
+          - authserver
+          - db-import
+          - tools
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      ref_tag: ${{ steps.read_upstream_ref.outputs.ref_tag }}
+      image_suffix: ${{ github.sha }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        id: setup_buildx
 
       - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
@@ -27,6 +43,7 @@ jobs:
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Read upstream ref
+        id: read_upstream_ref
         shell: bash
         run: |
           set -euo pipefail
@@ -38,10 +55,47 @@ jobs:
           ref_tag="$(echo "${ref}" | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
           repo_tag="$(echo "${repo}" | sed -E 's#^https?://##' | tr '/:@' '-' | tr -cd 'A-Za-z0-9._-')"
           repo_tag="${repo_tag,,}"
-          echo "ACORE_REF=${ref}" >> "$GITHUB_ENV"
-          echo "ACORE_REPO=${repo}" >> "$GITHUB_ENV"
-          echo "REF_TAG=${ref_tag,,}" >> "$GITHUB_ENV"
-          echo "REPO_TAG=${repo_tag}" >> "$GITHUB_ENV"
+          {
+            echo "ACORE_REF=${ref}"
+            echo "ACORE_REPO=${repo}"
+            echo "REF_TAG=${ref_tag,,}"
+            echo "REPO_TAG=${repo_tag}"
+            echo "BUILD_CACHE_REF=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/azerothcore-wotlk:buildcache-${repo_tag}-${ref_tag,,}"
+            echo "BUILD_CACHE_SCOPE=azerothcore-wotlk-${repo_tag}-${ref_tag,,}"
+          } >> "$GITHUB_ENV"
+          {
+            echo "ref_tag=${ref_tag,,}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Add swap space
+        shell: bash
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /swapfile
+          sudo fallocate -l 6G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
+      - name: Restore ccache
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ${{ runner.temp }}/wotlk-ccache
+          key: wotlk-ccache-${{ env.REPO_TAG }}-${{ env.REF_TAG }}-${{ github.sha }}
+          restore-keys: |
+            wotlk-ccache-${{ env.REPO_TAG }}-${{ env.REF_TAG }}-
+
+      - name: Inject ccache into BuildKit
+        uses: reproducible-containers/buildkit-cache-dance@d497796d128a76818baf0d28669b65faef2de192 # v3.3.2
+        with:
+          builder: ${{ steps.setup_buildx.outputs.name }}
+          cache-map: |
+            {
+              "${{ runner.temp }}/wotlk-ccache": {
+                "target": "/ccache",
+                "id": "ccache"
+              }
+            }
 
       - name: Prepare build context
         shell: bash
@@ -52,8 +106,14 @@ jobs:
           git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" .work/acore
 
           # Optional modules
-          if [[ -f ops/wotlk-images/modules.txt ]]; then
-            while IFS= read -r line; do
+          modules_file=""
+          if [[ -f apps/wotlk/config/modules.txt ]]; then
+            modules_file="apps/wotlk/config/modules.txt"
+          fi
+
+          if [[ -n "${modules_file}" ]]; then
+            echo "Reading modules from: ${modules_file}"
+            while IFS= read -r line || [[ -n "$line" ]]; do
               line="${line#"${line%%[![:space:]]*}"}" # ltrim
               [[ -z "$line" ]] && continue
               [[ "$line" == \#* ]] && continue
@@ -67,55 +127,431 @@ jobs:
 
               name="$(basename "$repo" .git)"
               echo "Adding module: $repo@$ref -> modules/$name"
-              
+
               git clone --depth=1 --branch "$ref" "$repo" ".work/acore/modules/$name"
-            done < ops/wotlk-images/modules.txt
+            done < "${modules_file}"
           fi
 
+          if [[ -d .work/acore/modules/mod-playerbots ]] && \
+             ! grep -q "aq40StrategyLog" .work/acore/modules/mod-playerbots/src/PlayerbotAIConfig.h; then
+            echo "Applying local AQ40 strategy logging patch to mod-playerbots build context"
+            git -C .work/acore/modules/mod-playerbots apply \
+              "$PWD/ops/wotlk-images/patches/mod-playerbots-aq40-logging.patch"
+          fi
+
+          write_module_conf_install_shim() {
+            local module_dir="$1"
+
+            if ! compgen -G "${module_dir}/conf/*.conf.dist" > /dev/null; then
+              return 0
+            fi
+
+            # shellcheck disable=SC2016  # Writing literal CMake variables into the shim file.
+            printf '%s\n' \
+              '# Auto-generated compatibility shim for modules without module-level CMake.' \
+              '# AzerothCore still auto-collects src/ for compilation; this only installs' \
+              '# module configuration templates into env/ref/etc/modules.' \
+              'file(GLOB MODULE_CONF_DIST_FILES "${CMAKE_CURRENT_LIST_DIR}/conf/*.conf.dist")' \
+              'foreach(MODULE_CONF_DIST_FILE ${MODULE_CONF_DIST_FILES})' \
+              '  install(FILES "${MODULE_CONF_DIST_FILE}" DESTINATION "etc/modules")' \
+              'endforeach()' \
+              > "${module_dir}/CMakeLists.txt"
+          }
+
+          # Some modules rely on AzerothCore's auto-collected sources but do not
+          # ship a module-level CMakeLists.txt. Generate a tiny compatibility
+          # shim so their conf/*.conf.dist files still get installed into the
+          # image alongside modules that provide their own CMake glue.
+          find .work/acore/modules -mindepth 1 -maxdepth 1 -type d | while read -r module_dir; do
+            if [[ -f "${module_dir}/CMakeLists.txt" ]]; then
+              continue
+            fi
+
+            write_module_conf_install_shim "${module_dir}"
+          done
+
+          # Compatibility fixes for custom modules on Playerbot branch.
+          # These modules ship CMake APIs not available in this core fork.
+          rm -f .work/acore/modules/mod-grimtokendailies/CMakeLists.txt || true
+          write_module_conf_install_shim ".work/acore/modules/mod-grimtokendailies"
+
+          # Fail fast if mod-customnpcs is missing from the build context.
+          test -d .work/acore/modules/mod-customnpcs/src
+          test -f .work/acore/modules/mod-customnpcs/CMakeLists.txt
+
+          # Extend dbimport so the pinned db-import image can migrate the
+          # separate playerbots database alongside the core databases.
+          perl -0pi -e 's|\n    loader\n        \\.AddDatabase\\(LoginDatabase, "Login"\\)\n        \\.AddDatabase\\(CharacterDatabase, "Character"\\)\n        \\.AddDatabase\\(WorldDatabase, "World"\\);|\n#ifdef MOD_PLAYERBOTS\n    loader.AddDatabase(PlayerbotsDatabase, "Playerbots");\n#endif\n    loader\n        .AddDatabase(LoginDatabase, "Login")\n        .AddDatabase(CharacterDatabase, "Character")\n        .AddDatabase(WorldDatabase, "World");|s' .work/acore/src/tools/dbimport/Main.cpp
+
       - name: Build and push authserver
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'authserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: authserver
+          build-args: |
+            CAPPS_BUILD=auth-only
+            CTOOLS_BUILD=none
+            CWITH_WARNINGS=OFF
+          cache-from: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-authserver
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-authserver
+          cache-to: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-authserver,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-authserver,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:authserver-${{ env.REF_TAG }}-${{ github.sha }}
 
       - name: Build and push worldserver
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'worldserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: worldserver
+          build-args: |
+            CAPPS_BUILD=world-only
+            CTOOLS_BUILD=none
+            CWITH_WARNINGS=OFF
+          cache-from: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-worldserver
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-worldserver
+          cache-to: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-worldserver,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-worldserver,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:worldserver-${{ env.REF_TAG }}-${{ github.sha }}
 
       - name: Build and push db-import
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' || inputs.build_scope == 'worldserver' || inputs.build_scope == 'authserver' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: db-import
+          build-args: |
+            # Playerbots test-staging wires AC_MODULES_LIST via the worldserver-side
+            # modules/scripts targets, so dbimport needs that build graph enabled.
+            CAPPS_BUILD=world-only
+            CTOOLS_BUILD=db-only
+            CWITH_WARNINGS=OFF
+          cache-from: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-db-import
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-db-import
+          cache-to: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-db-import,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-db-import,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:db-import-${{ env.REF_TAG }}-${{ github.sha }}
 
       - name: Build and push tools
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'tools' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
-          progress: plain
           context: .work/acore
-          file: .work/acore/apps/docker/Dockerfile
+          file: ops/wotlk-images/Dockerfile
           target: tools
+          build-args: |
+            CAPPS_BUILD=none
+            CTOOLS_BUILD=maps-only
+            CWITH_WARNINGS=OFF
+          cache-from: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-tools
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-tools
+          cache-to: |
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-tools,mode=max
+            type=registry,ref=${{ env.BUILD_CACHE_REF }}-tools,mode=max
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}
             ghcr.io/${{ env.OWNER_LC }}/azerothcore-wotlk:tools-${{ env.REF_TAG }}-${{ github.sha }}
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      REF_TAG: ${{ needs.build.outputs.ref_tag }}
+      IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+    steps:
+      - name: Lowercase image owner
+        shell: bash
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull built images
+        shell: bash
+        run: |
+          set -euo pipefail
+          scope="${{ inputs.build_scope }}"
+
+          if [[ "$scope" == "all" || "$scope" == "authserver" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "worldserver" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "db-import" || "$scope" == "worldserver" || "$scope" == "authserver" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "tools" ]]; then
+            docker pull "ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          fi
+
+      - name: Smoke test authserver image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'authserver' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/authserver \
+              /azerothcore/bin/authserver \
+              /usr/local/bin/authserver \
+              /usr/bin/authserver; do
+              if [ -x "$path" ]; then
+                "$path" --version >/tmp/authserver-version.txt 2>&1 || \
+                "$path" -v >/tmp/authserver-version.txt 2>&1 || true
+                test -s /tmp/authserver-version.txt || "$path" --help >/tmp/authserver-version.txt 2>&1 || true
+                test -s /tmp/authserver-version.txt
+                exit 0
+              fi
+            done
+            echo "authserver binary not found" >&2
+            exit 1
+          '
+
+      - name: Smoke test worldserver image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'worldserver' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                "$path" --version >/tmp/worldserver-version.txt 2>&1 || \
+                "$path" -v >/tmp/worldserver-version.txt 2>&1 || true
+                test -s /tmp/worldserver-version.txt || "$path" --help >/tmp/worldserver-version.txt 2>&1 || true
+                test -s /tmp/worldserver-version.txt
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
+          '
+
+      - name: Smoke test db-import image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'db-import' || inputs.build_scope == 'worldserver' || inputs.build_scope == 'authserver' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            compgen -G "/azerothcore/env/dist/sql/*" >/dev/null || compgen -G "/azerothcore/env/dist/bin/*" >/dev/null || {
+              echo "db-import image is missing expected SQL or bin assets" >&2
+              exit 1
+            }
+            test -f /azerothcore/modules/mod-playerbots/data/sql/playerbots/base/version_db_playerbots.sql
+          '
+
+      - name: Smoke test tools image
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'tools' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:tools-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${image}" -lc '
+            set -euo pipefail
+            find_tool() {
+              name="$1"
+              for path in \
+                "/azerothcore/env/dist/bin/${name}" \
+                "/azerothcore/bin/${name}" \
+                "/usr/local/bin/${name}" \
+                "/usr/bin/${name}" \
+                "/bin/${name}"; do
+                [ -x "$path" ] && return 0
+              done
+              return 1
+            }
+            find_tool map_extractor
+            find_tool vmap4_extractor
+            find_tool vmap4_assembler
+            find_tool mmaps_generator
+          '
+
+      - name: Smoke test module assets
+        if: ${{ inputs.build_scope == 'all' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          world_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+
+          docker run --rm --entrypoint bash "${world_image}" -lc '
+            set -euo pipefail
+            for conf in \
+              individualProgression.conf.dist \
+              playerbots.conf.dist \
+              MultiBotBridge.conf.dist \
+              mod_ahbot.conf.dist \
+              transmog.conf.dist \
+              mod-double-xp-weekend.conf.dist \
+              mod_customnpcs.conf.dist \
+              mod_grimtokendailies.conf.dist; do
+              test -f "/azerothcore/env/ref/etc/modules/${conf}" || {
+                echo "missing module config: /azerothcore/env/ref/etc/modules/${conf}" >&2
+                exit 1
+              }
+            done
+          '
+
+          docker run --rm --entrypoint bash "${world_image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                if command -v strings >/dev/null 2>&1; then
+                  strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
+                else
+                  grep -aEq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" "$path"
+                fi
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
+          '
+
+          docker run --rm --entrypoint bash "${world_image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                if command -v strings >/dev/null 2>&1; then
+                  strings "$path" | grep -Eq "mod-multibot-bridge|MultiBotBridge|Addmod_multibot_bridgeScripts|MBOT" || {
+                    echo "mod-multibot-bridge markers missing from ${path}" >&2
+                    exit 1
+                  }
+                else
+                  grep -aEq "mod-multibot-bridge|MultiBotBridge|Addmod_multibot_bridgeScripts|MBOT" "$path" || {
+                    echo "mod-multibot-bridge markers missing from ${path}" >&2
+                    exit 1
+                  }
+                fi
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
+          '
+
+  update-manifests-pr:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - smoke-test
+    env:
+      REF_TAG: ${{ needs.build.outputs.ref_tag }}
+      IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+      # Use a PAT/App token if configured so the PR triggers normal pull_request workflows.
+      GH_TOKEN: ${{ secrets.WORKFLOW_PR_TOKEN || secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WORKFLOW_PR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Update WotLK image tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          scope="${{ inputs.build_scope }}"
+
+          if [[ "$scope" == "all" || "$scope" == "authserver" ]]; then
+            auth_tag="authserver-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)authserver-[A-Za-z0-9._-]+#\1${auth_tag}#g" apps/wotlk/authserver-deployment.yaml
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "worldserver" ]]; then
+            world_tag="worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)worldserver-[A-Za-z0-9._-]+#\1${world_tag}#g" apps/wotlk/worldserver-deployment.yaml
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "db-import" || "$scope" == "worldserver" || "$scope" == "authserver" ]]; then
+            db_import_tag="db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)db-import-[A-Za-z0-9._-]+#\1${db_import_tag}#g" apps/wotlk/authserver-deployment.yaml
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)db-import-[A-Za-z0-9._-]+#\1${db_import_tag}#g" apps/wotlk/worldserver-deployment.yaml
+          fi
+
+          if [[ "$scope" == "all" || "$scope" == "tools" ]]; then
+            tools_tag="tools-${REF_TAG}-${IMAGE_SUFFIX}"
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-cronjob.yaml
+            sed -i -E "s#(ghcr\.io/.*/azerothcore-wotlk:)tools-[A-Za-z0-9._-]+#\1${tools_tag}#g" apps/wotlk/client-extract-mmaps-cronjob.yaml
+          fi
+
+      - name: Create pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- apps/wotlk; then
+            echo "No manifest changes detected."
+            exit 0
+          fi
+
+          branch="ci/wotlk-image-update-${REF_TAG}"
+          short_sha="${IMAGE_SUFFIX::7}"
+          scope="${{ inputs.build_scope }}"
+          title="Update WotLK ${scope} images to ${REF_TAG}-${short_sha}"
+          body="Built and pushed fresh WotLK ${scope} image tags to GHCR, then updated the deployed manifests for review."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${branch}" || true
+          git checkout -B "${branch}"
+          git add apps/wotlk/authserver-deployment.yaml apps/wotlk/worldserver-deployment.yaml apps/wotlk/client-extract-cronjob.yaml apps/wotlk/client-extract-mmaps-cronjob.yaml
+          git commit -m "${title}"
+          git push --force-with-lease --set-upstream origin "${branch}"
+
+          pr_number="$(gh pr list --base main --head "${branch}" --state open --json number --jq '.[0].number // empty')"
+
+          if [[ -n "${pr_number}" ]]; then
+            gh pr edit "${pr_number}" \
+              --title "${title}" \
+              --body "${body}"
+          else
+            gh pr create \
+              --base main \
+              --head "${branch}" \
+              --title "${title}" \
+              --body "${body}"
+          fi
