@@ -25,7 +25,7 @@ spec:
         kubernetes.io/hostname: metal7
       initContainers:
         - name: db-import
-          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-769cf1e54dcc94def201daa1a5eec165962c80c4
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-4681c4a2e3e3ca2425463a84fe0ac2c6165b52bf
           imagePullPolicy: Always
           resources:
             requests:
