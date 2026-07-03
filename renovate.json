@@ -168,6 +168,20 @@
       "automerge": false
     },
     {
+      "description": "Disable major database image upgrades; handle these with explicit migration plans.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/immich-app/postgres",
+        "mysql"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Disable WotLK-related updates.",
       "matchFileNames": [
         "apps/wotlk/**",
