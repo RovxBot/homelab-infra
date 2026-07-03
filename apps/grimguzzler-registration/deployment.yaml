@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: grimguzzler-registration
-          image: ghcr.io/rovxbot/grimguzzler-registration:master-99cb631154808c0dbac675a1133fdaf30190ac60
+          image: ghcr.io/rovxbot/grimguzzler-registration:master-69ff772ff953ca1685ba939af5533b51ee76b475
           imagePullPolicy: Always
           startupProbe:
             httpGet:
@@ -66,9 +66,9 @@ spec:
             - name: SRP6_VERSION
               value: "2"
             - name: DISABLE_ONLINE_PLAYERS
-              value: "true"
+              value: "false"
             - name: DISABLE_TOP_PLAYERS
-              value: "true"
+              value: "false"
             - name: CAPTCHA_TYPE
               value: "0"
             - name: DB_HOST
@@ -110,7 +110,7 @@ spec:
                   name: wotlk-soap-auth
                   key: SOAP_PASSWORD
             - name: SOAP_CREATE_ACCOUNT_COMMAND
-              value: account create {USERNAME} {PASSWORD} {EMAIL}
+              value: account create {USERNAME} {PASSWORD}
             - name: SOAP_ADDON_COMMAND
               value: account set addon {USERNAME} {EXPANSION}
             - name: ALLOW_SIGNUP
