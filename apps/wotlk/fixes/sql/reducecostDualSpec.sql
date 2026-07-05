@@ -1,0 +1,1 @@
+UPDATE gossip_menu_option SET BoxMoney = 5000000 WHERE OptionType = 18
