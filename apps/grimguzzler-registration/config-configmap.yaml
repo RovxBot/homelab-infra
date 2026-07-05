@@ -72,7 +72,7 @@ data:
     $config['soap_style'] = defined('SOAP_RPC') ? SOAP_RPC : 1;
     $config['soap_username'] = $env('SOAP_USERNAME', '');
     $config['soap_password'] = $env('SOAP_PASSWORD', '');
-    $config['soap_ca_command'] = $env('SOAP_CREATE_ACCOUNT_COMMAND', 'account create {USERNAME} {PASSWORD} {EMAIL}');
+    $config['soap_ca_command'] = $env('SOAP_CREATE_ACCOUNT_COMMAND', 'account create {USERNAME} {PASSWORD}');
     $config['soap_asa_command'] = $env('SOAP_ADDON_COMMAND', 'account set addon {USERNAME} {EXPANSION}');
 
     $config['2fa_support'] = $envBool('TWO_FACTOR_SUPPORT', false);

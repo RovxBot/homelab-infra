@@ -42,14 +42,26 @@
       "automergeType": "pr"
     },
     {
-      "description": "Group Flux Helm chart updates together.",
+      "description": "Group Flux platform updates together.",
+      "matchPackageNames": [
+        "fluxcd/flux2",
+        "/^(?:ghcr\\.io\\/)?fluxcd\\/.+-controller$/"
+      ],
+      "groupName": "flux",
+      "groupSlug": "flux",
+      "automerge": false
+    },
+    {
+      "description": "Group Flux HelmRelease chart updates together.",
       "matchManagers": [
         "flux"
       ],
       "matchDatasources": [
         "helm"
       ],
-      "groupName": "flux-helm-charts"
+      "groupName": "helm-charts",
+      "groupSlug": "helm-charts",
+      "automerge": false
     },
     {
       "description": "Kubernetes image updates (pin digests).",
@@ -79,7 +91,8 @@
       "matchFileNames": [
         "apps/immich/**"
       ],
-      "groupName": "immich"
+      "groupName": "immich",
+      "groupSlug": "immich"
     },
     {
       "description": "Group media stack image updates together.",
@@ -91,7 +104,16 @@
         "apps/sonarr/**",
         "apps/sabnzbd/**"
       ],
-      "groupName": "media-stack"
+      "groupName": "media-stack",
+      "groupSlug": "media-stack"
+    },
+    {
+      "description": "Group InvoiceNinja stack updates together.",
+      "matchFileNames": [
+        "apps/invoiceninja/**"
+      ],
+      "groupName": "invoiceninja",
+      "groupSlug": "invoiceninja"
     },
     {
       "description": "Group homepage-related updates together.",
@@ -99,7 +121,17 @@
         "apps/homepage/**",
         "infra/pod-report/**"
       ],
-      "groupName": "homepage"
+      "groupName": "homepage",
+      "groupSlug": "homepage"
+    },
+    {
+      "description": "Group standalone app updates together.",
+      "matchFileNames": [
+        "apps/grimguzzler-registration/**",
+        "apps/vaultwarden/**"
+      ],
+      "groupName": "standalone-apps",
+      "groupSlug": "standalone-apps"
     },
     {
       "description": "Group tunnel/VPN updates together.",
@@ -108,7 +140,46 @@
         "infra/wireguard/**",
         "ops/wireguard/**"
       ],
-      "groupName": "tunnels"
+      "groupName": "tunnels",
+      "groupSlug": "tunnels"
+    },
+    {
+      "description": "Group observability updates together.",
+      "matchFileNames": [
+        "infra/observability/**",
+        "infra/observability-config/**"
+      ],
+      "groupName": "observability",
+      "groupSlug": "observability",
+      "automerge": false
+    },
+    {
+      "description": "Group platform infrastructure updates together.",
+      "matchFileNames": [
+        "infra/backups/**",
+        "infra/kyverno/**",
+        "infra/longhorn/**",
+        "infra/metrics-server/**",
+        "infra/nvidia-device-plugin/**",
+        "infra/priorityclasses/**"
+      ],
+      "groupName": "platform-infra",
+      "groupSlug": "platform-infra",
+      "automerge": false
+    },
+    {
+      "description": "Disable major database image upgrades; handle these with explicit migration plans.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/immich-app/postgres",
+        "mysql"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
     },
     {
       "description": "Disable WotLK-related updates.",
