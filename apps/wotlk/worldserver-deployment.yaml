@@ -25,7 +25,7 @@ spec:
           kubernetes.io/hostname: metal4
       initContainers:
         - name: db-import
-          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-571488f00e5092a5c3f30fc14a3bd5f31af0d6d8
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-b694ae10c74d87e2541b0ffb166ec551a566b9f4
           imagePullPolicy: Always
           resources:
             requests:
@@ -174,7 +174,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-571488f00e5092a5c3f30fc14a3bd5f31af0d6d8
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-b694ae10c74d87e2541b0ffb166ec551a566b9f4
           imagePullPolicy: Always
           resources:
             requests:
@@ -202,7 +202,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-571488f00e5092a5c3f30fc14a3bd5f31af0d6d8
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-b694ae10c74d87e2541b0ffb166ec551a566b9f4
           imagePullPolicy: Always
           command:
             - sh
