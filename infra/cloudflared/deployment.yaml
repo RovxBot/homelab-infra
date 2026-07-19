@@ -4,8 +4,8 @@ metadata:
   name: cloudflared
   namespace: cloudflared
 spec:
-  replicas: 1
-  revisionHistoryLimit: 1
+  replicas: 2
+  revisionHistoryLimit: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,6 +19,13 @@ spec:
       labels:
         app: cloudflared
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: cloudflared
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
