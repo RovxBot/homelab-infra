@@ -16,5 +16,4 @@ resources:
   - ../../../secrets/longhorn-b2-credentials.enc.yaml
   - ../../../secrets/restic-b2-photos.enc.yaml
   - ../../../secrets/gatus-github-token.enc.yaml
-  - ../../../secrets/grafana-admin.enc.yaml
   - ../../../secrets/wotlk-mariadb-auth.enc.yaml

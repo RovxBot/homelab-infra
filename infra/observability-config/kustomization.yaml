@@ -1,13 +1,5 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - dashboards/homelab-overview-dashboard.yaml
-  - dashboards/logs-overview-dashboard.yaml
-  - datasources/loki-datasource.yaml
-  - ../../secrets/alertmanager-config.enc.yaml
-  - ../../secrets/alertmanager-smtp-auth.enc.yaml
-  - probes/blackbox-internal.yaml
-  - probes/blackbox-external.yaml
-  - rules/blackbox-alerts.yaml
-  - servicemonitors/cloudflared-metrics.yaml
-  - servicemonitors/longhorn-backend.yaml
+  # Gatus uses this stable in-cluster endpoint to verify both tunnel replicas.
+  - services/cloudflared-metrics.yaml
