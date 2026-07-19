@@ -19,6 +19,7 @@ spec:
       labels:
         app: cloudflared
     spec:
+      automountServiceAccountToken: false
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
