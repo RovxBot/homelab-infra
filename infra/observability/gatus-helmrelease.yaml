@@ -182,6 +182,87 @@ spec:
             - "[STATUS] < 300"
           alerts:
             - type: github
+        - name: homepage-public
+          group: external
+          url: https://homepage.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: vaultwarden-public
+          group: external
+          url: https://vault.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: radarr-public
+          group: external
+          url: https://radarr.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: sonarr-public
+          group: external
+          url: https://sonarr.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: prowlarr-public
+          group: external
+          url: https://prowlarr.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: sabnzbd-public
+          group: external
+          url: https://sabnzbd.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: jellyseerr-public
+          group: external
+          url: https://jellyseerr.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: jellyfin-public
+          group: external
+          url: https://jellyfin.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: immich-public
+          group: external
+          url: https://immich.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
   postRenderers:
     - kustomize:
         patches:
