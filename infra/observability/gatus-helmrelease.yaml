@@ -16,7 +16,7 @@ spec:
       interval: 12h
   values:
     deployment:
-      strategy: Recreate
+      strategy: RollingUpdate
       revisionHistoryLimit: 2
     image:
       tag: v5.34.0
@@ -182,3 +182,17 @@ spec:
             - "[STATUS] < 300"
           alerts:
             - type: github
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: gatus
+            patch: |
+              - op: add
+                path: /spec/strategy/rollingUpdate
+                value:
+                  maxSurge: 0
+                  maxUnavailable: 1
