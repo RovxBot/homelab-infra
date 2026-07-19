@@ -41,10 +41,10 @@ jobs:
       should_apply: ${{ steps.mode.outputs.should_apply }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
 
       - name: Install SOPS tooling
         shell: bash
@@ -130,7 +130,7 @@ jobs:
           terraform -chdir="$TF_WORKING_DIR" plan -out=tfplan -var-file=wireguard.secrets.auto.tfvars.json
 
       - name: Upload plan artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: terraform-oci-free-tier-plan
           path: |
@@ -144,10 +144,10 @@ jobs:
     environment: oci-free-tier
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
 
       - name: Install SOPS tooling
         shell: bash
@@ -210,7 +210,7 @@ jobs:
           terraform -chdir="$TF_WORKING_DIR" init
 
       - name: Download reviewed plan artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: terraform-oci-free-tier-plan
           path: ${{ env.TF_WORKING_DIR }}
