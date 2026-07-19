@@ -14,12 +14,6 @@ ingress:
     service: http://sabnzbd.media.svc.cluster.local:8080
   - hostname: jellyseerr.cooked.beer
     service: http://jellyseerr.media.svc.cluster.local:5055
-  - hostname: grafana.cooked.beer
-    service: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80
-  - hostname: prometheus.cooked.beer
-    service: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
-  - hostname: alertmanager.cooked.beer
-    service: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
   - hostname: homepage.cooked.beer
     path: /assets/*
     service: http://homepage-assets.homepage.svc.cluster.local:80
