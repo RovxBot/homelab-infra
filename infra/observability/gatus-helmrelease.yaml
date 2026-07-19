@@ -16,6 +16,7 @@ spec:
       interval: 12h
   values:
     deployment:
+      strategy: Recreate
       revisionHistoryLimit: 2
     image:
       tag: v5.34.0
