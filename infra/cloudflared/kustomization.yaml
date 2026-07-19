@@ -8,6 +8,7 @@ labels:
 resources:
   - namespace.yaml
   - deployment.yaml
+  - pdb.yaml
   - ../../secrets/cloudflared-credentials.enc.yaml
 configMapGenerator:
   - name: cloudflared-config

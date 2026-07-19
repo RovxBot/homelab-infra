@@ -3,8 +3,11 @@ kind: Deployment
 metadata:
   name: pod-report
   namespace: homepage
+  labels:
+    homelab.cooked.beer/component: cluster-health
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: pod-report
@@ -12,6 +15,7 @@ spec:
     metadata:
       labels:
         app: pod-report
+        homelab.cooked.beer/component: cluster-health
     spec:
       serviceAccountName: pod-report
       securityContext:
@@ -29,8 +33,87 @@ spec:
               set -eu
               out="/work/index.html"
               tmp="/work/index.html.tmp"
+              health="/work/health.json"
+              health_tmp="/work/health.json.tmp"
+
+              nodes_ok() {
+                node_statuses="$(kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="DiskPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="MemoryPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="PIDPressure")]}{.status}{end}{"\n"}{end}')" || return 1
+                [ -n "$node_statuses" ] || return 1
+                printf '%s\n' "$node_statuses" | awk -F '\t' 'NF != 5 || $2 != "True" || $3 != "False" || $4 != "False" || $5 != "False" { bad = 1 } END { exit bad }'
+              }
+
+              deployments_ok() {
+                deployment_statuses="$(kubectl get deployments -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.availableReplicas}{"\n"}{end}')" || return 1
+                [ -z "$deployment_statuses" ] || printf '%s\n' "$deployment_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
+              }
+
+              statefulsets_ok() {
+                statefulset_statuses="$(kubectl get statefulsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.readyReplicas}{"\n"}{end}')" || return 1
+                [ -z "$statefulset_statuses" ] || printf '%s\n' "$statefulset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
+              }
+
+              daemonsets_ok() {
+                daemonset_statuses="$(kubectl get daemonsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.desiredNumberScheduled}{"\t"}{.status.numberAvailable}{"\n"}{end}')" || return 1
+                [ -z "$daemonset_statuses" ] || printf '%s\n' "$daemonset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
+              }
+
+              pvcs_ok() {
+                pvc_statuses="$(kubectl get persistentvolumeclaims -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')" || return 1
+                [ -z "$pvc_statuses" ] || printf '%s\n' "$pvc_statuses" | awk -F '\t' '$2 != "Bound" { bad = 1 } END { exit bad }'
+              }
+
+              flux_ok() {
+                flux_statuses="$(kubectl get kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.kind}{"/"}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}')" || return 1
+                [ -n "$flux_statuses" ] || return 1
+                printf '%s\n' "$flux_statuses" | awk -F '\t' 'NF != 2 || $2 != "True" { bad = 1 } END { exit bad }'
+              }
+
+              longhorn_ok() {
+                volume_statuses="$(kubectl get volumes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.robustness}{"\n"}{end}')" || return 1
+                node_statuses="$(kubectl get nodes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Schedulable")]}{.status}{end}{"\n"}{end}')" || return 1
+                [ -n "$volume_statuses" ] || return 1
+                [ -n "$node_statuses" ] || return 1
+                printf '%s\n' "$volume_statuses" | awk -F '\t' 'NF != 2 || $2 != "healthy" { bad = 1 } END { exit bad }' || return 1
+                printf '%s\n' "$node_statuses" | awk -F '\t' 'NF != 2 || $2 != "True" { bad = 1 } END { exit bad }'
+              }
+
+              recent_jobs_ok() {
+                job_statuses="$(kubectl get jobs -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"|"}{.status.failed}{"|"}{.status.startTime}{"\n"}{end}')" || return 1
+                [ -z "$job_statuses" ] && return 0
+                cutoff_epoch="$(date -u -d '6 hours ago' +%s)" || return 1
+                while IFS='|' read -r job_name failed_count start_time; do
+                  [ "${failed_count:-0}" -gt 0 ] || continue
+                  start_epoch="$(date -u -d "$start_time" +%s)" || return 1
+                  [ "$start_epoch" -lt "$cutoff_epoch" ] || return 1
+                done <<EOF
+              $job_statuses
+              EOF
+              }
+
+              evaluate_health() {
+                health_status="healthy"
+                nodes_state="ok"
+                workloads_state="ok"
+                pvcs_state="ok"
+                flux_state="ok"
+                longhorn_state="ok"
+                jobs_state="ok"
+
+                nodes_ok || { health_status="unhealthy"; nodes_state="failed"; }
+                { deployments_ok && statefulsets_ok && daemonsets_ok; } || { health_status="unhealthy"; workloads_state="failed"; }
+                pvcs_ok || { health_status="unhealthy"; pvcs_state="failed"; }
+                flux_ok || { health_status="unhealthy"; flux_state="failed"; }
+                longhorn_ok || { health_status="unhealthy"; longhorn_state="failed"; }
+                recent_jobs_ok || { health_status="unhealthy"; jobs_state="failed"; }
+
+                printf '{"status":"%s","observedAt":"%s","checks":{"nodes":"%s","workloads":"%s","pvcs":"%s","flux":"%s","longhorn":"%s","recentJobs":"%s"}}\n' \
+                  "$health_status" "$now" "$nodes_state" "$workloads_state" "$pvcs_state" "$flux_state" "$longhorn_state" "$jobs_state" > "$health_tmp"
+                mv "$health_tmp" "$health"
+              }
+
               while true; do
                 now="$(date -u '+%Y-%m-%d %H:%M:%SZ')"
+                evaluate_health
                 {
                   cat <<'HTML'
               <!doctype html>

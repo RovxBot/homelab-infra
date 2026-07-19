@@ -4,11 +4,10 @@ metadata:
   name: pod-report
   namespace: homepage
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: pod-report
   ports:
     - name: http
       port: 80
       targetPort: http
-      nodePort: 32081

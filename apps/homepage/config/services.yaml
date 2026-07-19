@@ -6,24 +6,6 @@
         description: Dashboard and launch surface
         icon: homepage
         target: _blank
-    - Grafana:
-        href: https://grafana.cooked.beer
-        siteMonitor: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80/api/health
-        description: Dashboards, logs, and alert views
-        icon: grafana
-        target: _blank
-    - Prometheus:
-        href: https://prometheus.cooked.beer
-        siteMonitor: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/-/ready
-        description: Metrics and rule evaluation
-        icon: prometheus
-        target: _blank
-    - Alertmanager:
-        href: https://alertmanager.cooked.beer
-        siteMonitor: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/-/ready
-        description: Notification routing and silences
-        icon: alertmanager
-        target: _blank
     - Immich:
         href: https://immich.cooked.beer
         siteMonitor: http://immich-server.immich.svc.cluster.local:2283/api/server/ping
@@ -111,12 +93,6 @@
         siteMonitor: http://longhorn-frontend.longhorn-system.svc.cluster.local:80
         description: Persistent storage control plane
         icon: longhorn
-        target: _blank
-    - Pods by Node (LAN):
-        href: http://192.168.1.190:32081
-        siteMonitor: http://pod-report.homepage.svc.cluster.local:80
-        description: Fast view of workload spread
-        icon: kubernetes
         target: _blank
 
 - Links:
