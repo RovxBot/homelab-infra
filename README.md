@@ -166,3 +166,4 @@ To add a new app:
 - Contributing: `CONTRIBUTING.md`
 - License: `LICENSE`
 - WotLK server details and images: `WOTLK.md`
+- Accepted LAN NodePort exposure: `docs/decisions/0001-lan-nodeport-access.md`
