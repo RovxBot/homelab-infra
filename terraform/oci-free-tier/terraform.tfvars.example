@@ -26,8 +26,9 @@ wireguard_image_ocid = "ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreq
 wireguard_ocpus      = 1
 wireguard_memory_gbs = 1
 
-# Matrix homeserver on Always Free ARM.
-matrix_enabled       = true
+# Legacy Matrix resources are disabled in the edge module. Provision Matrix
+# through its independent Terraform module when Oracle ARM capacity is available.
+matrix_enabled       = false
 matrix_instance_name = "matrix"
 matrix_shape         = "VM.Standard.A1.Flex"
 matrix_ocpus         = 2
