@@ -31,7 +31,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: Workload pod templates must carry the homelab owner label.
         anyPattern:
           - spec:
@@ -288,7 +288,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: Container images in workload pod templates should be pinned by digest.
         foreach:
           - list: "request.object.spec.template.spec.containers[]"
@@ -360,7 +360,7 @@ spec:
                 - kube-system
                 - kyverno
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         message: Containers that expose ports should define readiness and liveness probes.
         foreach:
           - list: "request.object.spec.template.spec.containers[]"
