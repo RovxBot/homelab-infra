@@ -41,7 +41,7 @@ WireGuard instance:
 - Enables IP forwarding
 - Optionally installs Caddy from the official repository
 - Writes the shared, reviewed `ops/wireguard/Caddyfile` and
-  `ops/wireguard/vps-public-edge.sh`
+  `ops/wireguard/vps-public-edge.sh` from this Terraform module
 - Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
 
 Matrix instance:
@@ -156,7 +156,7 @@ Repository workflow prerequisites:
   own login, not Cloudflare Access. Keep their application authentication,
   supported versions and TLS renewal healthy; a DNS-only Cloudflare record is
   not an access-control boundary.
-- `ops/wireguard/` is the canonical edge configuration used by both the
+- `ops/wireguard/` in this module is the canonical edge configuration used by both the
   Terraform bootstrap and the documented manual procedure. Keep that
   directory with this module when moving OCI infrastructure to
   `homelab-cloud`; do not recreate a second Caddyfile or firewall script.
