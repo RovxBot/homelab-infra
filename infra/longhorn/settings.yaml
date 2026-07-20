@@ -25,3 +25,22 @@ metadata:
   name: concurrent-replica-rebuild-per-node-limit
   namespace: longhorn-system
 value: "1"
+---
+# Every existing volume inherits the global setting and is currently healthy.
+# Least-effort balancing uses the empty, schedulable storage on metal0 without
+# the repeated rebuild churn that best-effort balancing can cause.
+apiVersion: longhorn.io/v1beta2
+kind: Setting
+metadata:
+  name: replica-auto-balance
+  namespace: longhorn-system
+value: least-effort
+---
+# Refuse a new volume if all three requested replicas cannot be scheduled.
+# Existing volumes and the approved Backblaze backup design are unaffected.
+apiVersion: longhorn.io/v1beta2
+kind: Setting
+metadata:
+  name: allow-volume-creation-with-degraded-availability
+  namespace: longhorn-system
+value: "false"

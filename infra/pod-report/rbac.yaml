@@ -12,22 +12,22 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["nodes", "pods", "persistentvolumeclaims"]
-    verbs: ["get", "list"]
+    verbs: ["list"]
   - apiGroups: ["apps"]
     resources: ["deployments", "daemonsets", "statefulsets"]
-    verbs: ["get", "list"]
+    verbs: ["list"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list"]
+    verbs: ["list"]
   - apiGroups: ["kustomize.toolkit.fluxcd.io"]
     resources: ["kustomizations"]
-    verbs: ["get", "list"]
+    verbs: ["list"]
   - apiGroups: ["helm.toolkit.fluxcd.io"]
     resources: ["helmreleases"]
-    verbs: ["get", "list"]
+    verbs: ["list"]
   - apiGroups: ["longhorn.io"]
     resources: ["nodes", "volumes"]
-    verbs: ["get", "list"]
+    verbs: ["list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
