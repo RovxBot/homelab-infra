@@ -39,7 +39,8 @@ WireGuard instance:
 - Installs `wireguard` and `iptables-persistent`
 - Enables IP forwarding
 - Optionally installs Caddy from the official repository
-- Writes the module-bundled `files/Caddyfile` and `files/vps-public-edge.sh`
+- Writes the shared, reviewed `ops/wireguard/Caddyfile` and
+  `ops/wireguard/vps-public-edge.sh`
 - Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
 
 Matrix instance:
@@ -147,6 +148,15 @@ Repository workflow prerequisites:
 
 ## Notes
 
+- `immich.cooked.beer` and `jellyfin.cooked.beer` are intentional direct
+  public Caddy routes on this edge. They are protected by each application's
+  own login, not Cloudflare Access. Keep their application authentication,
+  supported versions and TLS renewal healthy; a DNS-only Cloudflare record is
+  not an access-control boundary.
+- `ops/wireguard/` is the canonical edge configuration used by both the
+  Terraform bootstrap and the documented manual procedure. Keep that
+  directory with this module when moving OCI infrastructure to
+  `homelab-cloud`; do not recreate a second Caddyfile or firewall script.
 - This module assumes the Matrix host name is the same host used for Synapse, Element Web, and federation, for example `matrix.example.com`.
 - Synapse is configured with `enable_registration = false`; create users explicitly after bootstrap.
 - coturn is exposed directly on the Matrix VM because TURN works better with a public IP than through an extra proxy layer.

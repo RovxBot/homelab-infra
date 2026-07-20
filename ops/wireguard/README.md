@@ -10,6 +10,14 @@ This folder contains the Oracle-side pieces for exposing selected home services 
 - `immich.cooked.beer` terminates TLS on the VPS and proxies over WireGuard to `192.168.1.197:30283`.
 - `jellyfin.cooked.beer` terminates TLS on the VPS and proxies over WireGuard to `192.168.1.197:32096`.
 
+Immich and Jellyfin are intentional public application routes. Each service's
+own login is the access control; do not add Cloudflare Access in front of
+these paths unless every intended client is tested with it. The Caddyfile
+enforces HTTPS and response security headers, but it is not an authentication
+layer. Keep both applications patched, disable unneeded self-registration,
+and use unique strong user passwords with MFA where the application supports
+it.
+
 ## Why the WotLK world port moves off 443
 
 The current WotLK setup uses public `443/TCP` as a raw TCP forward to the worldserver. That conflicts with hosting `https://immich.cooked.beer` on the same VPS/public IP, because both need `443/TCP`.
@@ -57,7 +65,7 @@ WantedBy=multi-user.target
 
 ## Notes
 
-- `immich.cooked.beer` and `jellyfin.cooked.beer` should be DNS-only in Cloudflare if you keep Cloudflare DNS in front of the VPS.
+- `immich.cooked.beer` and `jellyfin.cooked.beer` should be DNS-only in Cloudflare if you keep Cloudflare DNS in front of the VPS. DNS-only records do not hide or protect the VPS IP; the direct public application model above is intentional.
 - The Caddy config still targets `metal7` at `192.168.1.197` for the Immich and Jellyfin NodePorts; that remains valid because those Services are exposed with `externalTrafficPolicy: Cluster`.
 - The WoTLK forwarding scripts now default auth traffic to `192.168.1.197` and world traffic to `192.168.1.47`.
 - Set an explicit `MTU = 1370` in the Oracle-side `wg0.conf`. OCI exposes a jumbo-MTU NIC, and letting WireGuard auto-derive an MTU from that can produce an oversized tunnel MTU for Internet-bound traffic.
