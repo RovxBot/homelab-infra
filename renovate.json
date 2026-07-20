@@ -4,21 +4,25 @@
     "config:recommended",
     ":dependencyDashboard",
     ":enableVulnerabilityAlerts",
-    "docker:pinDigests"
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests"
   ],
   "timezone": "Australia/Melbourne",
   "labels": [
     "dependencies"
   ],
-  "rebaseWhen": "conflicted",
-  "prCreation": "immediate",
-  "prHourlyLimit": 0,
-  "prConcurrentLimit": 10,
-  "branchConcurrentLimit": 10,
+  "rebaseWhen": "behind-base-branch",
+  "prCreation": "not-pending",
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
+  "branchConcurrentLimit": 5,
   "dependencyDashboardTitle": "Renovate Dependency Dashboard",
   "enabledManagers": [
+    "dockerfile",
     "flux",
-    "kubernetes"
+    "github-actions",
+    "kubernetes",
+    "terraform"
   ],
   "kubernetes": {
     "managerFilePatterns": [
@@ -29,30 +33,50 @@
     "**/*.b64",
     "age-key.txt",
     "apps/wotlk/**",
+    "clusters/home/flux-system/gotk-components.yaml",
     "immich_backup_*.sql"
   ],
-  "customManagers": [],
   "packageRules": [
     {
-      "description": "Auto-merge patch updates (safe defaults).",
-      "matchUpdateTypes": [
-        "patch"
+      "description": "Require an explicit review for every infrastructure dependency update.",
+      "matchManagers": [
+        "dockerfile",
+        "flux",
+        "github-actions",
+        "kubernetes",
+        "terraform"
       ],
-      "automerge": true,
-      "automergeType": "pr"
-    },
-    {
-      "description": "Group Flux platform updates together.",
-      "matchPackageNames": [
-        "fluxcd/flux2",
-        "/^(?:ghcr\\.io\\/)?fluxcd\\/.+-controller$/"
-      ],
-      "groupName": "flux",
-      "groupSlug": "flux",
       "automerge": false
     },
     {
-      "description": "Group Flux HelmRelease chart updates together.",
+      "description": "Group GitHub Action updates so workflow pins move together.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github-actions",
+      "groupSlug": "github-actions",
+      "automerge": false
+    },
+    {
+      "description": "Group Oracle Terraform provider and CLI constraints across both stacks.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "groupName": "terraform",
+      "groupSlug": "terraform",
+      "automerge": false
+    },
+    {
+      "description": "Group custom image build base-image updates.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "groupName": "custom-image-builds",
+      "groupSlug": "custom-image-builds",
+      "automerge": false
+    },
+    {
+      "description": "Group Flux HelmRelease chart updates together; bootstrap components are regenerated manually with pinned digests.",
       "matchManagers": [
         "flux"
       ],
