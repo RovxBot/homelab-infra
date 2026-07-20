@@ -18,3 +18,12 @@ patches:
     - op: add
       path: /spec/template/spec/containers/0/args/-
       value: --no-remote-bases=true
+- target:
+    group: source.toolkit.fluxcd.io
+    version: v1
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  patch: |-
+    - op: remove
+      path: /spec/secretRef
