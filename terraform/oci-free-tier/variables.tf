@@ -150,9 +150,9 @@ variable "wireguard_peer_config" {
 }
 
 variable "matrix_enabled" {
-  description = "Whether to provision the Matrix homeserver instance."
+  description = "Legacy in-module Matrix switch. Disabled by default while Matrix is extracted into an independent provision."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "matrix_instance_name" {

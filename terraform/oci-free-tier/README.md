@@ -1,9 +1,12 @@
 # OCI Free Tier Terraform
 
-This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
+This Terraform stack provisions the running Melbourne Oracle Free Tier edge:
 
 - 1 WireGuard/public-edge VPS on `VM.Standard.E2.1.Micro`
-- 1 Matrix VPS on `VM.Standard.A1.Flex`
+
+The legacy Matrix resources are disabled by default while they are extracted
+into an independent provision. Oracle ARM capacity must never block a security
+or maintenance change to the public edge.
 
 ## What it creates
 
