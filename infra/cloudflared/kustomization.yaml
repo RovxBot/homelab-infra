@@ -9,8 +9,7 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - pdb.yaml
-  # Take ownership before the retired observability-config reconciler is
-  # removed in the follow-up change.
+  # Keep the tunnel's health endpoint with the workload it exposes.
   - cloudflared-metrics-service.yaml
   - ../../secrets/cloudflared-credentials.enc.yaml
 configMapGenerator:
