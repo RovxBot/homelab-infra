@@ -97,6 +97,16 @@ jobs:
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home > .work/rendered.yaml
           test -s .work/rendered.yaml
 
+      - name: Render every Kustomize source root
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r kustomization; do
+            directory="${kustomization%/kustomization.yaml}"
+            kustomize build --load-restrictor LoadRestrictionsNone "$directory" > /dev/null
+          done < <(find apps infra clusters -name kustomization.yaml -type f | sort)
+
       - name: Validate public-edge Caddyfile
         if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash

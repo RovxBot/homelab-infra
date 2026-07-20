@@ -26,6 +26,16 @@ metadata:
   namespace: longhorn-system
 value: "1"
 ---
+# Longhorn must continue to schedule its system-managed CSI, instance-manager
+# and engine-image components on all seven disk-bearing nodes after control
+# planes regain their default NoSchedule taint.
+apiVersion: longhorn.io/v1beta2
+kind: Setting
+metadata:
+  name: taint-toleration
+  namespace: longhorn-system
+value: "node-role.kubernetes.io/control-plane:NoSchedule"
+---
 # Every existing volume inherits the global setting and is currently healthy.
 # Least-effort balancing uses the empty, schedulable storage on metal0 without
 # the repeated rebuild churn that best-effort balancing can cause.
