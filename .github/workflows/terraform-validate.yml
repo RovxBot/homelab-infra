@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - "terraform/oci-free-tier/**"
+      - "terraform/oci-matrix-free-tier/**"
       - ".github/workflows/terraform-validate.yml"
 
 permissions:
@@ -19,10 +20,12 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: terraform/oci-free-tier
+    strategy:
+      fail-fast: false
+      matrix:
+        stack:
+          - oci-free-tier
+          - oci-matrix-free-tier
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -52,7 +55,7 @@ jobs:
           changed_files="$(git diff --name-only "$range")"
           printf 'Changed files in %s:\n%s\n' "$range" "$changed_files"
 
-          if echo "$changed_files" | grep -Eq '(^terraform/oci-free-tier/|^\.github/workflows/terraform-validate\.yml$)'; then
+          if echo "$changed_files" | grep -Eq '(^terraform/(oci-free-tier|oci-matrix-free-tier)/|^\.github/workflows/terraform-validate\.yml$)'; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
@@ -61,7 +64,7 @@ jobs:
       - name: Skip when Terraform files are unchanged
         if: steps.changes.outputs.should_run != 'true'
         shell: bash
-        run: echo "No Terraform OCI Free Tier changes detected; validation is not needed."
+        run: echo "No Terraform root changes detected; validation is not needed."
 
       - name: Setup Terraform
         if: steps.changes.outputs.should_run == 'true'
@@ -69,15 +72,15 @@ jobs:
 
       - name: Check Terraform formatting
         if: steps.changes.outputs.should_run == 'true'
-        run: terraform fmt -check -diff -recursive
+        run: terraform -chdir="terraform/${{ matrix.stack }}" fmt -check -diff -recursive
 
       - name: Terraform init
         if: steps.changes.outputs.should_run == 'true'
-        run: terraform init -backend=false
+        run: terraform -chdir="terraform/${{ matrix.stack }}" init -backend=false
 
       - name: Terraform validate
         if: steps.changes.outputs.should_run == 'true'
-        run: terraform validate
+        run: terraform -chdir="terraform/${{ matrix.stack }}" validate
 
       - name: Setup TFLint
         if: steps.changes.outputs.should_run == 'true'
@@ -85,8 +88,12 @@ jobs:
 
       - name: Init TFLint
         if: steps.changes.outputs.should_run == 'true'
-        run: tflint --init
+        run: |
+          cd "terraform/${{ matrix.stack }}"
+          tflint --init
 
       - name: Run TFLint
         if: steps.changes.outputs.should_run == 'true'
-        run: tflint --recursive
+        run: |
+          cd "terraform/${{ matrix.stack }}"
+          tflint --recursive
