@@ -6,7 +6,9 @@ locals {
   availability_domain = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
   oci_private_key     = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
   ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
-  matrix_image_ocid   = var.matrix_image_ocid != "" ? var.matrix_image_ocid : data.oci_core_images.matrix[0].images[0].id
+  matrix_image_ocid = var.matrix_enabled ? (
+    var.matrix_image_ocid != "" ? var.matrix_image_ocid : data.oci_core_images.matrix[0].images[0].id
+  ) : null
   # The edge now has a tested WireGuard-only management path. Matrix retains
   # its legacy behaviour until its separate administration path is designed.
   matrix_ssh_ingress_cidrs = coalesce(
