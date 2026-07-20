@@ -1,9 +1,12 @@
 # OCI Free Tier Terraform
 
-This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
+This Terraform stack provisions the running Melbourne Oracle Free Tier edge:
 
 - 1 WireGuard/public-edge VPS on `VM.Standard.E2.1.Micro`
-- 1 Matrix VPS on `VM.Standard.A1.Flex`
+
+The legacy Matrix resources are disabled by default while they are extracted
+into an independent provision. Oracle ARM capacity must never block a security
+or maintenance change to the public edge.
 
 ## What it creates
 
@@ -20,13 +23,14 @@ This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
 
 WireGuard instance:
 
-- `22/TCP` from `ssh_ingress_cidrs`
+- no public `22/TCP` by default; administer through a tested WireGuard peer
 - `51820/UDP` for WireGuard
 - `80/TCP`, `443/TCP`, `3724/TCP`, `8443/TCP` for your current edge use case
 
 Matrix instance:
 
-- `22/TCP` from `ssh_ingress_cidrs`
+- `22/TCP` from `matrix_ssh_ingress_cidrs` (the legacy public default remains
+  only until Matrix has a separately tested management path)
 - `80/TCP`, `443/TCP` for Element Web and Matrix client traffic
 - `8448/TCP` for Matrix federation
 - `3478/TCP+UDP` for TURN
@@ -39,7 +43,8 @@ WireGuard instance:
 - Installs `wireguard` and `iptables-persistent`
 - Enables IP forwarding
 - Optionally installs Caddy from the official repository
-- Writes the module-bundled `files/Caddyfile` and `files/vps-public-edge.sh`
+- Writes the shared, reviewed `ops/wireguard/Caddyfile` and
+  `ops/wireguard/vps-public-edge.sh` from this Terraform module
 - Optionally writes `/etc/wireguard/wg0.conf` and starts `wg-quick@wg0` if `wireguard_peer_config` is provided
 
 Matrix instance:
@@ -64,6 +69,8 @@ Matrix instance:
 - Matrix boot image:
 - SSH access:
   - `ssh_public_key_path` or `ssh_public_key`
+  - `wireguard_ssh_ingress_cidrs` (empty after WireGuard administration is tested)
+  - `matrix_ssh_ingress_cidrs` (set only after choosing Matrix administration)
 - Matrix DNS/TLS:
   - `matrix_server_name`
   - `matrix_acme_email`
@@ -124,6 +131,12 @@ terraform -chdir=terraform/oci-free-tier plan -var-file=wireguard.secrets.auto.t
 
 If you do not want to run Terraform locally, this repo includes [terraform-oci-free-tier.yml](/Users/sam/Git/homelab-infra/.github/workflows/terraform-oci-free-tier.yml).
 
+The workflow normally plans the whole workspace. Its optional `target` input is
+for an exceptional, reviewed repair only: use one exact Terraform resource
+address for both the plan and approved apply, inspect the targeted plan, then
+remove the need for targeting by reconciling the wider workspace drift. Do not
+use it to bypass an unexplained full plan.
+
 Suggested Terraform Cloud sensitive variables:
 
 - `private_key_pem`
@@ -147,10 +160,24 @@ Repository workflow prerequisites:
 
 ## Notes
 
+- `immich.cooked.beer` and `jellyfin.cooked.beer` are intentional direct
+  public Caddy routes on this edge. They are protected by each application's
+  own login, not Cloudflare Access. Keep their application authentication,
+  supported versions and TLS renewal healthy; a DNS-only Cloudflare record is
+  not an access-control boundary.
+- `ops/wireguard/` in this module is the canonical edge configuration used by both the
+  Terraform bootstrap and the documented manual procedure. Keep that
+  directory with this module when moving OCI infrastructure to
+  `homelab-cloud`; do not recreate a second Caddyfile or firewall script.
 - This module assumes the Matrix host name is the same host used for Synapse, Element Web, and federation, for example `matrix.example.com`.
 - Synapse is configured with `enable_registration = false`; create users explicitly after bootstrap.
 - coturn is exposed directly on the Matrix VM because TURN works better with a public IP than through an extra proxy layer.
 - If you populate `wireguard_peer_config`, include an explicit `MTU = 1370` in the `wg0.conf` payload for this homelab path. OCI's public NIC advertises a jumbo MTU, which otherwise leads WireGuard to derive an oversized tunnel MTU on the VPS.
+- `ssh_ingress_cidrs` is retained only as a migration fallback for existing
+  Matrix workspace variables. Do not use it for new changes. The WireGuard
+  edge uses `wireguard_ssh_ingress_cidrs`, which defaults to empty; Matrix uses
+  `matrix_ssh_ingress_cidrs` and preserves the legacy value until its own
+  management route is tested.
 
 ## Source references
 

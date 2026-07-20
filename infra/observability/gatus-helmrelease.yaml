@@ -277,3 +277,6 @@ spec:
                 value:
                   maxSurge: 0
                   maxUnavailable: 1
+              - op: add
+                path: /spec/template/metadata/labels/homelab.cooked.beer~1owner
+                value: sam

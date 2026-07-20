@@ -5,6 +5,7 @@ metadata:
   namespace: wotlk
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:

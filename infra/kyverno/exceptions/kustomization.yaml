@@ -4,5 +4,4 @@ resources:
   - privileged-namespaces.yaml
   - mutable-image-tags.yaml
   - chart-managed-workloads.yaml
-  - azure-arc-workloads.yaml
   - wotlk-latest-tag.yaml

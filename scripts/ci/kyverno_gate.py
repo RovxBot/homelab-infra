@@ -170,6 +170,12 @@ def filter_rendered_documents(documents: list[dict[str, Any]], excluded_namespac
 
 def write_documents(documents: list[dict[str, Any]], output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
+    # The gate's work directory is intentionally reusable for local runs and CI
+    # artifacts. Remove only its previous generated inputs before rebuilding;
+    # otherwise an old manifest can be evaluated alongside the current render.
+    for existing in output_dir.glob("*.yaml"):
+        existing.unlink()
+
     written: list[Path] = []
     for index, document in enumerate(documents, start=1):
         metadata = document.get("metadata") or {}

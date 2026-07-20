@@ -79,9 +79,23 @@ variable "subnet_cidr" {
 }
 
 variable "ssh_ingress_cidrs" {
-  description = "CIDR blocks allowed to SSH to the instances."
+  description = "Deprecated shared SSH CIDR fallback for an existing Matrix host. New deployments must use the per-instance variables."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  default     = null
+  nullable    = true
+}
+
+variable "wireguard_ssh_ingress_cidrs" {
+  description = "CIDR blocks allowed to SSH to the WireGuard edge. Keep empty after WireGuard administration is tested."
+  type        = list(string)
+  default     = []
+}
+
+variable "matrix_ssh_ingress_cidrs" {
+  description = "CIDR blocks allowed to SSH to Matrix. Null preserves the legacy shared setting, or its previous public default, until Matrix has a separate management path."
+  type        = list(string)
+  default     = null
+  nullable    = true
 }
 
 variable "freeform_tags" {
@@ -136,9 +150,9 @@ variable "wireguard_peer_config" {
 }
 
 variable "matrix_enabled" {
-  description = "Whether to provision the Matrix homeserver instance."
+  description = "Legacy in-module Matrix switch. Disabled by default while Matrix is extracted into an independent provision."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "matrix_instance_name" {

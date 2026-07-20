@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: monitoring
+  name: flux-system
   labels:
     homelab.cooked.beer/owner: sam
     pod-security.kubernetes.io/enforce: restricted

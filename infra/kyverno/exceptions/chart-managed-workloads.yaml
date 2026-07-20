@@ -28,4 +28,3 @@ spec:
             - CronJob
           namespaces:
             - longhorn-system
-            - monitoring

@@ -21,9 +21,6 @@ spec:
         any:
           - resources:
               names:
-                - azure-arc
-                - azure-arc-auth
-                - azure-arc-release
                 - default
                 - kube-node-lease
                 - kube-public

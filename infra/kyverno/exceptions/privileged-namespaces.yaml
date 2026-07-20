@@ -20,6 +20,5 @@ spec:
       - resources:
           namespaces:
             - longhorn-system
-            - monitoring
             - wireguard
             - wotlk

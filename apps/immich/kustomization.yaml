@@ -10,6 +10,9 @@ labels:
 
 resources:
   - namespace.yaml
+  # Keep the credentials consumed by server.yaml and postgres.yaml under the
+  # same Flux reconciliation as their workloads.
+  - ../../secrets/immich.enc.yaml
   - nfs-pv-uploads.yaml
   - pvc.yaml
   - configmap.yaml

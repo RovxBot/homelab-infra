@@ -3,12 +3,24 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 locals {
-  availability_domain       = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
-  oci_private_key           = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
-  ssh_authorized_keys       = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
-  matrix_image_ocid         = var.matrix_image_ocid != "" ? var.matrix_image_ocid : data.oci_core_images.matrix[0].images[0].id
-  wireguard_caddyfile_b64   = base64encode(file("${path.module}/files/Caddyfile"))
-  wireguard_edge_script_b64 = base64encode(file("${path.module}/files/vps-public-edge.sh"))
+  availability_domain = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
+  oci_private_key     = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
+  ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
+  matrix_image_ocid = var.matrix_enabled ? (
+    var.matrix_image_ocid != "" ? var.matrix_image_ocid : data.oci_core_images.matrix[0].images[0].id
+  ) : null
+  # The edge now has a tested WireGuard-only management path. Matrix retains
+  # its legacy behaviour until its separate administration path is designed.
+  matrix_ssh_ingress_cidrs = coalesce(
+    var.matrix_ssh_ingress_cidrs,
+    var.ssh_ingress_cidrs,
+    ["0.0.0.0/0"],
+  )
+  # Keep the manual VPS procedure and Terraform bootstrap on the same reviewed
+  # edge configuration. It lives inside this module so HCP Terraform remote
+  # execution receives it with the configured working directory.
+  wireguard_caddyfile_b64   = base64encode(file("${path.module}/ops/wireguard/Caddyfile"))
+  wireguard_edge_script_b64 = base64encode(file("${path.module}/ops/wireguard/vps-public-edge.sh"))
   common_tags = merge(
     {
       managed-by = "github-actions"
@@ -100,7 +112,7 @@ resource "oci_core_network_security_group_security_rule" "wireguard_egress_all" 
 }
 
 resource "oci_core_network_security_group_security_rule" "wireguard_ssh_ingress" {
-  for_each                  = toset(var.ssh_ingress_cidrs)
+  for_each                  = toset(var.wireguard_ssh_ingress_cidrs)
   network_security_group_id = oci_core_network_security_group.wireguard.id
   direction                 = "INGRESS"
   protocol                  = "6"
@@ -164,7 +176,7 @@ resource "oci_core_network_security_group_security_rule" "matrix_egress_all" {
 }
 
 resource "oci_core_network_security_group_security_rule" "matrix_ssh_ingress" {
-  for_each = var.matrix_enabled ? toset(var.ssh_ingress_cidrs) : []
+  for_each = var.matrix_enabled ? toset(local.matrix_ssh_ingress_cidrs) : []
 
   network_security_group_id = oci_core_network_security_group.matrix[0].id
   direction                 = "INGRESS"

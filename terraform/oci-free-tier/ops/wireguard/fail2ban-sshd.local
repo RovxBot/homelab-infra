@@ -1,0 +1,9 @@
+# Temporary protection while SSH remains public during the WireGuard management
+# migration. Once OCI and host firewalls allow SSH only from wg0, this remains
+# harmless defence in depth for any future intentional SSH exposure.
+[sshd]
+enabled = true
+backend = systemd
+maxretry = 4
+findtime = 10m
+bantime = 1h

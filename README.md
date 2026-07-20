@@ -10,7 +10,7 @@ This is my homelab GitOps repo. It drives a Talos Kubernetes cluster with Flux a
 - OS + cluster: Talos Linux running Kubernetes
 - GitOps: Flux (repo is the source of truth)
 - Storage: Longhorn (with per-node disk layout)
-- Observability: kube-prometheus-stack, Loki + Promtail, blackbox exporter
+- Service health: Gatus in-cluster checks, plus public uptime in [homelab-uptime](https://github.com/RovxBot/homelab-uptime)
 - Access: Cloudflared tunnel, WireGuard
 - Apps: media stack, Immich, Vaultwarden, WotLK server, and more
 
@@ -149,11 +149,11 @@ To add a new app:
 2. Add it to a `clusters/home/apps/*/kustomization.yaml` (or create a new one).
 3. Commit and push.
 
-### 7) Observability and dashboards
+### 7) Service health and public uptime
 
-- Prometheus + Grafana: `infra/observability/kube-prometheus-stack-helmrelease.yaml`
-- Extra dashboards/alerts: `infra/observability-config/*`
-- Add new targets via `ServiceMonitor`/`PodMonitor` in `infra/observability-config/servicemonitors/`
+- In-cluster workload and endpoint checks: `infra/observability/gatus-helmrelease.yaml`
+- Public uptime status and its GitHub Actions history: [RovxBot/homelab-uptime](https://github.com/RovxBot/homelab-uptime)
+- Add public checks in the separate repository's `.upptimerc.yml`; do not add generated Upptime history to this GitOps repository.
 
 ## Public repo notes
 
@@ -166,4 +166,4 @@ To add a new app:
 - Contributing: `CONTRIBUTING.md`
 - License: `LICENSE`
 - WotLK server details and images: `WOTLK.md`
-- Azure Arc onboarding runbook: `ops/azure-arc/README.md`
+- Accepted LAN NodePort exposure: `docs/decisions/0001-lan-nodeport-access.md`

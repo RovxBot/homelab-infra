@@ -138,7 +138,7 @@
       "matchFileNames": [
         "infra/cloudflared/**",
         "infra/wireguard/**",
-        "ops/wireguard/**"
+        "terraform/oci-free-tier/ops/wireguard/**"
       ],
       "groupName": "tunnels",
       "groupSlug": "tunnels"

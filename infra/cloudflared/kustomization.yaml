@@ -9,6 +9,8 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - pdb.yaml
+  # Keep the tunnel's health endpoint with the workload it exposes.
+  - cloudflared-metrics-service.yaml
   - ../../secrets/cloudflared-credentials.enc.yaml
 configMapGenerator:
   - name: cloudflared-config
