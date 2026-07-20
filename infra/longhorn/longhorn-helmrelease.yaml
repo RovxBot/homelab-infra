@@ -65,6 +65,27 @@ spec:
     defaultSettings:
       priorityClass: longhorn-critical
       disableRevisionCounter: '{"v1":"true"}'
+      # Keep Longhorn's system-managed components on every disk-bearing node
+      # after Talos restores the default control-plane NoSchedule taint.
+      taintToleration: "node-role.kubernetes.io/control-plane:NoSchedule"
+
+    # These are user-deployed chart components, so the Longhorn global setting
+    # above does not apply to them. Every node contributes Longhorn storage.
+    longhornManager:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+
+    longhornDriver:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
 
     longhornUI:
       replicas: 2
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
