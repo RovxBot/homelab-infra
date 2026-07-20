@@ -15,6 +15,7 @@ spec:
       labels:
         app: immich-postgres
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 999

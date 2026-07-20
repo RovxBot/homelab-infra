@@ -19,6 +19,7 @@ spec:
       labels:
         app: grimguzzler-registration
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: grimguzzler-registration
           image: ghcr.io/rovxbot/grimguzzler-registration:master-69ff772ff953ca1685ba939af5533b51ee76b475@sha256:0fe39a0a845e95997f242143cc1ebad6d4aaf59eae66b11755d6bac0656bfdf4

@@ -15,6 +15,7 @@ spec:
       labels:
         app: radarr
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

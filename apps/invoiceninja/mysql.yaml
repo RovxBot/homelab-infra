@@ -15,6 +15,7 @@ spec:
       labels:
         app: invoiceninja-mysql
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 999

@@ -15,6 +15,7 @@ spec:
       labels:
         app: immich-redis
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 999

@@ -15,6 +15,7 @@ spec:
       labels:
         app: invoiceninja
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1500
