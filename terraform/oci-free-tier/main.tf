@@ -15,10 +15,10 @@ locals {
     ["0.0.0.0/0"],
   )
   # Keep the manual VPS procedure and Terraform bootstrap on the same reviewed
-  # edge configuration.  Move ops/wireguard with this module when extracting
-  # homelab-cloud into its own repository.
-  wireguard_caddyfile_b64   = base64encode(file("${path.module}/../../ops/wireguard/Caddyfile"))
-  wireguard_edge_script_b64 = base64encode(file("${path.module}/../../ops/wireguard/vps-public-edge.sh"))
+  # edge configuration. It lives inside this module so HCP Terraform remote
+  # execution receives it with the configured working directory.
+  wireguard_caddyfile_b64   = base64encode(file("${path.module}/ops/wireguard/Caddyfile"))
+  wireguard_edge_script_b64 = base64encode(file("${path.module}/ops/wireguard/vps-public-edge.sh"))
   common_tags = merge(
     {
       managed-by = "github-actions"
