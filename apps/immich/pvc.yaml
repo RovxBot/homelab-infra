@@ -12,20 +12,6 @@ spec:
     requests:
       storage: 10Gi
 ---
-# Redis PVC - small ephemeral cache
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: immich-redis
-  namespace: immich
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: longhorn
-  resources:
-    requests:
-      storage: 1Gi
----
 # Immich machine-learning model cache (keeps downloads local to the cluster)
 apiVersion: v1
 kind: PersistentVolumeClaim
