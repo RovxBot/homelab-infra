@@ -26,6 +26,21 @@ spec:
     remediation:
       retries: 3
     timeout: 15m
+  # The chart defaults the manager DaemonSet to 100% unavailable during a
+  # rollout. Limit maintenance to one node so volume control-plane recovery
+  # remains available while a manager pod is refreshed.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: apps
+              version: v1
+              kind: DaemonSet
+              name: longhorn-manager
+            patch: |
+              - op: replace
+                path: /spec/updateStrategy/rollingUpdate/maxUnavailable
+                value: 1
   values:
     service:
       ui:
