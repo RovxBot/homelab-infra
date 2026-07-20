@@ -5,3 +5,16 @@ resources:
 - gotk-sync.yaml
 patches:
 - path: namespace-security.yaml
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: kustomize-controller
+    namespace: flux-system
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --no-cross-namespace-refs=true
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --no-remote-bases=true
