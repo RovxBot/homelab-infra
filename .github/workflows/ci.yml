@@ -44,7 +44,7 @@ jobs:
           changed_files="$(git diff --name-only "$range")"
           printf 'Changed files in %s:\n%s\n' "$range" "$changed_files"
 
-          if echo "$changed_files" | grep -Eq '^(\.github/workflows/ci\.yml|\.github/kyverno-baseline\.yaml|apps/|clusters/|infra/|scripts/ci/|secrets/)'; then
+          if echo "$changed_files" | grep -Eq '^(\.github/workflows/ci\.yml|\.github/kyverno-baseline\.yaml|apps/|clusters/|infra/|ops/wireguard/|scripts/ci/|secrets/)'; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
@@ -93,6 +93,17 @@ jobs:
           mkdir -p .work
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home > .work/rendered.yaml
           test -s .work/rendered.yaml
+
+      - name: Validate public-edge Caddyfile
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --mount "type=bind,source=${GITHUB_WORKSPACE}/ops/wireguard/Caddyfile,target=/etc/caddy/Caddyfile,readonly" \
+            --entrypoint caddy \
+            caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d \
+            validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
       - name: Install kubeconform
         if: needs.detect-repo-check-changes.outputs.should_run == 'true'
