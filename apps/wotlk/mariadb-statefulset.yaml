@@ -5,6 +5,7 @@ metadata:
 spec:
   serviceName: wotlk-mariadb
   replicas: 1
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: wotlk-mariadb

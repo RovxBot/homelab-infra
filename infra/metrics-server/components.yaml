@@ -89,6 +89,7 @@ metadata:
   labels:
     k8s-app: metrics-server
 spec:
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       k8s-app: metrics-server
@@ -130,6 +131,9 @@ spec:
             requests:
               cpu: 50m
               memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

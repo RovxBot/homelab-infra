@@ -40,6 +40,18 @@ spec:
                 - kube-public
                 - kube-system
                 - kyverno
+          # Longhorn continuously reconciles the Flux-managed BackupTarget and
+          # writes its controller metadata/status. Exempt only that controller
+          # on that one resource; human/manual changes remain audited.
+          - resources:
+              kinds:
+                - longhorn.io/v1beta2/BackupTarget
+              namespaces:
+                - longhorn-system
+            subjects:
+              - kind: ServiceAccount
+                name: longhorn-service-account
+                namespace: longhorn-system
       validate:
         failureAction: Audit
         message: >-
