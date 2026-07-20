@@ -4,6 +4,7 @@ metadata:
   name: immich-redis
   namespace: immich
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   strategy:
     type: Recreate

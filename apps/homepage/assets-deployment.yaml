@@ -4,6 +4,7 @@ metadata:
   name: homepage-assets
   namespace: homepage
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   strategy:
     type: RollingUpdate

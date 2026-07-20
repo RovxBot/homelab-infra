@@ -4,6 +4,7 @@ metadata:
   name: jellyseerr
   namespace: media
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   strategy:
     type: RollingUpdate

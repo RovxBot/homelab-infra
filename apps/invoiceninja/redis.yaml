@@ -4,6 +4,7 @@ metadata:
   name: invoiceninja-redis
   namespace: invoiceninja
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   strategy:
     type: Recreate

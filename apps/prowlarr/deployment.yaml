@@ -4,6 +4,7 @@ metadata:
   name: prowlarr
   namespace: media
 spec:
+  revisionHistoryLimit: 2
   replicas: 1
   strategy:
     type: Recreate
