@@ -1,0 +1,38 @@
+# This is a separate Terraform root and must use a separate HCP Terraform
+# workspace/state from terraform/oci-free-tier (the WireGuard edge).
+tenancy_ocid     = "ocid1.tenancy.oc1..example"
+user_ocid        = "ocid1.user.oc1..example"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "ap-melbourne-1"
+compartment_ocid = "ocid1.compartment.oc1..example"
+
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+# This module creates its own VCN. Do not overlap the WireGuard VCN or another
+# OCI VCN in the same tenancy.
+vcn_cidr    = "10.43.0.0/16"
+subnet_cidr = "10.43.10.0/24"
+
+# Provision no public SSH ingress. Set this only after deciding and testing an
+# independent Matrix administration path (for example OCI serial console,
+# a dedicated WireGuard endpoint, or a Cloudflare Access SSH tunnel).
+matrix_ssh_ingress_cidrs = []
+
+# The Matrix server requires an available ARM shape in Oracle's capacity pool.
+matrix_instance_name = "matrix"
+matrix_shape         = "VM.Standard.A1.Flex"
+matrix_ocpus         = 2
+matrix_memory_gbs    = 8
+matrix_server_name   = "matrix.example.com"
+matrix_acme_email    = "ops@example.com"
+
+# Optional: pin an ARM image instead of selecting the latest compatible Ubuntu
+# image. Pinning is recommended before a production apply.
+# matrix_image_ocid = "ocid1.image.oc1.ap-melbourne-1...."
+# matrix_operating_system         = "Canonical Ubuntu"
+# matrix_operating_system_version = "24.04"
+
+# matrix_report_stats = false
+# matrix_turn_min_port = 49152
+# matrix_turn_max_port = 49200

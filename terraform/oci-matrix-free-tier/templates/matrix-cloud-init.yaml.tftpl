@@ -1,0 +1,205 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-plugin
+  - caddy
+  - coturn
+  - jq
+
+write_files:
+  - path: /etc/caddy/Caddyfile
+    owner: root:root
+    permissions: "0644"
+    content: |
+      {
+        email ${matrix_acme_email}
+      }
+
+      https://${matrix_server_name} {
+        reverse_proxy /_matrix/* 127.0.0.1:8008
+        reverse_proxy /_synapse/* 127.0.0.1:8008
+        reverse_proxy 127.0.0.1:8080
+      }
+
+      https://${matrix_server_name}:8448 {
+        reverse_proxy 127.0.0.1:8008
+      }
+
+  - path: /etc/default/coturn
+    owner: root:root
+    permissions: "0644"
+    content: |
+      TURNSERVER_ENABLED=1
+
+  - path: /etc/turnserver.conf
+    owner: root:root
+    permissions: "0600"
+    content: |
+      use-auth-secret
+      static-auth-secret=${matrix_turn_shared_secret}
+      realm=${matrix_server_name}
+      server-name=${matrix_server_name}
+      fingerprint
+      no-cli
+      no-tls
+      no-dtls
+      listening-port=3478
+      min-port=${matrix_turn_min_port}
+      max-port=${matrix_turn_max_port}
+      no-multicast-peers
+
+  - path: /srv/matrix/element/config.json
+    owner: root:root
+    permissions: "0644"
+    content: |
+      {
+        "default_server_config": {
+          "m.homeserver": {
+            "base_url": "https://${matrix_server_name}",
+            "server_name": "${matrix_server_name}"
+          }
+        },
+        "disable_guests": true,
+        "brand": "Element"
+      }
+
+  - path: /srv/matrix/docker-compose.yml
+    owner: root:root
+    permissions: "0644"
+    content: |
+      services:
+        postgres:
+          image: postgres:16-alpine
+          restart: unless-stopped
+          environment:
+            POSTGRES_USER: synapse
+            POSTGRES_PASSWORD: ${matrix_postgres_password}
+            POSTGRES_DB: synapse
+            POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
+          volumes:
+            - matrix_postgres_data:/var/lib/postgresql/data
+
+        synapse:
+          image: ghcr.io/element-hq/synapse:latest
+          restart: unless-stopped
+          depends_on:
+            - postgres
+          environment:
+            SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+          ports:
+            - 127.0.0.1:8008:8008
+          volumes:
+            - matrix_synapse_data:/data
+
+        element-web:
+          image: vectorim/element-web:latest
+          restart: unless-stopped
+          ports:
+            - 127.0.0.1:8080:80
+          volumes:
+            - /srv/matrix/element/config.json:/app/config.json:ro
+
+      volumes:
+        matrix_postgres_data:
+          name: matrix_postgres_data
+        matrix_synapse_data:
+          name: matrix_synapse_data
+
+  - path: /usr/local/bin/bootstrap-matrix.sh
+    owner: root:root
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      export DEBIAN_FRONTEND=noninteractive
+
+      mkdir -p /srv/matrix/element
+
+      systemctl enable --now docker
+
+      if ! docker run --rm -v matrix_synapse_data:/data busybox test -f /data/homeserver.yaml; then
+        docker run --rm \
+          -e SYNAPSE_SERVER_NAME=${matrix_server_name} \
+          -e SYNAPSE_REPORT_STATS=${matrix_report_stats} \
+          -v matrix_synapse_data:/data \
+          ghcr.io/element-hq/synapse:latest generate
+      fi
+
+      docker run --rm \
+        --entrypoint python \
+        -e MATRIX_SERVER_NAME=${matrix_server_name} \
+        -e MATRIX_REPORT_STATS=${matrix_report_stats} \
+        -e MATRIX_POSTGRES_PASSWORD=${matrix_postgres_password} \
+        -e MATRIX_REGISTRATION_SHARED_SECRET=${matrix_registration_shared_secret} \
+        -e MATRIX_TURN_SHARED_SECRET=${matrix_turn_shared_secret} \
+        -v matrix_synapse_data:/data \
+        ghcr.io/element-hq/synapse:latest \
+        -c '
+      import os
+      from pathlib import Path
+      import yaml
+
+      path = Path("/data/homeserver.yaml")
+      data = yaml.safe_load(path.read_text())
+      server_name = os.environ["MATRIX_SERVER_NAME"]
+
+      data["server_name"] = server_name
+      data["public_baseurl"] = f"https://{server_name}/"
+      data["report_stats"] = os.environ.get("MATRIX_REPORT_STATS", "no").lower() == "yes"
+      data["enable_registration"] = False
+      data["enable_registration_without_verification"] = False
+      data["registration_shared_secret"] = os.environ["MATRIX_REGISTRATION_SHARED_SECRET"]
+      data["database"] = {
+          "name": "psycopg2",
+          "args": {
+              "user": "synapse",
+              "password": os.environ["MATRIX_POSTGRES_PASSWORD"],
+              "database": "synapse",
+              "host": "postgres",
+              "cp_min": 5,
+              "cp_max": 10,
+          },
+      }
+      data["listeners"] = [
+          {
+              "port": 8008,
+              "tls": False,
+              "type": "http",
+              "x_forwarded": True,
+              "resources": [
+                  {"names": ["client", "federation"], "compress": False},
+              ],
+          },
+      ]
+      data["turn_uris"] = [
+          f"turn:{server_name}:3478?transport=udp",
+          f"turn:{server_name}:3478?transport=tcp",
+      ]
+      data["turn_shared_secret"] = os.environ["MATRIX_TURN_SHARED_SECRET"]
+      data["turn_user_lifetime"] = "1h"
+      data["turn_allow_guests"] = True
+      data["trusted_key_servers"] = [{"server_name": "matrix.org"}]
+
+      path.write_text(yaml.safe_dump(data, sort_keys=False))
+      '
+
+      PUBLIC_IP="$(curl -fsS -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v2/vnics/ | jq -r '.[0].publicIp')"
+      PRIVATE_IP="$(curl -fsS -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v2/vnics/ | jq -r '.[0].privateIp')"
+
+      if ! grep -q '^external-ip=' /etc/turnserver.conf; then
+        printf '\nexternal-ip=%s/%s\n' "$PUBLIC_IP" "$PRIVATE_IP" >> /etc/turnserver.conf
+      fi
+
+      caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      systemctl enable --now caddy
+      systemctl enable --now coturn
+
+      docker compose -f /srv/matrix/docker-compose.yml pull
+      docker compose -f /srv/matrix/docker-compose.yml up -d
+
+runcmd:
+  - /usr/local/bin/bootstrap-matrix.sh
+
+final_message: "Matrix bootstrap complete. Public ports 80/tcp, 443/tcp, 8448/tcp, 3478/tcp+udp, and ${matrix_turn_min_port}-${matrix_turn_max_port}/udp are expected to be opened by OCI NSG rules."
