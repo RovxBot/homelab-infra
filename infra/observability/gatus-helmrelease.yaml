@@ -27,6 +27,7 @@ spec:
       autoMount: false
     podSecurityContext:
       fsGroup: 65534
+      fsGroupChangePolicy: OnRootMismatch
       seccompProfile:
         type: RuntimeDefault
     securityContext:
