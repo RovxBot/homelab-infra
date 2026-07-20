@@ -129,14 +129,6 @@ jobs:
           set -euo pipefail
           terraform -chdir="$TF_WORKING_DIR" plan -out=tfplan -var-file=wireguard.secrets.auto.tfvars.json
 
-      - name: Upload plan artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: terraform-oci-free-tier-plan
-          path: |
-            terraform/oci-free-tier/tfplan
-            terraform/oci-free-tier/.terraform.lock.hcl
-
   apply:
     if: needs.plan.outputs.should_apply == 'true'
     needs: plan
@@ -209,11 +201,14 @@ jobs:
           set -euo pipefail
           terraform -chdir="$TF_WORKING_DIR" init
 
-      - name: Download reviewed plan artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: terraform-oci-free-tier-plan
-          path: ${{ env.TF_WORKING_DIR }}
+      # Terraform plans can include the WireGuard peer configuration and
+      # generated Matrix credentials. Keep this binary plan on the approved
+      # ephemeral runner only; never upload it as a GitHub Actions artifact.
+      - name: Terraform plan for approved apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TF_WORKING_DIR" plan -out=tfplan -var-file=wireguard.secrets.auto.tfvars.json
 
       - name: Terraform apply
         shell: bash
