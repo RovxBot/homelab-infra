@@ -7,6 +7,13 @@ locals {
   oci_private_key     = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
   ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
   matrix_image_ocid   = var.matrix_image_ocid != "" ? var.matrix_image_ocid : data.oci_core_images.matrix[0].images[0].id
+  # The edge now has a tested WireGuard-only management path. Matrix retains
+  # its legacy behaviour until its separate administration path is designed.
+  matrix_ssh_ingress_cidrs = coalesce(
+    var.matrix_ssh_ingress_cidrs,
+    var.ssh_ingress_cidrs,
+    ["0.0.0.0/0"],
+  )
   # Keep the manual VPS procedure and Terraform bootstrap on the same reviewed
   # edge configuration.  Move ops/wireguard with this module when extracting
   # homelab-cloud into its own repository.
@@ -103,7 +110,7 @@ resource "oci_core_network_security_group_security_rule" "wireguard_egress_all" 
 }
 
 resource "oci_core_network_security_group_security_rule" "wireguard_ssh_ingress" {
-  for_each                  = toset(var.ssh_ingress_cidrs)
+  for_each                  = toset(var.wireguard_ssh_ingress_cidrs)
   network_security_group_id = oci_core_network_security_group.wireguard.id
   direction                 = "INGRESS"
   protocol                  = "6"
@@ -167,7 +174,7 @@ resource "oci_core_network_security_group_security_rule" "matrix_egress_all" {
 }
 
 resource "oci_core_network_security_group_security_rule" "matrix_ssh_ingress" {
-  for_each = var.matrix_enabled ? toset(var.ssh_ingress_cidrs) : []
+  for_each = var.matrix_enabled ? toset(local.matrix_ssh_ingress_cidrs) : []
 
   network_security_group_id = oci_core_network_security_group.matrix[0].id
   direction                 = "INGRESS"
