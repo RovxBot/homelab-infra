@@ -240,7 +240,7 @@ data:
         }
         EXCLUDE_NAMESPACES_RE = os.getenv(
             "EXCLUDE_NAMESPACES_RE",
-            r"^(azure-arc.*|flux-system|kube-.*|kyverno|sops)$",
+            r"^(flux-system|kube-.*|kyverno|sops)$",
         )
         EXCLUDE_NAMESPACE_RE = re.compile(EXCLUDE_NAMESPACES_RE) if EXCLUDE_NAMESPACES_RE else None
         CUTOFF = datetime.now(timezone.utc) - timedelta(hours=PERSIST_FOR_HOURS)
