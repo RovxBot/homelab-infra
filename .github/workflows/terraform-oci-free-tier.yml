@@ -17,6 +17,11 @@ on:
         options:
           - plan
           - apply
+      target:
+        description: "Optional single Terraform resource address for a reviewed targeted plan/apply"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -39,6 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_apply: ${{ steps.mode.outputs.should_apply }}
+      target: ${{ steps.mode.outputs.target }}
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -58,13 +64,25 @@ jobs:
       - name: Select mode
         id: mode
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_TARGET: ${{ github.event.inputs.target }}
         run: |
           set -euo pipefail
+          target=""
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.action }}" == "apply" ]]; then
             echo "should_apply=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_apply=false" >> "$GITHUB_OUTPUT"
           fi
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            target="$REQUESTED_TARGET"
+          fi
+          if [[ "$target" == *$'\n'* || "$target" == *$'\r'* ]]; then
+            echo "Terraform target must be a single resource address." >&2
+            exit 1
+          fi
+          echo "target=$target" >> "$GITHUB_OUTPUT"
 
       - name: Check required secrets
         shell: bash
@@ -125,9 +143,15 @@ jobs:
 
       - name: Terraform plan
         shell: bash
+        env:
+          TF_TARGET: ${{ steps.mode.outputs.target }}
         run: |
           set -euo pipefail
-          terraform -chdir="$TF_WORKING_DIR" plan -out=tfplan -var-file=wireguard.secrets.auto.tfvars.json
+          target_args=()
+          if [[ -n "$TF_TARGET" ]]; then
+            target_args+=("-target=$TF_TARGET")
+          fi
+          terraform -chdir="$TF_WORKING_DIR" plan "${target_args[@]}" -out=tfplan -var-file=wireguard.secrets.auto.tfvars.json
 
   apply:
     if: needs.plan.outputs.should_apply == 'true'
@@ -206,9 +230,15 @@ jobs:
       # ephemeral runner only; never upload it as a GitHub Actions artifact.
       - name: Terraform plan for approved apply
         shell: bash
+        env:
+          TF_TARGET: ${{ needs.plan.outputs.target }}
         run: |
           set -euo pipefail
-          terraform -chdir="$TF_WORKING_DIR" plan -out=tfplan -var-file=wireguard.secrets.auto.tfvars.json
+          target_args=()
+          if [[ -n "$TF_TARGET" ]]; then
+            target_args+=("-target=$TF_TARGET")
+          fi
+          terraform -chdir="$TF_WORKING_DIR" plan "${target_args[@]}" -out=tfplan -var-file=wireguard.secrets.auto.tfvars.json
 
       - name: Terraform apply
         shell: bash

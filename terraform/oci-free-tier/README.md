@@ -128,6 +128,12 @@ terraform -chdir=terraform/oci-free-tier plan -var-file=wireguard.secrets.auto.t
 
 If you do not want to run Terraform locally, this repo includes [terraform-oci-free-tier.yml](/Users/sam/Git/homelab-infra/.github/workflows/terraform-oci-free-tier.yml).
 
+The workflow normally plans the whole workspace. Its optional `target` input is
+for an exceptional, reviewed repair only: use one exact Terraform resource
+address for both the plan and approved apply, inspect the targeted plan, then
+remove the need for targeting by reconciling the wider workspace drift. Do not
+use it to bypass an unexplained full plan.
+
 Suggested Terraform Cloud sensitive variables:
 
 - `private_key_pem`
