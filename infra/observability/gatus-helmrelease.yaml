@@ -101,6 +101,15 @@ spec:
             - "[STATUS] < 300"
           alerts:
             - type: github
+        - name: homepage-assets
+          group: internal
+          url: http://homepage-assets.homepage.svc.cluster.local:80/assets/998981.jpg
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
         - name: vaultwarden
           group: internal
           url: http://vaultwarden.security.svc.cluster.local:80
@@ -108,6 +117,15 @@ spec:
           conditions:
             - "[STATUS] >= 200"
             - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: invoice-ninja
+          group: internal
+          url: http://invoiceninja.invoiceninja.svc.cluster.local:80
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 400"
           alerts:
             - type: github
         - name: radarr
@@ -166,11 +184,35 @@ spec:
             - type: github
         - name: immich-server
           group: internal
-          url: http://immich-server.immich.svc.cluster.local:2283
+          url: http://immich-server.immich.svc.cluster.local:2283/api/server/ping
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
+        - name: grimguzzler-registration
+          group: internal
+          url: http://grimguzzler-registration.wotlk.svc.cluster.local:80
           interval: 1m
           conditions:
             - "[STATUS] >= 200"
             - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: wotlk-authserver
+          group: internal
+          url: tcp://192.168.1.197:3724
+          interval: 1m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
+        - name: wotlk-worldserver
+          group: internal
+          url: tcp://192.168.1.47:8085
+          interval: 1m
+          conditions:
+            - "[CONNECTED] == true"
           alerts:
             - type: github
         - name: longhorn-frontend
@@ -198,6 +240,15 @@ spec:
           conditions:
             - "[STATUS] >= 200"
             - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: invoice-ninja-public
+          group: external
+          url: https://invoice.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 400"
           alerts:
             - type: github
         - name: radarr-public
@@ -239,6 +290,15 @@ spec:
         - name: jellyseerr-public
           group: external
           url: https://jellyseerr.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: grimguzzler-registration-public
+          group: external
+          url: https://grimguzzler.cooked.beer
           interval: 1m
           conditions:
             - "[STATUS] >= 200"
