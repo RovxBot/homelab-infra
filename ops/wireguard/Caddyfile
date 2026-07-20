@@ -1,5 +1,18 @@
+# These are intentional direct public routes.  Cloudflare Access does not sit
+# in front of them: Immich and Jellyfin each enforce their own user login.
+# Caddy provides TLS and a small, application-safe response-header baseline.
+(public_app_security_headers) {
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
+
 immich.cooked.beer {
 	encode zstd gzip
+	import public_app_security_headers
 
 	reverse_proxy 192.168.1.197:30283 {
 		header_up Host {host}
@@ -15,6 +28,7 @@ immich.cooked.beer {
 
 jellyfin.cooked.beer {
 	encode zstd gzip
+	import public_app_security_headers
 
 	reverse_proxy 192.168.1.197:32096 {
 		header_up Host {host}
