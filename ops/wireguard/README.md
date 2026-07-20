@@ -36,6 +36,45 @@ Relevant current cluster settings:
 
 `vps-public-edge.sh` accepts separate backend overrides via `WOTLK_AUTH_HOME_IP` and `WOTLK_WORLD_HOME_IP` if auth and world do not live on the same node.
 
+## Administrative SSH access
+
+The preferred management path is a dedicated WireGuard peer for the
+administrator's workstation. A dynamic home public IP is not a problem: the
+workstation initiates its UDP connection to the VPS, so it needs neither a
+static address nor inbound port forwarding. Restrict that peer's client
+`AllowedIPs` to the VPS's `wg0` address only; it is an SSH management path,
+not a route into the home LAN.
+
+Generate the workstation private key locally, retain it locally (or in the
+administrator's password manager), and provide only its public key to the
+person performing the server change. Never commit the workstation private key
+or the resulting client configuration. On the current edge, use the reserved
+client address `10.77.0.3/32` and restrict its client route to `10.77.0.1/32`.
+
+Run `install-admin-wireguard-peer.sh` on the VPS as root with
+`ADMIN_PUBLIC_KEY` set to that public key. It persists only the public key in
+a `wg-quick@wg0` systemd drop-in; it does not read or overwrite `wg0.conf`.
+After the workstation connects, test `ssh ubuntu@10.77.0.1`. Only then run
+`restrict-ssh-to-wireguard.sh` as root with `SSH_MIGRATION_CONFIRMED=yes`.
+The latter retains the public WireGuard listener but removes the known
+unrestricted host SSH rule.
+
+Use [sshd-hardening.conf](./sshd-hardening.conf) as
+`/etc/ssh/sshd_config.d/99-homelab-hardening.conf`. Validate it with
+`sshd -t` before reloading SSH. It intentionally permits the existing `ubuntu`
+and `opc` accounts rather than guessing which one should be removed.
+
+Use [fail2ban-sshd.local](./fail2ban-sshd.local) as
+`/etc/fail2ban/jail.d/homelab-sshd.local` while public SSH is still open. It
+contains no credentials and rate-limits repeated failed SSH authentication;
+it is not a substitute for closing public SSH after the management peer works.
+
+Do not close public `22/TCP` in the host firewall or OCI NSG until the
+workstation peer connects and `ssh` over the WireGuard address succeeds. Once
+it does, permit TCP/22 only on `wg0`, remove the OCI SSH ingress rule, and
+retain public UDP/51820 for WireGuard. This leaves the intended public
+Immich/Jellyfin routes and WotLK forwarding unchanged.
+
 ## Oracle setup order
 
 1. Install and configure WireGuard on the VPS so `wg0` can reach the required home backend IPs, currently `192.168.1.197` and `192.168.1.47`.

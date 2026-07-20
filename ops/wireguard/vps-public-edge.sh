@@ -82,6 +82,13 @@ for mapping in "${FORWARD_MAP[@]}"; do
   add_rule nat POSTROUTING -o "$WG_IFACE" -p tcp -d "$backend_ip" --dport "$backend_port" -j MASQUERADE
 done
 
+# `iptables-persistent` is installed by the Terraform cloud-init. Persist the
+# reviewed live rule set when it is available so a reboot cannot restore an
+# older forwarding map.
+if command -v netfilter-persistent >/dev/null 2>&1; then
+  netfilter-persistent save
+fi
+
 echo "Rules installed."
 echo "--- NAT"
 iptables -t nat -S | sed -n '1,160p'
