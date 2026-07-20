@@ -6,7 +6,10 @@ metadata:
 spec:
   interval: 10m
   path: ./infra/observability-config
-  prune: true
+  # The lone Service has already been handed to the infrastructure
+  # reconciler. Preserve it when this retired Kustomization is deleted.
+  prune: false
+  deletionPolicy: Orphan
   wait: true
   timeout: 5m
   dependsOn:
@@ -19,4 +22,3 @@ spec:
     provider: sops
     secretRef:
       name: sops-age
-
