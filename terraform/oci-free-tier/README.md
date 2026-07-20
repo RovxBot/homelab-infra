@@ -20,13 +20,14 @@ This Terraform stack provisions your Melbourne Oracle Free Tier edge footprint:
 
 WireGuard instance:
 
-- `22/TCP` from `ssh_ingress_cidrs`
+- no public `22/TCP` by default; administer through a tested WireGuard peer
 - `51820/UDP` for WireGuard
 - `80/TCP`, `443/TCP`, `3724/TCP`, `8443/TCP` for your current edge use case
 
 Matrix instance:
 
-- `22/TCP` from `ssh_ingress_cidrs`
+- `22/TCP` from `matrix_ssh_ingress_cidrs` (the legacy public default remains
+  only until Matrix has a separately tested management path)
 - `80/TCP`, `443/TCP` for Element Web and Matrix client traffic
 - `8448/TCP` for Matrix federation
 - `3478/TCP+UDP` for TURN
@@ -65,6 +66,8 @@ Matrix instance:
 - Matrix boot image:
 - SSH access:
   - `ssh_public_key_path` or `ssh_public_key`
+  - `wireguard_ssh_ingress_cidrs` (empty after WireGuard administration is tested)
+  - `matrix_ssh_ingress_cidrs` (set only after choosing Matrix administration)
 - Matrix DNS/TLS:
   - `matrix_server_name`
   - `matrix_acme_email`
@@ -161,6 +164,11 @@ Repository workflow prerequisites:
 - Synapse is configured with `enable_registration = false`; create users explicitly after bootstrap.
 - coturn is exposed directly on the Matrix VM because TURN works better with a public IP than through an extra proxy layer.
 - If you populate `wireguard_peer_config`, include an explicit `MTU = 1370` in the `wg0.conf` payload for this homelab path. OCI's public NIC advertises a jumbo MTU, which otherwise leads WireGuard to derive an oversized tunnel MTU on the VPS.
+- `ssh_ingress_cidrs` is retained only as a migration fallback for existing
+  Matrix workspace variables. Do not use it for new changes. The WireGuard
+  edge uses `wireguard_ssh_ingress_cidrs`, which defaults to empty; Matrix uses
+  `matrix_ssh_ingress_cidrs` and preserves the legacy value until its own
+  management route is tested.
 
 ## Source references
 

@@ -7,6 +7,12 @@ compartment_ocid = "ocid1.compartment.oc1..example"
 
 ssh_public_key_path = "~/.ssh/id_ed25519.pub"
 
+# The WireGuard edge is administered through its private tunnel, so it has no
+# OCI public SSH ingress. Keep Matrix separate until it has its own tested
+# management path; its legacy public SSH default is retained for compatibility.
+wireguard_ssh_ingress_cidrs = []
+# matrix_ssh_ingress_cidrs = ["your-static-admin-cidr/32"]
+
 # Current live WireGuard VPS in Melbourne:
 # - shape: VM.Standard.E2.1.Micro
 # - image: current Ubuntu x86_64 image OCID shown below
