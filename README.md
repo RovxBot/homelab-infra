@@ -146,6 +146,7 @@ Repository CI is intentionally strict:
 - Renders the Flux entrypoint and every `apps/`, `infra/` and `clusters/` Kustomize root.
 - Validates rendered resources, public-edge configuration and WireGuard shell syntax.
 - Detects unresolved Secret references and forbidden credential-like files.
+- Requires exact SHA-256 digests for generated Flux bootstrap controller images.
 - Runs the Kyverno baseline gate, Gitleaks, GitGuardian, Zizmor, YAML lint and workflow lint.
 
 The Kyverno gate compares the repository against policies in `infra/kyverno/policies` and the reviewed debt baseline in `.github/kyverno-baseline.yaml`. New failures fail CI; resolved baseline entries must be removed rather than retained indefinitely.
@@ -203,6 +204,7 @@ Never copy this repository's encrypted Secrets, OCI configuration or Talos recov
 - [LAN NodePort decision](docs/decisions/0001-lan-nodeport-access.md)
 - [Cilium dual-overlay migration decision](docs/decisions/0002-cilium-dual-overlay-migration.md)
 - [Cilium dual-overlay runbook](docs/runbooks/cilium-dual-overlay-migration.md)
+- [Flux bootstrap maintenance](docs/runbooks/flux-bootstrap-maintenance.md)
 - [OCI public-edge Terraform](terraform/oci-free-tier/README.md)
 - [Independent Matrix Terraform](terraform/oci-matrix-free-tier/README.md)
 - [License](LICENSE)
