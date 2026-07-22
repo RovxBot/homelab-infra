@@ -70,6 +70,19 @@ If this phase fails before any node receives the migration label, revert the
 GitOps PR. No workload CNI configuration has been selected, so Flannel remains
 the active network.
 
+If an initial Cilium agent log reports a Kyverno admission error for the newly
+created `CiliumNode` CRD (for example, `resource ciliumnodes not found in group
+cilium.io/v2`), first confirm the Cilium CRD exists, then perform one rolling
+restart of the two-replica Kyverno admission controller. This refreshes its CRD
+discovery cache without disabling policy enforcement; wait for both replicas to
+be Ready before rechecking Cilium.
+
+If a corrected Helm value is applied after a partially installed release, wait
+for the HelmRelease to report Ready, then restart the Cilium DaemonSet once and
+wait for its one-at-a-time rollout to finish before running the secondary
+preflight. This makes every agent consume the corrected rendered configuration
+while Cilium is still only the secondary overlay.
+
 ## Phase 2: migrate one worker
 
 Use a user-approved maintenance window. Replace `metal5` only after the
