@@ -7,6 +7,7 @@ set -euo pipefail
 readonly EXPECTED_FLANNEL_CIDR="10.244.0.0/16"
 readonly EXPECTED_CILIUM_CIDR="10.245.0.0/16"
 readonly EXPECTED_NODE_LAN_CIDR="192.168.1.0/24"
+readonly EXPECTED_NODE_COUNT=7
 readonly MINIMUM_KERNEL="5.10.0"
 
 phase="before-install"
@@ -15,10 +16,12 @@ failures=0
 
 usage() {
   cat <<'EOF'
-Usage: scripts/cilium-preflight.sh [--secondary] [--node NODE]
+Usage: scripts/cilium-preflight.sh [--secondary | --primary] [--node NODE]
 
   --secondary  Validate the cluster after the Cilium secondary overlay has
                reconciled, but before any node has the migration label.
+  --primary    Validate the completed primary-CNI cutover before the temporary
+               migration label and CiliumNodeConfig are removed.
   --node NODE  Report the current Longhorn replica and attachment load for a
                prospective migration node. This does not select or change it.
 
@@ -67,7 +70,18 @@ is_expected_node_lan_ipv4() {
 while (($# > 0)); do
   case "$1" in
     --secondary)
+      if [[ "$phase" == "primary" ]]; then
+        printf '%s\n' '--secondary and --primary cannot be used together.' >&2
+        exit 2
+      fi
       phase="secondary"
+      ;;
+    --primary)
+      if [[ "$phase" == "secondary" ]]; then
+        printf '%s\n' '--secondary and --primary cannot be used together.' >&2
+        exit 2
+      fi
+      phase="primary"
       ;;
     --node)
       shift
@@ -213,28 +227,51 @@ if [[ "$phase" == "before-install" ]]; then
     pass 'Cilium is not installed yet.'
   fi
 else
-  cilium_counts="$(kubectl get daemonset -n kube-system cilium -o jsonpath='{.status.desiredNumberScheduled}{"\t"}{.status.numberAvailable}')"
-  IFS=$'\t' read -r cilium_desired cilium_available <<< "$cilium_counts"
-  if [[ -z "$cilium_desired" || "$cilium_desired" != "$cilium_available" ]]; then
-    fail "Cilium DaemonSet is not fully available ($cilium_available/$cilium_desired)."
+  cilium_desired=""
+  cilium_available=""
+  if ! cilium_counts="$(kubectl get daemonset -n kube-system cilium -o jsonpath='{.status.desiredNumberScheduled}{"\t"}{.status.numberAvailable}' 2>/dev/null)"; then
+    fail 'Cilium DaemonSet is unavailable.'
   else
-    pass "Cilium DaemonSet is fully available ($cilium_available/$cilium_desired)."
+    IFS=$'\t' read -r cilium_desired cilium_available <<< "$cilium_counts"
+    if [[ -z "$cilium_desired" || "$cilium_desired" != "$cilium_available" ]]; then
+      fail "Cilium DaemonSet is not fully available ($cilium_available/$cilium_desired)."
+    else
+      pass "Cilium DaemonSet is fully available ($cilium_available/$cilium_desired)."
+    fi
   fi
 
-  operator_counts="$(kubectl get deployment -n kube-system cilium-operator -o jsonpath='{.spec.replicas}{"\t"}{.status.availableReplicas}')"
-  IFS=$'\t' read -r operator_desired operator_available <<< "$operator_counts"
-  if [[ -z "$operator_desired" || "$operator_desired" != "$operator_available" ]]; then
-    fail "Cilium Operator is not fully available ($operator_available/$operator_desired)."
+  if ! operator_counts="$(kubectl get deployment -n kube-system cilium-operator -o jsonpath='{.spec.replicas}{"\t"}{.status.availableReplicas}' 2>/dev/null)"; then
+    fail 'Cilium Operator is unavailable.'
   else
-    pass "Cilium Operator is fully available ($operator_available/$operator_desired)."
+    IFS=$'\t' read -r operator_desired operator_available <<< "$operator_counts"
+    if [[ -z "$operator_desired" || "$operator_desired" != "$operator_available" ]]; then
+      fail "Cilium Operator is not fully available ($operator_available/$operator_desired)."
+    else
+      pass "Cilium Operator is fully available ($operator_available/$operator_desired)."
+    fi
   fi
 
-  cilium_config="$(kubectl get configmap -n kube-system cilium-config -o json)"
-  if grep -Eq '"custom-cni-conf"[[:space:]]*:[[:space:]]*"true"' <<< "$cilium_config" \
-    && ! grep -Eq '"write-cni-conf-when-ready"[[:space:]]*:' <<< "$cilium_config"; then
-    pass 'Cilium remains secondary: custom CNI configuration is enabled and no default CNI file is configured.'
+  if [[ "$phase" == "secondary" ]]; then
+    cilium_config="$(kubectl get configmap -n kube-system cilium-config -o json)"
+    if grep -Eq '"custom-cni-conf"[[:space:]]*:[[:space:]]*"true"' <<< "$cilium_config" \
+      && ! grep -Eq '"write-cni-conf-when-ready"[[:space:]]*:' <<< "$cilium_config"; then
+      pass 'Cilium remains secondary: custom CNI configuration is enabled and no default CNI file is configured.'
+    else
+      fail 'Cilium does not have the expected secondary-overlay CNI safeguards.'
+    fi
   else
-    fail 'Cilium does not have the expected secondary-overlay CNI safeguards.'
+    if ! cilium_primary_cni="$(kubectl get configmap -n kube-system cilium-config -o go-template='{{printf "%s\t%s\t%s" (index .data "custom-cni-conf") (index .data "write-cni-conf-when-ready") (index .data "cni-exclusive")}}' 2>/dev/null)"; then
+      fail 'Unable to read Cilium primary-CNI settings from cilium-config.'
+    else
+      IFS=$'\t' read -r custom_cni_conf write_cni_conf cni_exclusive <<< "$cilium_primary_cni"
+      if [[ "$custom_cni_conf" == "false" \
+        && "$write_cni_conf" == "/host/etc/cni/net.d/05-cilium.conflist" \
+        && "$cni_exclusive" == "true" ]]; then
+        pass 'Cilium ConfigMap has the expected primary-CNI settings.'
+      else
+        fail 'Cilium ConfigMap does not have the expected primary-CNI settings.'
+      fi
+    fi
   fi
 
   if kubectl get ciliumnodeconfigs.cilium.io -n kube-system cilium-default >/dev/null 2>&1; then
@@ -267,23 +304,87 @@ else
     done <<< "$node_internal_ip_rows"
   fi
 
-  cilium_health_pod="$(kubectl -n kube-system get pod -l k8s-app=cilium -o jsonpath='{.items[0].metadata.name}')"
-  if [[ -z "$cilium_health_pod" ]]; then
-    fail 'No Cilium agent Pod is available for peer-health validation.'
-  elif ! cilium_health_status="$(kubectl -n kube-system exec "$cilium_health_pod" -c cilium-agent -- cilium-health status 2>&1)"; then
-    fail "Unable to query Cilium peer health from $cilium_health_pod."
-  elif grep -Eq "Cluster health:[[:space:]]*${cilium_desired}/${cilium_desired}[[:space:]]+reachable" <<< "$cilium_health_status"; then
-    pass "Cilium peer health is ${cilium_desired}/${cilium_desired} reachable."
+  if [[ "$phase" == "primary" ]]; then
+    if [[ "$cilium_desired" == "$EXPECTED_NODE_COUNT" && "$cilium_available" == "$EXPECTED_NODE_COUNT" ]]; then
+      pass "Cilium DaemonSet is ${EXPECTED_NODE_COUNT}/${EXPECTED_NODE_COUNT} for the primary cutover."
+    else
+      fail "Cilium DaemonSet must be ${EXPECTED_NODE_COUNT}/${EXPECTED_NODE_COUNT} for the primary cutover (currently $cilium_available/$cilium_desired)."
+    fi
+    expected_cilium_health="$EXPECTED_NODE_COUNT"
   else
-    health_summary="$(grep -m 1 'Cluster health:' <<< "$cilium_health_status" || true)"
-    fail "Cilium peer health is incomplete: ${health_summary:-no cluster-health summary returned}."
+    expected_cilium_health="$cilium_desired"
   fi
 
-  selected_nodes="$(kubectl get nodes -l io.cilium.migration/cilium-default=true --no-headers 2>/dev/null || true)"
-  if [[ -n "$selected_nodes" ]]; then
-    fail "Migration labels already exist; complete or roll back those nodes first: $selected_nodes"
+  if [[ -z "$expected_cilium_health" ]]; then
+    fail 'Cilium peer health cannot be checked without an available Cilium DaemonSet.'
   else
-    pass 'No node has been selected for Cilium migration.'
+    cilium_health_pod="$(kubectl -n kube-system get pod -l k8s-app=cilium -o jsonpath='{.items[0].metadata.name}')"
+    if [[ -z "$cilium_health_pod" ]]; then
+      fail 'No Cilium agent Pod is available for peer-health validation.'
+    elif ! cilium_health_status="$(kubectl -n kube-system exec "$cilium_health_pod" -c cilium-agent -- cilium-health status 2>&1)"; then
+      fail "Unable to query Cilium peer health from $cilium_health_pod."
+    elif grep -Eq "Cluster health:[[:space:]]*${expected_cilium_health}/${expected_cilium_health}[[:space:]]+reachable" <<< "$cilium_health_status"; then
+      pass "Cilium peer health is ${expected_cilium_health}/${expected_cilium_health} reachable."
+    else
+      health_summary="$(grep -m 1 'Cluster health:' <<< "$cilium_health_status" || true)"
+      fail "Cilium peer health is incomplete: ${health_summary:-no cluster-health summary returned}."
+    fi
+  fi
+
+  if [[ "$phase" == "secondary" ]]; then
+    selected_nodes="$(kubectl get nodes -l io.cilium.migration/cilium-default=true --no-headers 2>/dev/null || true)"
+    if [[ -n "$selected_nodes" ]]; then
+      fail "Migration labels already exist; complete or roll back those nodes first: $selected_nodes"
+    else
+      pass 'No node has been selected for Cilium migration.'
+    fi
+  else
+    if ! selected_node_names="$(kubectl get nodes -l io.cilium.migration/cilium-default=true -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)"; then
+      fail 'Unable to read Cilium migration labels from Kubernetes nodes.'
+    elif [[ -z "$node_rows" ]]; then
+      fail 'Cannot verify Cilium migration labels because Kubernetes returned no nodes.'
+    else
+      missing_migration_labels=""
+      while IFS=$'\t' read -r node _; do
+        if ! grep -Fxq -- "$node" <<< "$selected_node_names"; then
+          missing_migration_labels+="${missing_migration_labels:+, }$node"
+        fi
+      done <<< "$node_rows"
+
+      if [[ -n "$missing_migration_labels" ]]; then
+        fail "Every node must retain the Cilium migration label before cleanup; missing: $missing_migration_labels."
+      else
+        pass 'Every Kubernetes node retains the Cilium migration label before cleanup.'
+      fi
+    fi
+
+    if [[ -n "$node_internal_ip_rows" ]]; then
+      while IFS=$'\t' read -r node internal_ip; do
+        if ! is_expected_node_lan_ipv4 "$internal_ip"; then
+          fail "$node has no usable LAN InternalIP for Cilium CNI-file validation."
+        elif talosctl read /etc/cni/net.d/05-cilium.conflist --nodes "$internal_ip" >/dev/null 2>&1; then
+          pass "$node has the Cilium CNI configuration file."
+        else
+          fail "$node does not expose /etc/cni/net.d/05-cilium.conflist through Talos."
+        fi
+      done <<< "$node_internal_ip_rows"
+    else
+      fail 'Cannot verify Cilium CNI files because Kubernetes returned no Node InternalIP addresses.'
+    fi
+
+    if ! running_workload_rows="$(kubectl get pods -A -o go-template='{{range .items}}{{if and (eq .status.phase "Running") (not .spec.hostNetwork)}}{{printf "%s/%s\t%s\n" .metadata.namespace .metadata.name .status.podIP}}{{end}}{{end}}' 2>/dev/null)"; then
+      fail 'Unable to read running non-hostNetwork workloads.'
+    elif [[ -z "$running_workload_rows" ]]; then
+      note 'No running non-hostNetwork workloads were present to validate.'
+    else
+      while IFS=$'\t' read -r workload pod_ip; do
+        if is_expected_cilium_ipv4 "$pod_ip"; then
+          pass "$workload uses a Cilium pod IP."
+        else
+          fail "$workload has non-Cilium Pod IP ${pod_ip:-<none>}."
+        fi
+      done <<< "$running_workload_rows"
+    fi
   fi
 fi
 
