@@ -4,6 +4,7 @@ resources:
   - ../../../infra/access
   - ../../../infra/kyverno
   - ../../../infra/longhorn
+  - ../../../infra/gpu-operator
   - ../../../infra/metrics-server
   - ../../../infra/pod-report
   - ../../../infra/cloudflared

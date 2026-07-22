@@ -1,0 +1,35 @@
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: gpu-operator-workloads
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: >-
+      NVIDIA GPU Operator and Node Feature Discovery need host-level hardware
+      access; Talos remains the provider of the driver and container toolkit.
+    kyverno.cooked.beer/expires-at: "2026-10-31"
+    github.cooked.beer/issue-create: "true"
+spec:
+  exceptions:
+    - policyName: platform-pod-standards
+      ruleNames:
+        - require-owner-label
+        - require-requests-and-limits
+        - require-runtime-hardening
+        - disallow-host-network
+        - require-digest-pinned-images
+        - require-probes
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+            - Deployment
+            - StatefulSet
+            - DaemonSet
+            - Job
+            - CronJob
+          namespaces:
+            - gpu-operator
