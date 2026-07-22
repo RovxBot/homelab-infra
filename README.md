@@ -17,6 +17,7 @@ This is a personal, opinionated homelab—not a turnkey production template. It 
 | Storage | Longhorn on every node disk; general volumes use three replicas |
 | Backups | Longhorn and Immich/Restic backups go to Backblaze B2 |
 | Health | Gatus for in-cluster and edge checks; [homelab-uptime](https://github.com/RovxBot/homelab-uptime) publishes external status |
+| Networking | Talos-managed Flannel today; Cilium dual-overlay migration is staged and keeps kube-proxy initially |
 | Edge | Cloudflare Tunnel for managed public routes; OCI WireGuard edge for intended Immich and Jellyfin public paths |
 | Policy | PSA, Kyverno and CI gates provide progressive workload hardening |
 | Observability trade-off | No Grafana, Prometheus, Loki or Prometheus Operator; use Gatus, `kubectl top`, logs, events, Talos and Longhorn |
@@ -200,6 +201,8 @@ Never copy this repository's encrypted Secrets, OCI configuration or Talos recov
 - [Contributing](CONTRIBUTING.md)
 - [WotLK server and image notes](WOTLK.md)
 - [LAN NodePort decision](docs/decisions/0001-lan-nodeport-access.md)
+- [Cilium dual-overlay migration decision](docs/decisions/0002-cilium-dual-overlay-migration.md)
+- [Cilium dual-overlay runbook](docs/runbooks/cilium-dual-overlay-migration.md)
 - [OCI public-edge Terraform](terraform/oci-free-tier/README.md)
 - [Independent Matrix Terraform](terraform/oci-matrix-free-tier/README.md)
 - [License](LICENSE)

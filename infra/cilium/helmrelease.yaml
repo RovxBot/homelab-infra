@@ -1,0 +1,140 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cilium
+  namespace: kube-system
+spec:
+  interval: 30m
+  releaseName: cilium
+  maxHistory: 3
+  chartRef:
+    kind: OCIRepository
+    name: cilium
+    namespace: flux-system
+  install:
+    # Keep a failed CNI release present for diagnosis; do not uninstall it
+    # between retries.
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    timeout: 15m
+  upgrade:
+    # A CNI rollback can remove resources needed to diagnose a failed rollout.
+    # Retry the reviewed revision in place instead of attempting an automatic
+    # rollback. The maintenance runbook defines the human recovery gates.
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    timeout: 15m
+  values:
+    # Initial dual-overlay migration phase. Flannel remains the active CNI for
+    # every workload until a node is explicitly selected by CiliumNodeConfig.
+    kubeProxyReplacement: false
+    routingMode: tunnel
+    tunnelProtocol: geneve
+    tunnelPort: 6081
+    cni:
+      install: true
+      customConf: true
+      uninstall: false
+    ipam:
+      mode: cluster-pool
+      operator:
+        clusterPoolIPv4PodCIDRList:
+          - 10.245.0.0/16
+        clusterPoolIPv4MaskSize: 24
+    policyEnforcementMode: never
+    bpf:
+      # Talos forwards Kubernetes DNS to the host by default. Keep legacy host
+      # routing until that separate Talos/DNS design is explicitly changed.
+      hostLegacyRouting: true
+      # Talos already mounts bpffs; Cilium must not attempt to mount it.
+      autoMount:
+        enabled: false
+    cgroup:
+      autoMount:
+        enabled: false
+      hostRoot: /sys/fs/cgroup
+    securityContext:
+      # Talos does not permit Kubernetes workloads to load kernel modules.
+      # This is Cilium's current default capability set without SYS_MODULE.
+      capabilities:
+        ciliumAgent:
+          - CHOWN
+          - KILL
+          - NET_ADMIN
+          - NET_RAW
+          - IPC_LOCK
+          - SYS_ADMIN
+          - SYS_RESOURCE
+          - DAC_OVERRIDE
+          - FOWNER
+          - SETGID
+          - SETUID
+          - SYSLOG
+        cleanCiliumState:
+          - NET_ADMIN
+          - SYS_ADMIN
+          - SYS_RESOURCE
+    # Preserve dataplane availability during a deliberate or chart-driven
+    # Cilium agent rollout.
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+    priorityClassName: system-node-critical
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+    hubble:
+      enabled: false
+      relay:
+        enabled: false
+      ui:
+        enabled: false
+    # No existing policy requires L7 matching. Disable the agent-side L7 proxy
+    # as well as the standalone Envoy DaemonSet during the initial migration.
+    l7Proxy: false
+    # This lab deliberately uses Gatus and Upptime rather than a Prometheus
+    # stack. Disable every chart-provided metrics endpoint/ServiceMonitor.
+    prometheus:
+      enabled: false
+      metricsService: false
+      serviceMonitor:
+        enabled: false
+    envoy:
+      enabled: false
+      prometheus:
+        enabled: false
+        serviceMonitor:
+          enabled: false
+    operator:
+      replicas: 2
+      priorityClassName: system-cluster-critical
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+        maxUnavailable: null
+      # Do not touch Flannel-managed Pods or node conditions/taints while this
+      # release is only the secondary overlay.
+      unmanagedPodWatcher:
+        restart: false
+      removeNodeTaints: false
+      setNodeTaints: false
+      setNodeNetworkStatus: false
+      prometheus:
+        enabled: false
+        metricsService: false
+        serviceMonitor:
+          enabled: false

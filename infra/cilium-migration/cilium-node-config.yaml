@@ -1,0 +1,16 @@
+apiVersion: cilium.io/v2
+kind: CiliumNodeConfig
+metadata:
+  name: cilium-default
+  namespace: kube-system
+spec:
+  # No node has this label when the object is first reconciled. A maintenance
+  # operator applies it to exactly one drained node during the migration.
+  nodeSelector:
+    matchLabels:
+      io.cilium.migration/cilium-default: "true"
+  defaults:
+    write-cni-conf-when-ready: /host/etc/cni/net.d/05-cilium.conflist
+    custom-cni-conf: "false"
+    cni-chaining-mode: "none"
+    cni-exclusive: "true"
