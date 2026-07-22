@@ -243,6 +243,42 @@ else
     fail 'The CiliumNodeConfig migration selector is missing.'
   fi
 
+  # Cilium learns Geneve transport addresses from CiliumNode InternalIP values.
+  # These must agree with the Kubernetes Node LAN addresses before the first
+  # workload node is switched to Cilium. A stale overlay address here makes the
+  # secondary agents appear Ready while their peer mesh is unreachable.
+  if ! cilium_node_internal_ip_rows="$(kubectl get ciliumnodes.cilium.io -o go-template='{{range .items}}{{ $name := .metadata.name }}{{range .spec.addresses}}{{if eq .type "InternalIP"}}{{printf "%s\t%s\n" $name .ip}}{{end}}{{end}}{{end}}')"; then
+    fail 'Unable to read CiliumNode InternalIP addresses.'
+  elif [[ -z "$cilium_node_internal_ip_rows" ]]; then
+    fail 'Cilium returned no CiliumNode InternalIP addresses.'
+  else
+    while IFS=$'\t' read -r node internal_ip; do
+      cilium_internal_ip="$(awk -F $'\t' -v target="$node" '$1 == target { print $2 }' <<< "$cilium_node_internal_ip_rows")"
+
+      if [[ -z "$cilium_internal_ip" ]]; then
+        fail "$node has no CiliumNode InternalIP."
+      elif ! is_expected_node_lan_ipv4 "$cilium_internal_ip"; then
+        fail "$node CiliumNode InternalIP $cilium_internal_ip is outside $EXPECTED_NODE_LAN_CIDR."
+      elif [[ "$cilium_internal_ip" != "$internal_ip" ]]; then
+        fail "$node CiliumNode InternalIP $cilium_internal_ip does not match Kubernetes Node InternalIP $internal_ip."
+      else
+        pass "$node CiliumNode transport address matches LAN InternalIP $internal_ip."
+      fi
+    done <<< "$node_internal_ip_rows"
+  fi
+
+  cilium_health_pod="$(kubectl -n kube-system get pod -l k8s-app=cilium -o jsonpath='{.items[0].metadata.name}')"
+  if [[ -z "$cilium_health_pod" ]]; then
+    fail 'No Cilium agent Pod is available for peer-health validation.'
+  elif ! cilium_health_status="$(kubectl -n kube-system exec "$cilium_health_pod" -c cilium-agent -- cilium-health status 2>&1)"; then
+    fail "Unable to query Cilium peer health from $cilium_health_pod."
+  elif grep -Eq "Cluster health:[[:space:]]*${cilium_desired}/${cilium_desired}[[:space:]]+reachable" <<< "$cilium_health_status"; then
+    pass "Cilium peer health is ${cilium_desired}/${cilium_desired} reachable."
+  else
+    health_summary="$(grep -m 1 'Cluster health:' <<< "$cilium_health_status" || true)"
+    fail "Cilium peer health is incomplete: ${health_summary:-no cluster-health summary returned}."
+  fi
+
   selected_nodes="$(kubectl get nodes -l io.cilium.migration/cilium-default=true --no-headers 2>/dev/null || true)"
   if [[ -n "$selected_nodes" ]]; then
     fail "Migration labels already exist; complete or roll back those nodes first: $selected_nodes"
