@@ -77,26 +77,3 @@ spec:
       policyExceptions:
         enabled: true
         namespace: kyverno
-  # Before the final Flannel node is migrated, move the fail-closed admission
-  # webhook onto already-selected Cilium nodes. Validate a ready Cilium
-  # endpoint and server-side admission dry-runs before migrating that final
-  # node; failurePolicy remains Fail throughout the handoff.
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              group: apps
-              version: v1
-              kind: Deployment
-              name: kyverno-admission-controller
-            patch: |
-              - op: add
-                path: /spec/template/spec/affinity/nodeAffinity
-                value:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                    nodeSelectorTerms:
-                      - matchExpressions:
-                          - key: io.cilium.migration/cilium-default
-                            operator: In
-                            values:
-                              - "true"
