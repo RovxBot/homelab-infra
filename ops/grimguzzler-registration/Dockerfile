@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.25@sha256:0adf442eae370b6087e08edc7c50b552d80ddf261576f4ebd6421006b2461f12
 
-FROM php:8.3-apache
+FROM php:8.5-apache@sha256:eacc0d98992683cb46e4f8f44b2418a0323855dc8b59d32dc54f7a9b90a966dd
 
 ENV DEBIAN_FRONTEND=noninteractive \
     COMPOSER_ALLOW_SUPERUSER=1
@@ -27,7 +27,7 @@ RUN apt-get update \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2.8.12 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.10.2@sha256:5946476338742b200bb9ff88f8be56275ddae4b3949c72305cb0dbf10cfcb760 /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /var/www/html
 COPY . /var/www/html
