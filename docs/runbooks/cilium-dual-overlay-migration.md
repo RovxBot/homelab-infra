@@ -99,6 +99,13 @@ while Cilium is still only the secondary overlay.
 Use a user-approved maintenance window. Replace `metal5` only after the
 preflight identifies it as the current least-impact worker.
 
+During the mixed-overlay phase, the Kyverno Helm release deliberately keeps
+its fail-closed admission controller on nodes without the Cilium migration
+label. Before applying a node label, confirm both Kyverno admission endpoints
+are Ready and use Flannel addresses. This is a temporary transition guard; do
+not remove it until the final primary-Cilium cutover has explicitly validated
+webhook reachability through a Cilium endpoint.
+
 ```bash
 NODE=metal5
 NODE_IP="$(kubectl get node "$NODE" \
