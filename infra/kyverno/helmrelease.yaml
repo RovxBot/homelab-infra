@@ -27,6 +27,13 @@ spec:
   values:
     image:
       registry: ghcr.io
+    crds:
+      migration:
+        # The chart defaults this post-upgrade hook to reg.kyverno.io. That
+        # registry is intentionally sinkholed on this network, so use the
+        # same registry as the deployed Kyverno controllers.
+        image:
+          registry: ghcr.io
     config:
       # The Flux guardrail deliberately has a wildcard match so that manual
       # edits to any Flux-managed resource are audited.  Do not send
