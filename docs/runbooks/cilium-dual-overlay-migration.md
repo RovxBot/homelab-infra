@@ -155,9 +155,18 @@ kubectl wait --for=condition=Ready "node/$NODE" --timeout=15m
 ```
 
 Never add `--force` to the drain command. If it is blocked, inspect the named
-Pod/PDB and stop rather than deleting an unmanaged workload. If the node owns
-Longhorn replicas, wait for every affected volume to return to `healthy` before
-the reboot and again before selecting another node.
+Pod/PDB and stop rather than deleting an unmanaged workload.
+
+For a short, planned CNI reboot on a node whose disks will return, leave the
+stopped Longhorn Replica CRs in place. Longhorn's configured replica
+replenishment wait interval is `600` seconds in this cluster. Complete the CNI
+configuration, reboot, and uncordon within that window so Longhorn can reuse the local
+replicas instead of creating avoidable full rebuilds elsewhere. Do not request
+Longhorn eviction or delete a stopped replica as part of this normal path.
+Before selecting the next node, every affected attached volume must have
+returned to `healthy`. If the node cannot return within that window, or a
+replica fails to recover, stop and use the documented targeted replica-recovery
+procedure after verifying the two active RW replicas and an alternate target.
 
 Validate the migrated node and the cluster before uncordoning it:
 
@@ -190,6 +199,10 @@ remains cordoned. Check Gatus after the node returns. Keep the node cordoned and
 stop if any validation fails; do not begin a second node. The Cilium and Talos
 recovery procedure must be reviewed against the exact failed state rather than
 trying a broad CNI deletion from the workstation.
+
+After the Cilium validation passes, uncordon the node promptly for the
+short-maintenance Longhorn reuse path above, then wait until every attached
+Longhorn volume is `healthy` before beginning another node migration.
 
 `flannel.alpha.coreos.com/public-ip` is a transition-only source of the Talos
 LAN address while Flannel remains active. It avoids trusting a stale Kubernetes
