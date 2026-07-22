@@ -132,13 +132,13 @@ Validate the migrated node and the cluster before uncordoning it:
 CILIUM_POD="$(kubectl -n kube-system get pod -l k8s-app=cilium \
   --field-selector "spec.nodeName=$NODE" -o jsonpath='{.items[0].metadata.name}')"
 kubectl -n kube-system exec "$CILIUM_POD" -c cilium-agent -- \
-  cilium-dbg status --wait
+  cilium-dbg status --brief --timeout=60s
 talosctl read --nodes "$NODE_IP" /etc/cni/net.d/05-cilium.conflist
 
 kubectl -n kube-system run --attach --rm --restart=Never verify-network \
   --overrides='{"spec":{"nodeName":"'"$NODE"'","tolerations":[{"operator":"Exists"}]}}' \
   --image=ghcr.io/nicolaka/netshoot:v0.8 -- \
-  /bin/bash -c 'ip -br addr && curl -s -k https://$KUBERNETES_SERVICE_HOST/healthz && echo'
+  /bin/bash -ec 'ip -br addr; api_status="$(curl -sSk -o /dev/null -w "%{http_code}" https://$KUBERNETES_SERVICE_HOST/healthz)"; test "$api_status" = 200 || test "$api_status" = 401; echo "Kubernetes API reachable ($api_status)"'
 
 kubectl get node "$NODE" -o wide
 kubectl -n longhorn-system get volumes.longhorn.io
@@ -149,13 +149,14 @@ kubectl uncordon "$NODE"
 ```
 
 The Cilium configuration file must be `05-cilium.conflist`; the temporary
-`verify-network` Pod must receive an address in `10.245.0.0/16` and print a
-successful Kubernetes API health response. That validates the selected CNI,
-service routing and API reachability while the node remains cordoned. Check
-Gatus after the node returns. Keep the node cordoned and stop if any validation
-fails; do not begin a second node. The Cilium and Talos recovery procedure must
-be reviewed against the exact failed state rather than trying a broad CNI
-deletion from the workstation.
+`verify-network` Pod must receive an address in `10.245.0.0/16` and reach the
+Kubernetes API. An unauthenticated probe commonly receives `401`, which proves
+service routing and API reachability without exposing a credential; `200` is
+also acceptable. That validates the selected CNI and API path while the node
+remains cordoned. Check Gatus after the node returns. Keep the node cordoned and
+stop if any validation fails; do not begin a second node. The Cilium and Talos
+recovery procedure must be reviewed against the exact failed state rather than
+trying a broad CNI deletion from the workstation.
 
 `flannel.alpha.coreos.com/public-ip` is a transition-only source of the Talos
 LAN address while Flannel remains active. It avoids trusting a stale Kubernetes
