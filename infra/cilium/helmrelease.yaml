@@ -27,15 +27,15 @@ spec:
       retryInterval: 5m
     timeout: 15m
   values:
-    # Initial dual-overlay migration phase. Flannel remains the active CNI for
-    # every workload until a node is explicitly selected by CiliumNodeConfig.
+    # Primary Cilium phase. The temporary CiliumNodeConfig migration wrapper
+    # remains in place until the post-cutover cleanup change removes it.
     kubeProxyReplacement: false
     routingMode: tunnel
     tunnelProtocol: geneve
     tunnelPort: 6081
     cni:
       install: true
-      customConf: true
+      customConf: false
       uninstall: false
     ipam:
       mode: cluster-pool
@@ -146,13 +146,13 @@ spec:
         enabled: true
         minAvailable: 1
         maxUnavailable: null
-      # Do not touch Flannel-managed Pods or node conditions/taints while this
-      # release is only the secondary overlay.
+      # Take over CNI management and publish Cilium's node state after every
+      # workload node has completed the migration.
       unmanagedPodWatcher:
-        restart: false
-      removeNodeTaints: false
-      setNodeTaints: false
-      setNodeNetworkStatus: false
+        restart: true
+      removeNodeTaints: true
+      setNodeTaints: true
+      setNodeNetworkStatus: true
       prometheus:
         enabled: false
         metricsService: false
