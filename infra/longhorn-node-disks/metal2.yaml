@@ -4,19 +4,14 @@ metadata:
   name: metal2
   namespace: longhorn-system
 spec:
-  # Temporary Cilium-migration recovery guard. A stale rebuild on metal2 held
-  # the node's sole rebuild slot and blocked a degraded MySQL volume from
-  # recovering. Do not request eviction: existing replicas stay in place.
-  # Revert this guard after the replacement replica is healthy.
-  allowScheduling: false
   disks:
     default-disk-1030800000000:
-      allowScheduling: false
+      allowScheduling: true
       diskType: filesystem
       path: /var/lib/longhorn/
       storageReserved: 76087874764
     extra-disk:
-      allowScheduling: false
+      allowScheduling: true
       diskType: filesystem
       path: /var/lib/longhorn/extra
       storageReserved: 21474836480
