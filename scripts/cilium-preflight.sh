@@ -6,6 +6,7 @@ set -euo pipefail
 
 readonly EXPECTED_FLANNEL_CIDR="10.244.0.0/16"
 readonly EXPECTED_CILIUM_CIDR="10.245.0.0/16"
+readonly EXPECTED_NODE_LAN_CIDR="192.168.1.0/24"
 readonly MINIMUM_KERNEL="5.10.0"
 
 phase="before-install"
@@ -42,6 +43,25 @@ require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     fail "required command is unavailable: $1"
   fi
+}
+
+is_expected_cilium_ipv4() {
+  local ip="$1"
+  local octet3 octet4
+
+  [[ "$ip" =~ ^10\.245\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || return 1
+  octet3="${BASH_REMATCH[1]}"
+  octet4="${BASH_REMATCH[2]}"
+  ((10#$octet3 <= 255 && 10#$octet4 <= 255))
+}
+
+is_expected_node_lan_ipv4() {
+  local ip="$1"
+  local octet4
+
+  [[ "$ip" =~ ^192\.168\.1\.([0-9]{1,3})$ ]] || return 1
+  octet4="${BASH_REMATCH[1]}"
+  ((10#$octet4 <= 255))
 }
 
 while (($# > 0)); do
@@ -122,22 +142,60 @@ else
   fail 'kube-proxy is not in the expected active nftables configuration.'
 fi
 
-control_plane_ip="$(kubectl get nodes -l node-role.kubernetes.io/control-plane -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
-if [[ -z "$control_plane_ip" ]]; then
-  fail 'Unable to discover a control-plane InternalIP for the route check.'
-elif routes="$(talosctl get routes --nodes "$control_plane_ip" 2>&1)"; then
-  if [[ "$phase" == "before-install" ]] \
-    && grep -Eq '(^|[^0-9])10\.245\.' <<< "$routes"; then
-    fail "$EXPECTED_CILIUM_CIDR overlaps a route visible on $control_plane_ip."
-  elif [[ "$phase" == "before-install" ]]; then
-    pass "$EXPECTED_CILIUM_CIDR is not present in $control_plane_ip route output."
-  elif grep -Eq '(^|[^0-9])10\.245\.' <<< "$routes"; then
-    pass "$EXPECTED_CILIUM_CIDR is present in $control_plane_ip route output."
-  else
-    fail "The Cilium secondary overlay has no $EXPECTED_CILIUM_CIDR route visible on $control_plane_ip."
-  fi
+node_internal_ip_rows="$(kubectl get nodes -o go-template='{{range .items}}{{ $name := .metadata.name }}{{range .status.addresses}}{{if eq .type "InternalIP"}}{{printf "%s\t%s\n" $name .address}}{{end}}{{end}}{{end}}')"
+if [[ -z "$node_internal_ip_rows" ]]; then
+  fail 'Kubernetes returned no Node InternalIP addresses.'
 else
-  fail "Unable to read routes from $control_plane_ip; check TALOSCONFIG and Talos access."
+  while IFS=$'\t' read -r node internal_ip; do
+    if is_expected_cilium_ipv4 "$internal_ip"; then
+      fail "$node reports InternalIP $internal_ip inside $EXPECTED_CILIUM_CIDR; repair Talos kubelet node-IP selection before CNI migration."
+    elif is_expected_node_lan_ipv4 "$internal_ip"; then
+      pass "$node reports the expected LAN InternalIP $internal_ip."
+    else
+      fail "$node reports unexpected InternalIP $internal_ip; expected $EXPECTED_NODE_LAN_CIDR before CNI migration."
+    fi
+  done <<< "$node_internal_ip_rows"
+fi
+
+if ! kubernetes_api_endpoints="$(kubectl -n default get endpointslice \
+  -l kubernetes.io/service-name=kubernetes \
+  -o go-template='{{range .items}}{{ $addressType := .addressType }}{{range .endpoints}}{{if and (eq $addressType "IPv4") (eq .conditions.ready true)}}{{index .addresses 0}}{{"\n"}}{{end}}{{end}}{{end}}' \
+  | sort -u)"; then
+  fail 'Unable to discover ready IPv4 default/kubernetes EndpointSlice endpoints.'
+elif [[ -z "$kubernetes_api_endpoints" ]]; then
+  fail 'default/kubernetes has no ready IPv4 EndpointSlice endpoints.'
+else
+  talos_route_target=""
+  routes=""
+
+  while IFS= read -r endpoint; do
+    [[ -n "$endpoint" ]] || continue
+
+    if is_expected_cilium_ipv4 "$endpoint"; then
+      fail "default/kubernetes endpoint $endpoint overlaps $EXPECTED_CILIUM_CIDR."
+      continue
+    fi
+
+    if routes="$(talosctl get routes --nodes "$endpoint" 2>&1)"; then
+      talos_route_target="$endpoint"
+      break
+    fi
+
+    note "default/kubernetes endpoint $endpoint did not answer Talos; trying the next endpoint."
+  done <<< "$kubernetes_api_endpoints"
+
+  if [[ -z "$talos_route_target" ]]; then
+    fail 'Unable to read routes through any ready default/kubernetes endpoint; check TALOSCONFIG and Talos access.'
+  elif [[ "$phase" == "before-install" ]] \
+    && grep -Eq '(^|[^0-9])10\.245\.' <<< "$routes"; then
+    fail "$EXPECTED_CILIUM_CIDR overlaps a route visible on $talos_route_target."
+  elif [[ "$phase" == "before-install" ]]; then
+    pass "$EXPECTED_CILIUM_CIDR is not present in $talos_route_target route output."
+  elif grep -Eq '(^|[^0-9])10\.245\.' <<< "$routes"; then
+    pass "$EXPECTED_CILIUM_CIDR is present in $talos_route_target route output."
+  else
+    fail "The Cilium secondary overlay has no $EXPECTED_CILIUM_CIDR route visible on $talos_route_target."
+  fi
 fi
 
 volume_rows="$(kubectl get volumes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.robustness}{"\n"}{end}')"

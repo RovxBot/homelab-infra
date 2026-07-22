@@ -45,6 +45,12 @@ first release is a secondary overlay only:
 - Talos keeps `cluster.network.cni.name: flannel` during every dual-overlay
   node migration. `cni: none` is a final, separate Talos change after Cilium is
   primary on every node and Flannel can be explicitly removed.
+- Before any Cilium migration label is applied, Talos kubelet node-IP selection
+  is constrained to the node LAN subnet. Cilium's host interface makes each
+  Talos node multihomed, so Kubernetes Node `InternalIP` values must not move
+  into the Cilium `10.245.0.0/16` Pod CIDR. The Talos patch is applied one node
+  at a time and kubelet re-registers the corrected address; Kubernetes Node
+  status is never patched manually.
 
 The OCI chart is pinned by manifest digest and Flux verifies Cilium's keyless
 Cosign signature from the Cilium GitHub Actions identity. This avoids adding a
@@ -61,6 +67,11 @@ Node migration is one at a time: cordon, drain, label, restart its Cilium
 agent, reboot, validate Gatus/Flux/Longhorn, then uncordon. Start with a worker
 chosen from current Longhorn replica placement, never a control plane. Do not
 mix this work with Talos, Kubernetes, Longhorn or policy-enforcement upgrades.
+
+The migration preflight fails closed if any Node reports an `InternalIP` outside
+the LAN subnet. Its Talos route check uses a ready physical API endpoint from
+the `default/kubernetes` EndpointSlice rather than a Kubernetes Node address,
+so it remains valid while diagnosing a multihomed node.
 
 The final cutover removes the per-node selector, makes Cilium the default CNI,
 then changes all Talos desired configurations to `cni: none` and explicitly

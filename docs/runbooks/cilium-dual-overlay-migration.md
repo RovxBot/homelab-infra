@@ -17,8 +17,9 @@ Talos, Kubernetes, Longhorn, policy, or public-routing change.
 
 Stop immediately if a node is not Ready, Flux is not Ready, a Longhorn volume
 is not `healthy`, a Cilium agent/operator is not Ready, a node has unexpected
-routes for `10.245.0.0/16`, or Gatus reports a new failure. Do not drain a
-second node while a prior node is rebuilding storage replicas.
+routes for `10.245.0.0/16`, a Kubernetes Node `InternalIP` is not in
+`192.168.1.0/24`, or Gatus reports a new failure. Do not drain a second node
+while a prior node is rebuilding storage replicas.
 
 The documented Cilium approach is a dual overlay: Flannel and Cilium use
 separate CIDRs and encapsulation, so the Linux routing table can carry traffic
@@ -37,6 +38,15 @@ export TALOSCONFIG="$HOME/.config/talos/cooked-k8s/talosconfig-entra"
 
 scripts/cilium-preflight.sh --node metal5
 ```
+
+Before any node receives the Cilium migration label, apply the reviewed
+non-secret `kubelet-node-ip-lan.json` patch from the separate Talos
+configuration repository, one node at a time, using its
+`kubelet-node-ip-stability` runbook. It constrains kubelet to advertise the
+node LAN subnet (`192.168.1.0/24`) when Cilium's host interface makes Talos
+multihomed. The no-reboot patch restarts kubelet, so verify each node returns
+Ready with its LAN `InternalIP` before continuing. Do not manually edit the
+Kubernetes Node object: kubelet re-registers its address itself.
 
 `metal5` is only the current likely canary because it is a worker with one
 running Longhorn replica at the time this runbook was written. Always run the
@@ -62,9 +72,10 @@ kubectl -n kube-system get ciliumnodeconfigs.cilium.io cilium-default
 scripts/cilium-preflight.sh --secondary
 ```
 
-Expected outcome: all Cilium Pods are Ready, `cilium-default` exists, and no
-node has the `io.cilium.migration/cilium-default=true` label. Existing Pods
-retain `10.244.x.x` addresses and Flannel remains active.
+Expected outcome: all Cilium Pods are Ready, `cilium-default` exists, no node
+has the `io.cilium.migration/cilium-default=true` label, and every Kubernetes
+Node retains a `192.168.1.x` `InternalIP`. Existing Pods retain `10.244.x.x`
+addresses and Flannel remains active.
 
 If this phase fails before any node receives the migration label, revert the
 GitOps PR. No workload CNI configuration has been selected, so Flannel remains
@@ -90,7 +101,9 @@ preflight identifies it as the current least-impact worker.
 
 ```bash
 NODE=metal5
-NODE_IP="$(kubectl get node "$NODE" -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')"
+NODE_IP="$(kubectl get node "$NODE" \
+  -o go-template='{{index .metadata.annotations "flannel.alpha.coreos.com/public-ip"}}')"
+test -n "$NODE_IP"
 
 scripts/cilium-preflight.sh --secondary --node "$NODE"
 
@@ -143,6 +156,11 @@ Gatus after the node returns. Keep the node cordoned and stop if any validation
 fails; do not begin a second node. The Cilium and Talos recovery procedure must
 be reviewed against the exact failed state rather than trying a broad CNI
 deletion from the workstation.
+
+`flannel.alpha.coreos.com/public-ip` is a transition-only source of the Talos
+LAN address while Flannel remains active. It avoids trusting a stale Kubernetes
+Node `InternalIP`; retain an explicit non-secret node-to-LAN inventory before
+Flannel is removed in Phase 3.
 
 Repeat Phase 2 for workers first, then the three control planes one at a time.
 Recalculate replica/attachment placement before every node. Migrate `metal4`
