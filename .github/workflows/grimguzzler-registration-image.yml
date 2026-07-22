@@ -2,12 +2,79 @@ name: Build Grim Guzzler registration image
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "ops/grimguzzler-registration/**"
+      - ".github/workflows/grimguzzler-registration-image.yml"
 
 permissions:
   contents: read
 
 jobs:
+  pr-validate:
+    # Renovate updates the Dockerfile. Validate it without publishing an image
+    # or granting the pull-request workflow package-write permission.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - name: Read upstream ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$(cat ops/grimguzzler-registration/source.repo 2>/dev/null || true)"
+          if [[ -z "${repo}" ]]; then
+            repo="https://github.com/RovxBot/WoWSimpleRegistration.git"
+          fi
+          ref="$(cat ops/grimguzzler-registration/source.ref 2>/dev/null || true)"
+          if [[ -z "${ref}" ]]; then
+            ref="master"
+          fi
+          {
+            echo "UPSTREAM_REPO=${repo}"
+            echo "UPSTREAM_REF=${ref}"
+          } >> "$GITHUB_ENV"
+
+      - name: Prepare build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .work
+          git clone --depth=1 --branch "${UPSTREAM_REF}" "${UPSTREAM_REPO}" .work/registration
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build registration image for validation
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: .work/registration
+          file: ops/grimguzzler-registration/Dockerfile
+          load: true
+          push: false
+          tags: grimguzzler-registration:pr-${{ github.event.pull_request.number }}
+
+      - name: Smoke test registration image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="grimguzzler-registration:pr-${{ github.event.pull_request.number }}"
+          docker run --rm --entrypoint /bin/sh "${image}" -c '
+            set -eu
+            test -f /var/www/html/index.php
+            test -f /var/www/html/application/vendor/autoload.php
+            apache2ctl -t
+            for ext in gd gmp mbstring pdo_mysql soap zip; do
+              php -m | grep -qi "^${ext}$"
+            done
+          '
+
   build:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -93,6 +160,7 @@ jobs:
             ghcr.io/${{ steps.lowercase_owner.outputs.owner_lc }}/grimguzzler-registration:${{ steps.read_upstream_ref.outputs.ref_tag }}-${{ github.sha }}
 
   smoke-test:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -133,6 +201,7 @@ jobs:
           '
 
   update-manifests-pr:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs:
       - build
