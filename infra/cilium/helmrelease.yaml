@@ -55,6 +55,26 @@ spec:
       autoMount:
         enabled: false
       hostRoot: /sys/fs/cgroup
+    tls:
+      # L7/TLS policy features are disabled for this migration. Retain a
+      # dedicated, labelled namespace for future TLS-aware policies rather
+      # than granting the agent access to kube-system Secrets.
+      readSecretsOnlyFromSecretsNamespace: true
+      secretsNamespace:
+        create: true
+        name: cilium-secrets
+      secretSync:
+        enabled: false
+    # The chart owns its dedicated Secret namespace, so make it conform to the
+    # cluster's namespace governance policy from the first render.
+    secretsNamespaceLabels:
+      homelab.cooked.beer/owner: platform
+      pod-security.kubernetes.io/enforce: restricted
+      pod-security.kubernetes.io/enforce-version: latest
+      pod-security.kubernetes.io/audit: restricted
+      pod-security.kubernetes.io/audit-version: latest
+      pod-security.kubernetes.io/warn: restricted
+      pod-security.kubernetes.io/warn-version: latest
     securityContext:
       # Talos does not permit Kubernetes workloads to load kernel modules.
       # This is Cilium's current default capability set without SYS_MODULE.

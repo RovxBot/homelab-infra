@@ -34,6 +34,11 @@ first release is a secondary overlay only:
 - Hubble, Envoy and all Prometheus/ServiceMonitor integrations are disabled.
 - Talos remains responsible for cgroupv2 and bpffs mounts; Cilium automatic
   mounts for both are disabled.
+- Cilium creates a dedicated, PSA-labelled `cilium-secrets` namespace for its
+  restricted TLS-policy Secret lookup, while TLS Secret sync remains disabled.
+  Before enabling TLS-aware Cilium policies, L7/Envoy, Ingress, Gateway API or
+  BGP, review the namespace's Secret contents and RBAC as a separate design
+  change.
 - Policy enforcement remains `never` through the network migration. Existing
   NetworkPolicies need a separate application-by-application allow-list audit
   before policy enforcement becomes `default`.
