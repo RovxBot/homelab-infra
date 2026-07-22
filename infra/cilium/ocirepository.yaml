@@ -1,0 +1,20 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: cilium
+  namespace: flux-system
+spec:
+  interval: 12h
+  # Cilium publishes signed OCI charts. Pinning the manifest digest makes the
+  # migration reproducible even if the version tag is later moved upstream.
+  url: oci://quay.io/cilium/charts/cilium
+  ref:
+    digest: sha256:b8d600c542c97dc8652429e12487ecce922d73de9785505457a8f653833e75f9
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  verify:
+    provider: cosign
+    matchOIDCIdentity:
+      - issuer: ^https://token.actions.githubusercontent.com$
+        subject: ^https://github.com/cilium/cilium/.*$
