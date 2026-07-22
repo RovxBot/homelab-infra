@@ -5,9 +5,8 @@ metadata:
   namespace: media
 spec:
   revisionHistoryLimit: 2
-  # GPU Operator migration: keep this workload stopped until the replacement
-  # device plugin has been validated in-cluster.
-  replicas: 0
+  # The replacement NVIDIA device plugin has been validated in-cluster.
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
