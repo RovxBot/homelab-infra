@@ -29,6 +29,11 @@
       "/(^|/)(apps|infra|clusters|ops)/.+\\.ya?ml$/"
     ]
   },
+  "flux": {
+    "managerFilePatterns": [
+      "/(^|/)(apps|infra|clusters)/.+\\.ya?ml$/"
+    ]
+  },
   "ignorePaths": [
     "**/*.b64",
     "age-key.txt",
@@ -37,6 +42,16 @@
     "immich_backup_*.sql"
   ],
   "packageRules": [
+    {
+      "description": "Keep the generated Flux bootstrap manifest under an explicit, digest-pinned maintenance workflow.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchFileNames": [
+        "clusters/home/flux-system/gotk-components.yaml"
+      ],
+      "enabled": false
+    },
     {
       "description": "Require an explicit review for every infrastructure dependency update.",
       "matchManagers": [
@@ -79,6 +94,34 @@
       ],
       "groupName": "oci-matrix-free-tier-terraform",
       "groupSlug": "oci-matrix-free-tier-terraform",
+      "automerge": false
+    },
+    {
+      "description": "Require dashboard approval before an OCI provider major update changes the active free-tier stack.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchFileNames": [
+        "terraform/oci-free-tier/**"
+      ],
+      "matchPackageNames": [
+        "oracle/oci"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "description": "Defer every independent Matrix Terraform update until its capacity-backed rollout is planned.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchFileNames": [
+        "terraform/oci-matrix-free-tier/**"
+      ],
+      "dependencyDashboardApproval": true,
       "automerge": false
     },
     {

@@ -72,6 +72,14 @@ jobs:
             exit 1
           fi
 
+      - name: Require digest-pinned Flux bootstrap controller images
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/check_flux_bootstrap_digests.py \
+            clusters/home/flux-system/gotk-components.yaml
+
       - name: Skip expensive checks when manifest files are unchanged
         if: needs.detect-repo-check-changes.outputs.should_run != 'true'
         shell: bash
