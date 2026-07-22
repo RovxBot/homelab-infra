@@ -28,6 +28,18 @@ spec:
     image:
       registry: ghcr.io
     config:
+      # The Flux guardrail deliberately has a wildcard match so that manual
+      # edits to any Flux-managed resource are audited.  Do not send
+      # high-churn Longhorn controller CR updates through that webhook: no
+      # workload policy applies to those CRs, and admission latency can stall
+      # storage recovery.  Keep BackupTarget requests so its existing,
+      # narrowly scoped guardrail exception still distinguishes the Longhorn
+      # controller from a manual edit.
+      matchConditions:
+        - name: exclude-dynamic-longhorn-crds
+          expression: >-
+            request.resource.group != "longhorn.io" ||
+            request.resource.resource == "backuptargets"
       resourceFiltersExcludeNamespaces:
         - kyverno
         - flux-system
