@@ -21,6 +21,12 @@ spec:
     timeout: 15m
   upgrade:
     crds: CreateReplace
+    # Retrying in place is safe for this host-driver deployment and avoids
+    # attempting a rollback when an initial reconciliation has no prior
+    # successful Helm revision to roll back to.
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
     remediation:
       retries: 3
     timeout: 15m
