@@ -4,6 +4,7 @@ resources:
   - flux-system
   - infrastructure/infrastructure-kustomization.yaml
   - infrastructure/kyverno-policies-kustomization.yaml
+  - infrastructure/gpu-operator-kustomization.yaml
   - apps/apps-kustomization.yaml
   - apps/arr-kustomization.yaml
   - apps/homepage-kustomization.yaml
