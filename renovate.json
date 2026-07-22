@@ -12,7 +12,7 @@
     "dependencies"
   ],
   "rebaseWhen": "behind-base-branch",
-  "prCreation": "not-pending",
+  "prCreation": "immediate",
   "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
   "branchConcurrentLimit": 5,
@@ -58,33 +58,58 @@
       "automerge": false
     },
     {
-      "description": "Group Oracle Terraform provider and CLI constraints across both stacks.",
+      "description": "Keep free-tier Terraform provider changes isolated from the deferred Matrix stack.",
       "matchManagers": [
         "terraform"
       ],
-      "groupName": "terraform",
-      "groupSlug": "terraform",
+      "matchFileNames": [
+        "terraform/oci-free-tier/**"
+      ],
+      "groupName": "oci-free-tier-terraform",
+      "groupSlug": "oci-free-tier-terraform",
       "automerge": false
     },
     {
-      "description": "Group custom image build base-image updates.",
+      "description": "Keep the intentionally independent Matrix Terraform provider changes isolated.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchFileNames": [
+        "terraform/oci-matrix-free-tier/**"
+      ],
+      "groupName": "oci-matrix-free-tier-terraform",
+      "groupSlug": "oci-matrix-free-tier-terraform",
+      "automerge": false
+    },
+    {
+      "description": "Keep the Grim Guzzler registration image build dependencies reviewable as one application change.",
       "matchManagers": [
         "dockerfile"
       ],
-      "groupName": "custom-image-builds",
-      "groupSlug": "custom-image-builds",
+      "matchFileNames": [
+        "ops/grimguzzler-registration/Dockerfile"
+      ],
+      "groupName": "grimguzzler-registration-image",
+      "groupSlug": "grimguzzler-registration-image",
       "automerge": false
     },
     {
-      "description": "Group Flux HelmRelease chart updates together; bootstrap components are regenerated manually with pinned digests.",
-      "matchManagers": [
-        "flux"
+      "description": "Require dashboard approval before a PHP runtime line upgrade is proposed.",
+      "matchFileNames": [
+        "ops/grimguzzler-registration/Dockerfile"
       ],
-      "matchDatasources": [
-        "helm"
+      "matchPackageNames": [
+        "php"
       ],
-      "groupName": "helm-charts",
-      "groupSlug": "helm-charts",
+      "matchUpdateTypes": [
+        "major",
+        "minor"
+      ],
+      "dependencyDashboardApproval": true,
+      "labels": [
+        "dependencies",
+        "runtime-upgrade"
+      ],
       "automerge": false
     },
     {
@@ -119,17 +144,52 @@
       "groupSlug": "immich"
     },
     {
-      "description": "Group media stack image updates together.",
+      "description": "Keep Jellyfin dependencies in an independently testable update.",
       "matchFileNames": [
-        "apps/jellyfin/**",
-        "apps/jellyseerr/**",
-        "apps/prowlarr/**",
-        "apps/radarr/**",
-        "apps/sonarr/**",
+        "apps/jellyfin/**"
+      ],
+      "groupName": "jellyfin",
+      "groupSlug": "jellyfin"
+    },
+    {
+      "description": "Keep Jellyseerr dependencies in an independently testable update.",
+      "matchFileNames": [
+        "apps/jellyseerr/**"
+      ],
+      "groupName": "jellyseerr",
+      "groupSlug": "jellyseerr"
+    },
+    {
+      "description": "Keep Prowlarr dependencies in an independently testable update.",
+      "matchFileNames": [
+        "apps/prowlarr/**"
+      ],
+      "groupName": "prowlarr",
+      "groupSlug": "prowlarr"
+    },
+    {
+      "description": "Keep Radarr dependencies in an independently testable update.",
+      "matchFileNames": [
+        "apps/radarr/**"
+      ],
+      "groupName": "radarr",
+      "groupSlug": "radarr"
+    },
+    {
+      "description": "Keep SABnzbd dependencies in an independently testable update.",
+      "matchFileNames": [
         "apps/sabnzbd/**"
       ],
-      "groupName": "media-stack",
-      "groupSlug": "media-stack"
+      "groupName": "sabnzbd",
+      "groupSlug": "sabnzbd"
+    },
+    {
+      "description": "Keep Sonarr dependencies in an independently testable update.",
+      "matchFileNames": [
+        "apps/sonarr/**"
+      ],
+      "groupName": "sonarr",
+      "groupSlug": "sonarr"
     },
     {
       "description": "Group InvoiceNinja stack updates together.",
@@ -140,32 +200,37 @@
       "groupSlug": "invoiceninja"
     },
     {
-      "description": "Group homepage-related updates together.",
+      "description": "Keep Homepage dependencies separate from the cluster-health reporter.",
       "matchFileNames": [
-        "apps/homepage/**",
-        "infra/pod-report/**"
+        "apps/homepage/**"
       ],
       "groupName": "homepage",
       "groupSlug": "homepage"
     },
     {
-      "description": "Group standalone app updates together.",
+      "description": "Keep the cluster-health reporter dependencies separate from Homepage.",
       "matchFileNames": [
-        "apps/grimguzzler-registration/**",
-        "apps/vaultwarden/**"
+        "infra/pod-report/**"
       ],
-      "groupName": "standalone-apps",
-      "groupSlug": "standalone-apps"
+      "groupName": "cluster-health-reporter",
+      "groupSlug": "cluster-health-reporter"
     },
     {
-      "description": "Group tunnel/VPN updates together.",
+      "description": "Keep Cloudflare tunnel dependencies separate from VPN changes.",
       "matchFileNames": [
-        "infra/cloudflared/**",
+        "infra/cloudflared/**"
+      ],
+      "groupName": "cloudflared",
+      "groupSlug": "cloudflared"
+    },
+    {
+      "description": "Keep WireGuard image updates separate from public-edge Terraform changes.",
+      "matchFileNames": [
         "infra/wireguard/**",
         "terraform/oci-free-tier/ops/wireguard/**"
       ],
-      "groupName": "tunnels",
-      "groupSlug": "tunnels"
+      "groupName": "wireguard",
+      "groupSlug": "wireguard"
     },
     {
       "description": "Group observability updates together.",
@@ -178,17 +243,32 @@
       "automerge": false
     },
     {
-      "description": "Group platform infrastructure updates together.",
+      "description": "Group Longhorn chart and node-disk changes as one storage update.",
       "matchFileNames": [
-        "infra/backups/**",
-        "infra/kyverno/**",
         "infra/longhorn/**",
-        "infra/metrics-server/**",
-        "infra/nvidia-device-plugin/**",
-        "infra/priorityclasses/**"
+        "infra/longhorn-node-disks/**"
       ],
-      "groupName": "platform-infra",
-      "groupSlug": "platform-infra",
+      "groupName": "longhorn",
+      "groupSlug": "longhorn",
+      "automerge": false
+    },
+    {
+      "description": "Group Kyverno engine and policy automation updates together.",
+      "matchFileNames": [
+        "infra/kyverno/**",
+        "infra/kyverno-policies/**"
+      ],
+      "groupName": "kyverno",
+      "groupSlug": "kyverno",
+      "automerge": false
+    },
+    {
+      "description": "Keep the NVIDIA GPU Operator chart independently reviewable.",
+      "matchFileNames": [
+        "infra/gpu-operator/**"
+      ],
+      "groupName": "gpu-operator",
+      "groupSlug": "gpu-operator",
       "automerge": false
     },
     {

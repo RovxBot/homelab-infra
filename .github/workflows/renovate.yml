@@ -3,9 +3,7 @@ name: Renovate
 on:
   workflow_dispatch: {}
   schedule:
-    # Run during your Renovate schedule window (Australia/Melbourne after 8pm).
-    # These times cover both AEST (UTC+10) and AEDT (UTC+11).
-    - cron: "30 9 * * *"
+    # 20:30 AEST / 21:30 AEDT: one predictable, low-activity daily run.
     - cron: "30 10 * * *"
 
 concurrency:
@@ -16,14 +14,12 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
-  statuses: read
-  checks: read
 
 jobs:
   renovate:
     runs-on: ubuntu-latest
     env:
-      LOG_LEVEL: debug
+      LOG_LEVEL: info
       RENOVATE_AUTODISCOVER: "true"
       RENOVATE_AUTODISCOVER_FILTER: ${{ github.repository }}
     steps:
