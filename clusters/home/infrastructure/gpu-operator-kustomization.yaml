@@ -1,0 +1,20 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: gpu-operator
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/gpu-operator
+  prune: true
+  wait: true
+  timeout: 15m
+  # The GPU Operator's vendor-managed workloads require the explicit Kyverno
+  # exception committed with this cluster configuration. Keeping it separate
+  # prevents the infrastructure health gate from blocking that exception.
+  dependsOn:
+    - name: kyverno-policies
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
