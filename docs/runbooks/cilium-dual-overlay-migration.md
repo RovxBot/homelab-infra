@@ -77,6 +77,32 @@ has the `io.cilium.migration/cilium-default=true` label, and every Kubernetes
 Node retains a `192.168.1.x` `InternalIP`. Existing Pods retain `10.244.x.x`
 addresses and Flannel remains active.
 
+Before adding the first migration label, also require every `CiliumNode`
+`InternalIP` to match its Kubernetes Node LAN `InternalIP`, and require
+`cilium-health status` to report every node reachable. Cilium uses the
+`CiliumNode` address as the Geneve transport endpoint; a stale `10.245.x.x`
+address can leave the DaemonSet Ready while the secondary peer mesh is unable
+to carry cross-node traffic. The secondary preflight enforces both checks.
+
+If the Talos kubelet node-IP patch was applied after Cilium first started and
+these checks fail, do not label a workload node. While Cilium is still
+secondary, perform one controlled DaemonSet rollout so each agent regenerates
+its own `CiliumNode` address from the corrected Kubernetes Node status:
+
+```bash
+kubectl -n kube-system rollout restart daemonset/cilium
+kubectl -n kube-system rollout status daemonset/cilium --timeout=30m
+
+CILIUM_POD="$(kubectl -n kube-system get pod -l k8s-app=cilium \
+  -o jsonpath='{.items[0].metadata.name}')"
+kubectl -n kube-system exec "$CILIUM_POD" -c cilium-agent -- cilium-health status
+```
+
+The DaemonSet allows only one unavailable agent, so this refresh is serial.
+Keep Flannel as the active workload CNI, wait for all peers to become reachable,
+and rerun the secondary preflight before continuing. Do not work around this
+gate by hand-editing `CiliumNode` resources or by switching another node's CNI.
+
 If this phase fails before any node receives the migration label, revert the
 GitOps PR. No workload CNI configuration has been selected, so Flannel remains
 the active network.
