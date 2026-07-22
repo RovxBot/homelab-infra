@@ -27,6 +27,10 @@ spec:
   values:
     # Talos owns both the kernel driver and the NVIDIA container toolkit.
     # The Operator only discovers and advertises that pre-installed GPU.
+    # Talos system extensions expose the driver under /usr/local rather than
+    # the /run/nvidia/driver path used by an Operator-managed driver.
+    hostPaths:
+      driverInstallDir: /usr/local
     driver:
       enabled: false
     toolkit:
