@@ -77,3 +77,24 @@ spec:
       policyExceptions:
         enabled: true
         namespace: kyverno
+  # During the mixed Flannel/Cilium phase, keep the fail-closed admission
+  # webhook on an unselected Flannel node. This avoids selecting a Cilium Pod
+  # endpoint before cross-overlay webhook reachability has been proven. Remove
+  # this temporary constraint only as part of the final primary-Cilium cutover.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: kyverno-admission-controller
+            patch: |
+              - op: add
+                path: /spec/template/spec/affinity/nodeAffinity
+                value:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                      - matchExpressions:
+                          - key: io.cilium.migration/cilium-default
+                            operator: DoesNotExist
