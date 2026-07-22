@@ -4,7 +4,6 @@ resources:
   - ../../../infra/access
   - ../../../infra/kyverno
   - ../../../infra/longhorn
-  - ../../../infra/nvidia-device-plugin
   - ../../../infra/metrics-server
   - ../../../infra/pod-report
   - ../../../infra/cloudflared
