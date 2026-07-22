@@ -97,3 +97,18 @@ jobs:
         run: |
           cd "terraform/${{ matrix.stack }}"
           tflint --recursive
+
+  validate-required:
+    # Branch protection requires this stable name. The matrix above expands to
+    # `validate (oci-free-tier)` and `validate (oci-matrix-free-tier)`, neither
+    # of which can satisfy a required check named simply `validate`.
+    name: validate
+    if: always()
+    needs:
+      - validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all Terraform validation jobs to succeed
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+        run: test "$VALIDATE_RESULT" = "success"
