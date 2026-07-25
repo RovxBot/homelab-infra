@@ -14,6 +14,9 @@ spec:
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 604800
+      # A high-detail full regeneration can take many hours. Stop a wedged run
+      # after two days rather than letting it compete with realm workloads forever.
+      activeDeadlineSeconds: 172800
       backoffLimit: 0
       template:
         spec:
@@ -36,8 +39,8 @@ spec:
               imagePullPolicy: Always
               resources:
                 requests:
-                  cpu: "2"
-                  memory: 4Gi
+                  cpu: "4"
+                  memory: 8Gi
                 limits:
                   cpu: "6"
                   memory: 16Gi
@@ -49,11 +52,6 @@ spec:
                 - -lc
                 - |
                   set -eu
-
-                  if [ -d /data/maps ] && [ -d /data/vmaps ] && [ -d /data/dbc ] && [ -d /data/mmaps ]; then
-                    echo "Client data already present in /data (maps/vmaps/dbc/mmaps). Nothing to do."
-                    exit 0
-                  fi
 
                   # ChromieCraft client packs often use lowercase `data/` on case-sensitive filesystems.
                   client_data_dir=""
@@ -189,16 +187,22 @@ spec:
                   rm -rf mmaps/*
                   ./mmaps_generator --config /config/mmaps-config.yaml
 
-                  echo "Copying extracted data to /data..."
+                  # Never replace live navigation data from the generator job.
+                  # A worldserver can read MMAP tiles lazily, so replacing /data/mmaps
+                  # in-place can leave the running realm with a mixed tile set. Stage
+                  # a complete output first; promotion is a separate maintenance step.
+                  echo "Staging regenerated mmaps under /data/mmaps-next..."
                   mkdir -p /data
-                  rm -rf /data/dbc /data/maps /data/vmaps /data/Cameras /data/mmaps || true
-                  [ -d dbc ] && cp -a dbc /data/
-                  [ -d maps ] && cp -a maps /data/
-                  [ -d vmaps ] && cp -a vmaps /data/
-                  [ -d Cameras ] && cp -a Cameras /data/ || true
-                  [ -d mmaps ] && cp -a mmaps /data/ || true
+                  staging_dir="/data/mmaps-next.tmp"
+                  rm -rf "${staging_dir}"
+                  cp -a mmaps "${staging_dir}"
 
-                  echo "Done."
+                  test -n "$(find "${staging_dir}" -type f -name '*.mmap' -print -quit)"
+                  test -n "$(find "${staging_dir}" -type f -name '*.mmtile' -print -quit)"
+
+                  rm -rf /data/mmaps-next
+                  mv "${staging_dir}" /data/mmaps-next
+                  echo "Done. Validated MMAPs are staged at /data/mmaps-next."
               volumeMounts:
                 - name: client
                   mountPath: /client
