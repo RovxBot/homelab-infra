@@ -28,7 +28,7 @@ jobs:
           - oci-matrix-free-tier
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -68,7 +68,7 @@ jobs:
 
       - name: Setup Terraform
         if: steps.changes.outputs.should_run == 'true'
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
 
       - name: Check Terraform formatting
         if: steps.changes.outputs.should_run == 'true'
@@ -84,7 +84,7 @@ jobs:
 
       - name: Setup TFLint
         if: steps.changes.outputs.should_run == 'true'
-        uses: terraform-linters/setup-tflint@6e87008f9dd1fe3e34e66aca6c97b4a69f72a7f4 # v4
+        uses: terraform-linters/setup-tflint@6e1e0642c0289bd619021bf6b34e3c08ed1e005a # v6
 
       - name: Init TFLint
         if: steps.changes.outputs.should_run == 'true'
