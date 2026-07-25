@@ -63,7 +63,10 @@ data:
 
         # Number of vertices along one edge of the entire map's navmesh grid.
         # Higher values increase mesh resolution but also CPU/memory usage.
-        verticesPerMapEdge: 2000
+        # 50% more samples per map edge than the prior 2000 setting. This
+        # increases navigation-grid detail by 2.25x and needs the dedicated
+        # high-memory generator job.
+        verticesPerMapEdge: 3000
 
         # Number of vertices along one edge of each tile chunk.
         # Must divide (vertexPerMapEdge - 1) evenly for seamless tiles.
@@ -73,7 +76,7 @@ data:
 
         # Tolerance for how much a polygon can deviate from the original geometry when simplified.
         # Higher values produce simpler (faster) meshes but can reduce accuracy.
-        maxSimplificationError: 1.8
+        maxSimplificationError: 1.4
 
         # You can override any global parameter for a specific map by specifying its map ID.
         # Inside each map override, you can also override parameters per individual tile,
@@ -101,4 +104,3 @@ data:
 
       # debugOutput generates debug files in the `meshes` directory for use with RecastDemo.
       debugOutput: false
-
