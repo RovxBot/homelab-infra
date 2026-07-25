@@ -174,7 +174,7 @@ jobs:
             type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-authserver
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-authserver
           cache-to: |
-            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-authserver,mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-authserver,mode=max,ignore-error=true
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-authserver,mode=max
           push: true
           tags: |
@@ -196,7 +196,7 @@ jobs:
             type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-worldserver
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-worldserver
           cache-to: |
-            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-worldserver,mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-worldserver,mode=max,ignore-error=true
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-worldserver,mode=max
           push: true
           tags: |
@@ -220,7 +220,7 @@ jobs:
             type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-db-import
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-db-import
           cache-to: |
-            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-db-import,mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-db-import,mode=max,ignore-error=true
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-db-import,mode=max
           push: true
           tags: |
@@ -242,7 +242,7 @@ jobs:
             type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-tools
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-tools
           cache-to: |
-            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-tools,mode=max
+            type=gha,scope=${{ env.BUILD_CACHE_SCOPE }}-tools,mode=max,ignore-error=true
             type=registry,ref=${{ env.BUILD_CACHE_REF }}-tools,mode=max
           push: true
           tags: |
