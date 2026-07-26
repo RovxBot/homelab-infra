@@ -63,10 +63,10 @@ data:
 
         # Number of vertices along one edge of the entire map's navmesh grid.
         # Higher values increase mesh resolution but also CPU/memory usage.
-        # 50% more samples per map edge than the prior 2000 setting. This
-        # increases navigation-grid detail by 2.25x and needs the dedicated
-        # high-memory generator job.
-        verticesPerMapEdge: 3000
+        # Keep the established grid resolution. Several walkability settings
+        # below are expressed in cells, so increasing this value without
+        # proportionally scaling them changes NPC clearance and step height.
+        verticesPerMapEdge: 2000
 
         # Number of vertices along one edge of each tile chunk.
         # Must divide (vertexPerMapEdge - 1) evenly for seamless tiles.
@@ -76,7 +76,7 @@ data:
 
         # Tolerance for how much a polygon can deviate from the original geometry when simplified.
         # Higher values produce simpler (faster) meshes but can reduce accuracy.
-        maxSimplificationError: 1.4
+        maxSimplificationError: 1.8
 
         # You can override any global parameter for a specific map by specifying its map ID.
         # Inside each map override, you can also override parameters per individual tile,
