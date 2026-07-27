@@ -10,23 +10,40 @@ data:
     RealmServerPort = 3724
     LoginDatabaseInfo = "${DB_HOST};${DB_PORT};${DB_USER};${DB_PASSWORD};${DB_AUTH_DB}"
 
+    # Retry short-lived database outages before failing the connection.
+    Database.Reconnect.Attempts = 20
+    Database.Reconnect.Seconds = 15
+
     # Authentication settings
     StrictVersionCheck = 0
     AllowLoggingIPAddressesInDatabase = 1
+    # Failed-login protection. A zero MaxCount leaves automatic account/IP bans
+    # disabled while retaining the upstream thresholds for later use.
+    WrongPass.BanTime = 600
+    WrongPass.BanType = 0
+    WrongPass.Logging = 0
+    WrongPass.MaxCount = 0
 
     # Update settings
     Updates.AllowRehash = 1
     Updates.ArchivedRedundancy = 0
     Updates.CleanDeadRefMaxCount = 3
+    # Prepare and apply auth-database updates at startup.
+    Updates.AutoSetup = 1
+    Updates.EnableDatabases = 1
 
     # TOTP settings
     TOTPMasterSecret = ""
+    # Do not require two-factor authentication for accounts by default.
+    EnableTOTP = 0
 
     # IP Location settings
     IPLocationFile = ""
 
     # Realm settings
     RealmsStateUpdateDelay = 20
+    # Check expired account/IP bans once per minute.
+    BanExpiryCheckInterval = 60
 
     # Network settings
     Network.UseSocketActivation = 0
@@ -41,6 +58,11 @@ data:
 
     # MySQL settings
     MySQLExecutable = ""
+
+    # Optional source/build paths used only by development tooling. Empty values
+    # keep this container independent of a source checkout.
+    SourceDirectory = ""
+    TempDir = ""
 
     # Update settings
     Updates.Redundancy = 1
