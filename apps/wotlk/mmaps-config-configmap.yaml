@@ -16,6 +16,24 @@ data:
       # and is also where the "mmaps" folder will be created or located.
       dataDir: "./"
 
+      # Off-mesh connections define manual navigation links that are not part of the generated navmesh.
+      # They are used to connect two arbitrary points in the world where normal pathfinding cannot reach,
+      # such as jumps, ropes, ladders, teleports, elevators, or special scripted movement paths.
+      #
+      # Format:
+      #   mapID tileX,tileY (start_x start_y start_z) (end_x end_y end_z) size
+      #
+      # Fields:
+      #   mapID      - Map identifier where this connection exists.
+      #   tileX,tileY- Navmesh tile coordinates the connection belongs to.
+      #   start      - World position where the connection begins.
+      #   end        - World position where the connection ends.
+      #   size       - Effective radius of the connection (agent clearance / usability width).
+      offmeshConnections:
+        # Make Blades Edge Arena Ropes wider
+        - "562 31,20 (6234.474121 256.563721 11.063726) (6230.162598 251.681976 11.199670) 2.1"
+        - "562 31,20 (6242.273926 266.697540 11.090456) (6246.688965 272.064819 11.235604) 2.1"
+
       meshSettings:
         # Here we have global config for recast navigation.
         # It's possible to override these data on map or tile level (see mapsOverrides).
@@ -63,9 +81,6 @@ data:
 
         # Number of vertices along one edge of the entire map's navmesh grid.
         # Higher values increase mesh resolution but also CPU/memory usage.
-        # Keep the established grid resolution. Several walkability settings
-        # below are expressed in cells, so increasing this value without
-        # proportionally scaling them changes NPC clearance and step height.
         verticesPerMapEdge: 2000
 
         # Number of vertices along one edge of each tile chunk.
@@ -83,17 +98,46 @@ data:
         # identified by a string "tileX,tileY" (coordinates).
         #
         # Overrides cascade: global settings → map overrides → tile overrides.
+        # For example:
+        #
+        # mapsOverrides:
+        #   "0":                              # Map ID 0 overrides
+        #     walkableRadius: 5               # Override global climb height for entire map 0
+        #
+        #     tilesOverrides:
+        #       "50,70":                      # Tile at coordinates (50,70) on map 0
+        #         walkableSlopeAngle: 70      # Override slope angle locally just here
+        #         walkableClimb: 4            # Also override climb height for this tile only
+        #
+        #       "51,71":
+        #         walkableClimb: 3            # Override climb height for tile (51,71)
+        #
+        #       "48,32":
+        #         walkableClimb: 1            # Even smaller climb for tile (48,32)
+        #
+        #   "1":                              # Map ID 1 overrides example
+        #     walkableHeight: 8               # Increase clearance for whole map 1
+        #
+        #     tilesOverrides:
+        #       "100,100":
+        #         maxSimplificationError: 2.5 # Looser mesh simplification for this tile only
+        #
+        #       "101,101":
+        #         walkableRadius: 1           # Smaller NPC radius here for tight corridors
+        #
+        # This approach allows very fine-grained control of navigation mesh parameters
+        # on a per-map and per-tile basis, optimizing pathfinding quality and performance.
+        #
+        # All parameters defined globally are eligible for override.
+        # Just specify the parameter name and new value in the override section.
         mapsOverrides:
-          "562": # Blade's Edge Arena
-            walkableRadius: 0 # This allows walking on the ropes to the pillars
-
           "48": # Blackfathom Deeps
             cellSizeVertical: 0.5334 # ch*2 = 0.2667 * 2 ≈ 0.5334. Reduce the chance to have underground levels.
 
           "529": # Arathi Basin
             tilesOverrides:
               "30,29": # Lumber Mill
-                # Make sure that Fear will not drop players from cliff -
+                # Make sure that Fear will not drop players rom cliff -
                 # https://github.com/azerothcore/azerothcore-wotlk/pull/22462#issuecomment-3067024680
                 walkableSlopeAngle: 45
 
@@ -103,4 +147,26 @@ data:
                 walkableSlopeAngle: 45 # https://github.com/chromiecraft/chromiecraft/issues/8404#issuecomment-3476012660
 
       # debugOutput generates debug files in the `meshes` directory for use with RecastDemo.
+      # This is useful for inspecting and debugging mmap generation visually.
+      #
+      # My workflow:
+      # 1. Install RecastDemo. I'm building it from the source of this fork: https://github.com/jackpoz/recastnavigation
+      # 2. In-game, move your character to the area you want to debug.
+      # 3. Type `.mmap loc` in chat. This will output:
+      #    - The current tile file name (e.g., `04832.mmtile`)
+      #    - The Recast config values used to generate that tile
+      # 4. Enable `debugOutput` and regenerate mmaps (preferably just the tile from step 3).
+      #    - To regenerate only one tile, delete it from the `mmaps` folder.
+      # 5. After generation, you will find debug files in the `meshes` folder, including an OBJ file (e.g., `map0004832.obj`)
+      # 6. Copy these debug files to the `Meshes` folder used by RecastDemo.
+      #    - RecastDemo expects this folder to be in the same directory as its executable.
+      # 7. In RecastDemo:
+      #    - Click "Input Mesh" and select the `.obj` file
+      #    - Choose "Solo Mesh" in the Sample selector
+      # 8. (Optional) Reuse the Recast config values from step 3:
+      #    - `cellSizeHorizontal` → "Cell Size"
+      #    - `walkableSlopeAngle` → "Max Slope"
+      #    - `walkableClimb` → "Max Climb"
+      #    - and so on
+      # 9. Scroll to the bottom of RecastDemo UI and press "Build" to generate the navigation mesh
       debugOutput: false
