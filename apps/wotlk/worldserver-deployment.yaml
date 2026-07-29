@@ -221,7 +221,14 @@ spec:
             - name: TZ
               value: Australia/Adelaide
             - name: AC_UPDATES_ENABLE_DATABASES
-              value: "0"
+              # mod-progression-system registers a DatabaseScript rather than
+              # dbimport-compatible SQL. Enable world updates so its bracket
+              # migrations run from the runtime image's /modules source tree.
+              value: "4"
+            - name: AC_UPDATES_ALLOWED_MODULES
+              # db-import owns normal module migrations. Restrict this runtime
+              # updater to the progression DatabaseScript.
+              value: mod-progression-system
             - name: AC_PLAYERBOTS_UPDATES_ENABLE_DATABASES
               value: "0"
             - name: DB_HOST

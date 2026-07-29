@@ -25,8 +25,8 @@ Zul'Aman, Sunwell, and all WotLK content locked.
 ## Advancing the realm
 
 Enable the next bracket or brackets in `progression_system.conf`, deploy the
-updated image/module list, and allow the database-import job to apply the new
-module SQL. Do not disable an already-applied bracket to roll the realm back:
+updated image/module list, and allow worldserver's progression DatabaseScript
+to apply the new bracket SQL. Do not disable an already-applied bracket to roll the realm back:
 the module's SQL changes are persistent. Restore a known-good world-database
 backup before attempting a rollback.
 
@@ -34,7 +34,7 @@ backup before attempting a rollback.
 
 `mod-individual-progression` also makes persistent world-database changes.
 Before deploying this module to an existing realm, take a backup and rebuild or
-restore the world database to a clean AzerothCore baseline, then let the
-database-import job apply `mod-progression-system` updates. Removing the old
+restore the world database to a clean AzerothCore baseline, then allow
+worldserver to apply `mod-progression-system` updates. Removing the old
 module alone does not undo its SQL changes; mixing both modules' database
 changes can leave stale gates, spawns, or loot settings.

@@ -146,10 +146,10 @@ jobs:
             write_module_conf_install_shim "${module_dir}"
           done
 
-          # Compatibility fixes for custom modules on Playerbot branch.
-          # These modules ship CMake APIs not available in this core fork.
-          rm -f .work/acore/modules/mod-grimtokendailies/CMakeLists.txt || true
-          write_module_conf_install_shim ".work/acore/modules/mod-grimtokendailies"
+          # mod-grimtokendailies now uses the core's automatic static source
+          # collection and a CMake file that only installs its configuration.
+          # Keep that source-owned CMake file intact rather than replacing it.
+          test -f .work/acore/modules/mod-grimtokendailies/CMakeLists.txt
 
           # Fail fast if mod-customnpcs is missing from the build context.
           test -d .work/acore/modules/mod-customnpcs/src
@@ -353,6 +353,8 @@ jobs:
               exit 1
             }
             test -f /azerothcore/modules/mod-playerbots/data/sql/playerbots/base/version_db_playerbots.sql
+            test -f /azerothcore/modules/mod-customnpcs/data/sql/db-world/updates/2026_03_11_00_kappa.sql
+            test -f /azerothcore/modules/mod-grimtokendailies/data/sql/db-world/updates/2026_07_29_00_grimtokendailies.sql
           '
 
       - name: Smoke test tools image
@@ -405,6 +407,7 @@ jobs:
                 exit 1
               }
             done
+            test -f /modules/mod-progression-system/src/Bracket_70_2_2/sql/world/progression_70_2_2_disables.sql
           '
 
           docker run --rm --entrypoint bash "${world_image}" -lc '
@@ -419,6 +422,26 @@ jobs:
                   strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
                 else
                   grep -aEq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" "$path"
+                fi
+                exit 0
+              fi
+            done
+            echo "worldserver binary not found" >&2
+            exit 1
+          '
+
+          docker run --rm --entrypoint bash "${world_image}" -lc '
+            set -euo pipefail
+            for path in \
+              /azerothcore/env/dist/bin/worldserver \
+              /azerothcore/bin/worldserver \
+              /usr/local/bin/worldserver \
+              /usr/bin/worldserver; do
+              if [ -x "$path" ]; then
+                if command -v strings >/dev/null 2>&1; then
+                  strings "$path" | grep -Eq "GrimTokenDailies|Addmod_grimtokendailiesScripts"
+                else
+                  grep -aEq "GrimTokenDailies|Addmod_grimtokendailiesScripts" "$path"
                 fi
                 exit 0
               fi
