@@ -5,7 +5,7 @@
 # https://github.com/azerothcore/mod-ah-bot.git
 # https://github.com/azerothcore/mod-transmog.git@master
 
-https://github.com/Grimfeather/mod-individual-progression@master
+https://github.com/azerothcore/mod-progression-system.git@main
 # The Playerbot-enabled core still requires the actual mod-playerbots module.
 # Keep this explicit so image builds and runtime source clones both include the
 # headers, SQL, and config assets expected by Playerbots-dependent modules.

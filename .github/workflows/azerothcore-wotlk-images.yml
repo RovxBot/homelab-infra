@@ -392,7 +392,7 @@ jobs:
           docker run --rm --entrypoint bash "${world_image}" -lc '
             set -euo pipefail
             for conf in \
-              individualProgression.conf.dist \
+              progression_system.conf.dist \
               playerbots.conf.dist \
               MultiBotBridge.conf.dist \
               mod_ahbot.conf.dist \

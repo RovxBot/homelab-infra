@@ -14,7 +14,7 @@ configMapGenerator:
       - playerbots.conf=config/playerbots.conf
       - MultiBotBridge.conf=config/MultiBotBridge.conf
       - mod_ahbot.conf=config/mod_ahbot.conf
-      - individualProgression.conf=config/individualProgression.conf
+      - progression_system.conf=config/progression_system.conf
       - transmog.conf=config/transmog.conf
       - mod-double-xp-weekend.conf=config/mod-double-xp-weekend.conf
       - mod_customnpcs.conf=config/mod_customnpcs.conf
