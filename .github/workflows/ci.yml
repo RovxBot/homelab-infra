@@ -45,7 +45,7 @@ jobs:
           changed_files="$(git diff --name-only "$range")"
           printf 'Changed files in %s:\n%s\n' "$range" "$changed_files"
 
-          if echo "$changed_files" | grep -Eq '^(\.github/workflows/ci\.yml|\.github/kyverno-baseline\.yaml|apps/|clusters/|infra/|terraform/oci-free-tier/ops/wireguard/|terraform/oci-matrix-free-tier/|scripts/ci/|secrets/)'; then
+          if echo "$changed_files" | grep -Eq '^(\.github/workflows/ci\.yml|\.github/kyverno-baseline\.yaml|apps/|clusters/|infra/|terraform/oci-free-tier/ops/wireguard/|terraform/oci-matrix-free-tier/|scripts/|secrets/)'; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"

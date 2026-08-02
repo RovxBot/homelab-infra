@@ -6,18 +6,18 @@
 
 GitOps source for the `cooked-k8s` Talos Kubernetes homelab. Flux reconciles reviewed `main` into the cluster; this repository holds desired state, not live credentials, rendered Talos machine configurations, backups or Terraform state.
 
-This is a personal, opinionated homelab—not a turnkey production template. It is designed around seven disk-bearing nodes, constrained lab capacity, and the operational decisions recorded here.
+This is a personal, opinionated homelab—not a turnkey production template. It is designed around eight disk-bearing nodes, constrained lab capacity, and the operational decisions recorded here.
 
 ## At a glance
 
 | Area | Current design |
 | --- | --- |
-| Cluster | Seven-node Talos Linux Kubernetes cluster, reconciled by Flux |
+| Cluster | Eight-node Talos Linux Kubernetes cluster, reconciled by Flux |
 | Identity | Entra OIDC for normal `kubectl` administration; offline certificate break-glass access |
 | Storage | Longhorn on every node disk; general volumes use three replicas |
 | Backups | Longhorn and Immich/Restic backups go to Backblaze B2 |
 | Health | Gatus for in-cluster and edge checks; [homelab-uptime](https://github.com/RovxBot/homelab-uptime) publishes external status |
-| Networking | Talos-managed Flannel today; Cilium dual-overlay migration is staged and keeps kube-proxy initially |
+| Networking | Cilium is the primary Geneve CNI; kube-proxy remains enabled and policy enforcement is intentionally `never` |
 | Edge | Cloudflare Tunnel for managed public routes; OCI WireGuard edge for intended Immich and Jellyfin public paths |
 | Policy | PSA, Kyverno and CI gates provide progressive workload hardening |
 | Observability trade-off | No Grafana, Prometheus, Loki or Prometheus Operator; use Gatus, `kubectl top`, logs, events, Talos and Longhorn |
@@ -45,6 +45,7 @@ SOPS-encrypted Kubernetes Secrets live in `secrets/*.enc.yaml`. The Flux age ide
 main
  └── clusters/home
      ├── infrastructure        → access, Kyverno, Longhorn, backups, edge, Gatus
+     ├── cilium                → primary CNI and its signed OCI chart
      ├── kyverno-policies      → policy definitions and exceptions
      ├── longhorn-node-disks   → per-node disk definitions
      └── applications          → media, *arr, Homepage, Invoice Ninja,
@@ -54,7 +55,7 @@ main
 | Path | Contents |
 | --- | --- |
 | `apps/` | Immich, media, Vaultwarden, Homepage, Invoice Ninja, WotLK and other application manifests |
-| `infra/` | Entra RBAC, Longhorn, backups, Cloudflared, WireGuard, Gatus, Kyverno and Metrics Server |
+| `infra/` | Entra RBAC, Cilium, Longhorn, backups, Cloudflared, WireGuard, Gatus, Kyverno and Metrics Server |
 | `clusters/` | Flux bootstrap and reconciliation boundaries |
 | `secrets/` | SOPS ciphertext only |
 | `terraform/` | OCI edge and independent Matrix Terraform roots |
@@ -71,7 +72,7 @@ Immich and Jellyfin remain public through the OCI edge by design and rely on the
 
 ## Storage and backups
 
-All seven nodes contribute Longhorn disks. Do not remove a disk or taint/drain a node casually: first confirm every affected volume has three healthy replicas and perform one-node-at-a-time maintenance.
+All eight nodes contribute Longhorn disks. Do not remove a disk or taint/drain a node casually: first confirm every affected volume has three healthy replicas and perform one-node-at-a-time maintenance.
 
 - Longhorn uses conservative one-per-node replica rebuild concurrency.
 - Replica auto-balance is `least-effort`; do not force broad rebuilds merely to make placement look symmetrical.
@@ -107,7 +108,9 @@ kubectl top nodes
 kubectl top pods -A
 kubectl get events -A --sort-by=.lastTimestamp
 kubectl -n longhorn-system get volumes.longhorn.io
-kubectl -n flux-system get kustomizations,helmreleases
+kubectl -n flux-system get kustomizations
+kubectl -n kube-system get helmreleases
+scripts/cilium-primary-health.sh
 ```
 
 Use `kubectl logs`, `talosctl logs`, Longhorn and workload events for deeper diagnosis. Do not reinstall Prometheus merely for a one-off incident.
@@ -202,8 +205,8 @@ Never copy this repository's encrypted Secrets, OCI configuration or Talos recov
 - [Contributing](CONTRIBUTING.md)
 - [WotLK server and image notes](WOTLK.md)
 - [LAN NodePort decision](docs/decisions/0001-lan-nodeport-access.md)
-- [Cilium dual-overlay migration decision](docs/decisions/0002-cilium-dual-overlay-migration.md)
-- [Cilium dual-overlay runbook](docs/runbooks/cilium-dual-overlay-migration.md)
+- [Cilium primary-CNI decision](docs/decisions/0002-cilium-dual-overlay-migration.md)
+- [Cilium primary-CNI operations](docs/runbooks/cilium-primary-operations.md)
 - [Flux bootstrap maintenance](docs/runbooks/flux-bootstrap-maintenance.md)
 - [OCI public-edge Terraform](terraform/oci-free-tier/README.md)
 - [Independent Matrix Terraform](terraform/oci-matrix-free-tier/README.md)
