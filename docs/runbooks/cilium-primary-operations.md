@@ -58,6 +58,9 @@ kubelet configuration is the source of the advertised address.
 - Kube-proxy remains enabled. `cni.chainingMode: portmap` is intentional so
   the two WotLK listeners can later use narrow `hostPort` mappings; do not
   enable Cilium's kube-proxy replacement merely to obtain HostPort support.
+- `rollOutCiliumPods: true` is intentional: a CNI ConfigMap change needs a
+  controlled agent restart to rewrite the generated conflist. The DaemonSet
+  `maxUnavailable: 1` setting is the rollout safety bound.
 - Keep `bpf.hostLegacyRouting: true` until the Talos host-DNS design has a
   separate review.
 - Hubble, Envoy and Prometheus integrations remain disabled; use Gatus,

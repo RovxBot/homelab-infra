@@ -18,7 +18,10 @@ TCP 7878, MariaDB TCP 3306 and registration stay ClusterIP-only.
 Cilium keeps `kubeProxyReplacement: false`, so native Cilium HostPort support
 is deliberately unavailable. Cilium's supported `cni.chainingMode: portmap`
 adds the standard portmap plugin without changing kube-proxy service handling.
-The plugin must exist on every node before enabling the Helm value.
+`rollOutCiliumPods: true` makes the resulting CNI ConfigMap change roll the
+agent DaemonSet one node at a time; otherwise the old agents would not rewrite
+the conflist. The plugin must exist on every node before enabling the Helm
+value.
 
 After the Cilium HelmRelease reconciles, require the normal health gate to
 pass and verify the temporary probe on both pinned nodes:
@@ -49,7 +52,8 @@ After a successful preflight, use a distinct PR to:
 2. Add `hostPort` and `hostIP` only to auth TCP 3724 on `192.168.1.197` and
    world TCP 8085 on `192.168.1.47`. Do not expose SOAP.
 3. Roll auth first, test LAN and public `grim.cooked.beer:3724`, then roll
-   world and test its existing OCI public path with a real game client.
+   world and test its existing OCI public `grim.cooked.beer:8443` path with a
+   real game client.
 4. Confirm the Services now resolve to Cilium Pod IPs, Gatus remains healthy,
    and Cilium/Longhorn/Flux health gates pass.
 

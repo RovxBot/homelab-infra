@@ -4,19 +4,21 @@
 
 set -euo pipefail
 
-readonly namespace="default"
-readonly deployment="cilium-hostport-probe"
+readonly namespace="wotlk"
+readonly deployment_prefix="cilium-hostport-probe-"
+readonly app_label="cilium-hostport-probe"
 readonly host_port="39080"
 readonly image="nginxinc/nginx-unprivileged:1.31-alpine@sha256:59ccf0943b0b8e8d9e6ea9039a39555730f544701a655c596f7df7d096c593f5"
 
 node=""
+deployment=""
 
 usage() {
   cat <<'EOF'
 Usage: scripts/cilium-hostport-probe.sh --node NODE
 
 Validate Cilium's portmap HostPort chain on one selected node. The script
-creates a temporary, digest-pinned Deployment in the default namespace on TCP
+creates a temporary, digest-pinned Deployment in the wotlk namespace on TCP
 39080, verifies it from the administrator workstation, then removes it.
 
 The workstation must be able to reach the node's LAN InternalIP. This is a
@@ -25,6 +27,7 @@ EOF
 }
 
 cleanup() {
+  [[ -n "$deployment" ]] || return
   kubectl -n "$namespace" delete deployment "$deployment" \
     --ignore-not-found --wait=true >/dev/null 2>&1 || true
 }
@@ -60,15 +63,14 @@ node_ip="$(kubectl get node "$node" -o jsonpath='{.status.addresses[?(@.type=="I
 }
 
 trap cleanup EXIT
-cleanup
 
-kubectl -n "$namespace" apply -f - <<EOF
+deployment="$(kubectl -n "$namespace" create -o name -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: $deployment
+  generateName: $deployment_prefix
   labels:
-    app: $deployment
+    app: $app_label
     homelab.cooked.beer/owner: platform
 spec:
   replicas: 1
@@ -77,11 +79,11 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: $deployment
+      app: $app_label
   template:
     metadata:
       labels:
-        app: $deployment
+        app: $app_label
         homelab.cooked.beer/owner: platform
     spec:
       automountServiceAccountToken: false
@@ -129,6 +131,8 @@ spec:
               cpu: 100m
               memory: 64Mi
 EOF
+)"
+deployment="${deployment#deployment.apps/}"
 
 kubectl -n "$namespace" rollout status "deployment/$deployment" --timeout=180s
 curl --fail --silent --show-error --max-time 10 "http://$node_ip:$host_port/" >/dev/null

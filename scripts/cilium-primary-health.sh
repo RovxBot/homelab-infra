@@ -133,9 +133,9 @@ else
   fail "Cilium Operator is not fully available (${operator_available:-0}/${operator_desired:-0})."
 fi
 
-cilium_config="$(kubectl -n kube-system get configmap cilium-config -o go-template='{{printf "%s\t%s\t%s\t%s" (index .data "custom-cni-conf") (index .data "write-cni-conf-when-ready") (index .data "cni-exclusive") (index .data "enable-policy")}}' 2>/dev/null || true)"
-IFS=$'\t' read -r custom_cni_conf write_cni_conf cni_exclusive policy_enforcement <<< "$cilium_config"
-if [[ "$custom_cni_conf" == "false" && "$write_cni_conf" == "/host$EXPECTED_CILIUM_CONFLIST" && "$cni_exclusive" == "true" ]]; then
+cilium_config="$(kubectl -n kube-system get configmap cilium-config -o go-template='{{printf "%s\t%s\t%s\t%s\t%s" (index .data "custom-cni-conf") (index .data "write-cni-conf-when-ready") (index .data "cni-exclusive") (index .data "enable-policy") (index .data "cni-chaining-mode")}}' 2>/dev/null || true)"
+IFS=$'\t' read -r custom_cni_conf write_cni_conf cni_exclusive policy_enforcement cni_chaining_mode <<< "$cilium_config"
+if [[ "$custom_cni_conf" == "false" && "$write_cni_conf" == "/host$EXPECTED_CILIUM_CONFLIST" && "$cni_exclusive" == "true" && "$cni_chaining_mode" == "portmap" ]]; then
   pass 'Cilium ConfigMap has the expected primary-CNI settings.'
 else
   fail 'Cilium ConfigMap does not have the expected primary-CNI settings.'
@@ -207,6 +207,11 @@ elif grep -Eq "Cluster health:[[:space:]]*${node_count}/${node_count}[[:space:]]
 else
   summary="$(grep -m 1 'Cluster health:' <<< "$cilium_health" || true)"
   fail "Cilium peer health is incomplete: ${summary:-no cluster-health summary returned}."
+fi
+if [[ -n "${cilium_health:-}" ]] && grep -Eq '^CNI Chaining:[[:space:]]+portmap' <<< "$cilium_health"; then
+  pass 'Cilium agent reports the portmap HostPort chain.'
+else
+  fail 'Cilium agent does not report the portmap HostPort chain.'
 fi
 
 workload_rows="$(kubectl get pods -A -o go-template='{{range .items}}{{if and (eq .status.phase "Running") (not .spec.hostNetwork)}}{{printf "%s/%s\t%s\n" .metadata.namespace .metadata.name .status.podIP}}{{end}}{{end}}' 2>/dev/null || true)"
