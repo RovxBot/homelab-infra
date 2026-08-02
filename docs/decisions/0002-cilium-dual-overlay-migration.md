@@ -30,6 +30,9 @@ primary CNI.
   `CiliumNodeConfig` migration selector are removed.
 - kube-proxy remains enabled. Kube-proxy replacement, Gateway API, L2
   announcements, encryption and host firewall remain separate decisions.
+- Kube-proxy's `--cluster-cidr` is `10.245.0.0/16`, matching Cilium's
+  workload range. Talos's distinct `10.244.0.0/16` Node-CIDR allocation
+  setting remains unchanged until a separately designed migration.
 - Policy enforcement remains `never` while application dependency policies are
   designed and tested. Existing NetworkPolicies do not yet provide meaningful
   application isolation.
