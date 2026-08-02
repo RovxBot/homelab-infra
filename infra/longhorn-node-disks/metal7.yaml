@@ -4,6 +4,7 @@ metadata:
   name: metal7
   namespace: longhorn-system
 spec:
+  name: metal7
   disks:
     default-disk-081400000000:
       allowScheduling: true
