@@ -219,10 +219,10 @@ unhealthy_volumes="$(awk '$2 != "healthy" {print $1 "=" $2}' <<< "$volume_rows")
 check_flux_kind flux-system kustomizations.kustomize.toolkit.fluxcd.io
 check_flux_kind kube-system helmreleases.helm.toolkit.fluxcd.io
 
-kube_proxy_args="$(kubectl -n kube-system get daemonset kube-proxy -o go-template='{{range .spec.template.spec.containers}}{{if eq .name "kube-proxy"}}{{range .args}}{{printf "%s\n" .}}{{end}}{{end}}{{end}}' 2>/dev/null || true)"
-if grep -Fxq -- '--cluster-cidr=10.245.0.0/16' <<< "$kube_proxy_args"; then
+kube_proxy_flags="$(kubectl -n kube-system get daemonset kube-proxy -o go-template='{{range .spec.template.spec.containers}}{{if eq .name "kube-proxy"}}{{range .command}}{{printf "%s\n" .}}{{end}}{{range .args}}{{printf "%s\n" .}}{{end}}{{end}}{{end}}' 2>/dev/null || true)"
+if grep -Fxq -- '--cluster-cidr=10.245.0.0/16' <<< "$kube_proxy_flags"; then
   pass 'kube-proxy cluster CIDR matches the primary Cilium Pod CIDR.'
-elif grep -Fxq -- '--cluster-cidr=10.244.0.0/16' <<< "$kube_proxy_args"; then
+elif grep -Fxq -- '--cluster-cidr=10.244.0.0/16' <<< "$kube_proxy_flags"; then
   note 'kube-proxy still reports retired 10.244.0.0/16; review this separately before changing Talos or kube-proxy configuration.'
 else
   note 'kube-proxy cluster CIDR is not the expected Cilium CIDR; review its source of truth separately.'
