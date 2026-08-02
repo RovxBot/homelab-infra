@@ -7,6 +7,7 @@ set -euo pipefail
 readonly EXPECTED_CILIUM_CIDR="10.245.0.0/16"
 readonly EXPECTED_NODE_LAN_CIDR="192.168.1.0/24"
 readonly EXPECTED_CILIUM_CONFLIST="/etc/cni/net.d/05-cilium.conflist"
+readonly EXPECTED_PORTMAP_PLUGIN="/opt/cni/bin/portmap"
 
 candidate_node=""
 failures=0
@@ -132,9 +133,9 @@ else
   fail "Cilium Operator is not fully available (${operator_available:-0}/${operator_desired:-0})."
 fi
 
-cilium_config="$(kubectl -n kube-system get configmap cilium-config -o go-template='{{printf "%s\t%s\t%s\t%s" (index .data "custom-cni-conf") (index .data "write-cni-conf-when-ready") (index .data "cni-exclusive") (index .data "enable-policy")}}' 2>/dev/null || true)"
-IFS=$'\t' read -r custom_cni_conf write_cni_conf cni_exclusive policy_enforcement <<< "$cilium_config"
-if [[ "$custom_cni_conf" == "false" && "$write_cni_conf" == "/host$EXPECTED_CILIUM_CONFLIST" && "$cni_exclusive" == "true" ]]; then
+cilium_config="$(kubectl -n kube-system get configmap cilium-config -o go-template='{{printf "%s\t%s\t%s\t%s\t%s" (index .data "custom-cni-conf") (index .data "write-cni-conf-when-ready") (index .data "cni-exclusive") (index .data "enable-policy") (index .data "cni-chaining-mode")}}' 2>/dev/null || true)"
+IFS=$'\t' read -r custom_cni_conf write_cni_conf cni_exclusive policy_enforcement cni_chaining_mode <<< "$cilium_config"
+if [[ "$custom_cni_conf" == "false" && "$write_cni_conf" == "/host$EXPECTED_CILIUM_CONFLIST" && "$cni_exclusive" == "true" && "$cni_chaining_mode" == "portmap" ]]; then
   pass 'Cilium ConfigMap has the expected primary-CNI settings.'
 else
   fail 'Cilium ConfigMap does not have the expected primary-CNI settings.'
@@ -180,10 +181,19 @@ while IFS=$'\t' read -r node internal_ip; do
 done <<< "$cilium_node_rows"
 for node in "${!node_ips[@]}"; do
   [[ -n "${cilium_node_ips[$node]:-}" ]] || fail "$node has no CiliumNode InternalIP."
-  if talosctl read "$EXPECTED_CILIUM_CONFLIST" --nodes "${node_ips[$node]}" >/dev/null 2>&1; then
-    pass "$node exposes $EXPECTED_CILIUM_CONFLIST through Talos."
-  else
+  cni_conflist="$(talosctl read "$EXPECTED_CILIUM_CONFLIST" --nodes "${node_ips[$node]}" 2>/dev/null || true)"
+  if [[ -z "$cni_conflist" ]]; then
     fail "$node does not expose $EXPECTED_CILIUM_CONFLIST through Talos."
+  elif ! grep -Eq '"type"[[:space:]]*:[[:space:]]*"cilium-cni"' <<< "$cni_conflist"; then
+    fail "$node CNI conflist does not contain cilium-cni."
+  elif ! grep -Eq '"type"[[:space:]]*:[[:space:]]*"portmap"' <<< "$cni_conflist"; then
+    fail "$node CNI conflist does not enable the portmap HostPort chain."
+  elif ! grep -Eq '"portMappings"[[:space:]]*:[[:space:]]*true' <<< "$cni_conflist"; then
+    fail "$node CNI conflist does not advertise the portMappings capability."
+  elif talosctl ls "$EXPECTED_PORTMAP_PLUGIN" --nodes "${node_ips[$node]}" >/dev/null 2>&1; then
+    pass "$node exposes the Cilium and portmap CNI chain through Talos."
+  else
+    fail "$node is missing $EXPECTED_PORTMAP_PLUGIN."
   fi
 done
 
@@ -197,6 +207,11 @@ elif grep -Eq "Cluster health:[[:space:]]*${node_count}/${node_count}[[:space:]]
 else
   summary="$(grep -m 1 'Cluster health:' <<< "$cilium_health" || true)"
   fail "Cilium peer health is incomplete: ${summary:-no cluster-health summary returned}."
+fi
+if [[ -n "${cilium_health:-}" ]] && grep -Eq '^CNI Chaining:[[:space:]]+portmap' <<< "$cilium_health"; then
+  pass 'Cilium agent reports the portmap HostPort chain.'
+else
+  fail 'Cilium agent does not report the portmap HostPort chain.'
 fi
 
 workload_rows="$(kubectl get pods -A -o go-template='{{range .items}}{{if and (eq .status.phase "Running") (not .spec.hostNetwork)}}{{printf "%s/%s\t%s\n" .metadata.namespace .metadata.name .status.podIP}}{{end}}{{end}}' 2>/dev/null || true)"

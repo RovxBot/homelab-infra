@@ -30,6 +30,10 @@ spec:
     # Cilium owns the primary CNI. The temporary migration wrapper was removed
     # after the completed cutover.
     kubeProxyReplacement: false
+    # CNI configuration is read by the agent at startup. Roll the DaemonSet
+    # when this ConfigMap changes so the generated CNI conflist never drifts
+    # from the Helm values. The update strategy below limits this to one node.
+    rollOutCiliumPods: true
     routingMode: tunnel
     tunnelProtocol: geneve
     tunnelPort: 6081
@@ -37,6 +41,10 @@ spec:
       install: true
       customConf: false
       uninstall: false
+      # kube-proxy remains enabled, so Cilium's native HostPort implementation
+      # is unavailable. Chain the standard CNI portmap plugin to support the
+      # narrow WotLK hostPort migration without changing service handling.
+      chainingMode: portmap
     ipam:
       mode: cluster-pool
       operator:

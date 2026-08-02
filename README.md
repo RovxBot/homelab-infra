@@ -208,6 +208,7 @@ Never copy this repository's encrypted Secrets, OCI configuration or Talos recov
 - [LAN NodePort decision](docs/decisions/0001-lan-nodeport-access.md)
 - [Cilium primary-CNI decision](docs/decisions/0002-cilium-dual-overlay-migration.md)
 - [Cilium primary-CNI operations](docs/runbooks/cilium-primary-operations.md)
+- [WotLK HostPort migration](docs/runbooks/wotlk-hostport-migration.md)
 - [Renovate operations](docs/runbooks/renovate-operations.md)
 - [Flux bootstrap maintenance](docs/runbooks/flux-bootstrap-maintenance.md)
 - [OCI public-edge Terraform](terraform/oci-free-tier/README.md)
