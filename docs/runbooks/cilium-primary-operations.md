@@ -27,8 +27,9 @@ drains, restarts or changes a node.
 The check fails closed if any node is not Ready, its Kubernetes Node or
 CiliumNode `InternalIP` is outside `192.168.1.0/24`, Cilium peer health is not
 complete, the Cilium CNI file is missing, a workload remains on a non-Cilium
-Pod CIDR, Flannel/migration resources remain, Longhorn is degraded, or Flux is
-not Ready.
+Pod CIDR, kube-proxy does not use Cilium's `10.245.0.0/16` ClusterCIDR,
+Flannel/migration resources remain, Longhorn is degraded, or Flux is not
+Ready.
 
 ## Node address recovery
 
@@ -68,6 +69,8 @@ then application-to-database/cache paths and each required egress route. Test
 each namespace in audit-compatible stages and document exceptions. Change
 global policy enforcement only after the complete policy set is proven.
 
-The health script reports the kube-proxy cluster CIDR separately. Its desired
-steady-state value needs a dedicated Talos/Kubernetes review; do not alter it
-as an incidental Cilium cleanup.
+Kube-proxy must use `--cluster-cidr=10.245.0.0/16`, matching Cilium's
+workload range. Its Talos recovery patch and the guarded live DaemonSet rollout
+are maintained in the private `TalosConfigs` repository. Talos's separate
+legacy `10.244.0.0/16` Node-CIDR allocation setting is intentional and must
+not be changed as incidental Cilium cleanup.

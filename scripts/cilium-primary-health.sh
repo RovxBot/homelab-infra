@@ -223,9 +223,9 @@ kube_proxy_flags="$(kubectl -n kube-system get daemonset kube-proxy -o go-templa
 if grep -Fxq -- '--cluster-cidr=10.245.0.0/16' <<< "$kube_proxy_flags"; then
   pass 'kube-proxy cluster CIDR matches the primary Cilium Pod CIDR.'
 elif grep -Fxq -- '--cluster-cidr=10.244.0.0/16' <<< "$kube_proxy_flags"; then
-  note 'kube-proxy still reports retired 10.244.0.0/16; review this separately before changing Talos or kube-proxy configuration.'
+  fail 'kube-proxy still reports retired 10.244.0.0/16; expected the primary Cilium Pod CIDR.'
 else
-  note 'kube-proxy cluster CIDR is not the expected Cilium CIDR; review its source of truth separately.'
+  fail 'kube-proxy cluster CIDR is absent or does not match the primary Cilium Pod CIDR.'
 fi
 
 if [[ -n "$candidate_node" ]]; then
