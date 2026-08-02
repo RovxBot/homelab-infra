@@ -128,6 +128,22 @@ spec:
             - "[STATUS] == 200"
           alerts:
             - type: github
+        - name: invoiceninja-mysql
+          group: dependencies
+          url: tcp://invoiceninja-mysql.invoiceninja.svc.cluster.local:3306
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
+        - name: invoiceninja-redis
+          group: dependencies
+          url: tcp://invoiceninja-redis.invoiceninja.svc.cluster.local:6379
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
         - name: radarr
           group: internal
           url: http://radarr.media.svc.cluster.local:7878
@@ -190,6 +206,30 @@ spec:
             - "[STATUS] == 200"
           alerts:
             - type: github
+        - name: immich-machine-learning
+          group: dependencies
+          url: tcp://immich-machine-learning.immich.svc.cluster.local:3003
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
+        - name: immich-postgres
+          group: dependencies
+          url: tcp://immich-postgres.immich.svc.cluster.local:5432
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
+        - name: immich-redis
+          group: dependencies
+          url: tcp://immich-redis.immich.svc.cluster.local:6379
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
         - name: grimguzzler-registration
           group: internal
           url: http://grimguzzler-registration.wotlk.svc.cluster.local:80
@@ -215,6 +255,22 @@ spec:
             - "[CONNECTED] == true"
           alerts:
             - type: github
+        - name: wotlk-mariadb
+          group: dependencies
+          url: tcp://wotlk-mariadb.wotlk.svc.cluster.local:3306
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
+        - name: wotlk-worldserver-soap
+          group: dependencies
+          url: tcp://wotlk-worldserver-soap.wotlk.svc.cluster.local:7878
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
         - name: longhorn-frontend
           group: internal
           url: http://longhorn-frontend.longhorn-system.svc.cluster.local:80
@@ -227,6 +283,15 @@ spec:
         - name: homepage-public
           group: external
           url: https://homepage.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
+        - name: homepage-assets-public
+          group: external
+          url: https://homepage.cooked.beer/assets/998981.jpg
           interval: 1m
           conditions:
             - "[STATUS] >= 200"
@@ -290,15 +355,6 @@ spec:
         - name: jellyseerr-public
           group: external
           url: https://jellyseerr.cooked.beer
-          interval: 1m
-          conditions:
-            - "[STATUS] >= 200"
-            - "[STATUS] < 300"
-          alerts:
-            - type: github
-        - name: grimguzzler-registration-public
-          group: external
-          url: https://grimguzzler.cooked.beer
           interval: 1m
           conditions:
             - "[STATUS] >= 200"
