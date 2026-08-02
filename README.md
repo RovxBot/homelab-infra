@@ -20,6 +20,7 @@ This is a personal, opinionated homelab—not a turnkey production template. It 
 | Networking | Cilium is the primary Geneve CNI; kube-proxy remains enabled and policy enforcement is intentionally `never` |
 | Edge | Cloudflare Tunnel for managed public routes; OCI WireGuard edge for intended Immich and Jellyfin public paths |
 | Policy | PSA, Kyverno and CI gates provide progressive workload hardening |
+| Dependency updates | Hosted Renovate App, manual merges only, with dashboard gates for maintenance-sensitive changes |
 | Observability trade-off | No Grafana, Prometheus, Loki or Prometheus Operator; use Gatus, `kubectl top`, logs, events, Talos and Longhorn |
 
 ## Repository boundaries
@@ -207,6 +208,7 @@ Never copy this repository's encrypted Secrets, OCI configuration or Talos recov
 - [LAN NodePort decision](docs/decisions/0001-lan-nodeport-access.md)
 - [Cilium primary-CNI decision](docs/decisions/0002-cilium-dual-overlay-migration.md)
 - [Cilium primary-CNI operations](docs/runbooks/cilium-primary-operations.md)
+- [Renovate operations](docs/runbooks/renovate-operations.md)
 - [Flux bootstrap maintenance](docs/runbooks/flux-bootstrap-maintenance.md)
 - [OCI public-edge Terraform](terraform/oci-free-tier/README.md)
 - [Independent Matrix Terraform](terraform/oci-matrix-free-tier/README.md)

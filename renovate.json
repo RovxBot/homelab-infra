@@ -37,7 +37,6 @@
   "ignorePaths": [
     "**/*.b64",
     "age-key.txt",
-    "apps/wotlk/**",
     "clusters/home/flux-system/gotk-components.yaml",
     "immich_backup_*.sql"
   ],
@@ -352,12 +351,69 @@
       "enabled": false
     },
     {
-      "description": "Disable WotLK-related updates.",
+      "description": "Keep custom WotLK image promotion tags under the dedicated game-image pipeline.",
+      "matchManagers": [
+        "kubernetes"
+      ],
       "matchFileNames": [
-        "apps/wotlk/**",
-        "ops/wotlk-images/**"
+        "apps/wotlk/**"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/rovxbot/azerothcore-wotlk"
       ],
       "enabled": false
+    },
+    {
+      "description": "Group routine WotLK helper-image digest and patch updates without touching the pipeline-owned game images.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchFileNames": [
+        "apps/wotlk/**"
+      ],
+      "matchPackageNames": [
+        "alpine",
+        "alpine/git",
+        "bitnami/kubectl"
+      ],
+      "groupName": "wotlk-helper-images",
+      "groupSlug": "wotlk-helper-images",
+      "automerge": false
+    },
+    {
+      "description": "Require dashboard approval before a WotLK MySQL minor update is proposed.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchFileNames": [
+        "apps/wotlk/**"
+      ],
+      "matchPackageNames": [
+        "mysql"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "description": "Require dashboard approval before a WotLK Ubuntu base-image line update is proposed.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchFileNames": [
+        "ops/wotlk-images/Dockerfile"
+      ],
+      "matchPackageNames": [
+        "ubuntu"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor"
+      ],
+      "dependencyDashboardApproval": true,
+      "automerge": false
     },
     {
       "description": "Don't auto-merge major updates.",
