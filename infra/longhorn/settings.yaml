@@ -27,7 +27,7 @@ metadata:
 value: "1"
 ---
 # Longhorn must continue to schedule its system-managed CSI, instance-manager
-# and engine-image components on all seven disk-bearing nodes after control
+# and engine-image components on all disk-bearing nodes after control
 # planes regain their default NoSchedule taint.
 apiVersion: longhorn.io/v1beta2
 kind: Setting

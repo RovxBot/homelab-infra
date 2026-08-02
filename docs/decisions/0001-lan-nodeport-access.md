@@ -42,7 +42,8 @@ should be reviewed with this decision.
 LAN clients can reach these services without Cloudflare Access.  That is needed
 for current internal integrations, but it relies on LAN/VLAN trust boundaries.
 
-The current Flannel CNI does not enforce Kubernetes NetworkPolicies.  A future
-CNI migration to an enforcing implementation (for example, Cilium) remains a
-separate maintenance-window change; it must be designed and tested before any
-default-deny policy is introduced.
+Cilium is now the primary CNI, but its policy enforcement remains intentionally
+`never` until namespace-specific dependency policies have been designed and
+tested. The existing NetworkPolicies therefore do not yet provide application
+isolation. Do not introduce a generic default-deny policy or change enforcement
+without that separate, reviewed project.

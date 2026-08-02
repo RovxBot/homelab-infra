@@ -27,8 +27,8 @@ spec:
       retryInterval: 5m
     timeout: 15m
   values:
-    # Primary Cilium phase. The temporary CiliumNodeConfig migration wrapper
-    # remains in place until the post-cutover cleanup change removes it.
+    # Cilium owns the primary CNI. The temporary migration wrapper was removed
+    # after the completed cutover.
     kubeProxyReplacement: false
     routingMode: tunnel
     tunnelProtocol: geneve
@@ -56,7 +56,7 @@ spec:
         enabled: false
       hostRoot: /sys/fs/cgroup
     tls:
-      # L7/TLS policy features are disabled for this migration. Retain a
+      # L7/TLS policy features remain disabled. Retain a
       # dedicated, labelled namespace for future TLS-aware policies rather
       # than granting the agent access to kube-system Secrets.
       readSecretsOnlyFromSecretsNamespace: true
@@ -116,8 +116,8 @@ spec:
         enabled: false
       ui:
         enabled: false
-    # No existing policy requires L7 matching. Disable the agent-side L7 proxy
-    # as well as the standalone Envoy DaemonSet during the initial migration.
+    # No existing policy requires L7 matching. Keep the agent-side L7 proxy
+    # and the standalone Envoy DaemonSet disabled until that changes.
     l7Proxy: false
     # This lab deliberately uses Gatus and Upptime rather than a Prometheus
     # stack. Disable every chart-provided metrics endpoint/ServiceMonitor.
@@ -146,8 +146,8 @@ spec:
         enabled: true
         minAvailable: 1
         maxUnavailable: null
-      # Take over CNI management and publish Cilium's node state after every
-      # workload node has completed the migration.
+      # Keep CNI management and Cilium Node status publication enabled in the
+      # completed primary-CNI state.
       unmanagedPodWatcher:
         restart: true
       removeNodeTaints: true

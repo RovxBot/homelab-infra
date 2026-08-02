@@ -1,84 +1,74 @@
-# ADR 0002: Staged Cilium dual-overlay migration
+# ADR 0002: Cilium primary CNI migration
 
 ## Status
 
-Proposed on 2026-07-22. The first GitOps phase requires normal PR review; each
-node migration and final CNI cutover requires an explicit maintenance-window
-decision.
+Accepted and implemented. The staged dual-overlay rollout is complete; this
+record now describes the resulting steady state and preserves the reason for
+the migration design.
 
 ## Context
 
-Talos currently manages Flannel. Its live configuration uses pod CIDR
-`10.244.0.0/16` with VXLAN on UDP `4789`; kube-proxy remains active in nftables
-mode. Flannel does not enforce the Kubernetes NetworkPolicies already tracked
-in this repository.
+At the time of the decision, Talos managed Flannel with a `10.244.0.0/16` Pod
+CIDR and VXLAN on UDP `4789`. Flannel did not enforce the Kubernetes
+NetworkPolicies already tracked in this repository. A direct cluster-wide CNI
+swap would have been too disruptive for disk-backed workloads, accepted LAN
+NodePorts, public application routes and node-pinned WotLK services.
 
-The cluster has seven disk-bearing Longhorn nodes, public application paths,
-accepted LAN NodePorts, and node-pinned WotLK workloads. A cluster-wide CNI
-swap or an untested kube-proxy replacement would create unnecessary outage
-risk. Prometheus, Grafana, Loki and Hubble are intentionally out of scope;
-Gatus and Upptime are the selected health systems.
+The migration therefore used Cilium as a temporary secondary Geneve overlay,
+then moved nodes one at a time before retiring Flannel. Grafana, Prometheus,
+Loki, Hubble and Envoy remained out of scope; Gatus and Upptime are the chosen
+health systems.
 
 ## Decision
 
-Use Cilium `1.19.6` through a signed, digest-pinned OCI chart in Flux. The
-first release is a secondary overlay only:
+Use Cilium `1.19.6` from a signed, digest-pinned OCI chart in Flux as the
+primary CNI.
 
-- Cilium uses `10.245.0.0/16` in cluster-pool IPAM and Geneve on UDP `6081`.
-  Both are distinct from Flannel.
-- Cilium does not write a default CNI configuration until a single node has the
-  deliberate `io.cilium.migration/cilium-default=true` label.
-- Kube-proxy remains enabled. Kube-proxy replacement, Gateway API, L2
-  announcements, encryption and host firewall are later, separately reviewed
-  changes.
-- Hubble, Envoy and all Prometheus/ServiceMonitor integrations are disabled.
-- Talos remains responsible for cgroupv2 and bpffs mounts; Cilium automatic
-  mounts for both are disabled.
-- Cilium creates a dedicated, PSA-labelled `cilium-secrets` namespace for its
-  restricted TLS-policy Secret lookup, while TLS Secret sync remains disabled.
-  Before enabling TLS-aware Cilium policies, L7/Envoy, Ingress, Gateway API or
-  BGP, review the namespace's Secret contents and RBAC as a separate design
-  change.
-- Policy enforcement remains `never` through the network migration. Existing
-  NetworkPolicies need a separate application-by-application allow-list audit
-  before policy enforcement becomes `default`.
-- Talos keeps `cluster.network.cni.name: flannel` during every dual-overlay
-  node migration. `cni: none` is a final, separate Talos change after Cilium is
-  primary on every node and Flannel can be explicitly removed.
-- Before any Cilium migration label is applied, Talos kubelet node-IP selection
-  is constrained to the node LAN subnet. Cilium's host interface makes each
-  Talos node multihomed, so Kubernetes Node `InternalIP` values must not move
-  into the Cilium `10.245.0.0/16` Pod CIDR. The Talos patch is applied one node
-  at a time and kubelet re-registers the corrected address; Kubernetes Node
-  status is never patched manually.
+- Cilium uses cluster-pool IPAM in `10.245.0.0/16` and Geneve on UDP `6081`.
+- Cilium writes the primary CNI configuration and owns CNI state. Talos uses
+  `cluster.network.cni.name: none`; Flannel and the temporary
+  `CiliumNodeConfig` migration selector are removed.
+- kube-proxy remains enabled. Kube-proxy replacement, Gateway API, L2
+  announcements, encryption and host firewall remain separate decisions.
+- Policy enforcement remains `never` while application dependency policies are
+  designed and tested. Existing NetworkPolicies do not yet provide meaningful
+  application isolation.
+- `bpf.hostLegacyRouting: true` remains required by the current Talos host-DNS
+  design. Do not enable eBPF host routing until DNS is separately redesigned.
+- Hubble, Envoy and Prometheus/ServiceMonitor integrations remain disabled.
+- Talos owns cgroupv2 and bpffs mounts; Cilium automatic mounting remains
+  disabled. Cilium's dedicated, PSA-labelled `cilium-secrets` namespace is
+  retained for any future TLS-aware policy design.
+- Kubelet node-IP selection must remain constrained to the management LAN. A
+  Cilium host address must never become a Kubernetes Node `InternalIP`.
 
-The OCI chart is pinned by manifest digest and Flux verifies Cilium's keyless
-Cosign signature from the Cilium GitHub Actions identity. This avoids adding a
-new signing key or a cloud service.
+Flux verifies Cilium's keyless Cosign signature from the Cilium GitHub Actions
+identity. This keeps deployment verification reproducible without adding a
+cloud service or static signing key.
+
+## Outcome and operational gates
+
+All workload Pods use the Cilium Pod CIDR and Cilium peer health must report
+every current node reachable before maintenance. The read-only
+`scripts/cilium-primary-health.sh` gate validates the primary-CNI settings,
+node/CiliumNode LAN addresses, CNI files, peer health, residual Flannel state,
+Longhorn, Flux and workload Pod addresses.
+
+If a node advertises a `10.245.x.x` Kubernetes `InternalIP`, repair the Talos
+kubelet node-IP selector from the private Talos configuration source. Do not
+manually edit Kubernetes Node status or CiliumNode resources.
 
 ## Consequences
 
-The initial merge installs a Cilium agent on every node but does not move any
-application Pod onto Cilium. A second Flux Kustomization creates the
-`CiliumNodeConfig` selector only after the Cilium CRD is available; it matches
-no node by default.
+NetworkPolicy enforcement is intentionally deferred, not complete. The next
+network-security project must first build and test namespace-specific policies
+for DNS, Cloudflared, Gatus, application-to-database/cache traffic and required
+egress. Only then can enforcement move to `default` in a separate reviewed
+change.
 
-Node migration is one at a time: cordon, drain, label, restart its Cilium
-agent, reboot, validate Gatus/Flux/Longhorn, then uncordon. Start with a worker
-chosen from current Longhorn replica placement, never a control plane. Do not
-mix this work with Talos, Kubernetes, Longhorn or policy-enforcement upgrades.
-
-The migration preflight fails closed if any Node reports an `InternalIP` outside
-the LAN subnet. Its Talos route check uses a ready physical API endpoint from
-the `default/kubernetes` EndpointSlice rather than a Kubernetes Node address,
-so it remains valid while diagnosing a multihomed node.
-
-The final cutover removes the per-node selector, makes Cilium the default CNI,
-then changes all Talos desired configurations to `cni: none` and explicitly
-removes Flannel. That phase includes another rolling reboot to clear old
-interfaces/routes. Cilium's eBPF host routing stays disabled because Talos host
-DNS forwarding requires `bpf.hostLegacyRouting: true` unless the DNS design is
-separately changed.
+The retired dual-overlay procedure remains in Git history only. Operational
+work must use the primary-CNI runbook rather than recreating migration labels,
+Flannel resources or a second overlay.
 
 ## References
 
