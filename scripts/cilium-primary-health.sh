@@ -181,19 +181,22 @@ while IFS=$'\t' read -r node internal_ip; do
 done <<< "$cilium_node_rows"
 for node in "${!node_ips[@]}"; do
   [[ -n "${cilium_node_ips[$node]:-}" ]] || fail "$node has no CiliumNode InternalIP."
-  cni_conflist="$(talosctl read "$EXPECTED_CILIUM_CONFLIST" --nodes "${node_ips[$node]}" 2>/dev/null || true)"
-  if [[ -z "$cni_conflist" ]]; then
-    fail "$node does not expose $EXPECTED_CILIUM_CONFLIST through Talos."
+  if ! cni_conflist="$(talosctl read "$EXPECTED_CILIUM_CONFLIST" --nodes "${node_ips[$node]}" 2>/dev/null)"; then
+    fail "$node cannot read $EXPECTED_CILIUM_CONFLIST through Talos; verify TALOSCONFIG and Talos API connectivity."
+  elif [[ -z "$cni_conflist" ]]; then
+    fail "$node returned an empty $EXPECTED_CILIUM_CONFLIST through Talos."
   elif ! grep -Eq '"type"[[:space:]]*:[[:space:]]*"cilium-cni"' <<< "$cni_conflist"; then
     fail "$node CNI conflist does not contain cilium-cni."
   elif ! grep -Eq '"type"[[:space:]]*:[[:space:]]*"portmap"' <<< "$cni_conflist"; then
     fail "$node CNI conflist does not enable the portmap HostPort chain."
   elif ! grep -Eq '"portMappings"[[:space:]]*:[[:space:]]*true' <<< "$cni_conflist"; then
     fail "$node CNI conflist does not advertise the portMappings capability."
-  elif talosctl ls "$EXPECTED_PORTMAP_PLUGIN" --nodes "${node_ips[$node]}" >/dev/null 2>&1; then
-    pass "$node exposes the Cilium and portmap CNI chain through Talos."
   else
-    fail "$node is missing $EXPECTED_PORTMAP_PLUGIN."
+    if talosctl ls "$EXPECTED_PORTMAP_PLUGIN" --nodes "${node_ips[$node]}" >/dev/null 2>&1; then
+      pass "$node exposes the Cilium and portmap CNI chain through Talos."
+    else
+      fail "$node cannot verify $EXPECTED_PORTMAP_PLUGIN through Talos; verify TALOSCONFIG and Talos API connectivity."
+    fi
   fi
 done
 
