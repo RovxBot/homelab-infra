@@ -197,21 +197,33 @@ for node in "${!node_ips[@]}"; do
   fi
 done
 
-cilium_pod="$(kubectl -n kube-system get pods -l k8s-app=cilium --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null | awk 'NR == 1 {print; exit}')"
-if [[ -z "$cilium_pod" ]]; then
-  fail 'No running Cilium agent Pod is available for peer-health validation.'
-elif ! cilium_health="$(kubectl -n kube-system exec "$cilium_pod" -c cilium-agent -- cilium-health status 2>&1)"; then
-  fail "Unable to query Cilium peer health from $cilium_pod."
-elif grep -Eq "Cluster health:[[:space:]]*${node_count}/${node_count}[[:space:]]+reachable" <<< "$cilium_health"; then
-  pass "Cilium peer health is $node_count/$node_count reachable."
-else
-  summary="$(grep -m 1 'Cluster health:' <<< "$cilium_health" || true)"
-  fail "Cilium peer health is incomplete: ${summary:-no cluster-health summary returned}."
-fi
-if [[ -n "${cilium_health:-}" ]] && grep -Eq '^CNI Chaining:[[:space:]]+portmap' <<< "$cilium_health"; then
-  pass 'Cilium agent reports the portmap HostPort chain.'
-else
-  fail 'Cilium agent does not report the portmap HostPort chain.'
+cilium_agent_rows="$(kubectl -n kube-system get pods -l k8s-app=cilium --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.nodeName}{"\n"}{end}' 2>/dev/null || true)"
+cilium_agent_count=0
+while IFS=$'\t' read -r cilium_pod cilium_node; do
+  [[ -n "$cilium_pod" ]] || continue
+  cilium_agent_count=$((cilium_agent_count + 1))
+
+  if ! cilium_status="$(kubectl -n kube-system exec "$cilium_pod" -c cilium-agent -- cilium-dbg status 2>&1)"; then
+    fail "Unable to query Cilium agent status from $cilium_pod on ${cilium_node:-<unknown-node>}."
+  elif grep -Eq '^CNI Chaining:[[:space:]]+portmap' <<< "$cilium_status"; then
+    pass "Cilium agent $cilium_pod reports the portmap HostPort chain."
+  else
+    fail "Cilium agent $cilium_pod does not report the portmap HostPort chain."
+  fi
+
+  if ! cilium_health="$(kubectl -n kube-system exec "$cilium_pod" -c cilium-agent -- cilium-health status 2>&1)"; then
+    fail "Unable to query Cilium peer health from $cilium_pod."
+  elif grep -Eq "Cluster health:[[:space:]]*${node_count}/${node_count}[[:space:]]+reachable" <<< "$cilium_health"; then
+    pass "Cilium agent $cilium_pod peer health is $node_count/$node_count reachable."
+  else
+    summary="$(grep -m 1 'Cluster health:' <<< "$cilium_health" || true)"
+    fail "Cilium agent $cilium_pod peer health is incomplete: ${summary:-no cluster-health summary returned}."
+  fi
+done <<< "$cilium_agent_rows"
+if ((cilium_agent_count == 0)); then
+  fail 'No running Cilium agent Pods are available for status validation.'
+elif ((cilium_agent_count != node_count)); then
+  fail "Cilium has $cilium_agent_count running agent Pods; expected one per node ($node_count)."
 fi
 
 workload_rows="$(kubectl get pods -A -o go-template='{{range .items}}{{if and (eq .status.phase "Running") (not .spec.hostNetwork)}}{{printf "%s/%s\t%s\n" .metadata.namespace .metadata.name .status.podIP}}{{end}}{{end}}' 2>/dev/null || true)"
