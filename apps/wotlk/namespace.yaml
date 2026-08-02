@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: wotlk
   labels:
-    # We use hostNetwork so the auth port can be 3724 (client cannot specify a custom port).
+    # Legacy game listeners use narrowly scoped HostPort mappings on pinned nodes.
     homelab.cooked.beer/owner: sam
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
