@@ -55,6 +55,9 @@ kubelet configuration is the source of the advertised address.
 - `policyEnforcementMode: never` is intentional. Do not enable `default` or
   add generic default-deny policies until namespace-specific dependency rules
   have been designed and tested.
+- Kube-proxy remains enabled. `cni.chainingMode: portmap` is intentional so
+  the two WotLK listeners can later use narrow `hostPort` mappings; do not
+  enable Cilium's kube-proxy replacement merely to obtain HostPort support.
 - Keep `bpf.hostLegacyRouting: true` until the Talos host-DNS design has a
   separate review.
 - Hubble, Envoy and Prometheus integrations remain disabled; use Gatus,
