@@ -20,8 +20,8 @@ spec:
       annotations:
         kubectl.kubernetes.io/restartedAt: "2026-01-06T00:27:35Z"
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
+      # Keep the legacy client listener on its fixed LAN address while the Pod
+      # remains in the Cilium network and retains normal Kubernetes DNS.
       nodeSelector:
         kubernetes.io/hostname: metal7
       initContainers:
@@ -166,6 +166,8 @@ spec:
           ports:
             - name: auth
               containerPort: 3724
+              hostPort: 3724
+              hostIP: 192.168.1.197
               protocol: TCP
           readinessProbe:
             tcpSocket:
