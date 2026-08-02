@@ -1,0 +1,81 @@
+# These policies are deliberately inert while Cilium is configured with
+# policyEnforcementMode: never. They document and validate the narrow ingress
+# contracts needed before any future policy-enforcement rollout.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: immich-postgres-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: immich-postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: immich-server
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: immich-redis-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: immich-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: immich-server
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: immich-machine-learning-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: immich-machine-learning
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: immich-server
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 3003

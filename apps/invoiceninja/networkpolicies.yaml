@@ -1,0 +1,55 @@
+# These policies are deliberately inert while Cilium is configured with
+# policyEnforcementMode: never. They document and validate the narrow ingress
+# contracts needed before any future policy-enforcement rollout.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: invoiceninja-mysql-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: invoiceninja-mysql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: invoiceninja
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 3306
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: invoiceninja-redis-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: invoiceninja-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: invoiceninja
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 6379

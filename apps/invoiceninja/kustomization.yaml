@@ -17,3 +17,4 @@ resources:
   - deployment.yaml
   - service.yaml
   - ../../secrets/invoiceninja.enc.yaml
+  - networkpolicies.yaml

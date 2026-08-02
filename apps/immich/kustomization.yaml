@@ -20,3 +20,4 @@ resources:
   - redis.yaml
   - server.yaml
   - machine-learning.yaml
+  - networkpolicies.yaml
