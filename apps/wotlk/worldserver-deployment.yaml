@@ -20,10 +20,10 @@ spec:
       annotations:
         kubectl.kubernetes.io/restartedAt: "2026-01-06T00:27:35Z"
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
+      # Preserve the OCI edge's fixed game listener while keeping the Pod in
+      # the Cilium network. SOAP deliberately remains ClusterIP-only below.
       nodeSelector:
-          kubernetes.io/hostname: metal4
+        kubernetes.io/hostname: metal4
       initContainers:
         - name: db-import
           image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-470a4d7ee8088a8d442c921bae81af5a2b4a7ad7
@@ -250,8 +250,11 @@ spec:
           ports:
             - name: world
               containerPort: 8085
+              hostPort: 8085
+              hostIP: 192.168.1.47
               protocol: TCP
             - name: soap
+              # No hostPort: this administrative interface is service-only.
               containerPort: 7878
               protocol: TCP
           startupProbe:
