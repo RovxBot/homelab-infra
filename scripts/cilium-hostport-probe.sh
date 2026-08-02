@@ -109,6 +109,11 @@ spec:
               port: http
             periodSeconds: 2
             failureThreshold: 30
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 6
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
