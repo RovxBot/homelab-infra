@@ -13,9 +13,9 @@
   ],
   "rebaseWhen": "behind-base-branch",
   "prCreation": "immediate",
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 5,
-  "branchConcurrentLimit": 5,
+  "prHourlyLimit": 3,
+  "prConcurrentLimit": 8,
+  "branchConcurrentLimit": 8,
   "dependencyDashboardTitle": "Renovate Dependency Dashboard",
   "enabledManagers": [
     "dockerfile",
@@ -49,6 +49,16 @@
       ],
       "matchFileNames": [
         "clusters/home/flux-system/gotk-components.yaml"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Cilium OCI chart upgrades require the dedicated primary-CNI maintenance runbook; avoid an unresolvable digest lookup.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchFileNames": [
+        "infra/cilium/ocirepository.yaml"
       ],
       "enabled": false
     },
@@ -312,6 +322,19 @@
       ],
       "groupName": "gpu-operator",
       "groupSlug": "gpu-operator",
+      "automerge": false
+    },
+    {
+      "description": "Require a maintenance decision before cluster-control Helm upgrades.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchFileNames": [
+        "infra/kyverno/helmrelease.yaml",
+        "infra/longhorn/longhorn-helmrelease.yaml",
+        "infra/gpu-operator/helmrelease.yaml"
+      ],
+      "dependencyDashboardApproval": true,
       "automerge": false
     },
     {
