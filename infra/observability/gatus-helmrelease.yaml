@@ -280,22 +280,24 @@ spec:
             - "[STATUS] < 300"
           alerts:
             - type: github
-        - name: homepage-public
-          group: external
+        - name: homepage-access-gate
+          group: edge-access
           url: https://homepage.cooked.beer
           interval: 1m
+          client:
+            ignore-redirect: true
           conditions:
-            - "[STATUS] >= 200"
-            - "[STATUS] < 300"
+            - "[STATUS] == 302"
           alerts:
             - type: github
-        - name: homepage-assets-public
-          group: external
+        - name: homepage-assets-access-gate
+          group: edge-access
           url: https://homepage.cooked.beer/assets/998981.jpg
           interval: 1m
+          client:
+            ignore-redirect: true
           conditions:
-            - "[STATUS] >= 200"
-            - "[STATUS] < 300"
+            - "[STATUS] == 302"
           alerts:
             - type: github
         - name: vaultwarden-public
@@ -316,40 +318,44 @@ spec:
             - "[STATUS] < 400"
           alerts:
             - type: github
-        - name: radarr-public
-          group: external
+        - name: radarr-access-gate
+          group: edge-access
           url: https://radarr.cooked.beer
           interval: 1m
+          client:
+            ignore-redirect: true
           conditions:
-            - "[STATUS] >= 200"
-            - "[STATUS] < 300"
+            - "[STATUS] == 302"
           alerts:
             - type: github
-        - name: sonarr-public
-          group: external
+        - name: sonarr-access-gate
+          group: edge-access
           url: https://sonarr.cooked.beer
           interval: 1m
+          client:
+            ignore-redirect: true
           conditions:
-            - "[STATUS] >= 200"
-            - "[STATUS] < 300"
+            - "[STATUS] == 302"
           alerts:
             - type: github
-        - name: prowlarr-public
-          group: external
+        - name: prowlarr-access-gate
+          group: edge-access
           url: https://prowlarr.cooked.beer
           interval: 1m
+          client:
+            ignore-redirect: true
           conditions:
-            - "[STATUS] >= 200"
-            - "[STATUS] < 300"
+            - "[STATUS] == 302"
           alerts:
             - type: github
-        - name: sabnzbd-public
-          group: external
+        - name: sabnzbd-access-gate
+          group: edge-access
           url: https://sabnzbd.cooked.beer
           interval: 1m
+          client:
+            ignore-redirect: true
           conditions:
-            - "[STATUS] >= 200"
-            - "[STATUS] < 300"
+            - "[STATUS] == 302"
           alerts:
             - type: github
         - name: jellyseerr-public
