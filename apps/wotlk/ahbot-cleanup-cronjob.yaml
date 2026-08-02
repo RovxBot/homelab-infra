@@ -17,6 +17,7 @@ spec:
       backoffLimit: 0
       template:
         spec:
+          automountServiceAccountToken: false
           restartPolicy: Never
           containers:
             - name: mariadb-client
