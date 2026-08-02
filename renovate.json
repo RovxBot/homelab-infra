@@ -13,9 +13,9 @@
   ],
   "rebaseWhen": "behind-base-branch",
   "prCreation": "immediate",
-  "prHourlyLimit": 3,
-  "prConcurrentLimit": 8,
-  "branchConcurrentLimit": 8,
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 3,
+  "branchConcurrentLimit": 3,
   "dependencyDashboardTitle": "Renovate Dependency Dashboard",
   "enabledManagers": [
     "dockerfile",
