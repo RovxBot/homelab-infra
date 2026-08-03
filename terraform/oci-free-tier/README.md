@@ -33,6 +33,33 @@ The optional `wireguard_peer_config` is stored in the encrypted
 `wireguard-peer-config.enc.yaml` file. Do not place the configuration or its
 private keys in `terraform.tfvars` or normal Terraform Cloud variables.
 
+`wireguard_admin_public_key` is optional non-secret public key material for the
+administrator's private `10.77.0.3/32` peer. Set it in the WireGuard HCP
+Terraform workspace before any boot-volume replacement so a fresh root
+restores the private-only SSH path. The corresponding private key must remain
+outside this repository.
+
+## Ubuntu LTS boot-volume replacement
+
+The current edge must move from Ubuntu 20.04 to a pinned Canonical Ubuntu 24.04
+x86_64 image. Do not use a dynamic image data source or a sequential
+`do-release-upgrade`. Instead, update `wireguard_image_ocid` in the existing
+WireGuard workspace only after the private management path and fresh-bootstrap
+configuration are verified.
+
+The instance resource preserves the previous boot volume during a successful
+Linux image replacement. Review the HCP plan carefully: it must show only an
+in-place update of `oci_core_instance.wireguard.source_details`, never VCN,
+subnet, NSG, VNIC, reserved public IP, or instance destruction. Confirm the
+temporary preserved boot volume remains within the tenancy's Always Free block
+storage allowance, then delete it only after the new root passes WireGuard,
+SSH, Caddy, firewall, Immich/Jellyfin and WotLK health checks.
+
+Changing cloud-init source in Terraform prepares a **future fresh boot**; it
+does not re-run cloud-init on the already-running VPS. Apply the reviewed unit
+and SSH hardening manually over the private management path before scheduling
+the boot-volume replacement.
+
 For a local plan:
 
 ```bash

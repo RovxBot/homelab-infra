@@ -149,6 +149,28 @@ variable "wireguard_peer_config" {
   sensitive   = true
 }
 
+variable "wireguard_admin_public_key" {
+  description = "Optional WireGuard public key for the private administrator peer restored on fresh edge boot volumes."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = trimspace(var.wireguard_admin_public_key) == "" || can(regex("^[A-Za-z0-9+/]{43}=$", trimspace(var.wireguard_admin_public_key)))
+    error_message = "wireguard_admin_public_key must be empty or a WireGuard public key."
+  }
+}
+
+variable "wireguard_admin_address" {
+  description = "IPv4 /32 assigned to the private WireGuard administrator peer."
+  type        = string
+  default     = "10.77.0.3/32"
+
+  validation {
+    condition     = can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/32$", var.wireguard_admin_address)) && can(cidrhost(var.wireguard_admin_address, 0))
+    error_message = "wireguard_admin_address must be an IPv4 /32 CIDR."
+  }
+}
+
 variable "matrix_enabled" {
   description = "Legacy in-module Matrix switch. Disabled by default while Matrix is extracted into an independent provision."
   type        = bool
