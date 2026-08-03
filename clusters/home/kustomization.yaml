@@ -13,3 +13,4 @@ resources:
   - apps/invoiceninja-kustomization.yaml
   - apps/wotlk-kustomization.yaml
   - infrastructure/longhorn-node-disks-kustomization.yaml
+  - apps/memos-kustomization.yaml

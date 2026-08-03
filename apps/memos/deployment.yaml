@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memos
+  namespace: memos
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app: memos
+
+  template:
+    metadata:
+      labels:
+        app: memos
+
+    spec:
+      automountServiceAccountToken: false
+
+      # Prevent Kubernetes from injecting MEMOS_PORT based on the
+      # Service name.
+      enableServiceLinks: false
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: memos
+          image: neosmemo/memos:0.29.1@sha256:3e1253477066eb2aefa91145f7f9038bb931ed88c8a3ee05310a933594cdba7d
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 5230
+
+          env:
+            - name: MEMOS_PORT
+              value: "5230"
+
+            - name: MEMOS_ADDR
+              value: "0.0.0.0"
+
+            - name: MEMOS_DRIVER
+              value: sqlite
+
+            - name: MEMOS_DATA
+              value: /var/opt/memos
+
+            - name: MEMOS_INSTANCE_URL
+              value: https://memos.cooked.beer
+
+            - name: TZ
+              value: Australia/Adelaide
+
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/opt/memos
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: memos-data
