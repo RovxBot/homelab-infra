@@ -37,7 +37,7 @@ spec:
 
       containers:
         - name: memos
-          image: neosmemo/memos:0.29.1
+          image: neosmemo/memos:0.29.1@sha256:3e1253477066eb2aefa91145f7f9038bb931ed88c8a3ee05310a933594cdba7d
           imagePullPolicy: IfNotPresent
 
           ports:
