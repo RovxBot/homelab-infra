@@ -1,0 +1,35 @@
+# This policy is currently documentary while Cilium
+# policyEnforcementMode remains "never".
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: memos-ingress
+  namespace: memos
+spec:
+  podSelector:
+    matchLabels:
+      app: memos
+
+  policyTypes:
+    - Ingress
+
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+          podSelector:
+            matchLabels:
+              app: cloudflared
+
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+
+      ports:
+        - protocol: TCP
+          port: 5230
