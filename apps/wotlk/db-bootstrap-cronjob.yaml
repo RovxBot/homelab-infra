@@ -23,7 +23,7 @@ spec:
               emptyDir: {}
           initContainers:
             - name: clone-acore
-              image: alpine/git:2.47.2
+              image: alpine/git:v2.54.0@sha256:729da2347ce652f30476b064198577fe12e1147e58499be9f343039343ef2cee
               resources:
                 requests:
                   cpu: 100m
@@ -54,7 +54,7 @@ spec:
                   mountPath: /work
           containers:
             - name: mariadb-client
-              image: mysql:8.0
+              image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
               resources:
                 requests:
                   cpu: 250m
