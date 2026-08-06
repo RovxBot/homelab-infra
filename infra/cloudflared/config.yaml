@@ -23,4 +23,8 @@ ingress:
     service: http://grimguzzler-registration.wotlk.svc.cluster.local:80
   - hostname: invoice.cooked.beer
     service: http://invoiceninja.invoiceninja.svc.cluster.local:80
+  - hostname: memos.cooked.beer
+    service: http://memos-web.memos.svc.cluster.local:80
+    
   - service: http_status:404
+

@@ -4,6 +4,12 @@ The hosted Renovate GitHub App is the sole dependency-update runner for this
 repository. It owns the Dependency Dashboard and creates reviewable PRs.
 There is intentionally no scheduled Renovate GitHub Actions workflow.
 
+Renovate creates at most three open dependency branches/PRs and at most two
+new PRs per hour. This keeps the review queue aligned with the single-owner
+maintenance cadence. Security PRs can still bypass the normal concurrent limit.
+The limits do not close existing PRs; triage or close those explicitly from the
+Dashboard.
+
 All Renovate automerge is disabled. A generated PR is a prompt for review, not
 permission to deploy it. Check the manifest or Terraform diff, CI status,
 release notes and any relevant maintenance boundary before merging.
@@ -19,6 +25,10 @@ release notes and any relevant maintenance boundary before merging.
    update from the current base.
 4. After a merged GitOps change, verify Flux and the affected workload before
    selecting the next update.
+
+`main` requires branches to be current before merge, so Renovate deliberately
+rebases a dependency PR after `main` advances. Treat the regenerated commit as
+a fresh review: wait for CI again and renew the required code-owner approval.
 
 ## Required approval gates
 

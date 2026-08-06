@@ -77,7 +77,7 @@ spec:
             - name: dbimport-logs
               mountPath: /azerothcore/env/dist/logs
         - name: render-config
-          image: alpine:3.20
+          image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
           resources:
             requests:
               cpu: 50m
@@ -291,7 +291,7 @@ spec:
               cpu: "6"
               memory: 16Gi
         - name: aq40-log-collector
-          image: alpine:3.20
+          image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
           resources:
             requests:
               cpu: 10m

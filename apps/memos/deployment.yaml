@@ -1,91 +1,110 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: invoiceninja-redis
-  namespace: invoiceninja
+  name: memos
+  namespace: memos
 spec:
-  revisionHistoryLimit: 2
   replicas: 1
+  revisionHistoryLimit: 2
+
   strategy:
     type: Recreate
+
   selector:
     matchLabels:
-      app: invoiceninja-redis
+      app: memos
+
   template:
     metadata:
       labels:
-        app: invoiceninja-redis
+        app: memos
+
     spec:
       automountServiceAccountToken: false
+
+      # Prevent Kubernetes from injecting MEMOS_PORT based on the
+      # Service name.
+      enableServiceLinks: false
+
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+
       containers:
-        - name: redis
-          image: redis:8.10-alpine@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
+        - name: memos
+          image: neosmemo/memos:0.30.0@sha256:71a5b4738d1bed96e92112004054f0888e92791b64eb78afd79077c96e6f9327
           imagePullPolicy: IfNotPresent
-          args:
-            - redis-server
-            - --save
-            - ""
-            - --appendonly
-            - "no"
-            - --stop-writes-on-bgsave-error
-            - "no"
+
           ports:
-            - containerPort: 6379
-              name: redis
+            - name: http
+              containerPort: 5230
+
+          env:
+            - name: MEMOS_PORT
+              value: "5230"
+
+            - name: MEMOS_ADDR
+              value: "0.0.0.0"
+
+            - name: MEMOS_DRIVER
+              value: sqlite
+
+            - name: MEMOS_DATA
+              value: /var/opt/memos
+
+            - name: MEMOS_INSTANCE_URL
+              value: https://memos.cooked.beer
+
+            - name: TZ
+              value: Australia/Adelaide
+
           startupProbe:
             tcpSocket:
-              port: redis
+              port: http
             periodSeconds: 5
             failureThreshold: 60
+
           readinessProbe:
             tcpSocket:
-              port: redis
+              port: http
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 6
+
           livenessProbe:
             tcpSocket:
-              port: redis
+              port: http
             periodSeconds: 20
             timeoutSeconds: 2
             failureThreshold: 3
+
           volumeMounts:
-            - name: redis-data
-              mountPath: /data
+            - name: data
+              mountPath: /var/opt/memos
+
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+
           resources:
             requests:
-              cpu: 50m
-              memory: 256Mi
+              cpu: 25m
+              memory: 64Mi
             limits:
               cpu: 500m
               memory: 512Mi
+
       volumes:
-        - name: redis-data
-          emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: invoiceninja-redis
-  namespace: invoiceninja
-spec:
-  selector:
-    app: invoiceninja-redis
-  ports:
-    - name: redis
-      port: 6379
-      targetPort: 6379
+        - name: data
+          persistentVolumeClaim:
+            claimName: memos-data
