@@ -20,6 +20,7 @@ spec:
       annotations:
         kubectl.kubernetes.io/restartedAt: "2026-01-06T00:27:35Z"
     spec:
+      automountServiceAccountToken: false
       # Preserve the OCI edge's fixed game listener while keeping the Pod in
       # the Cilium network. SOAP deliberately remains ClusterIP-only below.
       nodeSelector:

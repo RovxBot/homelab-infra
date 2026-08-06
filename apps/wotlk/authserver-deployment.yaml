@@ -20,6 +20,7 @@ spec:
       annotations:
         kubectl.kubernetes.io/restartedAt: "2026-01-06T00:27:35Z"
     spec:
+      automountServiceAccountToken: false
       # Keep the legacy client listener on its fixed LAN address while the Pod
       # remains in the Cilium network and retains normal Kubernetes DNS.
       nodeSelector:

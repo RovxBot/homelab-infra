@@ -14,6 +14,7 @@ spec:
       labels:
         app: wotlk-mariadb
     spec:
+      automountServiceAccountToken: false
       priorityClassName: wotlk-critical
       containers:
         - name: mysql
