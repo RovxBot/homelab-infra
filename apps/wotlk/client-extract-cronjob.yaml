@@ -33,7 +33,7 @@ spec:
                 name: wotlk-mmaps-config
           containers:
             - name: extract
-              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-test-staging-470a4d7ee8088a8d442c921bae81af5a2b4a7ad7
+              image: ghcr.io/rovxbot/azerothcore-wotlk:tools-test-staging-bf09058d02d9ca4ac69560d4a0f5f06508361451
               imagePullPolicy: Always
               resources:
                 requests:
