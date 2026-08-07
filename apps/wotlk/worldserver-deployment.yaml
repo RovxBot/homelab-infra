@@ -248,6 +248,21 @@ spec:
                   key: MARIADB_PASSWORD
             - name: AC_PLAYERBOTS_DATABASE_INFO
               value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_playerbots"
+            # These are inert until Cluster.Enabled=1. They make the rendered
+            # Pod ready for the staged ToCloud9 cutover without exposing the
+            # current legacy listener to the clustering control plane.
+            - name: TC9_GUID_PROVIDER_ADDRESS
+              value: tocloud9-guidserver:8996
+            - name: TC9_SERVERS_REGISTRY_ADDRESS
+              value: tocloud9-servers-registry:8999
+            - name: TC9_MATCHMAKING_ADDRESS
+              value: tocloud9-matchmakingserver:8994
+            - name: TC9_NATS_URL
+              value: nats://tocloud9-nats:4222
+            - name: TC9_GRPC_PORT
+              value: "9509"
+            - name: TC9_HEALTH_CHECK_PORT
+              value: "9604"
           ports:
             - name: world
               containerPort: 8085
@@ -257,6 +272,14 @@ spec:
             - name: soap
               # No hostPort: this administrative interface is service-only.
               containerPort: 7878
+              protocol: TCP
+            - name: tc9-grpc
+              # Reserved for ToCloud9's gateway-to-worldserver RPC after the
+              # documented cutover. It is not externally published.
+              containerPort: 9509
+              protocol: TCP
+            - name: tc9-health
+              containerPort: 9604
               protocol: TCP
           startupProbe:
             tcpSocket:

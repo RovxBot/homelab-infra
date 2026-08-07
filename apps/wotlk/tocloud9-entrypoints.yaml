@@ -1,0 +1,168 @@
+# These are intentionally scaled to zero during staging. Enable them only in
+# the cutover described in CLUSTERING.md, when every worldserver image has the
+# real libsidecar linked in and Cluster.Enabled is set to 1.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wotlk-tocloud9-authserver
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: wotlk-tocloud9-authserver
+  template:
+    metadata:
+      labels:
+        app: wotlk-tocloud9-authserver
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: metal7
+      containers:
+        - name: authserver
+          image: ghcr.io/walkline/authserver:v0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "3724"
+            - name: DB_SCHEMA_TYPE
+              value: ac
+            - name: DB_HOST
+              value: wotlk-mariadb-headless.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: AUTH_DB_CONNECTION
+              value: "$(DB_USER):$(DB_PASSWORD)@tcp($(DB_HOST):$(DB_PORT))/acore_auth"
+            - name: SERVERS_REGISTRY_SERVICE_ADDRESS
+              value: tocloud9-servers-registry:8999
+          ports:
+            - name: auth
+              containerPort: 3724
+              hostPort: 3724
+              hostIP: 192.168.1.197
+          readinessProbe:
+            tcpSocket:
+              port: auth
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: auth
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wotlk-tocloud9-gateway
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: wotlk-tocloud9-gateway
+  template:
+    metadata:
+      labels:
+        app: wotlk-tocloud9-gateway
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: metal4
+      containers:
+        - name: gateway
+          image: ghcr.io/walkline/gateway:v0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PREFERRED_HOSTNAME
+              value: 192.168.1.47
+            - name: PORT
+              value: "8085"
+            - name: HEALTH_CHECK_PORT
+              value: "8900"
+            - name: LOG_LEVEL
+              value: "0"
+            - name: REDIS_URL
+              value: redis://tocloud9-redis-headless:6379/0
+            - name: NATS_URL
+              value: nats://tocloud9-nats:4222
+            - name: SERVERS_REGISTRY_SERVICE_ADDRESS
+              value: tocloud9-servers-registry:8999
+            - name: CHAR_SERVICE_ADDRESS
+              value: tocloud9-charserver:8087
+            - name: CHAT_SERVICE_ADDRESS
+              value: tocloud9-chatserver:8992
+            - name: GUILDS_SERVICE_ADDRESS
+              value: tocloud9-guildserver:8995
+            - name: MAIL_SERVICE_ADDRESS
+              value: tocloud9-mailserver:8997
+            - name: AUCTION_HOUSE_SERVICE_ADDRESS
+              value: tocloud9-auctionhouse:8993
+            - name: GROUP_SERVICE_ADDRESS
+              value: tocloud9-groupserver:8998
+            - name: MATCHMAKING_SERVICE_ADDRESS
+              value: tocloud9-matchmakingserver:8994
+            - name: DB_SCHEMA_TYPE
+              value: ac
+            - name: DB_HOST
+              value: wotlk-mariadb-headless.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: AUTH_DB_CONNECTION
+              value: "$(DB_USER):$(DB_PASSWORD)@tcp($(DB_HOST):$(DB_PORT))/acore_auth"
+          ports:
+            - name: world
+              containerPort: 8085
+              hostPort: 8085
+              hostIP: 192.168.1.47
+            - name: health
+              containerPort: 8900
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: health
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

@@ -69,6 +69,31 @@ RUN /usr/local/bin/apt-update                                            \
 
 WORKDIR /azerothcore
 
+FROM skeleton AS libsidecar-assets
+
+# AzerothCore's clustering code links against ToCloud9's real libsidecar.
+# Keep the binary and headers from one immutable release together; the library
+# statically contains its gRPC/NATS dependencies.
+ARG TARGETARCH
+ARG LIBSIDECAR_VERSION=1.0.0
+
+RUN /usr/local/bin/apt-update \
+    && apt-get install -y --no-install-recommends curl tar \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN case "${TARGETARCH}" in \
+      amd64) libsidecar_arch=x64; checksum=66dd7fc68960c1b48491f998107ad64991124f258ebac8ac95a8560aa34d00ae ;; \
+      arm64) libsidecar_arch=arm64; checksum=5d6190db1e56da0d6843e2e0a88ef281c5b81eeb1bb5ed35795928289306e871 ;; \
+      *) echo "Unsupported libsidecar architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && archive="libsidecar-cpp-${LIBSIDECAR_VERSION}-linux-${libsidecar_arch}.tar.gz" \
+    && curl --fail --location --retry 5 --retry-all-errors \
+      --output "/tmp/${archive}" \
+      "https://github.com/walkline/ToCloud9/releases/download/libsidecar-v${LIBSIDECAR_VERSION}/${archive}" \
+    && echo "${checksum}  /tmp/${archive}" | sha256sum -c - \
+    && mkdir -p /opt/libsidecar \
+    && tar -xzf "/tmp/${archive}" -C /opt/libsidecar
+
 FROM skeleton AS build
 
 ARG CAPPS_BUILD="all"
@@ -105,6 +130,8 @@ COPY conf /azerothcore/conf
 COPY deps /azerothcore/deps
 COPY src /azerothcore/src
 COPY modules /azerothcore/modules
+COPY --from=libsidecar-assets /opt/libsidecar/include/ /azerothcore/deps/libsidecar/include/
+COPY --from=libsidecar-assets /opt/libsidecar/lib/libsidecar.so /azerothcore/deps/libsidecar/libsidecar.so
 
 ARG CACHEBUST=1
 
@@ -126,6 +153,7 @@ RUN --mount=type=cache,id=ccache,target=/ccache,sharing=locked \
        -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"          \
        -DCMAKE_C_COMPILER_LAUNCHER="ccache"            \
        -DBoost_USE_STATIC_LIBS="ON"                    \
+       -DUSE_REAL_LIBSIDECAR=ON                         \
        ${CMAKE_EXTRA_OPTIONS} \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
@@ -150,6 +178,10 @@ RUN /usr/local/bin/apt-update && \
       libmysqlclient21 libreadline8 \
       gettext-base default-mysql-client && \
     rm -rf /var/lib/apt/lists/*
+
+# worldserver is linked against this shared library when clustering is enabled.
+COPY --from=libsidecar-assets /opt/libsidecar/lib/libsidecar.so /usr/local/lib/libsidecar.so
+RUN ldconfig
 
 COPY --from=build /azerothcore/env/dist/etc/ /azerothcore/env/ref/etc
 COPY --from=module-conf-assets /module-conf-assets/ /azerothcore/env/ref/etc/modules/
