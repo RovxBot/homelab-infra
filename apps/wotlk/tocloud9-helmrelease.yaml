@@ -1,0 +1,79 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tocloud9
+  namespace: wotlk
+spec:
+  interval: 30m
+  releaseName: tocloud9
+  chart:
+    spec:
+      chart: ./chart
+      interval: 12h
+      sourceRef:
+        kind: GitRepository
+        name: tocloud9
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  valuesFrom:
+    - kind: Secret
+      name: wotlk-mariadb-auth
+      valuesKey: MARIADB_USER
+      targetPath: databases.db_user
+    - kind: Secret
+      name: wotlk-mariadb-auth
+      valuesKey: MARIADB_PASSWORD
+      targetPath: databases.db_password
+  values:
+    # This release supplies only ToCloud9 coordination services. The existing
+    # database, customized worldserver image, and LAN HostPorts remain owned by
+    # this repository's manifests.
+    mysql:
+      enabled: false
+    databases:
+      db_schema_type: ac
+      external_db_hostname: wotlk-mariadb-headless.wotlk.svc.cluster.local
+      external_db_port: "3306"
+      db_auth_name: acore_auth
+      db_characters_name: acore_characters
+      db_world_name: acore_world
+    authserver:
+      replicaCount: 0
+    gateway:
+      replicaCount: 0
+    gameserver_ac:
+      replicaCount: 0
+      initcontainer:
+        download_enabled: false
+    servers_registry:
+      image:
+        tag: v0.1.0
+    guildserver:
+      image:
+        tag: v0.1.0
+    guidserver:
+      image:
+        tag: v0.1.0
+    chatserver:
+      image:
+        tag: v0.1.0
+    charserver:
+      image:
+        tag: v0.1.0
+    groupserver:
+      image:
+        tag: v0.1.0
+    mailserver:
+      image:
+        tag: v0.1.0
+    auctionhouse:
+      image:
+        tag: v0.1.0
+    matchmakingserver:
+      image:
+        tag: v0.1.0

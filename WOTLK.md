@@ -18,6 +18,7 @@ Key manifests live under:
 - `apps/wotlk/kustomization.yaml` (ConfigMap generator for worldserver config)
 - `apps/wotlk/authserver-config.yaml`
 - `apps/wotlk/db-bootstrap-cronjob.yaml`
+- `apps/wotlk/CLUSTERING.md` (staged ToCloud9 cluster cutover)
 
 ## Prebuilt images
 
@@ -37,6 +38,9 @@ Tags vary by build and component. The deployments in `apps/wotlk/` reference the
 
 Important:
 - `db-import` must be rebuilt and redeployed whenever `worldserver` or `authserver` images are rebuilt for an AzerothCore update, because it is the component that applies the database migrations before the servers start.
+- Clustering is a deliberate cutover, not a replica-count change. Build a
+  libsidecar-enabled image and follow `apps/wotlk/CLUSTERING.md`; clustered
+  worldservers must only accept traffic from the ToCloud9 gateway.
 
 ## Licensing and upstreams
 

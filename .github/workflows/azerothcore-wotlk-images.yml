@@ -323,6 +323,8 @@ jobs:
           image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
           docker run --rm --entrypoint bash "${image}" -lc '
             set -euo pipefail
+            test -f /usr/local/lib/libsidecar.so
+            ldd /azerothcore/env/dist/bin/worldserver | grep -q "libsidecar.so"
             for path in \
               /azerothcore/env/dist/bin/worldserver \
               /azerothcore/bin/worldserver \
