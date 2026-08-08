@@ -3,15 +3,13 @@ kind: Deployment
 metadata:
   name: wotlk-worldserver
 spec:
-  replicas: 2
+  replicas: 1
   revisionHistoryLimit: 2
   strategy:
-    # The old direct listener and the gateway use the same LAN port. Recreate
-    # releases that HostPort before the gateway is scheduled.
-    type: Recreate
-    # Explicitly clear the legacy rolling-update fields on the existing
-    # Deployment; Kubernetes rejects them with a Recreate strategy.
-    rollingUpdate: null
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: wotlk-worldserver
@@ -23,61 +21,61 @@ spec:
         kubectl.kubernetes.io/restartedAt: "2026-01-06T00:27:35Z"
     spec:
       automountServiceAccountToken: false
-      # Force the two worldservers onto separate Kubernetes nodes. Their game
-      # listener remains cluster-internal; the gateway owns the public port.
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app: wotlk-worldserver
-              topologyKey: kubernetes.io/hostname
+      # Preserve the OCI edge's fixed game listener while keeping the Pod in
+      # the Cilium network. SOAP deliberately remains ClusterIP-only below.
+      nodeSelector:
+        kubernetes.io/hostname: metal4
       initContainers:
-        # ToCloud9's character schema is idempotent, but run it before either
-        # worldserver can start. The normal db-import init container is removed
-        # here because two replicas must not concurrently perform core/module
-        # update discovery during a clustered rollout.
-        - name: tocloud9-schema
-          image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+        - name: db-import
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-8d0e19e6928389ed80abaef803cc399f4c93df92
+          imagePullPolicy: Always
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
               cpu: 250m
-              memory: 256Mi
-          command:
-            - sh
-            - -ec
-            - |
-              mysql \
-                --protocol=TCP \
-                --connect-timeout=30 \
-                --host="$DB_HOST" \
-                --port="$DB_PORT" \
-                --user="$DB_USER" \
-                "$DB_CHAR_DB" < /migrations/tocloud9-v0.1.0.sql
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
           env:
+            - name: TZ
+              value: Australia/Adelaide
+            - name: AC_DISABLE_INTERACTIVE
+              value: "1"
+            - name: AC_UPDATES_ENABLE_DATABASES
+              value: "14"
+            - name: AC_UPDATES_AUTO_SETUP
+              value: "1"
+            - name: AC_UPDATES_ALLOWED_MODULES
+              value: all
+            - name: AC_SOURCE_DIRECTORY
+              value: /azerothcore
             - name: DB_HOST
               value: wotlk-mariadb-headless.wotlk.svc.cluster.local
             - name: DB_PORT
               value: "3306"
-            - name: DB_CHAR_DB
-              value: acore_characters
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_USER
-            - name: MYSQL_PWD
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_PASSWORD
+            - name: AC_LOGIN_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_auth"
+            - name: AC_WORLD_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_world"
+            - name: AC_CHARACTER_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_characters"
+            - name: AC_PLAYERBOTS_DATABASE_INFO
+              value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_playerbots"
           volumeMounts:
-            - name: tocloud9-migrations
-              mountPath: /migrations
-              readOnly: true
+            - name: dbimport-etc
+              mountPath: /azerothcore/env/dist/etc
+            - name: dbimport-logs
+              mountPath: /azerothcore/env/dist/logs
         - name: render-config
           image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
           resources:
@@ -250,8 +248,9 @@ spec:
                   key: MARIADB_PASSWORD
             - name: AC_PLAYERBOTS_DATABASE_INFO
               value: "$(DB_HOST);$(DB_PORT);$(DB_USER);$(DB_PASSWORD);acore_playerbots"
-            # The libsidecar uses these endpoints to register this worldserver
-            # and to route distributed game operations through ToCloud9.
+            # These are inert until Cluster.Enabled=1. They make the rendered
+            # Pod ready for the staged ToCloud9 cutover without exposing the
+            # current legacy listener to the clustering control plane.
             - name: TC9_GUID_PROVIDER_ADDRESS
               value: tocloud9-guidserver:8996
             - name: TC9_SERVERS_REGISTRY_ADDRESS
@@ -267,6 +266,8 @@ spec:
           ports:
             - name: world
               containerPort: 8085
+              hostPort: 8085
+              hostIP: 192.168.1.47
               protocol: TCP
             - name: soap
               # No hostPort: this administrative interface is service-only.
@@ -281,29 +282,20 @@ spec:
               containerPort: 9604
               protocol: TCP
           startupProbe:
-            # Clear the legacy TCP probe during the server-side apply.
-            tcpSocket: null
-            httpGet:
-              path: /healthcheck
-              port: tc9-health
+            tcpSocket:
+              port: world
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 60
           readinessProbe:
-            # Clear the legacy TCP probe during the server-side apply.
-            tcpSocket: null
-            httpGet:
-              path: /healthcheck
-              port: tc9-health
+            tcpSocket:
+              port: world
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 6
           livenessProbe:
-            # Clear the legacy TCP probe during the server-side apply.
-            tcpSocket: null
-            httpGet:
-              path: /healthcheck
-              port: tc9-health
+            tcpSocket:
+              port: world
             periodSeconds: 20
             timeoutSeconds: 2
             failureThreshold: 3
@@ -372,6 +364,7 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: wotlk-data-rwx
-        - name: tocloud9-migrations
-          configMap:
-            name: wotlk-tocloud9-migrations
+        - name: dbimport-etc
+          emptyDir: {}
+        - name: dbimport-logs
+          emptyDir: {}
