@@ -20,7 +20,7 @@ spec:
         kubernetes.io/hostname: metal7
       containers:
         - name: authserver
-          image: ghcr.io/walkline/authserver:v0.1.0
+          image: ghcr.io/walkline/authserver:v0.1.0@sha256:5d25bde23fc8de92e0f95248032b257c57577b318211f7e4cfd78370033ec2e5
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
@@ -89,7 +89,7 @@ spec:
         kubernetes.io/hostname: metal4
       containers:
         - name: gateway
-          image: ghcr.io/walkline/gateway:v0.1.0
+          image: ghcr.io/walkline/gateway:v0.1.0@sha256:0d930a5c0a70cec1fdc81b0e8a11990a5874edb8d33eabe8be2d50e7122c7908
           imagePullPolicy: IfNotPresent
           env:
             - name: PREFERRED_HOSTNAME
