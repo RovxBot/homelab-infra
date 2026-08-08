@@ -37,6 +37,7 @@ resources:
   - mariadb-headless-service.yaml
   - mariadb-statefulset.yaml
   - data-pvc-rwx.yaml
+  - tocloud9-migrations-configmap.yaml
   - tocloud9-gitrepository.yaml
   - tocloud9-helmrelease.yaml
   - tocloud9-entrypoints.yaml
