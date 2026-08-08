@@ -13,9 +13,7 @@ spec:
       sourceRef:
         kind: GitRepository
         name: tocloud9
-        # apps/wotlk's namespace transformer creates this GitRepository in
-        # wotlk, not flux-system.
-        namespace: wotlk
+        namespace: flux-system
   install:
     remediation:
       retries: 3
@@ -50,9 +48,6 @@ spec:
       replicaCount: 0
     gameserver_ac:
       replicaCount: 0
-      # The chart creates this PVC even at zero replicas. Use a real RWX class
-      # rather than its upstream example placeholder.
-      storageClass: longhorn
       initcontainer:
         download_enabled: false
     servers_registry:
