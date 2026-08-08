@@ -1,11 +1,12 @@
-# These own the two fixed client listeners. Clustered worldservers are internal
-# only and register with the gateway through ToCloud9's service discovery.
+# These are intentionally scaled to zero during staging. Enable them only in
+# the cutover described in CLUSTERING.md, when every worldserver image has the
+# real libsidecar linked in and Cluster.Enabled is set to 1.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wotlk-tocloud9-authserver
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: wotlk-tocloud9-authserver
@@ -74,7 +75,7 @@ kind: Deployment
 metadata:
   name: wotlk-tocloud9-gateway
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: wotlk-tocloud9-gateway

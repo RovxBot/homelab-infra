@@ -3,9 +3,7 @@ kind: Deployment
 metadata:
   name: wotlk-authserver
 spec:
-  # The ToCloud9 authserver owns the same fixed LAN HostPort during cluster
-  # mode; scaling this legacy listener down releases port 3724 first.
-  replicas: 0
+  replicas: 1
   revisionHistoryLimit: 2
   strategy:
     type: RollingUpdate
