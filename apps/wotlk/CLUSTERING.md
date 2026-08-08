@@ -17,11 +17,6 @@ The chart's pinned Redis `7.2.3-debian-11-r1` image is pulled from
 `bitnamilegacy/redis`, because Bitnami no longer publishes that historical tag
 from its primary repository.
 
-`mod_ahbot` seller and buyer loops are disabled in cluster mode because they
-write the core auction state from each worldserver independently. ToCloud9's
-auctionhouse service remains deployed; do not re-enable these loops without a
-single-writer/leader design.
-
 The `tocloud9-schema` init container applies ToCloud9's four idempotent
 character-database migrations before each worldserver starts. The normal
 per-pod core `db-import` container is intentionally absent from the clustered
