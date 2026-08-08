@@ -8,8 +8,10 @@ gateway is the only public game endpoint once clustering is enabled.
 This deployment runs ToCloud9 `v0.1.0` with the existing MariaDB database,
 Redis, and NATS. `wotlk-tocloud9-authserver` retains `192.168.1.197:3724` and
 `wotlk-tocloud9-gateway` retains `192.168.1.47:8085`; the legacy authserver is
-scaled to zero. The two worldservers use anti-affinity and have no HostPort,
-NodePort, LoadBalancer, or public Service.
+scaled to zero. The upstream Helm chart's `replicaCount` values for its own
+authserver, gateway, and gameserver must remain quoted as `"0"`: its templates
+otherwise turn a numeric zero into one. The two worldservers use anti-affinity
+and have no HostPort, NodePort, LoadBalancer, or public Service.
 
 The `tocloud9-schema` init container applies ToCloud9's four idempotent
 character-database migrations before each worldserver starts. The normal
