@@ -89,6 +89,7 @@ RUN git init tocloud9 \
     && git fetch --depth=1 origin "${LIBSIDECAR_REV}" \
     && git checkout --detach FETCH_HEAD \
     && test "$(git rev-parse HEAD)" = "${LIBSIDECAR_REV}" \
+    && mkdir -p /api \
     && cp -a api/proto /api/proto
 
 WORKDIR /build/tocloud9/game-server/libsidecar-cpp/build
