@@ -1,48 +1,43 @@
-# ToCloud9 clustering cutover
+# ToCloud9 clustering
 
-The upstream `test-staging` cluster feature is implemented by
-[ToCloud9](https://github.com/walkline/ToCloud9). It is not safe to scale the
-legacy worldserver Deployment directly: clients must instead enter through the
-ToCloud9 gateway, which performs routing and becomes the authentication
-boundary for clustered worldservers.
+The `test-staging` cluster implementation uses
+[ToCloud9](https://github.com/walkline/ToCloud9) as its client gateway and
+coordination plane. It is unsafe to scale a legacy worldserver directly: the
+gateway is the only public game endpoint once clustering is enabled.
 
-This directory stages ToCloud9 `v0.1.0`'s coordination services through Flux.
-The two public entrypoints are intentionally `replicas: 0`, and the existing
-worldserver remains non-clustered, so applying this change does not alter the
-running realm.
+This deployment runs ToCloud9 `v0.1.0` with the existing MariaDB database,
+Redis, and NATS. `wotlk-tocloud9-authserver` retains `192.168.1.197:3724` and
+`wotlk-tocloud9-gateway` retains `192.168.1.47:8085`; the legacy authserver is
+scaled to zero. The upstream Helm chart's `replicaCount` values for its own
+authserver, gateway, and gameserver must remain quoted as `"0"`: its templates
+otherwise turn a numeric zero into one. The two worldservers use anti-affinity
+and have no HostPort, NodePort, LoadBalancer, or public Service.
 
-## Prerequisites
+The chart's pinned Redis `7.2.3-debian-11-r1` image is pulled from
+`bitnamilegacy/redis`, because Bitnami no longer publishes that historical tag
+from its primary repository.
 
-1. Run the **Build AzerothCore WotLK images** workflow with `build_scope=all`.
-   The image Dockerfile now downloads the architecture-matched, checksum-locked
-   `libsidecar` 1.0.0 release and builds with `USE_REAL_LIBSIDECAR=ON`.
-2. Merge the workflow's image-tag PR and check that the new worldserver logs
-   include `libsidecar initialized successfully` in a disposable test rollout.
-3. Take a consistent MariaDB backup. ToCloud9 owns shared player/item/instance
-   GUID allocation and introduces Redis/NATS state, so do not use an existing
-   production database as the first test target without a recovery point.
-4. Confirm that `192.168.1.197:3724` and `192.168.1.47:8085` remain the client
-   addresses. The staged ToCloud9 authserver and gateway retain those current
-   fixed LAN bindings.
+`mod_ahbot` seller and buyer loops are disabled in cluster mode because they
+write the core auction state from each worldserver independently. ToCloud9's
+auctionhouse service remains deployed; do not re-enable these loops without a
+single-writer/leader design.
 
-## Cutover
+The `tocloud9-schema` init container applies ToCloud9's four idempotent
+character-database migrations before each worldserver starts. The normal
+per-pod core `db-import` container is intentionally absent from the clustered
+Deployment, since it is not safe to discover and apply arbitrary core/module
+updates concurrently. Run a one-off database-import Job for future image
+upgrades before scaling or restarting both clustered worldservers.
 
-Perform the following in one reviewed change, during a maintenance window:
+## Validation after a cutover
 
-1. Change `Cluster.Enabled` to `1` in `config/worldserver.conf` and leave
-   `Cluster.IsCrossrealm=0` for this single-realm deployment.
-2. The `TC9_*` environment settings below are already present in the
-   `worldserver` manifest. Remove its `hostPort`/`hostIP` from the `world`
-   container port, remove the `metal4` node selector, and set `replicas: 2`.
-3. Scale `wotlk-tocloud9-authserver` and `wotlk-tocloud9-gateway` to `1`, then
-   scale `wotlk-authserver` to `0`. The clustered worldserver port must have no
-   client-reachable Service, NodePort, LoadBalancer, or HostPort.
-4. Apply database migrations once before the two worldserver pods are allowed
-   to start. Do not rely on concurrent per-pod `db-import` init containers for
-   a cluster upgrade.
-5. Verify both worldserver pods register with `tocloud9-servers-registry` and
-   test map transitions, reconnects, groups, mail, auctions, and battlegrounds
-   before reopening the realm.
+1. Confirm `HelmRelease/tocloud9` is Ready and the ToCloud9 services, Redis,
+   and NATS have healthy Pods.
+2. Confirm both worldserver Pods are Ready and registered in
+   `tocloud9-servers-registry`; their `/healthcheck` endpoints provide the
+   readiness/liveness signal.
+3. Test login, reconnect, map transitions, groups, guilds, mail, auctions, and
+   battlegrounds before reopening the realm.
 
 ```yaml
 - name: TC9_GUID_PROVIDER_ADDRESS
@@ -59,14 +54,12 @@ Perform the following in one reviewed change, during a maintenance window:
   value: "9604"
 ```
 
-Use the sidecar health endpoint (`GET /healthcheck` on port `9604`) for the
-clustered worldserver readiness and liveness probes. The existing SOAP Service
-can remain cluster-internal, but its requests will land on either worldserver;
-avoid using it for a one-node-only administrative operation.
+The existing SOAP Service remains cluster-internal, but its requests can land
+on either worldserver; do not use it for a one-node-only administrative action.
 
 ## Rollback
 
 Set `Cluster.Enabled` back to `0`, scale the ToCloud9 gateway/authserver to
 zero, restore `wotlk-authserver` to one replica, and restore the legacy
-worldserver HostPort and node selector. Restore the MariaDB backup if testing
-changed data that cannot be safely retained.
+worldserver HostPort (`192.168.1.47:8085`) and `metal4` node selector. Restore
+the MariaDB backup if testing changed data that cannot be safely retained.

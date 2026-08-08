@@ -13,7 +13,9 @@ spec:
       sourceRef:
         kind: GitRepository
         name: tocloud9
-        namespace: flux-system
+        # apps/wotlk's namespace transformer creates this GitRepository in
+        # wotlk, not flux-system.
+        namespace: wotlk
   install:
     remediation:
       retries: 3
@@ -35,6 +37,12 @@ spec:
     # this repository's manifests.
     mysql:
       enabled: false
+    # ToCloud9 v0.1.0 vendors Redis chart 18.4.0, whose pinned Bitnami image
+    # was moved out of the primary registry. Keep the chart's tested Redis
+    # version while pulling that historical image from Bitnami's legacy repo.
+    redis:
+      image:
+        repository: bitnamilegacy/redis
     databases:
       db_schema_type: ac
       external_db_hostname: wotlk-mariadb-headless.wotlk.svc.cluster.local
@@ -43,11 +51,17 @@ spec:
       db_characters_name: acore_characters
       db_world_name: acore_world
     authserver:
-      replicaCount: 0
+      # The upstream template uses `default 1` before converting to an int;
+      # numeric zero is treated as empty. A string keeps these duplicate
+      # chart entrypoints disabled while this repository owns the LAN listeners.
+      replicaCount: "0"
     gateway:
-      replicaCount: 0
+      replicaCount: "0"
     gameserver_ac:
-      replicaCount: 0
+      replicaCount: "0"
+      # The chart creates this PVC even at zero replicas. Use a real RWX class
+      # rather than its upstream example placeholder.
+      storageClass: longhorn
       initcontainer:
         download_enabled: false
     servers_registry:
