@@ -13,6 +13,10 @@ authserver, gateway, and gameserver must remain quoted as `"0"`: its templates
 otherwise turn a numeric zero into one. The two worldservers use anti-affinity
 and have no HostPort, NodePort, LoadBalancer, or public Service.
 
+The chart's pinned Redis `7.2.3-debian-11-r1` image is pulled from
+`bitnamilegacy/redis`, because Bitnami no longer publishes that historical tag
+from its primary repository.
+
 The `tocloud9-schema` init container applies ToCloud9's four idempotent
 character-database migrations before each worldserver starts. The normal
 per-pod core `db-import` container is intentionally absent from the clustered
