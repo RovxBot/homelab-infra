@@ -37,6 +37,12 @@ spec:
     # this repository's manifests.
     mysql:
       enabled: false
+    # ToCloud9 v0.1.0 vendors Redis chart 18.4.0, whose pinned Bitnami image
+    # was moved out of the primary registry. Keep the chart's tested Redis
+    # version while pulling that historical image from Bitnami's legacy repo.
+    redis:
+      image:
+        repository: bitnamilegacy/redis
     databases:
       db_schema_type: ac
       external_db_hostname: wotlk-mariadb-headless.wotlk.svc.cluster.local
