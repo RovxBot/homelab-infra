@@ -4,6 +4,5 @@ resources:
   - privileged-namespaces.yaml
   - mutable-image-tags.yaml
   - chart-managed-workloads.yaml
-  - tocloud9-chart-workloads.yaml
   - gpu-operator-workloads.yaml
   - wotlk-latest-tag.yaml
