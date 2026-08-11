@@ -45,8 +45,13 @@ spec:
       matchConditions:
         - name: exclude-dynamic-longhorn-crds
           expression: >-
-            request.resource.group != "longhorn.io" ||
-            request.resource.resource == "backuptargets"
+            (request.resource.group != "longhorn.io" ||
+            request.resource.resource == "backuptargets") &&
+            (request.resource.group != "cilium.io" ||
+            request.resource.resource != "ciliumnodes") &&
+            (request.resource.group != "coordination.k8s.io" ||
+            request.resource.resource != "leases" ||
+            request.namespace != "kube-node-lease")
       resourceFiltersExcludeNamespaces:
         - kyverno
         - flux-system
