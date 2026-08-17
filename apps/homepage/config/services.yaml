@@ -12,10 +12,10 @@
         description: Photo library and shared memories
         icon: immich
         target: _blank
-    - Home Assistant (LAN):
-        href: http://192.168.1.190:31234
+    - Home Assistant:
+        href: https://home.cooked.beer
         siteMonitor: http://home-assistant.home-assistant.svc.cluster.local:8123
-        description: Home automation and device control
+        description: Home automation and device control (Entra SSO)
         icon: home-assistant
         target: _blank
 

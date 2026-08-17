@@ -4,7 +4,9 @@ metadata:
   name: home-assistant
   labels:
     homelab.cooked.beer/owner: sam
-    pod-security.kubernetes.io/enforce: baseline
+    # Home Assistant needs host networking for LAN multicast discovery.
+    # Its PodSecurity exception is scoped to this workload in Kyverno.
+    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: latest

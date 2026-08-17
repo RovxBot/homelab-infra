@@ -309,6 +309,16 @@ spec:
             - "[STATUS] == 302"
           alerts:
             - type: github
+        - name: home-assistant-access-gate
+          group: edge-access
+          url: https://home.cooked.beer
+          interval: 1m
+          client:
+            ignore-redirect: true
+          conditions:
+            - "[STATUS] == 302"
+          alerts:
+            - type: github
         - name: vaultwarden-public
           group: external
           url: https://vault.cooked.beer

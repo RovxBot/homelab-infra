@@ -63,6 +63,10 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: default-config
+              mountPath: /config/configuration.yaml
+              subPath: configuration.yaml
+              readOnly: true
           securityContext:
             # The upstream S6 init process currently runs as root. The
             # corresponding Kyverno exception is limited to this Deployment.
@@ -85,3 +89,6 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: home-assistant-config
+        - name: default-config
+          configMap:
+            name: home-assistant-default-config
