@@ -25,6 +25,7 @@ The currently intentional NodePorts are:
 | SABnzbd | 30880 |
 | Sonarr | 30989 |
 | Vaultwarden | 32080 |
+| Home Assistant | 31234 |
 
 Cloudflare Tunnel routes use cluster-internal Services, not these NodePorts.
 
@@ -32,6 +33,11 @@ Cloudflare Tunnel routes use cluster-internal Services, not these NodePorts.
 
 Keep the listed NodePorts available on the trusted LAN.  This is an explicitly
 accepted exposure, not an accidental public-ingress mechanism.
+
+Home Assistant uses its NodePort as a stable LAN endpoint for browsers and
+companion apps. Its workload also uses host networking so it can receive the
+LAN multicast traffic required for device discovery; the NodePort does not
+replace that discovery path.
 
 The home router/firewall must not forward these ports from the WAN or expose
 them through UPnP.  New NodePorts require a documented dependent service and

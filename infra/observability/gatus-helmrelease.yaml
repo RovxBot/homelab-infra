@@ -120,6 +120,15 @@ spec:
             - "[STATUS] < 300"
           alerts:
             - type: github
+        - name: home-assistant
+          group: internal
+          url: http://home-assistant.home-assistant.svc.cluster.local:8123
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 300"
+          alerts:
+            - type: github
         - name: invoice-ninja
           group: internal
           url: http://invoiceninja.invoiceninja.svc.cluster.local:80/health

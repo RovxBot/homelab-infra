@@ -14,3 +14,4 @@ resources:
   - apps/wotlk-kustomization.yaml
   - infrastructure/longhorn-node-disks-kustomization.yaml
   - apps/memos-kustomization.yaml
+  - apps/home-assistant-kustomization.yaml

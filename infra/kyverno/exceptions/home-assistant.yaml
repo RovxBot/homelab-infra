@@ -1,0 +1,30 @@
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: home-assistant
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: >-
+      Home Assistant Container requires host networking for LAN multicast
+      discovery and its upstream S6 init process currently starts as UID 0.
+      The Deployment still drops all Linux capabilities, disallows privilege
+      escalation, and uses RuntimeDefault seccomp.
+    kyverno.cooked.beer/expires-at: "2027-02-28"
+    github.cooked.beer/issue-create: "true"
+spec:
+  exceptions:
+    - policyName: platform-pod-standards
+      ruleNames:
+        - disallow-host-network
+        - require-runtime-hardening
+  match:
+    any:
+      - resources:
+          kinds:
+            - Deployment
+          names:
+            - home-assistant
+          namespaces:
+            - home-assistant
