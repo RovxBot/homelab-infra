@@ -50,7 +50,7 @@ main
      ├── kyverno-policies      → policy definitions and exceptions
      ├── longhorn-node-disks   → per-node disk definitions
      └── applications          → media, *arr, Homepage, Invoice Ninja,
-                                  Grimguzzler registration and WotLK
+                                  Grimguzzler registration, Home Assistant and WotLK
 ```
 
 | Path | Contents |
@@ -65,9 +65,9 @@ main
 
 ## Applications and exposure
 
-The primary workloads are Immich, Jellyfin and the media stack, Vaultwarden, Homepage, Invoice Ninja, Gatus, Grimguzzler registration and the WotLK realm.
+The primary workloads are Immich, Jellyfin and the media stack, Home Assistant, Vaultwarden, Homepage, Invoice Ninja, Gatus, Grimguzzler registration and the WotLK realm.
 
-Ten HTTP NodePorts are intentionally available on the trusted LAN for internal integrations. This includes the OCI edge's WireGuard path to Immich and Jellyfin. They are an accepted risk, not an accidental public-ingress model: do not forward them from the WAN or expose them through UPnP. New NodePorts need a documented dependency and review. See [ADR 0001](docs/decisions/0001-lan-nodeport-access.md) for the list and constraints.
+Eleven HTTP NodePorts are intentionally available on the trusted LAN for internal integrations. This includes the OCI edge's WireGuard path to Immich and Jellyfin, plus the stable Home Assistant frontend endpoint. They are an accepted risk, not an accidental public-ingress model: do not forward them from the WAN or expose them through UPnP. New NodePorts need a documented dependency and review. See [ADR 0001](docs/decisions/0001-lan-nodeport-access.md) for the list and constraints.
 
 Immich and Jellyfin remain public through the OCI edge by design and rely on their application login. Administrative routes should use Cloudflare Access with Entra where compatible; do not add a proxy login in front of public media clients without testing those clients first.
 
