@@ -29,6 +29,59 @@ spec:
         seccompProfile:
           type: RuntimeDefault
 
+      initContainers:
+        - name: install-airtouch2plus
+          # The custom component is not available through Home Assistant Core.
+          # Pin both the installer image and source revision so component
+          # upgrades are reviewed GitOps changes rather than mutable HACS pulls.
+          image: alpine/git:2.49.1@sha256:53a6239398162098fed2f49a46512f9cbba9e3f31b9f2cea4fa90129ee069a99
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              revision='6b0b5a90656dc13d68e6390ac6ba4989df6815fd'
+              component='/config/custom_components/airtouch2plus'
+
+              if [ -d "$component" ]; then
+                installed_revision="$(cat "$component/.gitops-revision" 2>/dev/null || true)"
+                if [ "$installed_revision" = "$revision" ]; then
+                  exit 0
+                fi
+
+                echo "Refusing to replace an unexpected AirTouch 2+ component" >&2
+                exit 1
+              fi
+
+              staging="$(mktemp -d)"
+              git clone --depth 1 https://github.com/nathanvdh/homeassistant-airtouch2plus.git "$staging/repository"
+              actual_revision="$(git -C "$staging/repository" rev-parse HEAD)"
+              test "$actual_revision" = "$revision"
+              test -f "$staging/repository/custom_components/airtouch2plus/manifest.json"
+
+              mkdir -p /config/custom_components
+              mv "$staging/repository/custom_components/airtouch2plus" "$component"
+              printf '%s\n' "$revision" > "$component/.gitops-revision"
+              echo "Installed AirTouch 2+ component for controller 192.168.20.14"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+
       containers:
         - name: home-assistant
           image: ghcr.io/home-assistant/home-assistant:2026.8.2@sha256:6e8225ea9de2cfe9292b634e554ebbf439118ca0c823221d794298e7a74404bb
