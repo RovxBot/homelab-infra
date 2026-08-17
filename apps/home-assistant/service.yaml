@@ -4,11 +4,12 @@ metadata:
   name: home-assistant
   namespace: home-assistant
 spec:
-  type: NodePort
+  # Cloudflare Tunnel and in-cluster monitoring use this service. Do not
+  # publish another unauthenticated node-level HTTP endpoint.
+  type: ClusterIP
   selector:
     app: home-assistant
   ports:
     - name: http
       port: 8123
       targetPort: http
-      nodePort: 31234

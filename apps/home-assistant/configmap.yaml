@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: home-assistant-default-config
+  namespace: home-assistant
+data:
+  configuration.yaml: |
+    default_config:
+
+    # Cloudflare Tunnel forwards client IPs through the cluster network.
+    # Trust only the Cilium pod CIDR, not arbitrary LAN clients.
+    # Home Assistant imports these settings into its HTTP configuration on
+    # first start; later changes belong in Settings > System > Network.
+    http:
+      use_x_forwarded_for: true
+      trusted_proxies:
+        - 10.245.0.0/21
