@@ -10,3 +10,132 @@ lovelace:
       title: Home
       icon: mdi:home-assistant
       show_in_sidebar: true
+
+# AirTouch auto-off controls. The timer state is visible on the dashboard and
+# its running state is restored across normal Home Assistant restarts.
+input_number:
+  airtouch_auto_off_minutes:
+    name: AirTouch auto-off duration
+    icon: mdi:timer-outline
+    min: 15
+    max: 480
+    step: 15
+    initial: 60
+    mode: slider
+    unit_of_measurement: min
+
+input_datetime:
+  airtouch_auto_off_at:
+    name: AirTouch auto-off at
+    has_date: true
+    has_time: true
+    icon: mdi:clock-end
+
+input_boolean:
+  airtouch_auto_off_armed:
+    name: AirTouch auto-off armed
+    icon: mdi:timer-check-outline
+
+timer:
+  airtouch_auto_off:
+    name: AirTouch auto-off
+    icon: mdi:timer-off-outline
+    duration: "01:00:00"
+    restore: true
+
+script:
+  airtouch_turn_on_with_timer:
+    alias: Turn on AirTouch with timer
+    description: Turn on the AirTouch system and restart its configured auto-off timer.
+    icon: mdi:air-conditioner
+    mode: restart
+    sequence:
+      - variables:
+          duration_minutes: >-
+            {{ states('input_number.airtouch_auto_off_minutes') | int(60) }}
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.airtouch_auto_off_at
+        data:
+          timestamp: >-
+            {{ now().timestamp() + ((duration_minutes | int) * 60) }}
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.airtouch_auto_off_armed
+      - action: climate.turn_on
+        target:
+          entity_id: climate.at2plus_ac_0
+      - action: timer.start
+        target:
+          entity_id: timer.airtouch_auto_off
+        data:
+          duration: >-
+            {{ '%02d:%02d:00' | format((duration_minutes | int) // 60, (duration_minutes | int) % 60) }}
+  airtouch_cancel_auto_off:
+    alias: Cancel AirTouch auto-off
+    description: Keep the AirTouch system running and cancel its auto-off timer.
+    icon: mdi:timer-cancel-outline
+    sequence:
+      - action: timer.cancel
+        target:
+          entity_id: timer.airtouch_auto_off
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.airtouch_auto_off_armed
+
+automation:
+  - id: airtouch_turn_off_when_timer_finishes
+    alias: Turn off AirTouch when auto-off timer finishes
+    description: Turn off the AirTouch system at the end of its configured countdown.
+    mode: single
+    triggers:
+      - trigger: timer.finished
+        target:
+          entity_id: timer.airtouch_auto_off
+    actions:
+      - action: climate.turn_off
+        target:
+          entity_id: climate.at2plus_ac_0
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.airtouch_auto_off_armed
+  - id: airtouch_cancel_timer_when_turned_off
+    alias: Cancel AirTouch auto-off when air conditioning is turned off
+    description: Clear the pending auto-off timer when AirTouch is switched off manually.
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: climate.at2plus_ac_0
+        to: "off"
+    actions:
+      - action: timer.cancel
+        target:
+          entity_id: timer.airtouch_auto_off
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.airtouch_auto_off_armed
+  - id: airtouch_enforce_elapsed_timer_after_restart
+    alias: Turn off AirTouch if its auto-off time elapsed during a restart
+    description: Prevent a Home Assistant outage from leaving a timed AirTouch run active.
+    mode: single
+    triggers:
+      - trigger: homeassistant
+        event: start
+    conditions:
+      - condition: state
+        entity_id: input_boolean.airtouch_auto_off_armed
+        state: "on"
+      - condition: template
+        value_template: >-
+          {{ as_timestamp(states('input_datetime.airtouch_auto_off_at'), 0)
+             <= as_timestamp(now()) }}
+    actions:
+      - action: climate.turn_off
+        target:
+          entity_id: climate.at2plus_ac_0
+      - action: timer.cancel
+        target:
+          entity_id: timer.airtouch_auto_off
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.airtouch_auto_off_armed
