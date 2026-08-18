@@ -11,7 +11,13 @@ labels:
 
 resources:
   - namespace.yaml
-  - configmap.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+
+# A hashed name updates the Deployment's volume reference, ensuring a
+# configuration change rolls Home Assistant and refreshes its subPath mount.
+configMapGenerator:
+  - name: home-assistant-default-config
+    files:
+      - configuration.yaml=config/configuration.yaml
