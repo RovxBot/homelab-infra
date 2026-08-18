@@ -15,6 +15,20 @@ views:
             features:
               - type: climate-hvac-modes
           - type: entities
+            title: AirTouch auto-off
+            show_header_toggle: false
+            entities:
+              - entity: input_number.airtouch_auto_off_minutes
+                name: Turn off after
+              - entity: script.airtouch_turn_on_with_timer
+                name: Turn on with timer
+                action_name: Start
+              - entity: timer.airtouch_auto_off
+                name: Auto-off countdown
+              - entity: script.airtouch_cancel_auto_off
+                name: Keep running
+                action_name: Cancel timer
+          - type: entities
             title: Live solar
             show_header_toggle: false
             entities:
