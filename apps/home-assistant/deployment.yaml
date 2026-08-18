@@ -120,6 +120,9 @@ spec:
               mountPath: /config/configuration.yaml
               subPath: configuration.yaml
               readOnly: true
+            - name: default-config
+              mountPath: /config/dashboards
+              readOnly: true
           securityContext:
             # The upstream S6 init process currently runs as root. The
             # corresponding Kyverno exception is limited to this Deployment.

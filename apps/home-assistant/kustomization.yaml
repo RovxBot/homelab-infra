@@ -21,3 +21,4 @@ configMapGenerator:
   - name: home-assistant-default-config
     files:
       - configuration.yaml=config/configuration.yaml
+      - home-dashboard.yaml=config/dashboards/home-dashboard.yaml

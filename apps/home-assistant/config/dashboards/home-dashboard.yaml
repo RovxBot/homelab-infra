@@ -1,0 +1,117 @@
+title: Home
+views:
+  - title: Home
+    path: home
+    icon: mdi:home
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: thermostat
+            entity: climate.at2plus_ac_0
+            name: Air conditioning
+            show_current_as_primary: true
+            features:
+              - type: climate-hvac-modes
+          - type: entities
+            title: Live solar
+            show_header_toggle: false
+            entities:
+              - entity: sensor.solarnet_power_photovoltaics
+                name: Solar production
+              - entity: sensor.solarnet_power_load_consumed
+                name: Home consumption
+              - entity: sensor.solarnet_power_grid_import
+                name: Grid import
+              - entity: sensor.solarnet_power_grid_export
+                name: Grid export
+      - type: grid
+        cards:
+          - type: heading
+            heading: AirTouch zones
+            heading_style: title
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: tile
+                entity: fan.bed1
+                name: Bedroom
+                features:
+                  - type: fan-speed
+              - type: tile
+                entity: fan.office
+                name: Office
+                features:
+                  - type: fan-speed
+              - type: tile
+                entity: fan.living
+                name: Living
+                features:
+                  - type: fan-speed
+              - type: tile
+                entity: fan.kitchen
+                name: Kitchen
+                features:
+                  - type: fan-speed
+              - type: tile
+                entity: fan.dining
+                name: Dining
+                features:
+                  - type: fan-speed
+              - type: tile
+                entity: fan.spare_room
+                name: Spare room
+                features:
+                  - type: fan-speed
+      - type: grid
+        cards:
+          - type: heading
+            heading: Energy
+            heading_style: title
+          - type: energy-date-selection
+          - type: energy-distribution
+          - type: energy-sources-table
+  - title: Solar
+    path: solar
+    icon: mdi:solar-power
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: gauge
+            entity: sensor.solarnet_power_photovoltaics
+            name: Solar production
+            min: 0
+            max: 6000
+            needle: true
+            severity:
+              green: 1000
+              yellow: 250
+              red: 0
+          - type: entities
+            title: Lifetime solar
+            show_header_toggle: false
+            entities:
+              - entity: sensor.2001614171_energy_day
+                name: Generated today
+              - entity: sensor.2001614171_energy_year
+                name: Generated this year
+              - entity: sensor.2001614171_total_energy
+                name: Generated lifetime
+      - type: grid
+        cards:
+          - type: history-graph
+            title: Power flow — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.solarnet_power_photovoltaics
+                name: Solar
+              - entity: sensor.solarnet_power_load_consumed
+                name: Home
+              - entity: sensor.solarnet_power_grid_import
+                name: Grid import
+              - entity: sensor.solarnet_power_grid_export
+                name: Grid export
