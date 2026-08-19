@@ -309,14 +309,15 @@ spec:
             - "[STATUS] == 302"
           alerts:
             - type: github
-        - name: home-assistant-access-gate
-          group: edge-access
+        # Home Assistant's own login must remain directly reachable for its
+        # mobile clients, so monitor the login endpoint rather than a
+        # Cloudflare Access redirect.
+        - name: home-assistant-login
+          group: external
           url: https://home.cooked.beer
           interval: 1m
-          client:
-            ignore-redirect: true
           conditions:
-            - "[STATUS] == 302"
+            - "[STATUS] == 200"
           alerts:
             - type: github
         - name: vaultwarden-public
