@@ -4,3 +4,5 @@ resources:
   - namespace.yaml
   - gatus-helmrepository.yaml
   - gatus-helmrelease.yaml
+  - gatus-github-issue-sync-configmap.yaml
+  - gatus-github-issue-sync-cronjob.yaml

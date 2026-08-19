@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus-github-issue-sync
+  namespace: monitoring
+  labels:
+    homelab.cooked.beer/component: gatus-alerting
+    homelab.cooked.beer/owner: sam
+data:
+  sync.py: |
+    import json
+    import os
+    import sys
+    import urllib.parse
+    import urllib.request
+    from datetime import datetime, timezone
+
+
+    def env_bool(name, default=False):
+        value = os.getenv(name)
+        if value is None:
+            return default
+        return value.lower() in {"1", "true", "yes", "on"}
+
+
+    def api_request(url, method="GET", payload=None, headers=None):
+        body = None if payload is None else json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(url, data=body, method=method, headers=headers or {})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            if response.length == 0:
+                return None
+            return json.load(response)
+
+
+    def github_headers():
+        return {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "User-Agent": "gatus-github-issue-sync",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+
+    def is_recent(timestamp):
+        if not isinstance(timestamp, str) or not timestamp:
+            return False
+        try:
+            observed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        age_seconds = (datetime.now(timezone.utc) - observed).total_seconds()
+        return 0 <= age_seconds <= MAX_RESULT_AGE_SECONDS
+
+
+    def endpoint_is_stably_healthy(endpoint):
+        results = endpoint.get("results", [])
+        if len(results) < SUCCESS_THRESHOLD:
+            return False
+        recent_results = results[-SUCCESS_THRESHOLD:]
+        return all(
+            result.get("success") is True and is_recent(result.get("timestamp"))
+            for result in recent_results
+        )
+
+
+    def healthy_alert_titles():
+        endpoints = api_request(GATUS_API_URL)
+        if isinstance(endpoints, dict):
+            endpoints = endpoints.get("endpoints", [])
+        if not isinstance(endpoints, list):
+            raise RuntimeError("Gatus returned an unexpected endpoint-status response")
+
+        titles = set()
+        for endpoint in endpoints:
+            name = endpoint.get("name")
+            group = endpoint.get("group")
+            if not isinstance(name, str) or not isinstance(group, str):
+                continue
+            if endpoint_is_stably_healthy(endpoint):
+                titles.add(f"alert(gatus): {group}/{name}")
+        return titles
+
+
+    def list_open_gatus_issues(username):
+        issues = []
+        page = 1
+        while True:
+            query = urllib.parse.urlencode(
+                {
+                    "creator": username,
+                    "page": page,
+                    "per_page": 100,
+                    "state": "open",
+                }
+            )
+            batch = api_request(f"{GITHUB_REPOSITORY_API_URL}/issues?{query}", headers=github_headers())
+            if not isinstance(batch, list):
+                raise RuntimeError("GitHub returned an unexpected issue-list response")
+            issues.extend(
+                issue
+                for issue in batch
+                if isinstance(issue.get("title"), str)
+                and issue["title"].startswith("alert(gatus): ")
+                and "pull_request" not in issue
+            )
+            if len(batch) < 100:
+                return issues
+            page += 1
+
+
+    def close_issue(issue):
+        issue_url = issue.get("url")
+        if not isinstance(issue_url, str) or not issue_url:
+            raise RuntimeError(f"Issue {issue.get('number')} has no API URL")
+        return api_request(
+            issue_url,
+            method="PATCH",
+            payload={"state": "closed", "state_reason": "completed"},
+            headers=github_headers(),
+        )
+
+
+    def main():
+        healthy_titles = healthy_alert_titles()
+        current_user = api_request(f"{GITHUB_API_ROOT}/user", headers=github_headers())
+        username = current_user.get("login") if isinstance(current_user, dict) else None
+        if not isinstance(username, str) or not username:
+            raise RuntimeError("GitHub token did not return a username")
+
+        issues_to_close = [
+            issue
+            for issue in list_open_gatus_issues(username)
+            if issue["title"] in healthy_titles
+        ]
+        if DRY_RUN:
+            print(
+                json.dumps(
+                    {
+                        "wouldClose": [
+                            {"number": issue.get("number"), "title": issue["title"]}
+                            for issue in issues_to_close
+                        ],
+                        "healthyEndpointCount": len(healthy_titles),
+                        "mode": "dry-run",
+                    }
+                )
+            )
+            return 0
+
+        closed = []
+        for issue in issues_to_close:
+            close_issue(issue)
+            closed.append({"number": issue.get("number"), "title": issue["title"]})
+
+        print(json.dumps({"closed": closed, "healthyEndpointCount": len(healthy_titles)}))
+        return 0
+
+
+    if __name__ == "__main__":
+        GATUS_API_URL = os.getenv(
+            "GATUS_API_URL",
+            "http://gatus.monitoring.svc.cluster.local/api/v1/endpoints/statuses",
+        )
+        GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+        GITHUB_API_ROOT = os.getenv("GITHUB_API_ROOT", "https://api.github.com")
+        GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "RovxBot/homelab-infra")
+        GITHUB_REPOSITORY_API_URL = f"{GITHUB_API_ROOT}/repos/{GITHUB_REPOSITORY}"
+        DRY_RUN = env_bool("DRY_RUN", False)
+        MAX_RESULT_AGE_SECONDS = int(os.getenv("MAX_RESULT_AGE_SECONDS", "900"))
+        SUCCESS_THRESHOLD = int(os.getenv("SUCCESS_THRESHOLD", "2"))
+        sys.exit(main())

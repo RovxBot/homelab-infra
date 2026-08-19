@@ -69,11 +69,20 @@ spec:
               }
 
               longhorn_ok() {
-                volume_statuses="$(kubectl get volumes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.robustness}{"\n"}{end}')" || return 1
+                volume_statuses="$(kubectl get volumes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.state}{"\t"}{.status.robustness}{"\n"}{end}')" || return 1
                 node_statuses="$(kubectl get nodes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Schedulable")]}{.status}{end}{"\n"}{end}')" || return 1
                 [ -n "$volume_statuses" ] || return 1
                 [ -n "$node_statuses" ] || return 1
-                printf '%s\n' "$volume_statuses" | awk -F '\t' 'NF != 2 || $2 != "healthy" { bad = 1 } END { exit bad }' || return 1
+                # A detached Longhorn volume normally reports unknown robustness because
+                # it has no running engine to assess. Treat it as healthy only when it is
+                # scheduled; attached volumes must still have full replica health.
+                printf '%s\n' "$volume_statuses" | awk -F '\t' '\
+                  NF != 3 ||
+                  ($2 == "attached" && $3 != "healthy") ||
+                  ($2 == "detached" && $3 != "unknown") ||
+                  ($2 != "attached" && $2 != "detached") { bad = 1 }
+                  END { exit bad }
+                ' || return 1
                 printf '%s\n' "$node_statuses" | awk -F '\t' 'NF != 2 || $2 != "True" { bad = 1 } END { exit bad }'
               }
 
