@@ -48,6 +48,9 @@ spec:
       replicaCount: 0
     gameserver_ac:
       replicaCount: 0
+      # Preserve the existing bound claim; the upstream chart defaults to a
+      # placeholder storage class that Kubernetes cannot change in-place.
+      storageClass: longhorn
       initcontainer:
         download_enabled: false
     servers_registry:
