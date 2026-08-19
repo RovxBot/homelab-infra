@@ -8,6 +8,94 @@ views:
     sections:
       - type: grid
         cards:
+          - type: weather-forecast
+            entity: weather.forecast_home
+            name: Home forecast
+            show_forecast: true
+            forecast_type: daily
+          - type: entities
+            title: Daylight
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.sun_solar_rising
+                name: Sun is rising
+              - entity: sensor.sun_next_rising
+                name: Next sunrise
+              - entity: sensor.sun_next_setting
+                name: Next sunset
+              - entity: sensor.sun_solar_elevation
+                name: Sun elevation
+      - type: grid
+        cards:
+          - type: map
+            title: Family locations
+            auto_fit: true
+            default_zoom: 12
+            hours_to_show: 4
+            entities:
+              - entity: person.sam
+                name: Sam
+              - entity: device_tracker.pixel_8a
+                name: Rachael
+          - type: entities
+            title: Phones
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: device_tracker.sam_pixel_6a
+                name: Sam — Pixel 6a
+              - entity: sensor.sam_pixel_6a_battery_level
+                name: Sam battery
+              - entity: binary_sensor.sam_pixel_6a_is_charging
+                name: Sam charging
+              - entity: device_tracker.pixel_8a
+                name: Rachael — Pixel 8a
+              - entity: sensor.pixel_8a_battery_level
+                name: Rachael battery
+              - entity: binary_sensor.pixel_8a_is_charging
+                name: Rachael charging
+              - entity: sensor.pixel_8a_detected_activity
+                name: Rachael activity
+      - type: grid
+        cards:
+          - type: media-control
+            entity: media_player.living_room_tv
+            name: Living Room TV
+          - type: media-control
+            entity: media_player.shield
+            name: SHIELD
+          - type: entities
+            title: Now playing
+            show_header_toggle: false
+            entities:
+              - entity: sensor.lastfm_rovbot
+                name: Last.fm
+      - type: grid
+        cards:
+          - type: entities
+            title: Rachael's car
+            show_header_toggle: false
+            entities:
+              - entity: sensor.pixel_8a_car_name
+                name: Vehicle
+              - entity: sensor.pixel_8a_car_battery
+                name: Battery
+              - entity: sensor.pixel_8a_car_fuel
+                name: Fuel
+              - entity: sensor.pixel_8a_car_range_remaining
+                name: Range remaining
+              - entity: sensor.pixel_8a_car_charging_status
+                name: Charging status
+              - entity: sensor.pixel_8a_car_odometer
+                name: Odometer
+  - title: Air conditioning
+    path: air-conditioning
+    icon: mdi:air-conditioner
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
           - type: thermostat
             entity: climate.at2plus_ac_0
             name: Air conditioning
@@ -28,18 +116,6 @@ views:
               - entity: script.airtouch_cancel_auto_off
                 name: Keep running
                 action_name: Cancel timer
-          - type: entities
-            title: Live solar
-            show_header_toggle: false
-            entities:
-              - entity: sensor.solarnet_power_photovoltaics
-                name: Solar production
-              - entity: sensor.solarnet_power_load_consumed
-                name: Home consumption
-              - entity: sensor.solarnet_power_grid_import
-                name: Grid import
-              - entity: sensor.solarnet_power_grid_export
-                name: Grid export
       - type: grid
         cards:
           - type: heading
@@ -79,46 +155,77 @@ views:
                 name: Spare room
                 features:
                   - type: fan-speed
-      - type: grid
-        cards:
-          - type: heading
-            heading: Energy
-            heading_style: title
-          - type: energy-date-selection
-          - type: energy-distribution
-          - type: energy-sources-table
-  - title: Solar
-    path: solar
+  - title: Energy & solar
+    path: energy-solar
     icon: mdi:solar-power
     type: sections
     max_columns: 3
     sections:
       - type: grid
         cards:
-          - type: gauge
-            entity: sensor.solarnet_power_photovoltaics
-            name: Solar production
-            min: 0
-            max: 6000
-            needle: true
-            severity:
-              green: 1000
-              yellow: 250
-              red: 0
+          - type: markdown
+            content: >-
+              ## Energy data status
+
+              **Solar generation** is measured by the Fronius inverter and is
+              suitable for solar reporting. **Grid import, export, household
+              consumption and costs are intentionally not configured in the
+              Energy dashboard yet.** The inverter Smart Meter counters do not
+              reconcile with the SA Power Networks interval meter data, so they
+              must not be used for billing or cost calculations until the meter
+              position and configuration have been checked.
           - type: entities
-            title: Lifetime solar
+            title: Verified solar generation
             show_header_toggle: false
             entities:
               - entity: sensor.2001614171_energy_day
-                name: Generated today
+                name: Solar generation today
               - entity: sensor.2001614171_energy_year
-                name: Generated this year
+                name: Solar generation this year
               - entity: sensor.2001614171_total_energy
-                name: Generated lifetime
+                name: Solar generation lifetime
+      - type: grid
+        cards:
+          - type: gauge
+            entity: sensor.solarnet_power_photovoltaics
+            name: Live solar production
+            min: 0
+            max: 8200
+            needle: true
+            severity:
+              red: 0
+              yellow: 1000
+              green: 3000
+          - type: entities
+            title: Inverter power flow — diagnostic only
+            show_header_toggle: false
+            entities:
+              - entity: sensor.solarnet_power_photovoltaics
+                name: Solar production
+              - entity: sensor.solarnet_power_load_consumed
+                name: Estimated home consumption
+              - entity: sensor.solarnet_power_grid_import
+                name: Reported grid import
+              - entity: sensor.solarnet_power_grid_export
+                name: Reported grid export
+              - entity: sensor.solarnet_relative_autonomy
+                name: Estimated self-sufficiency
+              - entity: sensor.solarnet_relative_self_consumption
+                name: Estimated solar self-consumption
+      - type: grid
+        cards:
+          - type: entities
+            title: Inverter Smart Meter totals — do not use for billing
+            show_header_toggle: false
+            entities:
+              - entity: sensor.smart_meter_63a_1_real_energy_consumed
+                name: Reported energy consumed
+              - entity: sensor.smart_meter_63a_1_real_energy_produced
+                name: Reported energy produced
       - type: grid
         cards:
           - type: history-graph
-            title: Power flow — last 24 hours
+            title: Inverter-reported power flow — last 24 hours
             hours_to_show: 24
             entities:
               - entity: sensor.solarnet_power_photovoltaics
