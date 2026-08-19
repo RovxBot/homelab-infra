@@ -1,0 +1,74 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gatus-github-issue-sync
+  namespace: monitoring
+  labels:
+    homelab.cooked.beer/component: gatus-alerting
+    homelab.cooked.beer/owner: sam
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            homelab.cooked.beer/component: gatus-alerting
+            homelab.cooked.beer/owner: sam
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          securityContext:
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: sync
+              image: python:3.14-alpine@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - /opt/gatus-github-issue-sync/sync.py
+              env:
+                - name: DRY_RUN
+                  value: "false"
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gatus-github-token
+                      key: token
+                - name: MAX_RESULT_AGE_SECONDS
+                  value: "900"
+                - name: PYTHONDONTWRITEBYTECODE
+                  value: "1"
+                - name: SUCCESS_THRESHOLD
+                  value: "2"
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                readOnlyRootFilesystem: true
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              volumeMounts:
+                - name: script
+                  mountPath: /opt/gatus-github-issue-sync
+                  readOnly: true
+          volumes:
+            - name: script
+              configMap:
+                name: gatus-github-issue-sync
+                defaultMode: 0555

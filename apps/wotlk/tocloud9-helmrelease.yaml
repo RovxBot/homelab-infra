@@ -13,7 +13,7 @@ spec:
       sourceRef:
         kind: GitRepository
         name: tocloud9
-        namespace: flux-system
+        namespace: wotlk
   install:
     remediation:
       retries: 3
