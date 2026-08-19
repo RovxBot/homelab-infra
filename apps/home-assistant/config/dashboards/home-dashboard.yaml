@@ -163,41 +163,19 @@ views:
     sections:
       - type: grid
         cards:
-          - type: energy-date-selection
-          - type: energy-distribution
-          - type: energy-sources-table
-      - type: grid
-        cards:
-          - type: gauge
-            entity: sensor.solarnet_power_photovoltaics
-            name: Solar production
-            min: 0
-            max: 8200
-            needle: true
-            severity:
-              red: 0
-              yellow: 1000
-              green: 3000
+          - type: markdown
+            content: >-
+              ## Energy data status
+
+              **Solar generation** is measured by the Fronius inverter and is
+              suitable for solar reporting. **Grid import, export, household
+              consumption and costs are intentionally not configured in the
+              Energy dashboard yet.** The inverter Smart Meter counters do not
+              reconcile with the SA Power Networks interval meter data, so they
+              must not be used for billing or cost calculations until the meter
+              position and configuration have been checked.
           - type: entities
-            title: Live power flow
-            show_header_toggle: false
-            entities:
-              - entity: sensor.solarnet_power_photovoltaics
-                name: Solar production
-              - entity: sensor.solarnet_power_load_consumed
-                name: Home consumption
-              - entity: sensor.solarnet_power_grid_import
-                name: Grid import
-              - entity: sensor.solarnet_power_grid_export
-                name: Grid export
-              - entity: sensor.solarnet_relative_autonomy
-                name: Self-sufficiency
-              - entity: sensor.solarnet_relative_self_consumption
-                name: Solar self-consumption
-      - type: grid
-        cards:
-          - type: entities
-            title: Energy totals
+            title: Verified solar generation
             show_header_toggle: false
             entities:
               - entity: sensor.2001614171_energy_day
@@ -206,22 +184,48 @@ views:
                 name: Solar generation this year
               - entity: sensor.2001614171_total_energy
                 name: Solar generation lifetime
-              - entity: sensor.smart_meter_63a_1_real_energy_consumed
-                name: Grid imported lifetime
-              - entity: sensor.smart_meter_63a_1_real_energy_produced
-                name: Grid exported lifetime
+      - type: grid
+        cards:
+          - type: gauge
+            entity: sensor.solarnet_power_photovoltaics
+            name: Live solar production
+            min: 0
+            max: 8200
+            needle: true
+            severity:
+              red: 0
+              yellow: 1000
+              green: 3000
           - type: entities
-            title: Current tariffs
+            title: Inverter power flow — diagnostic only
             show_header_toggle: false
             entities:
-              - entity: sensor.solarnet_grid_import_tariff
-                name: Grid import rate
-              - entity: sensor.solarnet_grid_export_tariff
-                name: Solar feed-in rate
+              - entity: sensor.solarnet_power_photovoltaics
+                name: Solar production
+              - entity: sensor.solarnet_power_load_consumed
+                name: Estimated home consumption
+              - entity: sensor.solarnet_power_grid_import
+                name: Reported grid import
+              - entity: sensor.solarnet_power_grid_export
+                name: Reported grid export
+              - entity: sensor.solarnet_relative_autonomy
+                name: Estimated self-sufficiency
+              - entity: sensor.solarnet_relative_self_consumption
+                name: Estimated solar self-consumption
+      - type: grid
+        cards:
+          - type: entities
+            title: Inverter Smart Meter totals — do not use for billing
+            show_header_toggle: false
+            entities:
+              - entity: sensor.smart_meter_63a_1_real_energy_consumed
+                name: Reported energy consumed
+              - entity: sensor.smart_meter_63a_1_real_energy_produced
+                name: Reported energy produced
       - type: grid
         cards:
           - type: history-graph
-            title: Power flow — last 24 hours
+            title: Inverter-reported power flow — last 24 hours
             hours_to_show: 24
             entities:
               - entity: sensor.solarnet_power_photovoltaics
