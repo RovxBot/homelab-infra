@@ -25,7 +25,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: generator
-          image: bitnami/kubectl@sha256:30aa809595d2116189165449ee39d3d9d490237631e7b0e882146fb27964de95
+          image: bitnami/kubectl@sha256:4cab0102df3b978f1bbf6f15b3c06f56c6e885ea7c740d81268435a266dfe442
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-lc"]
           args:
@@ -184,7 +184,7 @@ spec:
               memory: 256Mi
 
         - name: web
-          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:334d92979f15aaecd5dd50af5105e1230e2bb70765d45b1e2f964e7c5eda81c3
+          image: nginxinc/nginx-unprivileged:1.31-alpine@sha256:c3fed6436b61d2bf2201ec032c35c000871f7ed062dea5d586bc6bf4d0fdd140
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
