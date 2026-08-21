@@ -22,10 +22,13 @@ views:
             show_forecast: true
             forecast_type: hourly
             round_temperature: true
-      - type: grid
-        cards:
-          - type: iframe
-            title: Adelaide Hills rain radar
-            url: >-
-              https://embed.windy.com/embed2.html?lat=-35&lon=139&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&detailLat=-35&detailLon=139&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1&play=1
-            aspect_ratio: 80%
+  - title: Rain radar
+    path: rain-radar
+    icon: mdi:weather-pouring
+    type: panel
+    cards:
+      - type: iframe
+        title: Adelaide Hills rain radar
+        url: >-
+          https://embed.windy.com/embed2.html?lat=-35&lon=139&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&detailLat=-35&detailLon=139&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1&play=1
+        aspect_ratio: 120%
