@@ -214,3 +214,57 @@ views:
                 name: Grid import
               - entity: sensor.solarnet_power_grid_export
                 name: Grid export
+      - type: grid
+        cards:
+          - type: markdown
+            content: >-
+              ## Grid emissions
+
+              Electricity Maps reports the live carbon intensity and fossil-fuel
+              share of the local electricity grid. These are environmental
+              signals only; they do not change the carefully isolated billing,
+              import, export, or consumption configuration above.
+          - type: gauge
+            entity: sensor.electricity_maps_co2_intensity
+            name: Grid carbon intensity
+            min: 0
+            max: 1000
+            needle: true
+            severity:
+              green: 0
+              yellow: 400
+              red: 700
+          - type: gauge
+            entity: sensor.electricity_maps_grid_fossil_fuel_percentage
+            name: Grid fossil-fuel share
+            min: 0
+            max: 100
+            needle: true
+            severity:
+              green: 0
+              yellow: 40
+              red: 70
+      - type: grid
+        cards:
+          - type: history-graph
+            title: Grid carbon intensity — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.electricity_maps_co2_intensity
+                name: Carbon intensity
+      - type: grid
+        cards:
+          - type: entities
+            title: Connected equipment energy
+            show_header_toggle: false
+            entities:
+              - entity: sensor.starlink_power
+                name: Starlink terminal power
+              - entity: sensor.starlink_energy
+                name: Starlink terminal energy
+          - type: history-graph
+            title: Starlink terminal power — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.starlink_power
+                name: Power
