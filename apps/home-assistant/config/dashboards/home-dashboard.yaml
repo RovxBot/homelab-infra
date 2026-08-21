@@ -17,14 +17,12 @@ views:
             title: Daylight
             show_header_toggle: false
             entities:
-              - entity: binary_sensor.sun_solar_rising
-                name: Sun is rising
+              - entity: sun.sun
+                name: Sun state
               - entity: sensor.sun_next_rising
                 name: Next sunrise
               - entity: sensor.sun_next_setting
                 name: Next sunset
-              - entity: sensor.sun_solar_elevation
-                name: Sun elevation
       - type: grid
         cards:
           - type: map
@@ -42,20 +40,18 @@ views:
             state_color: true
             show_header_toggle: false
             entities:
-              - entity: device_tracker.sam_pixel_6a
+              - entity: device_tracker.pixel_6a
                 name: Sam — Pixel 6a
-              - entity: sensor.sam_pixel_6a_battery_level
+              - entity: sensor.pixel_6a_battery_level
                 name: Sam battery
-              - entity: binary_sensor.sam_pixel_6a_is_charging
-                name: Sam charging
+              - entity: sensor.pixel_6a_battery_state
+                name: Sam battery state
               - entity: device_tracker.pixel_8a
                 name: Rachael — Pixel 8a
               - entity: sensor.pixel_8a_battery_level
                 name: Rachael battery
-              - entity: binary_sensor.pixel_8a_is_charging
-                name: Rachael charging
-              - entity: sensor.pixel_8a_detected_activity
-                name: Rachael activity
+              - entity: sensor.pixel_8a_battery_state
+                name: Rachael battery state
       - type: grid
         cards:
           - type: media-control
@@ -70,24 +66,6 @@ views:
             entities:
               - entity: sensor.lastfm_rovbot
                 name: Last.fm
-      - type: grid
-        cards:
-          - type: entities
-            title: Rachael's car
-            show_header_toggle: false
-            entities:
-              - entity: sensor.pixel_8a_car_name
-                name: Vehicle
-              - entity: sensor.pixel_8a_car_battery
-                name: Battery
-              - entity: sensor.pixel_8a_car_fuel
-                name: Fuel
-              - entity: sensor.pixel_8a_car_range_remaining
-                name: Range remaining
-              - entity: sensor.pixel_8a_car_charging_status
-                name: Charging status
-              - entity: sensor.pixel_8a_car_odometer
-                name: Odometer
   - title: Air conditioning
     path: air-conditioning
     icon: mdi:air-conditioner
