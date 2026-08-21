@@ -1,7 +1,6 @@
 default_config:
 
-# Keep the primary dashboard declarative alongside the Home Assistant
-# deployment. The Energy cards use the native Energy dashboard configuration.
+# Keep custom dashboards declarative alongside the Home Assistant deployment.
 lovelace:
   dashboards:
     homelab-home:
@@ -9,6 +8,18 @@ lovelace:
       filename: dashboards/home-dashboard.yaml
       title: Home
       icon: mdi:home-assistant
+      show_in_sidebar: true
+    homelab-weather:
+      mode: yaml
+      filename: dashboards/weather-dashboard.yaml
+      title: Weather
+      icon: mdi:weather-partly-cloudy
+      show_in_sidebar: true
+    homelab-power-solar:
+      mode: yaml
+      filename: dashboards/power-dashboard.yaml
+      title: Power & Solar
+      icon: mdi:solar-power
       show_in_sidebar: true
     homelab-internet:
       mode: yaml

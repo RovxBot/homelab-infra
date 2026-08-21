@@ -1,0 +1,137 @@
+title: Power & Solar
+views:
+  - title: Power & Solar
+    path: power-solar
+    icon: mdi:solar-power
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            content: >-
+              ## Energy data status
+
+              **Solar generation** is measured by the Fronius inverter and is
+              suitable for solar reporting. **Grid import, export, household
+              consumption and costs are intentionally not configured in the
+              Energy dashboard yet.** The inverter Smart Meter counters do not
+              reconcile with the SA Power Networks interval meter data, so they
+              must not be used for billing or cost calculations until the meter
+              position and configuration have been checked.
+          - type: entities
+            title: Verified solar generation
+            show_header_toggle: false
+            entities:
+              - entity: sensor.2001614171_energy_day
+                name: Solar generation today
+              - entity: sensor.2001614171_energy_year
+                name: Solar generation this year
+              - entity: sensor.2001614171_total_energy
+                name: Solar generation lifetime
+      - type: grid
+        cards:
+          - type: gauge
+            entity: sensor.solarnet_power_photovoltaics
+            name: Live solar production
+            min: 0
+            max: 8200
+            needle: true
+            severity:
+              red: 0
+              yellow: 1000
+              green: 3000
+          - type: entities
+            title: Inverter power flow — diagnostic only
+            show_header_toggle: false
+            entities:
+              - entity: sensor.solarnet_power_photovoltaics
+                name: Solar production
+              - entity: sensor.solarnet_power_load_consumed
+                name: Estimated home consumption
+              - entity: sensor.solarnet_power_grid_import
+                name: Reported grid import
+              - entity: sensor.solarnet_power_grid_export
+                name: Reported grid export
+              - entity: sensor.solarnet_relative_autonomy
+                name: Estimated self-sufficiency
+              - entity: sensor.solarnet_relative_self_consumption
+                name: Estimated solar self-consumption
+      - type: grid
+        cards:
+          - type: entities
+            title: Inverter Smart Meter totals — do not use for billing
+            show_header_toggle: false
+            entities:
+              - entity: sensor.smart_meter_63a_1_real_energy_consumed
+                name: Reported energy consumed
+              - entity: sensor.smart_meter_63a_1_real_energy_produced
+                name: Reported energy produced
+      - type: grid
+        cards:
+          - type: history-graph
+            title: Inverter-reported power flow — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.solarnet_power_photovoltaics
+                name: Solar
+              - entity: sensor.solarnet_power_load_consumed
+                name: Home
+              - entity: sensor.solarnet_power_grid_import
+                name: Grid import
+              - entity: sensor.solarnet_power_grid_export
+                name: Grid export
+      - type: grid
+        cards:
+          - type: markdown
+            content: >-
+              ## Grid emissions
+
+              Electricity Maps reports the live carbon intensity and fossil-fuel
+              share of the local electricity grid. These are environmental
+              signals only; they do not change the carefully isolated billing,
+              import, export, or consumption configuration above.
+          - type: gauge
+            entity: sensor.electricity_maps_co2_intensity
+            name: Grid carbon intensity
+            min: 0
+            max: 1000
+            needle: true
+            severity:
+              green: 0
+              yellow: 400
+              red: 700
+          - type: gauge
+            entity: sensor.electricity_maps_grid_fossil_fuel_percentage
+            name: Grid fossil-fuel share
+            min: 0
+            max: 100
+            needle: true
+            severity:
+              green: 0
+              yellow: 40
+              red: 70
+      - type: grid
+        cards:
+          - type: history-graph
+            title: Grid carbon intensity — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.electricity_maps_co2_intensity
+                name: Carbon intensity
+      - type: grid
+        cards:
+          - type: entities
+            title: Connected equipment energy
+            show_header_toggle: false
+            entities:
+              - entity: sensor.starlink_power
+                name: Starlink terminal power
+              - entity: sensor.starlink_energy
+                name: Starlink terminal energy
+          - type: history-graph
+            title: Starlink terminal power — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.starlink_power
+                name: Power
