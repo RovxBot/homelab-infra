@@ -9,8 +9,8 @@ views:
       - type: grid
         cards:
           - type: weather-forecast
-            entity: weather.forecast_home
-            name: Home forecast
+            entity: weather.pirateweather
+            name: Pirate Weather
             show_forecast: true
             forecast_type: daily
           - type: entities
@@ -66,6 +66,35 @@ views:
             entities:
               - entity: sensor.lastfm_rovbot
                 name: Last.fm
+  - title: Weather
+    path: weather
+    icon: mdi:weather-partly-cloudy
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: weather-forecast
+            entity: weather.pirateweather
+            name: Pirate Weather — daily forecast
+            show_current: true
+            show_forecast: true
+            forecast_type: daily
+            round_temperature: true
+          - type: weather-forecast
+            entity: weather.pirateweather
+            name: Pirate Weather — hourly forecast
+            show_current: false
+            show_forecast: true
+            forecast_type: hourly
+            round_temperature: true
+      - type: grid
+        cards:
+          - type: iframe
+            title: Adelaide Hills rain radar
+            url: >-
+              https://embed.windy.com/embed2.html?lat=-35&lon=139&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&detailLat=-35&detailLon=139&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1&play=1
+            aspect_ratio: 80%
   - title: Air conditioning
     path: air-conditioning
     icon: mdi:air-conditioner
