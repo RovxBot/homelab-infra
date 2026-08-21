@@ -139,3 +139,50 @@ automation:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.airtouch_auto_off_armed
+  - id: household_presence_notifications
+    alias: Notify household on arrivals and departures
+    description: Notify both household phones when Sam or Rachael leaves or returns home.
+    mode: queued
+    max: 10
+    triggers:
+      - trigger: state
+        entity_id: person.sam
+        from: home
+        id: sam_departed
+      - trigger: state
+        entity_id: device_tracker.pixel_8a
+        from: home
+        id: rachael_departed
+      - trigger: state
+        entity_id: person.sam
+        to: home
+        id: sam_arrived
+      - trigger: state
+        entity_id: device_tracker.pixel_8a
+        to: home
+        id: rachael_arrived
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.from_state is not none
+             and trigger.to_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - variables:
+          person_name: >-
+            {{ 'Sam' if trigger.entity_id == 'person.sam' else 'Rachael' }}
+          presence_event: >-
+            {{ 'arrived home' if trigger.to_state.state == 'home' else 'left home' }}
+          notification_tag: >-
+            home-presence-{{ trigger.entity_id.split('.')[-1] }}
+      - action: notify.send_message
+        target:
+          entity_id:
+            - notify.pixel_6a
+            - notify.pixel_8a
+        data:
+          title: Home presence
+          message: "{{ person_name }} {{ presence_event }}."
+          data:
+            tag: "{{ notification_tag }}"
