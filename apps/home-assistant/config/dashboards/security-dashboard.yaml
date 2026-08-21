@@ -1,0 +1,77 @@
+title: Security
+views:
+  - title: Security
+    path: security
+    icon: mdi:cctv
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: picture-entity
+            entity: camera.shed_front_g3_high_resolution_channel
+            name: Shed front
+            camera_view: live
+            show_name: true
+            show_state: false
+          - type: entities
+            title: Shed front camera
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.shed_front_g3_motion
+                name: Motion
+              - entity: event.shed_front_g3_motion_detection
+                name: Last motion event
+              - entity: sensor.shed_front_g3_recording_mode
+                name: Recording mode
+              - entity: sensor.shed_front_g3_infrared_mode
+                name: Infrared mode
+              - entity: sensor.shed_front_g3_storage_used
+                name: Storage used
+      - type: grid
+        cards:
+          - type: picture-entity
+            entity: camera.shed_g3_high_resolution_channel
+            name: Shed
+            camera_view: live
+            show_name: true
+            show_state: false
+          - type: entities
+            title: Shed camera
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.shed_g3_motion
+                name: Motion
+              - entity: event.shed_g3_motion_detection
+                name: Last motion event
+              - entity: sensor.shed_g3_recording_mode
+                name: Recording mode
+              - entity: sensor.shed_g3_infrared_mode
+                name: Infrared mode
+              - entity: sensor.shed_g3_storage_used
+                name: Storage used
+      - type: grid
+        cards:
+          - type: entities
+            title: UniFi Protect recorder health
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.cooked_dream_hdd_1
+                name: Recorder HDD 1 health
+              - entity: binary_sensor.cooked_dream_hdd_2
+                name: Recorder HDD 2 health
+              - entity: sensor.cooked_dream_recording_capacity
+                name: Recording capacity
+              - entity: sensor.cooked_dream_storage_utilization
+                name: Storage utilization
+              - entity: sensor.cooked_dream_resolution_free_space
+                name: Free space
+              - entity: sensor.cooked_dream_type_continuous_video
+                name: Continuous recording
+              - entity: sensor.cooked_dream_type_detections_video
+                name: Detection recording
+              - entity: sensor.cooked_dream_uptime_2
+                name: Recorder uptime

@@ -252,3 +252,19 @@ views:
             entities:
               - entity: sensor.electricity_maps_co2_intensity
                 name: Carbon intensity
+      - type: grid
+        cards:
+          - type: entities
+            title: Connected equipment energy
+            show_header_toggle: false
+            entities:
+              - entity: sensor.starlink_power
+                name: Starlink terminal power
+              - entity: sensor.starlink_energy
+                name: Starlink terminal energy
+          - type: history-graph
+            title: Starlink terminal power — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.starlink_power
+                name: Power

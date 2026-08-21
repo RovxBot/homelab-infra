@@ -23,3 +23,4 @@ configMapGenerator:
       - configuration.yaml=config/configuration.yaml
       - home-dashboard.yaml=config/dashboards/home-dashboard.yaml
       - internet-dashboard.yaml=config/dashboards/internet-dashboard.yaml
+      - security-dashboard.yaml=config/dashboards/security-dashboard.yaml

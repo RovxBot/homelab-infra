@@ -48,6 +48,157 @@ views:
       - type: grid
         cards:
           - type: entities
+            title: Starlink connection
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.starlink_connectivity
+                name: Internet connected
+              - entity: sensor.starlink_ping
+                name: Latency
+              - entity: sensor.starlink_ping_drop_rate
+                name: Ping drop rate
+              - entity: sensor.starlink_downlink_throughput
+                name: Download throughput
+              - entity: sensor.starlink_uplink_throughput
+                name: Upload throughput
+              - entity: sensor.starlink_last_restart
+                name: Last restart
+              - entity: binary_sensor.starlink_update
+                name: Update available
+          - type: entities
+            title: Starlink diagnostics
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.starlink_obstructed
+                name: Obstructed
+              - entity: binary_sensor.starlink_thermal_throttle
+                name: Thermal throttling
+              - entity: binary_sensor.starlink_ethernet_speeds
+                name: Ethernet speed status
+              - entity: binary_sensor.starlink_heating
+                name: Heating
+              - entity: binary_sensor.starlink_motors_stuck
+                name: Motors stuck
+              - entity: binary_sensor.starlink_unexpected_location
+                name: Unexpected location
+              - entity: switch.starlink_sleep_schedule
+                name: Sleep schedule
+              - entity: time.starlink_sleep_start
+                name: Sleep start
+              - entity: time.starlink_sleep_end
+                name: Sleep end
+      - type: grid
+        cards:
+          - type: gauge
+            entity: sensor.starlink_ping
+            name: Starlink latency
+            min: 0
+            max: 200
+            needle: true
+            severity:
+              green: 0
+              yellow: 80
+              red: 150
+          - type: gauge
+            entity: sensor.starlink_ping_drop_rate
+            name: Starlink ping drop rate
+            min: 0
+            max: 10
+            needle: true
+            severity:
+              green: 0
+              yellow: 1
+              red: 5
+          - type: history-graph
+            title: Starlink reliability — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.starlink_ping
+                name: Latency
+              - entity: sensor.starlink_ping_drop_rate
+                name: Ping drop rate
+      - type: grid
+        cards:
+          - type: entities
+            title: UniFi network overview
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: sensor.rovnet_clients
+                name: RovNet clients
+              - entity: sensor.iot_clients
+                name: IoT clients
+              - entity: sensor.guest_clients
+                name: Guest clients
+              - entity: sensor.cooked_dream_state
+                name: Cooked Dream gateway state
+              - entity: sensor.cooked_dream_cpu_utilization
+                name: Gateway CPU
+              - entity: sensor.cooked_dream_memory_utilization
+                name: Gateway memory
+              - entity: sensor.cooked_dream_uptime
+                name: Gateway uptime
+              - entity: sensor.usw_pro_24_poe_state
+                name: USW Pro 24 PoE state
+              - entity: sensor.usw_pro_24_poe_temperature
+                name: Switch temperature
+              - entity: sensor.usw_pro_24_poe_cpu_utilization
+                name: Switch CPU
+              - entity: sensor.usw_pro_24_poe_memory_utilization
+                name: Switch memory
+      - type: grid
+        cards:
+          - type: entities
+            title: UniFi access points
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: sensor.front_hall_state
+                name: Front Hall state
+              - entity: sensor.front_hall_cpu_utilization
+                name: Front Hall CPU
+              - entity: sensor.front_hall_memory_utilization
+                name: Front Hall memory
+              - entity: sensor.living_room_state
+                name: Living Room state
+              - entity: sensor.living_room_cpu_utilization
+                name: Living Room CPU
+              - entity: sensor.living_room_memory_utilization
+                name: Living Room memory
+              - entity: sensor.shed_ap_state
+                name: Shed AP state
+              - entity: sensor.shed_ap_cpu_utilization
+                name: Shed AP CPU
+              - entity: sensor.shed_ap_memory_utilization
+                name: Shed AP memory
+              - entity: sensor.shed_office_ap_state
+                name: Shed Office AP state
+              - entity: sensor.spare_room_state
+                name: Spare Room state
+          - type: entities
+            title: UniFi firmware
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: update.cooked_dream_firmware
+                name: Cooked Dream
+              - entity: update.front_hall_firmware
+                name: Front Hall
+              - entity: update.living_room_firmware
+                name: Living Room
+              - entity: update.shed_ap_firmware
+                name: Shed AP
+              - entity: update.shed_office_ap_firmware
+                name: Shed Office AP
+              - entity: update.spare_room_firmware
+                name: Spare Room
+              - entity: update.usw_pro_24_poe_firmware
+                name: USW Pro 24 PoE
+      - type: grid
+        cards:
+          - type: entities
             title: DNS security
             state_color: true
             show_header_toggle: false
