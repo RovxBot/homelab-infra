@@ -24,7 +24,7 @@ spec:
               emptyDir: {}
           initContainers:
             - name: clone-acore
-              image: alpine/git:v2.54.0@sha256:729da2347ce652f30476b064198577fe12e1147e58499be9f343039343ef2cee
+              image: alpine/git:v2.54.0@sha256:6f8eae2205a85c51106a9650e574a37fb1d5e4f645e5f6ea57cb57b9462cd4cf
               resources:
                 requests:
                   cpu: 100m
