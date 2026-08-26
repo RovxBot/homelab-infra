@@ -34,7 +34,7 @@ spec:
           # The custom component is not available through Home Assistant Core.
           # Pin both the installer image and source revision so component
           # upgrades are reviewed GitOps changes rather than mutable HACS pulls.
-          image: alpine/git:2.49.1@sha256:53a6239398162098fed2f49a46512f9cbba9e3f31b9f2cea4fa90129ee069a99
+          image: alpine/git:v2.54.0@sha256:8478c2c09b9ac52a74783c3008cf6a24f05119228f6867be9566f98dc26aa240
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
@@ -85,7 +85,7 @@ spec:
           # Pirate Weather is a custom Home Assistant component. Pin the
           # release revision so upgrades are reviewed GitOps changes rather
           # than mutable HACS pulls.
-          image: alpine/git:2.49.1@sha256:53a6239398162098fed2f49a46512f9cbba9e3f31b9f2cea4fa90129ee069a99
+          image: alpine/git:v2.54.0@sha256:8478c2c09b9ac52a74783c3008cf6a24f05119228f6867be9566f98dc26aa240
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
