@@ -343,7 +343,8 @@
       ],
       "matchPackageNames": [
         "ghcr.io/immich-app/postgres",
-        "mysql"
+        "mysql",
+        "postgres"
       ],
       "matchUpdateTypes": [
         "major"
