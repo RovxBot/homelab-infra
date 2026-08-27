@@ -37,6 +37,10 @@ spec:
             - secretRef:
                 name: wger-secrets
           volumeMounts:
+            - name: entra-settings
+              mountPath: /home/wger/src/settings/entra.py
+              subPath: entra.py
+              readOnly: true
             - name: media
               mountPath: /home/wger/media
           securityContext:
@@ -54,6 +58,9 @@ spec:
               cpu: "1"
               memory: 1Gi
       volumes:
+        - name: entra-settings
+          configMap:
+            name: wger-entra-settings
         - name: media
           persistentVolumeClaim:
             claimName: wger-media
@@ -97,6 +104,10 @@ spec:
             - secretRef:
                 name: wger-secrets
           volumeMounts:
+            - name: entra-settings
+              mountPath: /home/wger/src/settings/entra.py
+              subPath: entra.py
+              readOnly: true
             - name: beat
               mountPath: /home/wger/beat
           securityContext:
@@ -114,6 +125,9 @@ spec:
               cpu: 250m
               memory: 256Mi
       volumes:
+        - name: entra-settings
+          configMap:
+            name: wger-entra-settings
         - name: beat
           persistentVolumeClaim:
             claimName: wger-celery-beat

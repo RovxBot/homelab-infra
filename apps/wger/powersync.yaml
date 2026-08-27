@@ -171,6 +171,11 @@ spec:
                 name: wger-config
             - secretRef:
                 name: wger-secrets
+          volumeMounts:
+            - name: entra-settings
+              mountPath: /home/wger/src/settings/entra.py
+              subPath: entra.py
+              readOnly: true
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
@@ -253,6 +258,9 @@ spec:
               cpu: "1"
               memory: 1Gi
       volumes:
+        - name: entra-settings
+          configMap:
+            name: wger-entra-settings
         - name: config
           configMap:
             name: wger-powersync-config

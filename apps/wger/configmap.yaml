@@ -14,6 +14,10 @@ data:
   WGER_USE_GUNICORN: "True"
   GUNICORN_CMD_ARGS: --workers 2 --threads 2 --worker-class gthread --timeout 240
   WGER_PORT: "8000"
+  DJANGO_SETTINGS_MODULE: settings.entra
+  WGER_SOCIAL_PROVIDERS: openid_connect
+  ENTRA_TENANT_ID: 345cd18b-5bee-4ac4-b729-a3f7059a28f3
+  ENTRA_CLIENT_ID: 2f7e22bd-e504-498e-8ec7-80e3a5fe605a
   WGER_INSTANCE: https://wger.de
   ALLOW_REGISTRATION: "False"
   ALLOW_GUEST_USERS: "False"
