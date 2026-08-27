@@ -16,7 +16,7 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 # Wger imports allauth.mfa models, so that app must remain installed.  Its
 # default check considers this incompatible with SOCIALACCOUNT_ONLY, despite
 # Entra being the only enabled login method.  Keep every other allauth check.
-registry.unregister(allauth_settings_check)
+registry.registered_checks.discard(allauth_settings_check)
 
 
 @register()
