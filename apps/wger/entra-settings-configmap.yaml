@@ -15,8 +15,11 @@ data:
     SOCIALACCOUNT_AUTO_SIGNUP = True
     ACCOUNT_EMAIL_VERIFICATION = "none"
     SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
-    MFA_ENABLED = False
-    MFA_PASSKEY_LOGIN_ENABLED = False
+
+    # allauth disallows SOCIALACCOUNT_ONLY when its local MFA app is installed.
+    # Entra performs MFA/conditional-access policies before issuing the OIDC token.
+    INSTALLED_APPS.remove("allauth.mfa")
+
     SOCIALACCOUNT_PROVIDERS = {
         "openid_connect": {
             "APPS": [
