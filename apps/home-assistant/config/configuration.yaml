@@ -207,5 +207,3 @@ automation:
         data:
           title: Home presence
           message: "{{ person_name }} {{ presence_event }}."
-          data:
-            tag: "{{ notification_tag }}"
