@@ -2,6 +2,10 @@
 
 import os
 
+from allauth.account.checks import settings_check as allauth_settings_check
+from django.core.checks import register
+from django.core.checks.registry import registry
+
 from .main import *  # noqa: F403
 
 SOCIALACCOUNT_ONLY = True
@@ -9,9 +13,19 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
-# allauth disallows SOCIALACCOUNT_ONLY when its local MFA app is installed.
-# Entra performs MFA/conditional-access policies before issuing the OIDC token.
-INSTALLED_APPS.remove("allauth.mfa")
+# Wger imports allauth.mfa models, so that app must remain installed.  Its
+# default check considers this incompatible with SOCIALACCOUNT_ONLY, despite
+# Entra being the only enabled login method.  Keep every other allauth check.
+registry.unregister(allauth_settings_check)
+
+
+@register()
+def wger_socialaccount_only_settings_check(app_configs, **kwargs):
+    return [
+        issue
+        for issue in allauth_settings_check(app_configs, **kwargs)
+        if issue.msg != "SOCIALACCOUNT_ONLY does not work with 'allauth.mfa'"
+    ]
 
 SOCIALACCOUNT_PROVIDERS = {
     "openid_connect": {
