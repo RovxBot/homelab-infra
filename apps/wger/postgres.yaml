@@ -59,6 +59,10 @@ spec:
                 secretKeyRef:
                   name: wger-secrets
                   key: POSTGRES_DB
+            # Longhorn volumes are mounted with a lost+found directory at their root.
+            # PostgreSQL requires its data directory itself to be empty on first boot.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
             - name: TZ
               value: Australia/Adelaide
           ports:
