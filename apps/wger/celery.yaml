@@ -41,6 +41,10 @@ spec:
               mountPath: /home/wger/src/settings/entra.py
               subPath: entra.py
               readOnly: true
+            - name: entra-settings
+              mountPath: /home/wger/src/wger/entra_adapter.py
+              subPath: entra_adapter.py
+              readOnly: true
             - name: media
               mountPath: /home/wger/media
           securityContext:
@@ -107,6 +111,10 @@ spec:
             - name: entra-settings
               mountPath: /home/wger/src/settings/entra.py
               subPath: entra.py
+              readOnly: true
+            - name: entra-settings
+              mountPath: /home/wger/src/wger/entra_adapter.py
+              subPath: entra_adapter.py
               readOnly: true
             - name: beat
               mountPath: /home/wger/beat

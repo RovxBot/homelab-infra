@@ -176,6 +176,10 @@ spec:
               mountPath: /home/wger/src/settings/entra.py
               subPath: entra.py
               readOnly: true
+            - name: entra-settings
+              mountPath: /home/wger/src/wger/entra_adapter.py
+              subPath: entra_adapter.py
+              readOnly: true
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000

@@ -3,7 +3,6 @@
 import os
 
 from allauth.account.checks import settings_check as allauth_settings_check
-from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.core.checks import register
 from django.core.checks.registry import registry
 
@@ -29,14 +28,7 @@ def wger_socialaccount_only_settings_check(app_configs, **kwargs):
     ]
 
 
-class EntraSocialAccountAdapter(DefaultSocialAccountAdapter):
-    """Allow new accounts only when they arrive through the configured OIDC provider."""
-
-    def is_open_for_signup(self, request, sociallogin):
-        return sociallogin.account.provider == "openid_connect"
-
-
-SOCIALACCOUNT_ADAPTER = "settings.entra.EntraSocialAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "wger.entra_adapter.EntraSocialAccountAdapter"
 
 
 SOCIALACCOUNT_PROVIDERS = {

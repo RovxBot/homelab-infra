@@ -27,3 +27,4 @@ configMapGenerator:
   - name: wger-entra-settings
     files:
       - entra.py
+      - entra_adapter.py
