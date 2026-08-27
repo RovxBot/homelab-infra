@@ -7,4 +7,4 @@ class EntraSocialAccountAdapter(DefaultSocialAccountAdapter):
     """Allow new accounts only when they arrive through the configured OIDC provider."""
 
     def is_open_for_signup(self, request, sociallogin):
-        return sociallogin.account.provider == "openid_connect"
+        return sociallogin.account.provider == "entra"
