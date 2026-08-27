@@ -1,0 +1,274 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wger-powersync-config
+  namespace: wger
+data:
+  powersync.yaml: |
+    telemetry:
+      disable_telemetry_sharing: true
+      prometheus_port: 9090
+
+    replication:
+      connections:
+        - type: postgresql
+          uri: !env PS_DATABASE_URI
+          sslmode: disable
+
+    storage:
+      type: postgresql
+      uri: !env PS_STORAGE_PG_URI
+      sslmode: disable
+
+    port: !env PS_PORT
+
+    api:
+      parameters:
+        max_parameter_query_results: 2000
+
+    sync_rules:
+      path: sync_rules.yaml
+
+    client_auth:
+      allow_local_jwks: true
+      jwks_uri: !env PS_JWKS_URL
+      audience: ["powersync"]
+  sync_rules.yaml: |
+    config:
+      edition: 3
+
+    streams:
+      core:
+        auto_subscribe: true
+        queries:
+          - SELECT * FROM core_language
+          - SELECT * FROM core_license
+          - SELECT * FROM core_repetitionunit
+          - SELECT * FROM core_weightunit
+          - SELECT * FROM exercises_exercise
+          - SELECT * FROM exercises_translation
+          - SELECT * FROM exercises_alias
+          - SELECT * FROM exercises_exercisecomment
+          - SELECT * FROM exercises_muscle
+          - SELECT * FROM exercises_exercise_muscles
+          - SELECT * FROM exercises_exercise_muscles_secondary
+          - SELECT * FROM exercises_equipment
+          - SELECT * FROM exercises_exercise_equipment
+          - SELECT * FROM exercises_exercisecategory
+          - SELECT * FROM exercises_exerciseimage
+          - SELECT * FROM exercises_exercisevideo
+
+      user_profile:
+        auto_subscribe: true
+        queries:
+          - SELECT * FROM core_userprofile WHERE CAST(user_id AS TEXT) = auth.user_id()
+          - SELECT * FROM gallery_image WHERE CAST(user_id AS TEXT) = auth.user_id()
+
+      user_ingredients:
+        auto_subscribe: true
+        with:
+          user_ingredients: |
+            SELECT DISTINCT nutrition_synced_ingredient.id
+            FROM nutrition_synced_ingredient
+            WHERE nutrition_synced_ingredient.id IN (
+                    SELECT nutrition_logitem.ingredient_id FROM nutrition_logitem
+                    JOIN nutrition_nutritionplan ON nutrition_logitem.plan_id = nutrition_nutritionplan.id
+                    WHERE CAST(nutrition_nutritionplan.user_id AS TEXT) = auth.user_id())
+               OR nutrition_synced_ingredient.id IN (
+                    SELECT nutrition_mealitem.ingredient_id FROM nutrition_mealitem
+                    JOIN nutrition_meal ON nutrition_mealitem.meal_id = nutrition_meal.id
+                    JOIN nutrition_nutritionplan ON nutrition_meal.plan_id = nutrition_nutritionplan.id
+                    WHERE CAST(nutrition_nutritionplan.user_id AS TEXT) = auth.user_id())
+        queries:
+          - SELECT * FROM nutrition_synced_ingredient AS nutrition_ingredient WHERE id IN user_ingredients
+          - |
+            SELECT nutrition_image.* FROM nutrition_image
+            WHERE nutrition_image.ingredient_id IN user_ingredients
+          - |
+            SELECT nutrition_ingredientweightunit.* FROM nutrition_ingredientweightunit
+            WHERE nutrition_ingredientweightunit.ingredient_id IN user_ingredients
+
+      user_planning:
+        auto_subscribe: true
+        queries:
+          - SELECT * FROM manager_routine WHERE CAST(user_id AS TEXT) = auth.user_id() AND is_template = FALSE
+          - SELECT * FROM measurements_category WHERE CAST(user_id AS TEXT) = auth.user_id()
+          - |
+            SELECT measurements_measurement.*
+            FROM measurements_measurement
+            INNER JOIN measurements_category
+              ON measurements_measurement.category_id = measurements_category.id
+            WHERE CAST(measurements_category.user_id AS TEXT) = auth.user_id()
+          - SELECT * FROM nutrition_nutritionplan WHERE CAST(user_id AS TEXT) = auth.user_id()
+          - |
+            SELECT nutrition_meal.*
+            FROM nutrition_meal
+            JOIN nutrition_nutritionplan
+              ON nutrition_meal.plan_id = nutrition_nutritionplan.id
+            WHERE CAST(nutrition_nutritionplan.user_id AS TEXT) = auth.user_id()
+          - |
+            SELECT nutrition_mealitem.*
+            FROM nutrition_mealitem
+            JOIN nutrition_meal
+              ON nutrition_mealitem.meal_id = nutrition_meal.id
+            JOIN nutrition_nutritionplan
+              ON nutrition_meal.plan_id = nutrition_nutritionplan.id
+            WHERE CAST(nutrition_nutritionplan.user_id AS TEXT) = auth.user_id()
+
+      user_activity:
+        auto_subscribe: true
+        queries:
+          - SELECT uuid AS id, weight, date, user_id FROM weight_weightentry WHERE CAST(user_id AS TEXT) = auth.user_id()
+          - SELECT * FROM manager_workoutsession WHERE CAST(user_id AS TEXT) = auth.user_id()
+          - SELECT * FROM manager_workoutlog WHERE CAST(user_id AS TEXT) = auth.user_id()
+          - |
+            SELECT nutrition_logitem.*
+            FROM nutrition_logitem
+            JOIN nutrition_nutritionplan
+              ON nutrition_logitem.plan_id = nutrition_nutritionplan.id
+            WHERE CAST(nutrition_nutritionplan.user_id AS TEXT) = auth.user_id()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger-powersync
+  namespace: wger
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wger-powersync
+  template:
+    metadata:
+      labels:
+        app: wger-powersync
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 901
+        runAsGroup: 901
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: setup-storage
+          image: wger/server:2.6@sha256:997ead43aabdcd67d054f933e07d2b23875f01bf43271a267cb7796925ca27c4
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+          args:
+            - |
+              until wget --no-verbose --spider http://wger-web:8000/; do
+                sleep 5
+              done
+              exec python3 manage.py setup-powersync-storage
+          envFrom:
+            - configMapRef:
+                name: wger-config
+            - secretRef:
+                name: wger-secrets
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      containers:
+        - name: powersync
+          image: journeyapps/powersync-service:1.25.0@sha256:bf46f66e5dcc8f6a084de02ab51155dfa655bc610aa95009fff1c36f949c0acf
+          imagePullPolicy: IfNotPresent
+          args:
+            - start
+            - -r
+            - unified
+          env:
+            - name: POWERSYNC_CONFIG_PATH
+              value: /config/powersync.yaml
+            - name: PS_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: wger-secrets
+                  key: PS_DATABASE_URI
+            - name: PS_STORAGE_PG_URI
+              valueFrom:
+                secretKeyRef:
+                  name: wger-secrets
+                  key: PS_STORAGE_PG_URI
+            - name: PS_PORT
+              value: "8080"
+            - name: PS_JWKS_URL
+              value: http://wger-web:8000/api/v2/powersync-keys
+          ports:
+            - name: powersync
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
+          startupProbe:
+            tcpSocket:
+              port: powersync
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: powersync
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: powersync
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: wger-powersync-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wger-powersync
+  namespace: wger
+spec:
+  selector:
+    app: wger-powersync
+  ports:
+    - name: powersync
+      port: 8080
+      targetPort: powersync
+    - name: metrics
+      port: 9090
+      targetPort: metrics

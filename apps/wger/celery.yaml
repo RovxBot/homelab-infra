@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger-celery-worker
+  namespace: wger
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wger-celery-worker
+  template:
+    metadata:
+      labels:
+        app: wger-celery-worker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: celery-worker
+          image: wger/server:2.6@sha256:997ead43aabdcd67d054f933e07d2b23875f01bf43271a267cb7796925ca27c4
+          imagePullPolicy: IfNotPresent
+          command:
+            - /start-worker
+          envFrom:
+            - configMapRef:
+                name: wger-config
+            - secretRef:
+                name: wger-secrets
+          volumeMounts:
+            - name: media
+              mountPath: /home/wger/media
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: wger-media
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger-celery-beat
+  namespace: wger
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wger-celery-beat
+  template:
+    metadata:
+      labels:
+        app: wger-celery-beat
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: celery-beat
+          image: wger/server:2.6@sha256:997ead43aabdcd67d054f933e07d2b23875f01bf43271a267cb7796925ca27c4
+          imagePullPolicy: IfNotPresent
+          command:
+            - /start-beat
+          envFrom:
+            - configMapRef:
+                name: wger-config
+            - secretRef:
+                name: wger-secrets
+          volumeMounts:
+            - name: beat
+              mountPath: /home/wger/beat
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: beat
+          persistentVolumeClaim:
+            claimName: wger-celery-beat

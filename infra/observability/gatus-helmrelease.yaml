@@ -137,6 +137,31 @@ spec:
             - "[STATUS] == 200"
           alerts:
             - type: github
+        - name: wger
+          group: internal
+          url: http://wger.wger.svc.cluster.local:80
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 400"
+          alerts:
+            - type: github
+        - name: wger-postgres
+          group: dependencies
+          url: tcp://wger-postgres.wger.svc.cluster.local:5432
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
+        - name: wger-redis
+          group: dependencies
+          url: tcp://wger-redis.wger.svc.cluster.local:6379
+          interval: 5m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
         - name: invoiceninja-mysql
           group: dependencies
           url: tcp://invoiceninja-mysql.invoiceninja.svc.cluster.local:3306
@@ -332,6 +357,15 @@ spec:
         - name: invoice-ninja-public
           group: external
           url: https://invoice.cooked.beer
+          interval: 1m
+          conditions:
+            - "[STATUS] >= 200"
+            - "[STATUS] < 400"
+          alerts:
+            - type: github
+        - name: wger-public
+          group: external
+          url: https://wger.cooked.beer
           interval: 1m
           conditions:
             - "[STATUS] >= 200"

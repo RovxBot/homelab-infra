@@ -1,0 +1,142 @@
+# These policies are deliberately inert while Cilium is configured with
+# policyEnforcementMode: never. They document and validate the narrow ingress
+# contracts needed before any future policy-enforcement rollout.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wger-postgres-ingress
+  namespace: wger
+spec:
+  podSelector:
+    matchLabels:
+      app: wger-postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - wger-web
+                  - wger-celery-worker
+                  - wger-celery-beat
+                  - wger-powersync
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wger-redis-ingress
+  namespace: wger
+spec:
+  podSelector:
+    matchLabels:
+      app: wger-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - wger-web
+                  - wger-celery-worker
+                  - wger-celery-beat
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wger-web-ingress
+  namespace: wger
+spec:
+  podSelector:
+    matchLabels:
+      app: wger-web
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - wger
+                  - wger-powersync
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wger-powersync-ingress
+  namespace: wger
+spec:
+  podSelector:
+    matchLabels:
+      app: wger-powersync
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wger
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wger-ingress
+  namespace: wger
+spec:
+  podSelector:
+    matchLabels:
+      app: wger
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+          podSelector:
+            matchLabels:
+              app: cloudflared
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: TCP
+          port: 8080

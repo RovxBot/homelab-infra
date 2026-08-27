@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger-postgres
+  namespace: wger
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wger-postgres
+  template:
+    metadata:
+      labels:
+        app: wger-postgres
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:15.19-alpine3.24@sha256:fe0737ba566a2c5b2a28f34433c0a423261900ec17b9bf7ad115e1aae7e57f1b
+          imagePullPolicy: IfNotPresent
+          args:
+            - postgres
+            - -c
+            - wal_level=logical
+            - -c
+            - shared_buffers=256MB
+            - -c
+            - effective_cache_size=768MB
+            - -c
+            - work_mem=8MB
+            - -c
+            - random_page_cost=1.1
+            - -c
+            - max_connections=30
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wger-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wger-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: wger-secrets
+                  key: POSTGRES_DB
+            - name: TZ
+              value: Australia/Adelaide
+          ports:
+            - name: postgres
+              containerPort: 5432
+          startupProbe:
+            tcpSocket:
+              port: postgres
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: postgres
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: postgres
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: wger-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wger-postgres
+  namespace: wger
+spec:
+  selector:
+    app: wger-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger-redis
+  namespace: wger
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wger-redis
+  template:
+    metadata:
+      labels:
+        app: wger-redis
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:8.10-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+          imagePullPolicy: IfNotPresent
+          args:
+            - redis-server
+            - --bind
+            - 0.0.0.0
+            - --protected-mode
+            - "no"
+            - --appendonly
+            - "yes"
+            - --save
+            - 3600 1 300 100 60 10000
+            - --maxmemory
+            - 512mb
+            - --maxmemory-policy
+            - volatile-lru
+          ports:
+            - name: redis
+              containerPort: 6379
+          startupProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: wger-redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wger-redis
+  namespace: wger
+spec:
+  selector:
+    app: wger-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis

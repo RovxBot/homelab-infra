@@ -25,6 +25,8 @@ ingress:
     service: http://invoiceninja.invoiceninja.svc.cluster.local:80
   - hostname: memos.cooked.beer
     service: http://memos-web.memos.svc.cluster.local:80
+  - hostname: wger.cooked.beer
+    service: http://wger.wger.svc.cluster.local:80
   - hostname: home.cooked.beer
     service: http://home-assistant.home-assistant.svc.cluster.local:8123
     

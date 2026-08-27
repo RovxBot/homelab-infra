@@ -18,6 +18,12 @@
         description: Home automation and device control (Entra SSO)
         icon: home-assistant
         target: _blank
+    - wger:
+        href: https://wger.cooked.beer
+        siteMonitor: http://wger.wger.svc.cluster.local:80
+        description: Workout, nutrition, and weight tracking
+        icon: mdi-dumbbell
+        target: _blank
 
 - Media:
     - Jellyfin (LAN):

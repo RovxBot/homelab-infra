@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger-web
+  namespace: wger
+spec:
+  revisionHistoryLimit: 2
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wger-web
+  template:
+    metadata:
+      labels:
+        app: wger-web
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: bootstrap
+          image: wger/server:2.6@sha256:997ead43aabdcd67d054f933e07d2b23875f01bf43271a267cb7796925ca27c4
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+          args:
+            - |
+              until (echo > /dev/tcp/wger-postgres/5432) && (echo > /dev/tcp/wger-redis/6379); do
+                sleep 5
+              done
+              wger bootstrap --no-process-static
+              python3 manage.py shell -c "from django.contrib.auth.models import User; import os; user = User.objects.get(username='admin'); is_default = user.check_password('adminadmin'); user.set_password(os.environ['WGER_ADMIN_PASSWORD']) if is_default else None; user.save() if is_default else None"
+          envFrom:
+            - configMapRef:
+                name: wger-config
+            - secretRef:
+                name: wger-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      containers:
+        - name: web
+          image: wger/server:2.6@sha256:997ead43aabdcd67d054f933e07d2b23875f01bf43271a267cb7796925ca27c4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: wger-config
+            - secretRef:
+                name: wger-secrets
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: static
+              mountPath: /home/wger/static
+            - name: media
+              mountPath: /home/wger/media
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 200m
+              memory: 768Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+      volumes:
+        - name: static
+          persistentVolumeClaim:
+            claimName: wger-static
+        - name: media
+          persistentVolumeClaim:
+            claimName: wger-media
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wger-web
+  namespace: wger
+spec:
+  selector:
+    app: wger-web
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
