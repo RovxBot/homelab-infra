@@ -12,7 +12,6 @@ labels:
 resources:
   - namespace.yaml
   - configmap.yaml
-  - entra-settings-configmap.yaml
   - nginx-configmap.yaml
   - pvc.yaml
   - postgres.yaml
@@ -23,3 +22,8 @@ resources:
   - service.yaml
   - ../../secrets/wger.enc.yaml
   - networkpolicies.yaml
+
+configMapGenerator:
+  - name: wger-entra-settings
+    files:
+      - entra.py
