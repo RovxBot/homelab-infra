@@ -3,6 +3,7 @@ default_config:
 frontend:
   extra_module_url:
     - /local/ha-map-tile-replace/ha-map-tile-replace.js?v=2
+    - /local/airtouch-timer-picker.js?v=1
 
 # Keep custom dashboards declarative alongside the Home Assistant deployment.
 lovelace:

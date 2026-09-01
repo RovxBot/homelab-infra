@@ -30,6 +30,40 @@ spec:
           type: RuntimeDefault
 
       initContainers:
+        - name: install-airtouch-timer-picker
+          # Install the reviewed dashboard module from the generated ConfigMap
+          # before Home Assistant starts serving /local assets.
+          image: alpine/git:v2.54.0@sha256:d6cb5cbf950d728a4395e638ed2226e07229ba1b3ec1ca7e2be4034076ab2f66
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              mkdir -p /config/www
+              cp /gitops-assets/airtouch-timer-picker.js /config/www/.airtouch-timer-picker.js.new
+              chmod 0644 /config/www/.airtouch-timer-picker.js.new
+              mv /config/www/.airtouch-timer-picker.js.new /config/www/airtouch-timer-picker.js
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: default-config
+              mountPath: /gitops-assets
+              readOnly: true
         - name: install-airtouch2plus
           # The custom component is not available through Home Assistant Core.
           # Pin both the installer image and source revision so component
