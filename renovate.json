@@ -372,6 +372,17 @@
       "automerge": false
     },
     {
+      "description": "Track the Wger 2.7 prerelease required by the mobile application; keep the exception limited to the Wger server image.",
+      "matchPackageNames": [
+        "wger/server"
+      ],
+      "matchFileNames": [
+        "apps/wger/**"
+      ],
+      "ignoreUnstable": false,
+      "automerge": false
+    },
+    {
       "description": "Group Longhorn chart and node-disk changes as one storage update.",
       "matchFileNames": [
         "infra/longhorn/**",
