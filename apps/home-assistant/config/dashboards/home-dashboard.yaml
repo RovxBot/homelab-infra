@@ -85,7 +85,9 @@ views:
             show_header_toggle: false
             entities:
               - entity: input_number.airtouch_auto_off_minutes
-                name: Turn off after
+                name: Turn off after (15-minute steps)
+              - entity: sensor.airtouch_auto_off_duration_display
+                name: Selected duration
               - entity: script.airtouch_turn_on_with_timer
                 name: Turn on with timer
                 action_name: Start

@@ -51,6 +51,22 @@ input_number:
     mode: slider
     unit_of_measurement: min
 
+# Home Assistant's native number slider displays its numeric state in minutes.
+# Keep it in 15-minute increments while exposing the selected duration in the
+# more readable HH:MM form once it reaches one hour.
+template:
+  - sensor:
+      - name: AirTouch auto-off duration display
+        unique_id: airtouch_auto_off_duration_display
+        icon: mdi:timer-outline
+        state: >-
+          {% set duration_minutes = states('input_number.airtouch_auto_off_minutes') | int(60) %}
+          {% if duration_minutes < 60 %}
+            {{ duration_minutes }} min
+          {% else %}
+            {{ '%02d:%02d' | format(duration_minutes // 60, duration_minutes % 60) }}
+          {% endif %}
+
 input_datetime:
   airtouch_auto_off_at:
     name: AirTouch auto-off at
