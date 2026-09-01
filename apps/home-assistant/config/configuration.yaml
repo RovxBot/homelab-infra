@@ -10,7 +10,7 @@ lovelace:
   # with the view configuration, including clients with a cached app shell.
   resource_mode: yaml
   resources:
-    - url: /local/airtouch-timer-picker.js?v=1
+    - url: /local/airtouch-timer-picker.js?v=2
       type: module
   dashboards:
     homelab-home:
