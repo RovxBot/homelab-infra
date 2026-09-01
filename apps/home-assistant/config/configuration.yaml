@@ -3,10 +3,15 @@ default_config:
 frontend:
   extra_module_url:
     - /local/ha-map-tile-replace/ha-map-tile-replace.js?v=2
-    - /local/airtouch-timer-picker.js?v=1
 
 # Keep custom dashboards declarative alongside the Home Assistant deployment.
 lovelace:
+  # Register the custom card with Lovelace itself so dashboard clients load it
+  # with the view configuration, including clients with a cached app shell.
+  resource_mode: yaml
+  resources:
+    - url: /local/airtouch-timer-picker.js?v=1
+      type: module
   dashboards:
     homelab-home:
       mode: yaml
