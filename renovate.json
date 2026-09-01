@@ -17,6 +17,15 @@
   "prConcurrentLimit": 3,
   "branchConcurrentLimit": 3,
   "dependencyDashboardTitle": "Renovate Dependency Dashboard",
+  "dependencyDashboardApproval": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "dependencyDashboardApproval": false,
+    "prCreation": "immediate",
+    "addLabels": [
+      "security"
+    ]
+  },
   "enabledManagers": [
     "dockerfile",
     "flux",
@@ -70,6 +79,29 @@
         "kubernetes",
         "terraform"
       ],
+      "automerge": false
+    },
+    {
+      "description": "Make application updates a single, deliberately approved maintenance batch: application releases and their supporting images share one PR, including across major/minor boundaries.",
+      "matchFileNames": [
+        "apps/grimguzzler-registration/**",
+        "apps/home-assistant/**",
+        "apps/homepage/**",
+        "apps/immich/**",
+        "apps/invoiceninja/**",
+        "apps/jellyfin/**",
+        "apps/jellyseerr/**",
+        "apps/memos/**",
+        "apps/prowlarr/**",
+        "apps/radarr/**",
+        "apps/sabnzbd/**",
+        "apps/sonarr/**",
+        "apps/vaultwarden/**",
+        "apps/wger/**",
+        "apps/wotlk/**"
+      ],
+      "separateMajorMinor": false,
+      "groupSingleUpdates": true,
       "automerge": false
     },
     {
@@ -292,6 +324,51 @@
       ],
       "groupName": "observability",
       "groupSlug": "observability",
+      "automerge": false
+    },
+    {
+      "description": "Group Grim Guzzler registration updates as one application update.",
+      "matchFileNames": [
+        "apps/grimguzzler-registration/**"
+      ],
+      "groupName": "grimguzzler-registration",
+      "groupSlug": "grimguzzler-registration",
+      "automerge": false
+    },
+    {
+      "description": "Group Home Assistant and its supporting images as one application update.",
+      "matchFileNames": [
+        "apps/home-assistant/**"
+      ],
+      "groupName": "home-assistant",
+      "groupSlug": "home-assistant",
+      "automerge": false
+    },
+    {
+      "description": "Group Memos updates as one application update.",
+      "matchFileNames": [
+        "apps/memos/**"
+      ],
+      "groupName": "memos",
+      "groupSlug": "memos",
+      "automerge": false
+    },
+    {
+      "description": "Group Vaultwarden updates as one application update.",
+      "matchFileNames": [
+        "apps/vaultwarden/**"
+      ],
+      "groupName": "vaultwarden",
+      "groupSlug": "vaultwarden",
+      "automerge": false
+    },
+    {
+      "description": "Group Wger and its supporting services as one application update.",
+      "matchFileNames": [
+        "apps/wger/**"
+      ],
+      "groupName": "wger",
+      "groupSlug": "wger",
       "automerge": false
     },
     {

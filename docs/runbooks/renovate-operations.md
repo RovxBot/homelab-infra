@@ -10,14 +10,26 @@ maintenance cadence. Security PRs can still bypass the normal concurrent limit.
 The limits do not close existing PRs; triage or close those explicitly from the
 Dashboard.
 
+Routine updates wait for approval on the Dependency Dashboard instead of
+consuming an open-PR slot. Renovate batches every supported application and its
+supporting images into that application's update PR, including a major
+application release with its available dependency changes. Approve the
+application's Dashboard entry when it is time to do that maintenance; the
+Dashboard remains the complete queue even while the PR limits are full.
+
+GitHub vulnerability alerts are the exception: Renovate opens their remediation
+PRs immediately, without Dashboard approval and without applying the normal
+branch, PR, hourly, or schedule limits. They carry the `security` label and may
+be reviewed independently of the application batch.
+
 All Renovate automerge is disabled. A generated PR is a prompt for review, not
 permission to deploy it. Check the manifest or Terraform diff, CI status,
 release notes and any relevant maintenance boundary before merging.
 
 ## Triage
 
-1. Start at the Dependency Dashboard and prefer isolated, low-risk digest or
-   patch updates when capacity is available.
+1. Start at the Dependency Dashboard. When capacity is available, approve an
+   application batch rather than a one-off supporting-image update.
 2. Require a maintenance plan for Cilium, Talos, Kubernetes, Longhorn, GPU
    Operator, Kyverno, OCI edge and database changes.
 3. Close stale PRs rather than merging a change that no longer has a clear
