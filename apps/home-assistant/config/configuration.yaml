@@ -41,31 +41,24 @@ lovelace:
 # AirTouch auto-off controls. The timer state is visible on the dashboard and
 # its running state is restored across normal Home Assistant restarts.
 input_number:
-  airtouch_auto_off_minutes:
-    name: AirTouch auto-off duration
+  airtouch_auto_off_hours:
+    name: AirTouch auto-off hours
     icon: mdi:timer-outline
-    min: 15
-    max: 480
+    min: 0
+    max: 8
+    step: 1
+    initial: 1
+    mode: box
+    unit_of_measurement: h
+  airtouch_auto_off_minute_block:
+    name: AirTouch auto-off minutes
+    icon: mdi:timer-outline
+    min: 0
+    max: 45
     step: 15
-    initial: 60
-    mode: slider
+    initial: 0
+    mode: box
     unit_of_measurement: min
-
-# Home Assistant's native number slider displays its numeric state in minutes.
-# Keep it in 15-minute increments while exposing the selected duration in the
-# more readable HH:MM form once it reaches one hour.
-template:
-  - sensor:
-      - name: AirTouch auto-off duration display
-        unique_id: airtouch_auto_off_duration_display
-        icon: mdi:timer-outline
-        state: >-
-          {% set duration_minutes = states('input_number.airtouch_auto_off_minutes') | int(60) %}
-          {% if duration_minutes < 60 %}
-            {{ duration_minutes }} min
-          {% else %}
-            {{ '%02d:%02d' | format(duration_minutes // 60, duration_minutes % 60) }}
-          {% endif %}
 
 input_datetime:
   airtouch_auto_off_at:
@@ -95,7 +88,8 @@ script:
     sequence:
       - variables:
           duration_minutes: >-
-            {{ states('input_number.airtouch_auto_off_minutes') | int(60) }}
+            {{ (states('input_number.airtouch_auto_off_hours') | int(1) * 60)
+               + (states('input_number.airtouch_auto_off_minute_block') | int(0)) }}
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.airtouch_auto_off_at
