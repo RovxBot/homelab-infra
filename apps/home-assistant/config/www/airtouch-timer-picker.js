@@ -20,6 +20,7 @@ class AirTouchTimerPicker extends HTMLElement {
     this._pendingUpdates = {};
     this._selectedValues = {};
     this._optimisticValues = {};
+    this._userScrolling = {};
     this._render();
   }
 
@@ -144,6 +145,12 @@ class AirTouchTimerPicker extends HTMLElement {
 
     for (const kind of ["hours", "minutes"]) {
       const wheel = root.querySelector(`[data-wheel="${kind}"]`);
+      const markUserScroll = () => {
+        this._userScrolling[kind] = true;
+      };
+      wheel.addEventListener("pointerdown", markUserScroll, { passive: true });
+      wheel.addEventListener("wheel", markUserScroll, { passive: true });
+      wheel.addEventListener("keydown", markUserScroll);
       wheel.addEventListener("scroll", () => this._wheelScrolled(kind), {
         passive: true,
       });
@@ -195,8 +202,14 @@ class AirTouchTimerPicker extends HTMLElement {
     const value = values[index];
 
     this._markSelected(kind, value);
+    if (!this._userScrolling[kind]) {
+      return;
+    }
     clearTimeout(this._pendingUpdates[kind]);
-    this._pendingUpdates[kind] = setTimeout(() => this._setValue(kind, value), 140);
+    this._pendingUpdates[kind] = setTimeout(() => {
+      this._setValue(kind, value);
+      this._userScrolling[kind] = false;
+    }, 220);
   }
 
   _selectValue(kind, value, scroll) {
