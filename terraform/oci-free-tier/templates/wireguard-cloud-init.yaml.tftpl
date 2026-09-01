@@ -19,6 +19,19 @@ write_files:
       net.ipv4.ip_forward=1
       net.ipv4.tcp_mtu_probing=1
       net.ipv6.conf.all.forwarding=1
+  - path: /etc/ssh/sshd_config.d/99-homelab-hardening.conf
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${wireguard_sshd_hardening_b64}
+%{ if wireguard_admin_public_key != "" ~}
+  - path: /etc/systemd/system/wg-quick@wg0.service.d/20-admin-peer.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Service]
+      ExecStartPost=/usr/bin/wg set wg0 peer ${wireguard_admin_public_key} allowed-ips ${wireguard_admin_address}
+%{ endif ~}
 %{ if wireguard_install_caddy ~}
   - path: /etc/caddy/Caddyfile
     owner: root:root
@@ -30,6 +43,13 @@ write_files:
     permissions: "0755"
     encoding: b64
     content: ${wireguard_edge_script_b64}
+%{ if wireguard_peer_config_b64 != "" ~}
+  - path: /etc/systemd/system/homelab-public-edge.service
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${wireguard_edge_unit_b64}
+%{ endif ~}
 %{ endif ~}
 
 runcmd:
@@ -37,6 +57,10 @@ runcmd:
   - systemctl enable systemd-resolved
   - bash -lc 'iptables -C INPUT -p udp --dport ${wireguard_udp_port} -j ACCEPT 2>/dev/null || iptables -I INPUT 4 -p udp --dport ${wireguard_udp_port} -j ACCEPT'
   - netfilter-persistent save
+  - systemctl daemon-reload
+  - bash -lc 'if [ -n "${wireguard_peer_config_b64}" ]; then echo "${wireguard_peer_config_b64}" | base64 -d >/etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf && systemctl enable --now wg-quick@wg0; fi'
+  - sshd -t
+  - systemctl reload ssh
 %{ if wireguard_install_caddy ~}
   - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor | tee /usr/share/keyrings/caddy-stable-archive-keyring.gpg >/dev/null'
   - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null'
@@ -44,9 +68,9 @@ runcmd:
   - bash -lc 'DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::=--force-confold install -y caddy'
   - caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
   - systemctl enable --now caddy
-  - /opt/homelab/ops/wireguard/vps-public-edge.sh
-  - netfilter-persistent save
+%{ if wireguard_peer_config_b64 != "" ~}
+  - systemctl enable --now homelab-public-edge.service
 %{ endif ~}
-  - bash -lc 'if [ -n "${wireguard_peer_config_b64}" ]; then echo "${wireguard_peer_config_b64}" | base64 -d >/etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf && systemctl enable --now wg-quick@wg0; fi'
+%{ endif ~}
 
 final_message: "WireGuard bootstrap complete. UDP port ${wireguard_udp_port} is expected to be opened by OCI NSG rules."
