@@ -29,6 +29,11 @@ class AirTouchTimerPicker extends HTMLElement {
     this._sync();
   }
 
+  disconnectedCallback() {
+    clearInterval(this._countdownInterval);
+    this._countdownInterval = undefined;
+  }
+
   getCardSize() {
     return 5;
   }
@@ -251,11 +256,46 @@ class AirTouchTimerPicker extends HTMLElement {
 
     this._syncWheel("hours", this._config.hours_entity, this._hours);
     this._syncWheel("minutes", this._config.minutes_entity, this._minutes);
+    this._updateCountdown();
+  }
+
+  _updateCountdown() {
+    if (!this.shadowRoot || !this._hass) {
+      return;
+    }
 
     const timer = this._hass.states[this._config.timer_entity];
-    const countdown = timer?.state === "active" ? timer.attributes.remaining : "Idle";
-    this.shadowRoot.querySelector("#status").textContent =
-      `Auto-off countdown: ${countdown || "Idle"}`;
+    const status = this.shadowRoot.querySelector("#status");
+    if (timer?.state !== "active") {
+      clearInterval(this._countdownInterval);
+      this._countdownInterval = undefined;
+      status.textContent = "Auto-off countdown: Idle";
+      return;
+    }
+
+    const finishesAt = Date.parse(timer.attributes.finishes_at);
+    if (Number.isFinite(finishesAt)) {
+      status.textContent = `Auto-off countdown: ${this._formatCountdown(
+        finishesAt - Date.now(),
+      )}`;
+      if (!this._countdownInterval) {
+        this._countdownInterval = setInterval(() => this._updateCountdown(), 1000);
+      }
+      return;
+    }
+
+    // Fallback for timer providers that do not expose an absolute finish time.
+    status.textContent = `Auto-off countdown: ${timer.attributes.remaining || "Active"}`;
+  }
+
+  _formatCountdown(milliseconds) {
+    const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    return [hours, minutes, remainingSeconds]
+      .map((value) => String(value).padStart(2, "0"))
+      .join(":");
   }
 
   _syncWheel(kind, entityId, values) {
