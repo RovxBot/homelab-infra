@@ -1,18 +1,5 @@
 default_config:
 
-http:
-  # Home Assistant uses host networking for LAN discovery. Requests from the
-  # Cloudflared pods are therefore source-NATed to their Kubernetes worker
-  # node IPs before reaching Home Assistant. Trust only the worker nodes that
-  # may host those pods, never the whole LAN.
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 192.168.1.47 # metal4
-    - 192.168.1.84 # metal8
-    - 192.168.1.195 # metal5
-    - 192.168.1.196 # metal6
-    - 192.168.1.197 # metal7
-
 frontend:
   extra_module_url:
     - /local/ha-map-tile-replace/ha-map-tile-replace.js?v=2
