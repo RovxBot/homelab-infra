@@ -376,10 +376,14 @@
       "matchPackageNames": [
         "wger/server"
       ],
+      "matchDatasources": [
+        "docker"
+      ],
       "matchFileNames": [
         "apps/wger/**"
       ],
       "ignoreUnstable": false,
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+))?(?:-(?:alpha|beta|rc)(?<prerelease>\\d+))?$",
       "automerge": false
     },
     {
