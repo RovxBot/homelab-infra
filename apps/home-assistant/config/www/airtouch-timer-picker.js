@@ -19,6 +19,7 @@ class AirTouchTimerPicker extends HTMLElement {
     this._minutes = [0, 15, 30, 45];
     this._pendingUpdates = {};
     this._scrollStartTimeouts = {};
+    this._hasUserScrolled = {};
     this._selectedValues = {};
     this._optimisticValues = {};
     this._userScrolling = {};
@@ -162,6 +163,7 @@ class AirTouchTimerPicker extends HTMLElement {
       wheel.addEventListener("scroll", () => this._wheelScrolled(kind), {
         passive: true,
       });
+      wheel.addEventListener("scrollend", () => this._wheelScrollEnded(kind));
       wheel.querySelectorAll(".option").forEach((option) => {
         option.addEventListener("click", () => {
           this._selectValue(kind, Number(option.dataset.value), true);
@@ -207,25 +209,42 @@ class AirTouchTimerPicker extends HTMLElement {
     if (!this._userScrolling[kind]) {
       return;
     }
+    this._hasUserScrolled[kind] = true;
     clearTimeout(this._pendingUpdates[kind]);
-    this._pendingUpdates[kind] = setTimeout(() => {
-      // Read the settled position rather than a value from an earlier scroll
-      // event, so fast swipes always commit the value visible in the wheel.
-      const settledValue = this._valueAtWheel(kind);
-      this._markSelected(kind, settledValue);
-      this._setValue(kind, settledValue);
-      this._pendingUpdates[kind] = undefined;
-      this._userScrolling[kind] = false;
-    }, 220);
+    // Older browsers do not dispatch scrollend. This fallback is deliberately
+    // longer than a wheel snap so it cannot commit an intermediate hour.
+    this._pendingUpdates[kind] = setTimeout(
+      () => this._commitUserScroll(kind),
+      750,
+    );
+  }
+
+  _wheelScrollEnded(kind) {
+    if (this._userScrolling[kind] && this._hasUserScrolled[kind]) {
+      this._commitUserScroll(kind);
+    }
+  }
+
+  _commitUserScroll(kind) {
+    clearTimeout(this._pendingUpdates[kind]);
+    this._pendingUpdates[kind] = undefined;
+    const settledValue = this._valueAtWheel(kind);
+    this._markSelected(kind, settledValue);
+    this._setValue(kind, settledValue);
+    this._hasUserScrolled[kind] = false;
+    this._userScrolling[kind] = false;
   }
 
   _startUserScroll(kind) {
+    if (!this._userScrolling[kind]) {
+      this._hasUserScrolled[kind] = false;
+    }
     this._userScrolling[kind] = true;
     clearTimeout(this._scrollStartTimeouts[kind]);
     // A pointer or wheel event at the end of the list may not produce a
     // scroll event. Do not leave that wheel protected from sync indefinitely.
     this._scrollStartTimeouts[kind] = setTimeout(() => {
-      if (!this._pendingUpdates[kind]) {
+      if (!this._hasUserScrolled[kind]) {
         this._userScrolling[kind] = false;
       }
     }, 300);
@@ -251,7 +270,9 @@ class AirTouchTimerPicker extends HTMLElement {
 
     if (scroll) {
       clearTimeout(this._pendingUpdates[kind]);
+      clearTimeout(this._scrollStartTimeouts[kind]);
       this._pendingUpdates[kind] = undefined;
+      this._hasUserScrolled[kind] = false;
       this._userScrolling[kind] = false;
       wheel.scrollTo({ top: index * 44, behavior: "smooth" });
     }
