@@ -18,6 +18,7 @@ class AirTouchTimerPicker extends HTMLElement {
     this._hours = Array.from({ length: 9 }, (_, value) => value);
     this._minutes = [0, 15, 30, 45];
     this._pendingUpdates = {};
+    this._scrollStartTimeouts = {};
     this._selectedValues = {};
     this._optimisticValues = {};
     this._userScrolling = {};
@@ -32,6 +33,10 @@ class AirTouchTimerPicker extends HTMLElement {
   disconnectedCallback() {
     clearInterval(this._countdownInterval);
     this._countdownInterval = undefined;
+    for (const kind of ["hours", "minutes"]) {
+      clearTimeout(this._pendingUpdates[kind]);
+      clearTimeout(this._scrollStartTimeouts[kind]);
+    }
   }
 
   getCardSize() {
@@ -150,9 +155,7 @@ class AirTouchTimerPicker extends HTMLElement {
 
     for (const kind of ["hours", "minutes"]) {
       const wheel = root.querySelector(`[data-wheel="${kind}"]`);
-      const markUserScroll = () => {
-        this._userScrolling[kind] = true;
-      };
+      const markUserScroll = () => this._startUserScroll(kind);
       wheel.addEventListener("pointerdown", markUserScroll, { passive: true });
       wheel.addEventListener("wheel", markUserScroll, { passive: true });
       wheel.addEventListener("keydown", markUserScroll);
@@ -198,13 +201,7 @@ class AirTouchTimerPicker extends HTMLElement {
   }
 
   _wheelScrolled(kind) {
-    const wheel = this.shadowRoot.querySelector(`[data-wheel="${kind}"]`);
-    const values = kind === "hours" ? this._hours : this._minutes;
-    const index = Math.max(
-      0,
-      Math.min(values.length - 1, Math.round(wheel.scrollTop / 44)),
-    );
-    const value = values[index];
+    const value = this._valueAtWheel(kind);
 
     this._markSelected(kind, value);
     if (!this._userScrolling[kind]) {
@@ -212,9 +209,36 @@ class AirTouchTimerPicker extends HTMLElement {
     }
     clearTimeout(this._pendingUpdates[kind]);
     this._pendingUpdates[kind] = setTimeout(() => {
-      this._setValue(kind, value);
+      // Read the settled position rather than a value from an earlier scroll
+      // event, so fast swipes always commit the value visible in the wheel.
+      const settledValue = this._valueAtWheel(kind);
+      this._markSelected(kind, settledValue);
+      this._setValue(kind, settledValue);
+      this._pendingUpdates[kind] = undefined;
       this._userScrolling[kind] = false;
     }, 220);
+  }
+
+  _startUserScroll(kind) {
+    this._userScrolling[kind] = true;
+    clearTimeout(this._scrollStartTimeouts[kind]);
+    // A pointer or wheel event at the end of the list may not produce a
+    // scroll event. Do not leave that wheel protected from sync indefinitely.
+    this._scrollStartTimeouts[kind] = setTimeout(() => {
+      if (!this._pendingUpdates[kind]) {
+        this._userScrolling[kind] = false;
+      }
+    }, 300);
+  }
+
+  _valueAtWheel(kind) {
+    const wheel = this.shadowRoot.querySelector(`[data-wheel="${kind}"]`);
+    const values = kind === "hours" ? this._hours : this._minutes;
+    const index = Math.max(
+      0,
+      Math.min(values.length - 1, Math.round(wheel.scrollTop / 44)),
+    );
+    return values[index];
   }
 
   _selectValue(kind, value, scroll) {
@@ -226,6 +250,9 @@ class AirTouchTimerPicker extends HTMLElement {
     }
 
     if (scroll) {
+      clearTimeout(this._pendingUpdates[kind]);
+      this._pendingUpdates[kind] = undefined;
+      this._userScrolling[kind] = false;
       wheel.scrollTo({ top: index * 44, behavior: "smooth" });
     }
     this._markSelected(kind, value);
@@ -301,6 +328,12 @@ class AirTouchTimerPicker extends HTMLElement {
   _syncWheel(kind, entityId, values) {
     const value = Number(this._hass.states[entityId]?.state);
     if (!values.includes(value)) {
+      return;
+    }
+    // Home Assistant can publish unrelated state updates before the delayed
+    // input_number update arrives. Keep the user's in-progress wheel position
+    // instead of scrolling it back to that older entity value.
+    if (this._userScrolling[kind]) {
       return;
     }
     if (this._optimisticValues[kind] !== undefined) {
