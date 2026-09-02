@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: bootstrap
-          image: wger/server:2.7.0-alpha2@sha256:3b0c6a3da3dfd5d0c663afefc1993d67c5cdb8b77c4fb27575f2b327838b41cd
+          image: wger/server:2.7.0-alpha2@sha256:a99480c4a3cfd0d40ada6fac3ee214f4c42763b6b5359e0725491c633fdfe1f3
           imagePullPolicy: IfNotPresent
           command:
             - /bin/bash
@@ -69,7 +69,7 @@ spec:
               memory: 1Gi
       containers:
         - name: web
-          image: wger/server:2.7.0-alpha2@sha256:3b0c6a3da3dfd5d0c663afefc1993d67c5cdb8b77c4fb27575f2b327838b41cd
+          image: wger/server:2.7.0-alpha2@sha256:a99480c4a3cfd0d40ada6fac3ee214f4c42763b6b5359e0725491c633fdfe1f3
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
