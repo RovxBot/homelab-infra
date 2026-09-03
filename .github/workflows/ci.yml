@@ -175,6 +175,13 @@ jobs:
           python3 -m pip install --quiet pyyaml
           python3 scripts/ci/check_secret_refs.py .work/rendered.yaml
 
+      - name: Check Kyverno PolicyException expiry
+        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/check_kyverno_exception_expiry.py
+
       - name: Run Kyverno baseline gate
         if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
