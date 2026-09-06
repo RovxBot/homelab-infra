@@ -1,0 +1,123 @@
+title: Air Quality
+views:
+  - title: Air Quality
+    path: air-quality
+    icon: mdi:air-filter
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: gauge
+            entity: sensor.apollo_air_1_0e4a28_co2
+            name: Carbon dioxide
+            min: 400
+            max: 2000
+            needle: true
+            severity:
+              green: 400
+              yellow: 800
+              red: 1200
+          - type: gauge
+            entity: sensor.apollo_air_1_0e4a28_pm_2_5mm_weight_concentration
+            name: Fine particles (PM2.5)
+            min: 0
+            max: 50
+            needle: true
+            severity:
+              green: 0
+              yellow: 15
+              red: 35
+          - type: entities
+            title: Apollo AIR-1 status
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.apollo_air_1_0e4a28_online
+                name: Sensor online
+              - entity: sensor.apollo_air_1_0e4a28_voc_quality
+                name: VOC quality
+              - entity: sensor.apollo_air_1_0e4a28_rssi
+                name: Wi-Fi signal
+              - entity: sensor.apollo_air_1_0e4a28_uptime
+                name: Uptime
+      - type: grid
+        cards:
+          - type: gauge
+            entity: sensor.apollo_air_1_0e4a28_sen55_voc
+            name: VOC index
+            min: 0
+            max: 300
+            needle: true
+            severity:
+              green: 0
+              yellow: 100
+              red: 200
+          - type: gauge
+            entity: sensor.apollo_air_1_0e4a28_sen55_nox
+            name: NOx index
+            min: 0
+            max: 300
+            needle: true
+            severity:
+              green: 0
+              yellow: 100
+              red: 200
+          - type: entities
+            title: Comfort
+            show_header_toggle: false
+            entities:
+              - entity: sensor.apollo_air_1_0e4a28_sen55_temperature
+                name: Temperature
+              - entity: sensor.apollo_air_1_0e4a28_sen55_humidity
+                name: Humidity
+              - entity: sensor.apollo_air_1_0e4a28_dps310_pressure
+                name: Pressure
+      - type: grid
+        cards:
+          - type: entities
+            title: Particulate matter
+            show_header_toggle: false
+            entities:
+              - entity: sensor.apollo_air_1_0e4a28_pm_1mm_weight_concentration
+                name: PM1
+              - entity: sensor.apollo_air_1_0e4a28_pm_2_5mm_weight_concentration
+                name: PM2.5
+              - entity: sensor.apollo_air_1_0e4a28_pm_4mm_weight_concentration
+                name: PM4
+              - entity: sensor.apollo_air_1_0e4a28_pm_10mm_weight_concentration
+                name: PM10
+          - type: history-graph
+            title: Particles — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.apollo_air_1_0e4a28_pm_1mm_weight_concentration
+                name: PM1
+              - entity: sensor.apollo_air_1_0e4a28_pm_2_5mm_weight_concentration
+                name: PM2.5
+              - entity: sensor.apollo_air_1_0e4a28_pm_10mm_weight_concentration
+                name: PM10
+      - type: grid
+        cards:
+          - type: history-graph
+            title: Carbon dioxide — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.apollo_air_1_0e4a28_co2
+                name: CO₂
+          - type: history-graph
+            title: VOC and NOx indices — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.apollo_air_1_0e4a28_sen55_voc
+                name: VOC
+              - entity: sensor.apollo_air_1_0e4a28_sen55_nox
+                name: NOx
+          - type: history-graph
+            title: Temperature and humidity — last 24 hours
+            hours_to_show: 24
+            entities:
+              - entity: sensor.apollo_air_1_0e4a28_sen55_temperature
+                name: Temperature
+              - entity: sensor.apollo_air_1_0e4a28_sen55_humidity
+                name: Humidity
