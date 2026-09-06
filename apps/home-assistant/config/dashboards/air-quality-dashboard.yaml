@@ -8,9 +8,24 @@ views:
     sections:
       - type: grid
         cards:
+          - type: markdown
+            content: >-
+              ## What the readings mean
+
+              **Freshness** shows whether the room could use more outside air.
+              **Dust & smoke** detects tiny airborne particles from sources such
+              as cooking, smoke and dust. **Airborne chemicals** can rise with
+              cleaning products, perfumes or cooking. **Combustion-related
+              gases** can rise near gas appliances, vehicles or smoke.
+
+              For the air-quality readings, lower is generally better. The
+              colours show when a reading is starting to rise; use changes over
+              time to spot when opening a window or changing ventilation helps.
+              The chemical and combustion readings are best used to identify a
+              change, rather than identify one exact chemical or source.
           - type: gauge
             entity: sensor.apollo_air_1_0e4a28_co2
-            name: Carbon dioxide
+            name: Air freshness (CO₂)
             min: 400
             max: 2000
             needle: true
@@ -20,7 +35,7 @@ views:
               red: 1200
           - type: gauge
             entity: sensor.apollo_air_1_0e4a28_pm_2_5mm_weight_concentration
-            name: Fine particles (PM2.5)
+            name: Dust & smoke (PM2.5)
             min: 0
             max: 50
             needle: true
@@ -29,23 +44,23 @@ views:
               yellow: 15
               red: 35
           - type: entities
-            title: Apollo AIR-1 status
+            title: Sensor status
             state_color: true
             show_header_toggle: false
             entities:
               - entity: binary_sensor.apollo_air_1_0e4a28_online
-                name: Sensor online
+                name: Sensor connection
               - entity: sensor.apollo_air_1_0e4a28_voc_quality
-                name: VOC quality
+                name: Airborne-chemical reading (VOC)
               - entity: sensor.apollo_air_1_0e4a28_rssi
-                name: Wi-Fi signal
+                name: Wi-Fi strength
               - entity: sensor.apollo_air_1_0e4a28_uptime
-                name: Uptime
+                name: Time since restart
       - type: grid
         cards:
           - type: gauge
             entity: sensor.apollo_air_1_0e4a28_sen55_voc
-            name: VOC index
+            name: Airborne chemicals (VOC)
             min: 0
             max: 300
             needle: true
@@ -55,7 +70,7 @@ views:
               red: 200
           - type: gauge
             entity: sensor.apollo_air_1_0e4a28_sen55_nox
-            name: NOx index
+            name: Combustion-related gases (NOx)
             min: 0
             max: 300
             needle: true
@@ -64,60 +79,60 @@ views:
               yellow: 100
               red: 200
           - type: entities
-            title: Comfort
+            title: Room comfort
             show_header_toggle: false
             entities:
               - entity: sensor.apollo_air_1_0e4a28_sen55_temperature
-                name: Temperature
+                name: Room temperature
               - entity: sensor.apollo_air_1_0e4a28_sen55_humidity
-                name: Humidity
+                name: Room humidity
               - entity: sensor.apollo_air_1_0e4a28_dps310_pressure
-                name: Pressure
+                name: Air pressure
       - type: grid
         cards:
           - type: entities
-            title: Particulate matter
+            title: Dust and smoke particles
             show_header_toggle: false
             entities:
               - entity: sensor.apollo_air_1_0e4a28_pm_1mm_weight_concentration
-                name: PM1
+                name: Very tiny particles (PM1)
               - entity: sensor.apollo_air_1_0e4a28_pm_2_5mm_weight_concentration
-                name: PM2.5
+                name: Fine particles (PM2.5)
               - entity: sensor.apollo_air_1_0e4a28_pm_4mm_weight_concentration
-                name: PM4
+                name: Medium particles (PM4)
               - entity: sensor.apollo_air_1_0e4a28_pm_10mm_weight_concentration
-                name: PM10
+                name: Larger particles (PM10)
           - type: history-graph
-            title: Particles — last 24 hours
+            title: Dust and smoke — last day
             hours_to_show: 24
             entities:
               - entity: sensor.apollo_air_1_0e4a28_pm_1mm_weight_concentration
-                name: PM1
+                name: Very tiny (PM1)
               - entity: sensor.apollo_air_1_0e4a28_pm_2_5mm_weight_concentration
-                name: PM2.5
+                name: Fine (PM2.5)
               - entity: sensor.apollo_air_1_0e4a28_pm_10mm_weight_concentration
-                name: PM10
+                name: Larger (PM10)
       - type: grid
         cards:
           - type: history-graph
-            title: Carbon dioxide — last 24 hours
+            title: Air freshness — last day
             hours_to_show: 24
             entities:
               - entity: sensor.apollo_air_1_0e4a28_co2
-                name: CO₂
+                name: CO₂ level
           - type: history-graph
-            title: VOC and NOx indices — last 24 hours
+            title: Fumes — last day
             hours_to_show: 24
             entities:
               - entity: sensor.apollo_air_1_0e4a28_sen55_voc
-                name: VOC
+                name: Airborne chemicals (VOC)
               - entity: sensor.apollo_air_1_0e4a28_sen55_nox
-                name: NOx
+                name: Combustion-related gases (NOx)
           - type: history-graph
-            title: Temperature and humidity — last 24 hours
+            title: Room comfort — last day
             hours_to_show: 24
             entities:
               - entity: sensor.apollo_air_1_0e4a28_sen55_temperature
-                name: Temperature
+                name: Room temperature
               - entity: sensor.apollo_air_1_0e4a28_sen55_humidity
-                name: Humidity
+                name: Room humidity
