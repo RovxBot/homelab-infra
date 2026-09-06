@@ -155,7 +155,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: setup-storage
-          image: wger/server:2.7.0-alpha2@sha256:a99480c4a3cfd0d40ada6fac3ee214f4c42763b6b5359e0725491c633fdfe1f3
+          image: wger/server:2.7@sha256:25aacc6091329a8247149aebea1c72dc9521662306202eecfddda21ba11a23e5
           imagePullPolicy: IfNotPresent
           command:
             - /bin/bash
