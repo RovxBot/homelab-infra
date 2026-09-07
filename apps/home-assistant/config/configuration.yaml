@@ -43,6 +43,12 @@ lovelace:
       title: Security
       icon: mdi:cctv
       show_in_sidebar: true
+    homelab-air-quality:
+      mode: yaml
+      filename: dashboards/air-quality-dashboard.yaml
+      title: Air Quality
+      icon: mdi:air-filter
+      show_in_sidebar: true
 
 # AirTouch auto-off controls. The timer state is visible on the dashboard and
 # its running state is restored across normal Home Assistant restarts.

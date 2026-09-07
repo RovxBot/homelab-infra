@@ -26,4 +26,5 @@ configMapGenerator:
       - power-dashboard.yaml=config/dashboards/power-dashboard.yaml
       - internet-dashboard.yaml=config/dashboards/internet-dashboard.yaml
       - security-dashboard.yaml=config/dashboards/security-dashboard.yaml
+      - air-quality-dashboard.yaml=config/dashboards/air-quality-dashboard.yaml
       - airtouch-timer-picker.js=config/www/airtouch-timer-picker.js
