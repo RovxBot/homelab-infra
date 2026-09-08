@@ -155,7 +155,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: setup-storage
-          image: wger/server:2.7@sha256:25aacc6091329a8247149aebea1c72dc9521662306202eecfddda21ba11a23e5
+          image: wger/server:2.7@sha256:1c5789b93bfe5eed0b7287255782d9177027b255de2b22b59f511a693a48db04
           imagePullPolicy: IfNotPresent
           command:
             - /bin/bash
@@ -198,7 +198,7 @@ spec:
               memory: 512Mi
       containers:
         - name: powersync
-          image: journeyapps/powersync-service:1.25.0@sha256:bf46f66e5dcc8f6a084de02ab51155dfa655bc610aa95009fff1c36f949c0acf
+          image: journeyapps/powersync-service:1.26.0@sha256:39f6a534f757afd1c633e91a19b23fde03186d16b5543b4af0f5c8f09d4cb79d
           imagePullPolicy: IfNotPresent
           args:
             - start
