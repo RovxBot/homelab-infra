@@ -41,7 +41,7 @@ spec:
                       - metal5
       containers:
         - name: radarr
-          image: linuxserver/radarr:6.3.0.10514-ls314@sha256:119aaa4a4f7349bcd2a136c5373a0d7925b5479915c7dfe0c0ad352db2a6d438
+          image: linuxserver/radarr:6.3.0.10514-ls315@sha256:95ba0801df4d9d1d79d0d9a3849f656542497dab061d91b87ad4f53a71aff3ef
           imagePullPolicy: Always
           ports:
             - containerPort: 7878
