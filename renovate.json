@@ -102,7 +102,7 @@
       ],
       "separateMajorMinor": false,
       "groupSingleUpdates": true,
-      "prTitle": "Update {{groupName}} application dependency {{depName}}",
+      "commitMessageTopic": "{{groupName}} application dependency {{depName}}",
       "automerge": false
     },
     {
@@ -115,55 +115,15 @@
       "automerge": false
     },
     {
-      "description": "Keep free-tier Terraform provider changes isolated from the deferred Matrix stack.",
+      "description": "Release every Terraform update, including major provider changes and both OCI roots, in one reviewable PR.",
       "matchManagers": [
         "terraform"
       ],
-      "matchFileNames": [
-        "terraform/oci-free-tier/**"
-      ],
-      "groupName": "oci-free-tier-terraform",
-      "groupSlug": "oci-free-tier-terraform",
-      "automerge": false
-    },
-    {
-      "description": "Keep the intentionally independent Matrix Terraform provider changes isolated.",
-      "matchManagers": [
-        "terraform"
-      ],
-      "matchFileNames": [
-        "terraform/oci-matrix-free-tier/**"
-      ],
-      "groupName": "oci-matrix-free-tier-terraform",
-      "groupSlug": "oci-matrix-free-tier-terraform",
-      "automerge": false
-    },
-    {
-      "description": "Require dashboard approval before an OCI provider major update changes the active free-tier stack.",
-      "matchManagers": [
-        "terraform"
-      ],
-      "matchFileNames": [
-        "terraform/oci-free-tier/**"
-      ],
-      "matchPackageNames": [
-        "oracle/oci"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "dependencyDashboardApproval": true,
-      "automerge": false
-    },
-    {
-      "description": "Defer every independent Matrix Terraform update until its capacity-backed rollout is planned.",
-      "matchManagers": [
-        "terraform"
-      ],
-      "matchFileNames": [
-        "terraform/oci-matrix-free-tier/**"
-      ],
-      "dependencyDashboardApproval": true,
+      "groupName": "terraform",
+      "groupSlug": "terraform",
+      "separateMajorMinor": false,
+      "groupSingleUpdates": true,
+      "dependencyDashboardApproval": false,
       "automerge": false
     },
     {
@@ -323,10 +283,9 @@
       "groupSlug": "cloudflared"
     },
     {
-      "description": "Keep WireGuard image updates separate from public-edge Terraform changes.",
+      "description": "Keep standalone WireGuard image updates separate from other infrastructure updates.",
       "matchFileNames": [
-        "infra/wireguard/**",
-        "terraform/oci-free-tier/ops/wireguard/**"
+        "infra/wireguard/**"
       ],
       "groupName": "wireguard",
       "groupSlug": "wireguard"

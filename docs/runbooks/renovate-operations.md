@@ -15,16 +15,22 @@ consuming an open-PR slot. Renovate batches every supported application and its
 supporting images into that application's update PR, including a major
 application release with its available dependency changes. The
 `renovate-release-app-batches` workflow approves a batch only when its
-Dashboard entry includes a tracked primary application image. Renovate then
-creates one PR containing that release and every pending supporting-image
-update in the same application group. A supporting-image-only batch remains in
-the Dashboard for manual triage.
+Dashboard entry includes a tracked primary application image. It retries the
+Dashboard while Renovate finishes dependency lookup, then Renovate creates one
+PR containing that release and every pending supporting-image update in the
+same application group. A supporting-image-only batch remains in the Dashboard
+for manual triage.
 
 The workflow does not run Renovate or create dependency branches itself. It has
 only `issues: write`, edits the existing Dashboard checkbox, and is limited to
 the primary images listed in the workflow. Add a primary image there when adding
-a new application batch rule. This preserves the hosted Renovate GitHub App as
-the sole dependency-update runner.
+a new application batch rule. It also scans the existing Dashboard after a
+relevant change reaches `main`, so a pending application release is not left
+waiting for a later Dashboard edit. This preserves the hosted Renovate GitHub
+App as the sole dependency-update runner.
+
+Terraform updates bypass Dashboard approval and are grouped across every
+Terraform root and update type into one reviewable PR.
 
 GitHub vulnerability alerts are the exception: Renovate opens their remediation
 PRs immediately, without Dashboard approval and without applying the normal
@@ -46,8 +52,9 @@ review the upstream migration notes before merging its PR.
 1. Start at the Dependency Dashboard. Application-release batches are approved
    automatically and open as one PR; approve a supporting-image-only batch
    manually only when it is worth a standalone maintenance change.
-2. Require a maintenance plan for Cilium, Talos, Kubernetes, Longhorn, GPU
-   Operator, Kyverno, OCI edge and database changes.
+2. Terraform changes open as one automatic PR. Require a maintenance plan for
+   Cilium, Talos, Kubernetes, Longhorn, GPU Operator, Kyverno, OCI edge and
+   database changes before merging.
 3. Close stale PRs rather than merging a change that no longer has a clear
    source version or validation result. Renovate will recreate an eligible
    update from the current base.
@@ -64,8 +71,6 @@ The Dependency Dashboard must be explicitly approved before Renovate opens a
 PR for:
 
 - Kyverno, Longhorn and GPU Operator Helm chart changes.
-- Major OCI provider updates to the active free-tier Terraform stack.
-- Any change in the independent Matrix Terraform root.
 - WotLK MySQL minor updates and WotLK Ubuntu base-image line updates.
 
 Database major updates are disabled; they require a separate migration plan.
