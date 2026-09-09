@@ -82,7 +82,7 @@
       "automerge": false
     },
     {
-      "description": "Make application updates a single, deliberately approved maintenance batch: application releases and their supporting images share one PR, including across major/minor boundaries.",
+      "description": "Make application updates a single, deliberately approved maintenance batch: application releases and their supporting images share one PR, including across major/minor boundaries. Include the triggering package in the Dashboard title so the release-batch workflow can approve only real application releases.",
       "matchFileNames": [
         "apps/grimguzzler-registration/**",
         "apps/home-assistant/**",
@@ -102,6 +102,7 @@
       ],
       "separateMajorMinor": false,
       "groupSingleUpdates": true,
+      "prTitle": "Update {{groupName}} application dependency {{depName}}",
       "automerge": false
     },
     {
@@ -218,6 +219,20 @@
         "linuxserver/sonarr"
       ],
       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:\\.(?<build>\\d+))?-ls(?<revision>\\d+)$"
+    },
+    {
+      "description": "Jellyfin 12 uses a two-component stable Docker tag (12.0), while the 10.x tags use three components. Normalize the optional patch component so Renovate can detect the major upgrade.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "jellyfin/jellyfin"
+      ],
+      "matchFileNames": [
+        "apps/jellyfin/**"
+      ],
+      "versioning": "regex:^(?<major>\\d+)(?:\\.(?<minor>\\d+))?(?:\\.(?<patch>\\d+))?$",
+      "automerge": false
     },
     {
       "description": "Group Immich image updates together.",

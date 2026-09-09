@@ -1,0 +1,83 @@
+name: Release Renovate Application Batches
+
+on:
+  issues:
+    types:
+      - edited
+
+permissions:
+  issues: write
+
+jobs:
+  release-application-batch:
+    if: github.event.issue.title == 'Renovate Dependency Dashboard'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve batches containing an application release
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const { data: issue } = await github.rest.issues.get({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+            });
+            const body = issue.body ?? '';
+            const heading = '## Pending Approval\n';
+            const pendingStart = body.indexOf(heading);
+
+            if (pendingStart === -1) {
+              core.info('The Dependency Dashboard has no pending approvals.');
+              return;
+            }
+
+            const pendingEnd = body.indexOf('\n## ', pendingStart + heading.length);
+            const pending = body.slice(
+              pendingStart,
+              pendingEnd === -1 ? body.length : pendingEnd,
+            );
+            const primaryApplicationImages = [
+              'ghcr.io/gethomepage/homepage',
+              'ghcr.io/home-assistant/home-assistant',
+              'ghcr.io/immich-app/immich-machine-learning',
+              'ghcr.io/immich-app/immich-server',
+              'ghcr.io/rovxbot/grimguzzler-registration',
+              'invoiceninja/invoiceninja',
+              'jellyfin/jellyfin',
+              'linuxserver/prowlarr',
+              'linuxserver/radarr',
+              'linuxserver/sabnzbd',
+              'linuxserver/sonarr',
+              'neosmemo/memos',
+              'seerr/seerr',
+              'vaultwarden/server',
+              'wger/server',
+            ];
+            let approved = 0;
+            const approvedPending = pending.replace(
+              / - \[ \] <!-- approve-branch=[^>]+ --> ([^\n]+)/g,
+              (entry, title) => {
+                if (!primaryApplicationImages.some((image) => title.includes(image))) {
+                  return entry;
+                }
+
+                approved += 1;
+                return entry.replace('- [ ]', '- [x]');
+              },
+            );
+
+            if (approved === 0) {
+              core.info('No pending batch includes a primary application image.');
+              return;
+            }
+
+            const updatedBody =
+              body.slice(0, pendingStart) +
+              approvedPending +
+              (pendingEnd === -1 ? '' : body.slice(pendingEnd));
+
+            await github.rest.issues.update({
+              ...context.repo,
+              issue_number: issue.number,
+              body: updatedBody,
+            });
+            core.info(`Approved ${approved} application release batch(es).`);

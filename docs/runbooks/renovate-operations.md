@@ -13,9 +13,18 @@ Dashboard.
 Routine updates wait for approval on the Dependency Dashboard instead of
 consuming an open-PR slot. Renovate batches every supported application and its
 supporting images into that application's update PR, including a major
-application release with its available dependency changes. Approve the
-application's Dashboard entry when it is time to do that maintenance; the
-Dashboard remains the complete queue even while the PR limits are full.
+application release with its available dependency changes. The
+`renovate-release-app-batches` workflow approves a batch only when its
+Dashboard entry includes a tracked primary application image. Renovate then
+creates one PR containing that release and every pending supporting-image
+update in the same application group. A supporting-image-only batch remains in
+the Dashboard for manual triage.
+
+The workflow does not run Renovate or create dependency branches itself. It has
+only `issues: write`, edits the existing Dashboard checkbox, and is limited to
+the primary images listed in the workflow. Add a primary image there when adding
+a new application batch rule. This preserves the hosted Renovate GitHub App as
+the sole dependency-update runner.
 
 GitHub vulnerability alerts are the exception: Renovate opens their remediation
 PRs immediately, without Dashboard approval and without applying the normal
@@ -26,10 +35,17 @@ All Renovate automerge is disabled. A generated PR is a prompt for review, not
 permission to deploy it. Check the manifest or Terraform diff, CI status,
 release notes and any relevant maintenance boundary before merging.
 
+Jellyfin 12 uses a `12.0` Docker tag rather than the three-component `10.x`
+form. A narrowly scoped versioning rule normalizes those tags so Renovate can
+detect the major upgrade. Jellyfin 12 includes a database migration that cannot
+be rolled back without restoring a backup; take a verified `/config` backup and
+review the upstream migration notes before merging its PR.
+
 ## Triage
 
-1. Start at the Dependency Dashboard. When capacity is available, approve an
-   application batch rather than a one-off supporting-image update.
+1. Start at the Dependency Dashboard. Application-release batches are approved
+   automatically and open as one PR; approve a supporting-image-only batch
+   manually only when it is worth a standalone maintenance change.
 2. Require a maintenance plan for Cilium, Talos, Kubernetes, Longhorn, GPU
    Operator, Kyverno, OCI edge and database changes.
 3. Close stale PRs rather than merging a change that no longer has a clear
