@@ -6,6 +6,8 @@ class AirTouchTimerPicker extends HTMLElement {
       start_entity: "script.airtouch_turn_on_with_timer",
       cancel_entity: "script.airtouch_cancel_auto_off",
       timer_entity: "timer.airtouch_auto_off",
+      climate_entity: "climate.at2plus_ac_0",
+      armed_entity: "input_boolean.airtouch_auto_off_armed",
     };
   }
 
@@ -14,16 +16,20 @@ class AirTouchTimerPicker extends HTMLElement {
       throw new Error("hours_entity and minutes_entity are required");
     }
 
+    this._cleanup();
     this._config = { ...AirTouchTimerPicker.getStubConfig(), ...config };
     this._hours = Array.from({ length: 9 }, (_, value) => value);
     this._minutes = [0, 15, 30, 45];
     this._pendingUpdates = {};
-    this._scrollStartTimeouts = {};
-    this._hasUserScrolled = {};
     this._selectedValues = {};
     this._optimisticValues = {};
+    this._writes = {};
+    this._ackTimeouts = {};
+    this._pointerDown = {};
+    this._busy = false;
     this._userScrolling = {};
     this._render();
+    if (this.isConnected) this.connectedCallback();
   }
 
   set hass(hass) {
@@ -31,13 +37,31 @@ class AirTouchTimerPicker extends HTMLElement {
     this._sync();
   }
 
+  connectedCallback() {
+    if (!this._config) return;
+    // HA may assign hass while the card is detached or its view is hidden.
+    // Reconcile position after layout, even if the selected value is unchanged.
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = new ResizeObserver(() => this._sync());
+    this._resizeObserver.observe(this);
+    this._sync();
+  }
+
   disconnectedCallback() {
+    this._cleanup();
+  }
+
+  _cleanup() {
     clearInterval(this._countdownInterval);
     this._countdownInterval = undefined;
+    this._resizeObserver?.disconnect();
     for (const kind of ["hours", "minutes"]) {
-      clearTimeout(this._pendingUpdates[kind]);
-      clearTimeout(this._scrollStartTimeouts[kind]);
+      clearTimeout(this._pendingUpdates?.[kind]);
+      clearTimeout(this._ackTimeouts?.[kind]);
     }
+    this._userScrolling = {};
+    this._pointerDown = {};
+    this._optimisticValues = {};
   }
 
   getCardSize() {
@@ -76,6 +100,8 @@ class AirTouchTimerPicker extends HTMLElement {
         }
         .wheel::-webkit-scrollbar { display: none; }
         .option {
+          margin: 0;
+          padding: 0;
           align-items: center;
           background: transparent;
           border: 0;
@@ -126,6 +152,8 @@ class AirTouchTimerPicker extends HTMLElement {
           min-height: 40px;
           padding: 0 14px;
         }
+        .action:disabled { opacity: .5; cursor: default; }
+        .error { color: var(--error-color, #db4437); margin-top: 10px; }
         .action.secondary {
           background: transparent;
           border: 1px solid var(--primary-color);
@@ -146,6 +174,7 @@ class AirTouchTimerPicker extends HTMLElement {
             <span class="unit">minutes</span>
           </div>
           <div class="status" id="status">Auto-off countdown: Idle</div>
+          <div class="error" id="error" role="alert" hidden></div>
           <div class="actions">
             <button class="action secondary" id="cancel" type="button">Cancel timer</button>
             <button class="action" id="start" type="button">Turn on &amp; start</button>
@@ -156,10 +185,31 @@ class AirTouchTimerPicker extends HTMLElement {
 
     for (const kind of ["hours", "minutes"]) {
       const wheel = root.querySelector(`[data-wheel="${kind}"]`);
-      const markUserScroll = () => this._startUserScroll(kind);
-      wheel.addEventListener("pointerdown", markUserScroll, { passive: true });
-      wheel.addEventListener("wheel", markUserScroll, { passive: true });
-      wheel.addEventListener("keydown", markUserScroll);
+      wheel.addEventListener("pointerdown", () => {
+        this._pointerDown[kind] = true;
+        this._startUserScroll(kind);
+      }, { passive: true });
+      for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
+        wheel.addEventListener(event, () => {
+          this._pointerDown[kind] = false;
+          this._scheduleCommit(kind);
+        }, { passive: true });
+      }
+      wheel.addEventListener("pointerleave", (event) => {
+        if (event.pointerType !== "touch") {
+          this._pointerDown[kind] = false;
+          this._scheduleCommit(kind);
+        }
+      }, { passive: true });
+      wheel.addEventListener("wheel", () => this._startUserScroll(kind), { passive: true });
+      wheel.addEventListener("keydown", (event) => {
+        const values = kind === "hours" ? this._hours : this._minutes;
+        const index = values.indexOf(this._selectedValues[kind]);
+        const next = { ArrowUp: index - 1, ArrowDown: index + 1, Home: 0, End: values.length - 1 }[event.key];
+        if (next === undefined) return;
+        event.preventDefault();
+        this._selectValue(kind, values[Math.max(0, Math.min(values.length - 1, next))], true);
+      });
       wheel.addEventListener("scroll", () => this._wheelScrolled(kind), {
         passive: true,
       });
@@ -171,27 +221,56 @@ class AirTouchTimerPicker extends HTMLElement {
       });
     }
 
-    root.querySelector("#start").addEventListener("click", () => {
-      this._hass?.callService("script", "turn_on", {
-        entity_id: this._config.start_entity,
-      });
-    });
-    root.querySelector("#cancel").addEventListener("click", () => {
-      this._hass?.callService("script", "turn_on", {
-        entity_id: this._config.cancel_entity,
-      });
-    });
+    root.querySelector("#start").addEventListener("click", () => this._runAction(true));
+    root.querySelector("#cancel").addEventListener("click", () => this._runAction(false));
+  }
+
+  async _runAction(start) {
+    if (!this._hass || this._busy) return;
+    this._showError("");
+    const variables = {};
+    if (start) {
+      // Freeze momentum and use the numbers actually centred when Start is pressed.
+      for (const kind of ["hours", "minutes"]) {
+        if (this._userScrolling[kind]) this._commitUserScroll(kind);
+      }
+      variables.duration_minutes = this._selectedValues.hours * 60 + this._selectedValues.minutes;
+      if (!Number.isFinite(variables.duration_minutes) || variables.duration_minutes <= 0) {
+        this._showError("Select at least 15 minutes.");
+        return;
+      }
+    }
+    this._busy = true;
+    this._sync();
+    try {
+      // Calling the named script waits for it and surfaces controller errors.
+      // Explicit duration avoids racing delayed input_number service updates.
+      const entity = start ? this._config.start_entity : this._config.cancel_entity;
+      await this._hass.callService("script", entity.replace(/^script\./, ""), variables);
+    } catch (error) {
+      this._showError(error.message || "The request failed. Please try again.");
+    } finally {
+      this._busy = false;
+      this._sync();
+    }
+  }
+
+  _showError(message) {
+    const error = this.shadowRoot?.querySelector("#error");
+    if (!error) return;
+    error.textContent = message;
+    error.hidden = !message;
   }
 
   _wheelMarkup(kind, values, label) {
     return `
       <div class="wheel-frame">
         <div class="selection"></div>
-        <div class="wheel" data-wheel="${kind}" aria-label="${label}" role="listbox">
+        <div class="wheel" data-wheel="${kind}" aria-label="${label}" role="listbox" tabindex="0">
           ${values
             .map(
               (value) => `
-                <button class="option" data-value="${value}" type="button" role="option">
+                <button class="option" data-value="${value}" type="button" role="option" tabindex="-1">
                   ${String(value).padStart(2, "0")}
                 </button>
               `,
@@ -203,51 +282,37 @@ class AirTouchTimerPicker extends HTMLElement {
   }
 
   _wheelScrolled(kind) {
-    const value = this._valueAtWheel(kind);
+    if (!this._userScrolling[kind]) return;
+    this._markSelected(kind, this._valueAtWheel(kind));
+    this._scheduleCommit(kind);
+  }
 
-    this._markSelected(kind, value);
-    if (!this._userScrolling[kind]) {
-      return;
-    }
-    this._hasUserScrolled[kind] = true;
+  _scheduleCommit(kind) {
     clearTimeout(this._pendingUpdates[kind]);
-    // Older browsers do not dispatch scrollend. This fallback is deliberately
-    // longer than a wheel snap so it cannot commit an intermediate hour.
-    this._pendingUpdates[kind] = setTimeout(
-      () => this._commitUserScroll(kind),
-      750,
-    );
+    this._pendingUpdates[kind] = setTimeout(() => {
+      if (this._pointerDown[kind]) {
+        this._scheduleCommit(kind);
+      } else if (this._userScrolling[kind]) {
+        this._commitUserScroll(kind);
+      }
+    }, 250);
   }
 
   _wheelScrollEnded(kind) {
-    if (this._userScrolling[kind] && this._hasUserScrolled[kind]) {
+    if (this._userScrolling[kind] && !this._pointerDown[kind]) {
       this._commitUserScroll(kind);
     }
   }
 
   _commitUserScroll(kind) {
-    clearTimeout(this._pendingUpdates[kind]);
-    this._pendingUpdates[kind] = undefined;
-    const settledValue = this._valueAtWheel(kind);
-    this._markSelected(kind, settledValue);
-    this._setValue(kind, settledValue);
-    this._hasUserScrolled[kind] = false;
-    this._userScrolling[kind] = false;
+    const value = this._valueAtWheel(kind);
+    this._selectValue(kind, value, true);
   }
 
   _startUserScroll(kind) {
-    if (!this._userScrolling[kind]) {
-      this._hasUserScrolled[kind] = false;
-    }
+    if (this._busy) return;
     this._userScrolling[kind] = true;
-    clearTimeout(this._scrollStartTimeouts[kind]);
-    // A pointer or wheel event at the end of the list may not produce a
-    // scroll event. Do not leave that wheel protected from sync indefinitely.
-    this._scrollStartTimeouts[kind] = setTimeout(() => {
-      if (!this._hasUserScrolled[kind]) {
-        this._userScrolling[kind] = false;
-      }
-    }, 300);
+    this._scheduleCommit(kind);
   }
 
   _valueAtWheel(kind) {
@@ -268,33 +333,45 @@ class AirTouchTimerPicker extends HTMLElement {
       return;
     }
 
+    if (this._busy) return;
     if (scroll) {
       clearTimeout(this._pendingUpdates[kind]);
-      clearTimeout(this._scrollStartTimeouts[kind]);
       this._pendingUpdates[kind] = undefined;
-      this._hasUserScrolled[kind] = false;
       this._userScrolling[kind] = false;
-      wheel.scrollTo({ top: index * 44, behavior: "smooth" });
+      this._pointerDown[kind] = false;
+      // Immediate positioning prevents an animation from changing the highlighted
+      // value after a tap or after Start snapshots the selected duration.
+      wheel.scrollTo({ top: index * 44, behavior: "instant" });
     }
     this._markSelected(kind, value);
     this._setValue(kind, value);
   }
 
   _setValue(kind, value) {
-    if (!this._hass) {
-      return;
-    }
-
-    this._selectedValues[kind] = value;
-    this._optimisticValues[kind] = value;
-    const entityId =
-      kind === "hours"
-        ? this._config.hours_entity
-        : this._config.minutes_entity;
-    this._hass.callService("input_number", "set_value", {
-      entity_id: entityId,
-      value,
+    if (!this._hass) return;
+    const entityId = kind === "hours" ? this._config.hours_entity : this._config.minutes_entity;
+    const writes = this._writes;
+    const optimistic = this._optimisticValues;
+    optimistic[kind] = value;
+    clearTimeout(this._ackTimeouts[kind]);
+    // Serialize writes per helper so a slower earlier request cannot win.
+    writes[kind] = (writes[kind] || Promise.resolve()).then(async () => {
+      try {
+        await this._hass.callService("input_number", "set_value", { entity_id: entityId, value });
+        if (this._optimisticValues !== optimistic || optimistic[kind] !== value) return;
+        // A lost state acknowledgement must never block external changes forever.
+        this._ackTimeouts[kind] = setTimeout(() => {
+          delete optimistic[kind];
+          this._sync();
+        }, 2000);
+      } catch (error) {
+        if (this._optimisticValues !== optimistic || optimistic[kind] !== value) return;
+        delete optimistic[kind];
+        this._showError(error.message || "Could not save the timer selection.");
+        this._sync();
+      }
     });
+    this._updateActions();
   }
 
   _sync() {
@@ -305,6 +382,21 @@ class AirTouchTimerPicker extends HTMLElement {
     this._syncWheel("hours", this._config.hours_entity, this._hours);
     this._syncWheel("minutes", this._config.minutes_entity, this._minutes);
     this._updateCountdown();
+    this._updateActions();
+  }
+
+  _updateActions() {
+    if (!this.shadowRoot || !this._hass) return;
+    const timer = this._hass.states[this._config.timer_entity];
+    const climate = this._hass.states[this._config.climate_entity];
+    const unavailable = !climate || ["unknown", "unavailable"].includes(climate.state);
+    const valid = this._hours.includes(this._selectedValues.hours) && this._minutes.includes(this._selectedValues.minutes);
+    this.shadowRoot.querySelector("#start").disabled = this._busy || unavailable || !valid || this._selectedValues.hours * 60 + this._selectedValues.minutes <= 0;
+    this.shadowRoot.querySelector("#cancel").disabled = this._busy || !timer || ["unknown", "unavailable"].includes(timer.state);
+    this.shadowRoot.querySelector("#start").textContent = this._busy ? "Please wait…" : "Turn on & start";
+    for (const kind of ["hours", "minutes"]) {
+      this.shadowRoot.querySelector(`[data-wheel="${kind}"]`).style.pointerEvents = this._busy ? "none" : "";
+    }
   }
 
   _updateCountdown() {
@@ -317,7 +409,14 @@ class AirTouchTimerPicker extends HTMLElement {
     if (timer?.state !== "active") {
       clearInterval(this._countdownInterval);
       this._countdownInterval = undefined;
-      status.textContent = "Auto-off countdown: Idle";
+      const state = timer?.state;
+      status.textContent = state === "paused"
+        ? `Auto-off countdown: Paused (${timer.attributes.remaining || "—"})`
+        : state === "idle"
+          ? this._hass.states[this._config.armed_entity]?.state === "on"
+            ? "Auto-off pending: waiting for confirmed shutdown"
+            : "Auto-off countdown: Idle"
+          : "Auto-off countdown: Unavailable";
       return;
     }
 
@@ -326,12 +425,14 @@ class AirTouchTimerPicker extends HTMLElement {
       status.textContent = `Auto-off countdown: ${this._formatCountdown(
         finishesAt - Date.now(),
       )}`;
-      if (!this._countdownInterval) {
+      if (this.isConnected && !this._countdownInterval) {
         this._countdownInterval = setInterval(() => this._updateCountdown(), 1000);
       }
       return;
     }
 
+    clearInterval(this._countdownInterval);
+    this._countdownInterval = undefined;
     // Fallback for timer providers that do not expose an absolute finish time.
     status.textContent = `Auto-off countdown: ${timer.attributes.remaining || "Active"}`;
   }
@@ -357,19 +458,22 @@ class AirTouchTimerPicker extends HTMLElement {
     if (this._userScrolling[kind]) {
       return;
     }
+    let selected = value;
     if (this._optimisticValues[kind] !== undefined) {
-      if (this._optimisticValues[kind] !== value) {
-        return;
+      selected = this._optimisticValues[kind];
+      if (selected === value) {
+        clearTimeout(this._ackTimeouts[kind]);
+        delete this._optimisticValues[kind];
       }
-      delete this._optimisticValues[kind];
     }
-    if (this._selectedValues[kind] === value) {
-      return;
-    }
-
     const wheel = this.shadowRoot.querySelector(`[data-wheel="${kind}"]`);
-    wheel.scrollTo({ top: values.indexOf(value) * 44, behavior: "auto" });
-    this._markSelected(kind, value);
+    // No layout means scrollTo is a no-op. ResizeObserver retries when visible.
+    if (wheel.clientHeight === 0) return;
+    const top = values.indexOf(selected) * 44;
+    if (Math.abs(wheel.scrollTop - top) > 0.5) {
+      wheel.scrollTo({ top, behavior: "instant" });
+    }
+    this._markSelected(kind, selected);
   }
 
   _markSelected(kind, value) {
@@ -380,13 +484,16 @@ class AirTouchTimerPicker extends HTMLElement {
       option.classList.toggle("selected", selected);
       option.setAttribute("aria-selected", String(selected));
     });
+    this._updateActions();
   }
 }
 
-customElements.define("airtouch-timer-picker", AirTouchTimerPicker);
+if (!customElements.get("airtouch-timer-picker")) {
+  customElements.define("airtouch-timer-picker", AirTouchTimerPicker);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
+if (!window.customCards.some((card) => card.type === "airtouch-timer-picker")) window.customCards.push({
   type: "airtouch-timer-picker",
   name: "AirTouch timer picker",
   description: "Touch-friendly hour and minute picker for the AirTouch auto-off timer.",

@@ -28,3 +28,4 @@ configMapGenerator:
       - security-dashboard.yaml=config/dashboards/security-dashboard.yaml
       - air-quality-dashboard.yaml=config/dashboards/air-quality-dashboard.yaml
       - airtouch-timer-picker.js=config/www/airtouch-timer-picker.js
+      - airtouch2plus-reliability.patch=patches/airtouch2plus-reliability.patch

@@ -1,0 +1,602 @@
+diff --git a/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py b/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py
+index 83e8a31..ad4004e 100644
+--- a/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py
++++ b/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py
+@@ -1,4 +1,6 @@
+ from airtouch2.at2plus import At2PlusAircon, AcMode
++from airtouch2.protocol.at2plus.enums import AcPower, AcSetPower, AcFanSpeed
++from airtouch2.protocol.at2plus.messages.AcControl import AcControlMessage, AcSettings
+ 
+ from .conversions import (
+     AT2PLUS_TO_HA_MODE,
+@@ -43,6 +45,7 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+     def __init__(self, at2plus_aircon: At2PlusAircon) -> None:
+         """Initialize the climate device."""
+         self._ac = at2plus_aircon
++        self._client = at2plus_aircon._client
+ 
+     #
+     # Entity overrides:
+@@ -75,19 +78,29 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+         """Call when entity is added."""
+         # Add callback for when aircon receives new data
+         # Removes callback on remove
++        await super().async_added_to_hass()
+         self.async_on_remove(self._ac.add_callback(self.async_write_ha_state))
++        self.async_on_remove(self._client.add_listener(self.async_write_ha_state))
+ 
+     #
+     # ClimateEntity overrides:
+     #
+ 
++    @property
++    def available(self):
++        return self._client.available(self._ac) and self._ac.status.power != AcPower.NOT_AVAILABLE
++
+     @property
+     def hvac_mode(self) -> str:
+         """Return hvac operation ie. heat, cool mode."""
+-        if not self._ac.is_on():
++        if self._ac.status.power in (AcPower.OFF, AcPower.AWAY_OFF):
+             return HVACMode.OFF
+ 
+-        return AT2PLUS_TO_HA_MODE[self._ac.status.mode]
++        return AT2PLUS_TO_HA_MODE.get(self._ac.status.mode)
++
++    @property
++    def available(self):
++        return self._client.available(self._ac) and self._ac.status.power != AcPower.NOT_AVAILABLE
+ 
+     @property
+     def hvac_modes(self) -> list[HVACMode]:
+@@ -95,7 +108,9 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+         modes: list[HVACMode] = [HVACMode.OFF]
+         if self._ac.ability is not None:
+             for mode in self._ac.ability.supported_modes:
+-                modes.append(AT2PLUS_SETMODE_TO_HA_MODE[mode])
++                if mapped := AT2PLUS_SETMODE_TO_HA_MODE.get(mode):
++                    if mapped not in modes:
++                        modes.append(mapped)
+         return modes
+ 
+     @property
+@@ -104,7 +119,7 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+         if self._ac.status.temperature is not None:
+             return self._ac.status.temperature
+         else:
+-            return 0
++            return None
+ 
+     @property
+     def target_temperature(self) -> float:
+@@ -112,46 +127,55 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+         if self._ac.status.set_point is not None:
+             return self._ac.status.set_point
+         else:
+-            return 0
++            return None
+ 
+     @property
+     def fan_mode(self) -> str:
+         """Return fan mode of this AC."""
+-        return AT2PLUS_TO_HA_FAN_SPEED[self._ac.status.fan_speed]
++        return AT2PLUS_TO_HA_FAN_SPEED.get(self._ac.status.fan_speed)
+ 
+     @property
+     def fan_modes(self) -> list[str]:
+         """Return the list of available fan modes."""
+         if self._ac.ability is not None:
+-            return [AT2PLUS_TO_HA_FAN_SPEED[s] for s in self._ac.ability.supported_fan_speeds]
++            return [AT2PLUS_TO_HA_FAN_SPEED[s] for s in self._ac.ability.supported_fan_speeds
++                    if s in AT2PLUS_TO_HA_FAN_SPEED]
+         return []
+ 
++    async def _command(self, send, matches):
++        await self._client.command(self._ac, send, matches)
++        self.async_write_ha_state()
++
+     async def async_set_temperature(self, **kwargs) -> None:
+-        """Set new target temperature."""
+-        temp = float(kwargs.get(ATTR_TEMPERATURE, 0))
+-        await self._ac.set_setpoint(temp)
++        if ATTR_TEMPERATURE not in kwargs:
++            return
++        temp = float(kwargs[ATTR_TEMPERATURE])
++        await self._command(lambda: self._ac.set_setpoint(temp),
++                            lambda: self._ac.status.set_point == temp)
+ 
+     async def async_set_fan_mode(self, fan_mode: str) -> None:
+-        """Set new target fan mode."""
+-        await self._ac.set_fan_speed(HA_FAN_SPEED_TO_AT2PLUS[fan_mode])
++        speed = HA_FAN_SPEED_TO_AT2PLUS[fan_mode]
++        await self._command(lambda: self._ac.set_fan_speed(speed),
++                            lambda: self._ac.status.fan_speed == speed)
+ 
+     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+-        """Set new target hvac mode."""
+         if hvac_mode == HVACMode.OFF:
+-            if self._ac.is_on():
+-                await self.async_turn_off()
+-        else:
+-            if not self._ac.is_on():
+-                await self.async_turn_on()
+-            await self._ac.set_mode(HA_MODE_TO_AT2PLUS_SETMODE[hvac_mode])
++            # Always send OFF, even if cached state already says off.
++            await self.async_turn_off()
++            return
++        mode = HA_MODE_TO_AT2PLUS_SETMODE[hvac_mode]
++        settings = AcSettings(self._ac.status.id, AcSetPower.ON, mode, AcFanSpeed.UNCHANGED, None)
++        await self._command(lambda: self._client.send(AcControlMessage([settings])),
++                            lambda: self._ac.status.power == AcPower.ON and (
++                                self.hvac_mode == hvac_mode or
++                                (hvac_mode == HVACMode.HEAT_COOL and self._ac.status.mode in
++                                 (AcMode.AUTO_HEAT, AcMode.AUTO_COOL))))
+ 
+     async def async_turn_on(self):
+-        """Turn on."""
+-        await self._ac.turn_on()
++        await self._command(self._ac.turn_on, lambda: self._ac.status.power == AcPower.ON)
+ 
+     async def async_turn_off(self):
+-        """Turn off."""
+-        await self._ac.turn_off()
++        await self._command(self._ac.turn_off, lambda: self._ac.status.power == AcPower.OFF)
+ 
+     @property
+     def supported_features(self) -> ClimateEntityFeature:
+@@ -161,9 +185,9 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+ 
+         if mode == AcMode.DRY:
+             # only because there's no ClimateEntityFeature.NONE
+-            return ClimateEntityFeature.TARGET_TEMPERATURE
++            return ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TARGET_TEMPERATURE
+ 
+         if mode == AcMode.FAN:
+-            return ClimateEntityFeature.FAN_MODE
++            return ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.FAN_MODE
+ 
+         return ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE
+diff --git a/custom_components/airtouch2plus/Airtouch2PlusGroupEntity.py b/custom_components/airtouch2plus/Airtouch2PlusGroupEntity.py
+index 25f452a..7e73ffd 100644
+--- a/custom_components/airtouch2plus/Airtouch2PlusGroupEntity.py
++++ b/custom_components/airtouch2plus/Airtouch2PlusGroupEntity.py
+@@ -4,6 +4,8 @@ import logging
+ from typing import Any, final
+ 
+ from airtouch2.at2plus import At2PlusGroup
++from airtouch2.protocol.at2plus.enums import GroupSetDamper, GroupSetPower
++from airtouch2.protocol.at2plus.messages.GroupControl import GroupControlMessage, GroupSettings
+ 
+ from homeassistant.components.fan import FanEntity, FanEntityFeature
+ from homeassistant.helpers.entity import DeviceInfo
+@@ -20,6 +22,7 @@ class AirTouch2PlusGroupEntity(FanEntity):
+     def __init__(self, group: At2PlusGroup) -> None:
+         """Initialize the fan entity."""
+         self._group = group
++        self._client = group._client
+ 
+     #
+     # Entity attributes:
+@@ -58,12 +61,18 @@ class AirTouch2PlusGroupEntity(FanEntity):
+         """Call when entity is added."""
+         # Add callback for when group receives new data.
+         # Removes callback on remove.
++        await super().async_added_to_hass()
+         self.async_on_remove(self._group.add_callback(self.async_write_ha_state))
++        self.async_on_remove(self._client.add_listener(self.async_write_ha_state))
+ 
+     #
+     # FanEntity overrides
+     #
+ 
++    @property
++    def available(self):
++        return self._client.available(self._group)
++
+     @property
+     def is_on(self):
+         """Return if group is on."""
+@@ -83,6 +92,10 @@ class AirTouch2PlusGroupEntity(FanEntity):
+             | FanEntityFeature.SET_SPEED
+         )
+ 
++    async def _command(self, send, matches):
++        await self._client.command(self._group, send, matches)
++        self.async_write_ha_state()
++
+     async def async_turn_on(
+         self,
+         percentage: int | None = None,
+@@ -90,12 +103,20 @@ class AirTouch2PlusGroupEntity(FanEntity):
+         **kwargs: Any,
+     ) -> None:
+         """Turn on the group."""
+-        await self._group.turn_on(percentage)
++        if percentage is not None:
++            await self.async_set_percentage(percentage)
++        else:
++            await self._command(self._group.turn_on, self._group.is_on)
+ 
+     async def async_turn_off(self, **kwargs: Any) -> None:
+         """Turn off the group."""
+-        await self._group.turn_off()
++        await self._command(self._group.turn_off, lambda: not self._group.is_on())
+ 
+     async def async_set_percentage(self, percentage: int) -> None:
+         """Set the speed percentage of the group damper."""
+-        await self._group.set_damp(percentage)
++        if percentage == 0:
++            await self.async_turn_off()
++            return
++        settings = GroupSettings(self._group.status.id, GroupSetDamper.SET, GroupSetPower.ON, percentage)
++        await self._command(lambda: self._client.send(GroupControlMessage([settings])),
++                            lambda: self._group.is_on() and self._group.status.damp == percentage)
+diff --git a/custom_components/airtouch2plus/__init__.py b/custom_components/airtouch2plus/__init__.py
+index 240b4db..68c7b37 100644
+--- a/custom_components/airtouch2plus/__init__.py
++++ b/custom_components/airtouch2plus/__init__.py
+@@ -1,10 +1,12 @@
+ """The airtouch2 integration."""
+ from __future__ import annotations
+ 
+-from airtouch2.at2plus import At2PlusClient
++import asyncio
++
++from .reliable_client import ReliableAirTouchClient as At2PlusClient
+ 
+ from homeassistant.config_entries import ConfigEntry
+-from homeassistant.const import CONF_HOST, Platform
++from homeassistant.const import CONF_HOST, EVENT_HOMEASSISTANT_STOP, Platform
+ from homeassistant.core import HomeAssistant
+ from homeassistant.exceptions import ConfigEntryNotReady
+ 
+@@ -18,15 +20,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+ 
+     hass.data.setdefault(DOMAIN, {})
+     client = At2PlusClient(entry.data[CONF_HOST])
+-    if not await client.connect():
+-        raise ConfigEntryNotReady(
+-            f"Airtouch2+ client failed to connect to {entry.data[CONF_HOST]}")
+-    client.run()
+-    await client.wait_for_ac()
+-    if not client.aircons_by_id:
+-        raise ConfigEntryNotReady("No AC units were found")
++    try:
++        async with asyncio.timeout(20):
++            if not await client.connect():
++                raise ConfigEntryNotReady("AirTouch controller is disconnected")
++            client.run()
++            await client.wait_for_ac()
++            if not client.aircons_by_id:
++                raise ConfigEntryNotReady("No AC units were found")
++    except (OSError, TimeoutError, ConfigEntryNotReady) as error:
++        await client.stop()
++        raise ConfigEntryNotReady(str(error)) from error
++    except BaseException:
++        await client.stop()
++        raise
+     hass.data[DOMAIN][entry.entry_id] = client
+-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
++    try:
++        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
++    except BaseException:
++        hass.data[DOMAIN].pop(entry.entry_id, None)
++        await client.stop()
++        raise
++
++    async def stop_client(_event):
++        await client.stop()
++
++    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_client))
+ 
+     return True
+ 
+diff --git a/custom_components/airtouch2plus/climate.py b/custom_components/airtouch2plus/climate.py
+index 224165c..157879b 100644
+--- a/custom_components/airtouch2plus/climate.py
++++ b/custom_components/airtouch2plus/climate.py
+@@ -22,9 +22,15 @@ async def async_setup_entry(
+ ) -> None:
+     """Set up the Airtouch 2+."""
+     airtouch2_client: At2PlusClient = hass.data[DOMAIN][config_entry.entry_id]
+-    entities: list[ClimateEntity] = [
+-        Airtouch2PlusClimateEntity(ac) for ac in airtouch2_client.aircons_by_id.values()
+-    ]
++    known = set()
++    def add_new_entities():
++        entities = []
++        for id, device in airtouch2_client.aircons_by_id.items():
++            if id not in known:
++                known.add(id)
++                entities.append(Airtouch2PlusClimateEntity(device))
++        if entities:
++            async_add_entities(entities)
+ 
+-    _LOGGER.debug(f" Found entities {[repr(entity) for entity in entities]}")
+-    async_add_entities(entities)
++    config_entry.async_on_unload(airtouch2_client.add_new_ac_callback(add_new_entities))
++    add_new_entities()
+diff --git a/custom_components/airtouch2plus/config_flow.py b/custom_components/airtouch2plus/config_flow.py
+index 451ab0e..7f2b24e 100644
+--- a/custom_components/airtouch2plus/config_flow.py
++++ b/custom_components/airtouch2plus/config_flow.py
+@@ -4,7 +4,9 @@ from __future__ import annotations
+ import logging
+ from typing import Any
+ 
+-from airtouch2.at2plus import At2PlusClient
++import asyncio
++
++from .reliable_client import ReliableAirTouchClient as At2PlusClient
+ import voluptuous as vol
+ 
+ from homeassistant import config_entries
+@@ -23,16 +25,18 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
+     """Validate the user input allows us to connect."""
+     client = At2PlusClient(data[CONF_HOST])
+ 
+-    if not await client.connect():
+-        raise CannotConnect
+-
+-    client.run()
+-
+-    await client.wait_for_ac()
+-    if not client.aircons_by_id:
+-        raise NoUnits
+-
+-    await client.stop()
++    try:
++        async with asyncio.timeout(20):
++            if not await client.connect():
++                raise CannotConnect
++            client.run()
++            await client.wait_for_ac()
++            if not client.aircons_by_id:
++                raise NoUnits
++    except (OSError, TimeoutError) as error:
++        raise CannotConnect from error
++    finally:
++        await client.stop()
+     # Return info that you want to store in the config entry.
+     return {"title": "Airtouch 2+ Control System"}
+ 
+diff --git a/custom_components/airtouch2plus/fan.py b/custom_components/airtouch2plus/fan.py
+index 974fc1e..cb6b3ed 100644
+--- a/custom_components/airtouch2plus/fan.py
++++ b/custom_components/airtouch2plus/fan.py
+@@ -20,9 +20,15 @@ async def async_setup_entry(
+ ) -> None:
+     """Set up the AirTouch 2+ group entities."""
+     client: At2PlusClient = hass.data[DOMAIN][config_entry.entry_id]
+-    entities: list[FanEntity] = [
+-        AirTouch2PlusGroupEntity(group) for group in client.groups_by_id.values()
+-    ]
++    known = set()
++    def add_new_entities():
++        entities = []
++        for id, device in client.groups_by_id.items():
++            if id not in known:
++                known.add(id)
++                entities.append(AirTouch2PlusGroupEntity(device))
++        if entities:
++            async_add_entities(entities)
+ 
+-    if entities:
+-        async_add_entities(entities)
++    config_entry.async_on_unload(client.add_new_group_callback(add_new_entities))
++    add_new_entities()
+diff --git a/custom_components/airtouch2plus/reliable_client.py b/custom_components/airtouch2plus/reliable_client.py
+new file mode 100644
+index 0000000..7f5a33d
+--- /dev/null
++++ b/custom_components/airtouch2plus/reliable_client.py
+@@ -0,0 +1,209 @@
++"""Local reliability fixes for airtouch2 0.8.7; see the homelab patch notes."""
++from __future__ import annotations
++
++import asyncio
++from collections.abc import Callable
++from contextlib import suppress
++import logging
++from time import monotonic
++
++from airtouch2.at2plus import At2PlusClient, At2PlusAircon
++from airtouch2.common.NetClient import NetClient
++from airtouch2.protocol.at2plus.messages.AcStatus import AcStatusMessage
++from airtouch2.protocol.at2plus.messages.GroupStatus import GroupStatusMessage
++from homeassistant.exceptions import HomeAssistantError
++
++_LOGGER = logging.getLogger(__name__)
++STATUS_INTERVAL = 15
++STATUS_MAX_AGE = 45
++COMMAND_TIMEOUT = 10
++
++
++class ReliableTransport(NetClient):
++    """Never report a command delivered after reconnecting without resending it."""
++
++    @property
++    def connected(self):
++        return bool(self._writer and not self._writer.is_closing()
++                    and self._reader and not self._reader.at_eof())
++
++    async def connect(self):
++        if self._writer:
++            self._writer.close()
++        return await super().connect()
++
++    async def send(self, message):
++        if not self.connected:
++            raise ConnectionError("AirTouch controller is disconnected")
++        # Reconnection belongs to the reader. The original send() can reconnect
++        # while drain() fails and return success without writing the command again.
++        self._writer.write(message.to_bytes())
++        await self._writer.drain()
++
++    async def stop(self):
++        self._stop = True
++        if self._main_loop_task:
++            self._main_loop_task.cancel()
++            with suppress(asyncio.CancelledError, Exception):
++                await self._main_loop_task
++        if self._writer:
++            self._writer.close()
++            with suppress(OSError, TimeoutError):
++                async with asyncio.timeout(2):
++                    await self._writer.wait_closed()
++
++    async def _main(self):
++        while not self._stop:
++            try:
++                await self._handle_message()
++            except (OSError, asyncio.IncompleteReadError):
++                await self._try_reconnect()
++            except (ValueError, KeyError, IndexError):
++                # A malformed/unsupported packet must not kill all future updates.
++                _LOGGER.warning("Ignoring malformed AirTouch message", exc_info=True)
++
++    async def _try_reconnect(self):
++        while not self._stop:
++            try:
++                async with asyncio.timeout(10):
++                    if await self.connect():
++                        return
++            except (OSError, TimeoutError):
++                pass
++            await asyncio.sleep(5)
++
++
++class ReliableAirTouchClient(At2PlusClient):
++    """Keep push updates, with status requests and bounded command confirmation."""
++
++    def __init__(self, host):
++        self._tasks = set()
++        super().__init__(host, task_creator=self._create_task)
++        self._client = ReliableTransport(
++            host, 9200, self._on_connect, self.handle_one_message, self._create_task
++        )
++        self._status_times = {}
++        self._listeners = []
++        self._command_lock = asyncio.Lock()
++        self._ability_lock = asyncio.Lock()
++
++    def _create_task(self, coroutine):
++        task = asyncio.create_task(coroutine)
++        self._tasks.add(task)
++        def done(finished):
++            self._tasks.discard(finished)
++            if not finished.cancelled() and (error := finished.exception()):
++                _LOGGER.error("AirTouch background task failed: %s", error)
++        task.add_done_callback(done)
++        return task
++
++    async def _on_connect(self):
++        self._status_times.clear()
++        self._notify()
++        await super()._on_connect()
++
++    def run(self):
++        super().run()
++        self._create_task(self._poll_status())
++
++    def available(self, device):
++        return (self._client.connected
++                and monotonic() - self._status_times.get(id(device), float('-inf')) < STATUS_MAX_AGE)
++
++    def add_listener(self, callback):
++        self._listeners.append(callback)
++        def remove():
++            if callback in self._listeners:
++                self._listeners.remove(callback)
++        return remove
++
++    def _notify(self):
++        for callback in tuple(self._listeners):
++            callback()
++
++    async def request_status(self):
++        await self.send(AcStatusMessage([]))
++        await self.send(GroupStatusMessage([]))
++
++    async def _poll_status(self):
++        while True:
++            await asyncio.sleep(STATUS_INTERVAL)
++            try:
++                async with asyncio.timeout(5):
++                    await self.request_status()
++            except (OSError, TimeoutError):
++                self._status_times.clear()
++            self._notify()
++
++    async def _handle_status_message(self, message):
++        for status in message.statuses:
++            ac = self.aircons_by_id.get(status.id)
++            if ac is None:
++                ac = self.aircons_by_id[status.id] = At2PlusAircon(status, self)
++                self._status_times[id(ac)] = monotonic()
++                for callback in tuple(self._new_ac_callbacks):
++                    callback()
++                self._create_task(self._load_ability(ac))
++            self._status_times[id(ac)] = monotonic()
++            # Publish immediately. Upstream waits for ability then publishes the
++            # FIRST status, overwriting newer on/off packets received in between.
++            ac._update_status(status)
++
++    async def _load_ability(self, ac):
++        # Upstream has one shared ability response queue; requests must serialize.
++        async with self._ability_lock:
++            while ac.ability is None:
++                try:
++                    async with asyncio.timeout(10):
++                        ability = await self._request_ac_ability(ac.status.id)
++                    if ability is not None:
++                        ac._set_ability(ability)
++                        ac._update_status(ac.status)
++                except (OSError, TimeoutError):
++                    pass
++                if ac.ability is None:
++                    await asyncio.sleep(5)
++
++    async def _handle_group_status_message(self, message):
++        # Mark existing groups fresh before their callbacks publish state.
++        for status in message.statuses:
++            if group := self.groups_by_id.get(status.id):
++                self._status_times[id(group)] = monotonic()
++        await super()._handle_group_status_message(message)
++        for status in message.statuses:
++            group = self.groups_by_id[status.id]
++            self._status_times[id(group)] = monotonic()
++        self._notify()
++
++    async def command(self, device, send: Callable, matches: Callable):
++        """Require a fresh matching status; do not invent optimistic HVAC state."""
++        async with self._command_lock:
++            confirmed = asyncio.Event()
++            previous_status = self._status_times.get(id(device))
++            def updated():
++                if self._status_times.get(id(device)) != previous_status and matches():
++                    confirmed.set()
++            remove = device.add_callback(updated)
++            try:
++                async with asyncio.timeout(COMMAND_TIMEOUT):
++                    await send()
++                    await self.request_status()
++                    await confirmed.wait()
++            except (OSError, TimeoutError) as error:
++                # A timeout means the requested operation was not confirmed.
++                # Keep the actual last state and expose unavailability if stale.
++                raise HomeAssistantError(
++                    "AirTouch did not confirm the change. Check the controller and retry."
++                ) from error
++            finally:
++                remove()
++                self._notify()
++
++    async def stop(self):
++        await self._client.stop()
++        tasks = tuple(self._tasks)
++        for task in tasks:
++            task.cancel()
++        await asyncio.gather(*tasks, return_exceptions=True)
++        self._status_times.clear()
++        self._notify()

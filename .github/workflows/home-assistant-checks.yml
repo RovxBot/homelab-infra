@@ -1,0 +1,67 @@
+name: Home Assistant Checks
+
+on:
+  pull_request:
+    paths:
+      - apps/home-assistant/**
+      - .github/workflows/home-assistant-checks.yml
+  push:
+    branches:
+      - main
+    paths:
+      - apps/home-assistant/**
+      - .github/workflows/home-assistant-checks.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: home-assistant-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  airtouch-regressions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+      - name: Fetch the reviewed upstream component
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/airtouch-upstream"
+          git init "$source_dir"
+          git -C "$source_dir" remote add origin https://github.com/nathanvdh/homeassistant-airtouch2plus.git
+          git -C "$source_dir" fetch --depth 1 origin 6b0b5a90656dc13d68e6390ac6ba4989df6815fd
+          git -C "$source_dir" checkout --detach FETCH_HEAD
+          echo "AIRTOUCH_UPSTREAM=$source_dir" >> "$GITHUB_ENV"
+      - name: Install test dependencies matching the deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -r apps/home-assistant/tests/requirements.txt
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import yaml
+          app = Path('apps/home-assistant')
+          deployment = yaml.safe_load((app / 'deployment.yaml').read_text())
+          containers = deployment['spec']['template']['spec']['containers']
+          image = next(c['image'] for c in containers if c['name'] == 'home-assistant')
+          version = image.split('@')[0].rsplit(':', 1)[1]
+          manifest = Path(os.environ['AIRTOUCH_UPSTREAM']) / 'custom_components/airtouch2plus/manifest.json'
+          requirements = json.loads(manifest.read_text())['requirements']
+          subprocess.run([sys.executable, '-m', 'pip', 'install', f'homeassistant=={version}', *requirements], check=True)
+          PY
+      - name: Test controller, timer automations and component installation
+        run: python -m pytest -q apps/home-assistant/tests
+      - name: Test timer picker interactions
+        run: node --test apps/home-assistant/tests/timer-picker.test.cjs

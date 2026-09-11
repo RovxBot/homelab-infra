@@ -10,7 +10,7 @@ lovelace:
   # with the view configuration, including clients with a cached app shell.
   resource_mode: yaml
   resources:
-    - url: /local/airtouch-timer-picker.js?v=5
+    - url: /local/airtouch-timer-picker.js?v=6
       type: module
   dashboards:
     homelab-home:
@@ -92,102 +92,197 @@ timer:
     restore: true
 
 script:
+  # Serialize starts, cancellations and expiry checks. An old queued expiry
+  # rechecks the current deadline so it cannot stop a newly extended run.
+  airtouch_timer_control:
+    alias: AirTouch timer control
+    mode: queued
+    max: 20
+    fields:
+      operation:
+        description: start, cancel, cancel_if_off, cancel_if_idle, expire, or reconcile
+      duration_minutes:
+        description: Optional duration supplied directly by the picker
+    sequence:
+      - choose:
+          - conditions: "{{ operation == 'start' }}"
+            sequence:
+              - variables:
+                  minutes: >-
+                    {{ duration_minutes | default(
+                      (states('input_number.airtouch_auto_off_hours') | int(0) * 60)
+                      + (states('input_number.airtouch_auto_off_minute_block') | int(0))) | float(0) }}
+              - if: "{{ minutes not in range(15, 526, 15) }}"
+                then:
+                  - stop: Select a duration from 15 minutes to 8 hours 45 minutes, in 15-minute steps.
+                    error: true
+              - action: climate.turn_on
+                target:
+                  entity_id: climate.at2plus_ac_0
+              - action: timer.start
+                target:
+                  entity_id: timer.airtouch_auto_off
+                data:
+                  duration: "{{ (minutes * 60) | int }}"
+              - action: input_datetime.set_datetime
+                target:
+                  entity_id: input_datetime.airtouch_auto_off_at
+                data:
+                  timestamp: "{{ as_timestamp(state_attr('timer.airtouch_auto_off', 'finishes_at')) }}"
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.airtouch_auto_off_armed
+          - conditions: >-
+              {{ operation == 'cancel'
+                 or (operation == 'cancel_if_off' and is_state('climate.at2plus_ac_0', 'off'))
+                 or (operation == 'cancel_if_idle' and is_state('timer.airtouch_auto_off', 'idle')) }}
+            sequence:
+              # Disarm first so an already queued finished event becomes a no-op.
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.airtouch_auto_off_armed
+              - action: timer.cancel
+                target:
+                  entity_id: timer.airtouch_auto_off
+          - conditions: >-
+              {{ operation in ['reconcile', 'expire']
+                 and is_state('input_boolean.airtouch_auto_off_armed', 'on') }}
+            sequence:
+              # Native timer resume/change actions update the persisted deadline.
+              - if: "{{ is_state('timer.airtouch_auto_off', 'active') }}"
+                then:
+                  - action: input_datetime.set_datetime
+                    target:
+                      entity_id: input_datetime.airtouch_auto_off_at
+                    data:
+                      timestamp: "{{ as_timestamp(state_attr('timer.airtouch_auto_off', 'finishes_at')) }}"
+              - variables:
+                  deadline: "{{ state_attr('input_datetime.airtouch_auto_off_at', 'timestamp') | float(0) }}"
+              - choose:
+                  - conditions: "{{ is_state('climate.at2plus_ac_0', 'off') }}"
+                    sequence:
+                      - action: input_boolean.turn_off
+                        target:
+                          entity_id: input_boolean.airtouch_auto_off_armed
+                      - action: timer.cancel
+                        target:
+                          entity_id: timer.airtouch_auto_off
+                  - conditions: >-
+                      {{ ((deadline > 0 and deadline <= now().timestamp())
+                          or (operation == 'expire' and is_state('timer.airtouch_auto_off', 'idle')))
+                         and not is_state('timer.airtouch_auto_off', 'paused')
+                         and states('climate.at2plus_ac_0') not in ['unknown', 'unavailable'] }}
+                    sequence:
+                      # A failed/unconfirmed off raises an error and leaves the
+                      # deadline armed; the next reconciliation retries it.
+                      - action: climate.turn_off
+                        target:
+                          entity_id: climate.at2plus_ac_0
+                      - condition: state
+                        entity_id: climate.at2plus_ac_0
+                        state: "off"
+                      - action: input_boolean.turn_off
+                        target:
+                          entity_id: input_boolean.airtouch_auto_off_armed
+                      - action: timer.cancel
+                        target:
+                          entity_id: timer.airtouch_auto_off
+                  - conditions: >-
+                      {{ deadline > now().timestamp()
+                         and is_state('timer.airtouch_auto_off', 'idle') }}
+                    sequence:
+                      - action: timer.start
+                        target:
+                          entity_id: timer.airtouch_auto_off
+                        data:
+                          duration: "{{ (deadline - now().timestamp()) | round(0, 'ceil') | int }}"
   airtouch_turn_on_with_timer:
     alias: Turn on AirTouch with timer
-    description: Turn on the AirTouch system and restart its configured auto-off timer.
+    description: Turn on AirTouch and start the selected auto-off duration.
     icon: mdi:air-conditioner
-    mode: restart
+    mode: single
+    fields:
+      duration_minutes:
+        description: Duration from the picker; defaults to the saved helpers.
+        selector:
+          number:
+            min: 15
+            max: 525
+            step: 15
+            unit_of_measurement: min
     sequence:
-      - variables:
+      - action: script.airtouch_timer_control
+        data:
+          operation: start
           duration_minutes: >-
-            {{ (states('input_number.airtouch_auto_off_hours') | int(1) * 60)
-               + (states('input_number.airtouch_auto_off_minute_block') | int(0)) }}
-      - action: input_datetime.set_datetime
-        target:
-          entity_id: input_datetime.airtouch_auto_off_at
-        data:
-          timestamp: >-
-            {{ now().timestamp() + ((duration_minutes | int) * 60) }}
-      - action: input_boolean.turn_on
-        target:
-          entity_id: input_boolean.airtouch_auto_off_armed
-      - action: climate.turn_on
-        target:
-          entity_id: climate.at2plus_ac_0
-      - action: timer.start
-        target:
-          entity_id: timer.airtouch_auto_off
-        data:
-          duration: >-
-            {{ '%02d:%02d:00' | format((duration_minutes | int) // 60, (duration_minutes | int) % 60) }}
+            {{ duration_minutes | default(
+              (states('input_number.airtouch_auto_off_hours') | int(0) * 60)
+              + (states('input_number.airtouch_auto_off_minute_block') | int(0))) }}
   airtouch_cancel_auto_off:
     alias: Cancel AirTouch auto-off
-    description: Keep the AirTouch system running and cancel its auto-off timer.
+    description: Keep AirTouch running and cancel its auto-off timer.
     icon: mdi:timer-cancel-outline
+    mode: queued
     sequence:
-      - action: timer.cancel
-        target:
-          entity_id: timer.airtouch_auto_off
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.airtouch_auto_off_armed
+      - action: script.airtouch_timer_control
+        data:
+          operation: cancel
 
 automation:
   - id: airtouch_turn_off_when_timer_finishes
-    alias: Turn off AirTouch when auto-off timer finishes
-    description: Turn off the AirTouch system at the end of its configured countdown.
+    alias: Reconcile AirTouch auto-off deadline
+    description: Enforce expiry after restarts or reconnects, retrying unconfirmed shutdowns.
     mode: single
     triggers:
       - trigger: timer.finished
+        id: finished
         target:
           entity_id: timer.airtouch_auto_off
+      - trigger: homeassistant
+        event: start
+      - trigger: time_pattern
+        seconds: "/15"
+      - trigger: state
+        entity_id: climate.at2plus_ac_0
+        from: "unavailable"
+      - trigger: state
+        entity_id: climate.at2plus_ac_0
+        from: "unknown"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.airtouch_auto_off_armed
+        state: "on"
     actions:
-      - action: climate.turn_off
-        target:
-          entity_id: climate.at2plus_ac_0
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.airtouch_auto_off_armed
+      - action: script.airtouch_timer_control
+        data:
+          operation: "{{ 'expire' if trigger.id == 'finished' else 'reconcile' }}"
   - id: airtouch_cancel_timer_when_turned_off
     alias: Cancel AirTouch auto-off when air conditioning is turned off
-    description: Clear the pending auto-off timer when AirTouch is switched off manually.
-    mode: restart
+    description: Cancel on confirmed off, including changes from the wall controller or app.
+    mode: queued
     triggers:
       - trigger: state
         entity_id: climate.at2plus_ac_0
         to: "off"
     actions:
-      - action: timer.cancel
+      - action: script.airtouch_timer_control
+        data:
+          operation: cancel_if_off
+  - id: airtouch_disarm_cancelled_timer
+    alias: Disarm AirTouch auto-off when its timer is cancelled
+    mode: queued
+    triggers:
+      - trigger: timer.cancelled
         target:
           entity_id: timer.airtouch_auto_off
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.airtouch_auto_off_armed
-  - id: airtouch_enforce_elapsed_timer_after_restart
-    alias: Turn off AirTouch if its auto-off time elapsed during a restart
-    description: Prevent a Home Assistant outage from leaving a timed AirTouch run active.
-    mode: single
-    triggers:
-      - trigger: homeassistant
-        event: start
     conditions:
       - condition: state
         entity_id: input_boolean.airtouch_auto_off_armed
         state: "on"
-      - condition: template
-        value_template: >-
-          {{ as_timestamp(states('input_datetime.airtouch_auto_off_at'), 0)
-             <= as_timestamp(now()) }}
     actions:
-      - action: climate.turn_off
-        target:
-          entity_id: climate.at2plus_ac_0
-      - action: timer.cancel
-        target:
-          entity_id: timer.airtouch_auto_off
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.airtouch_auto_off_armed
+      - action: script.airtouch_timer_control
+        data:
+          operation: cancel_if_idle
   - id: household_presence_notifications
     alias: Notify household on arrivals and departures
     description: Notify both household phones when Sam or Rachael leaves or returns home.
