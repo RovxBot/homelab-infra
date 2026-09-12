@@ -187,7 +187,7 @@ spec:
 
       containers:
         - name: home-assistant
-          image: ghcr.io/home-assistant/home-assistant:2026.9.1@sha256:31076d37e3b7dc9681b32d892aa4413fa866c9a90e5c8a50324b397dce415d17
+          image: ghcr.io/home-assistant/home-assistant:2026.9.2@sha256:542890f4a7ef9269b7a5ac23ada303b327537c62fa0f866e49daebc61cb44caa
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
