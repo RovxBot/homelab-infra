@@ -84,7 +84,7 @@ Before a Talos, Kubernetes, Longhorn or node-maintenance rollout, check Flux, Lo
 
 ## Access and administration
 
-Entra OIDC is the normal Kubernetes administration path. It maps Entra `homelab.admin`, `homelab.operator` and `homelab.viewer` roles to Kubernetes RBAC groups. Administrator is cluster-admin; operator and viewer deliberately exclude Secrets and workload mutation.
+Entra OIDC is the normal Kubernetes administration path. It maps Entra `homelab.admin`, `homelab.operator` and `homelab.viewer` roles to Kubernetes RBAC groups. Administrator is cluster-admin; operator and viewer are read-only and cannot read Secrets or start pod attach, exec or port-forward sessions.
 
 ```bash
 export KUBECONFIG="$HOME/.config/talos/cooked-k8s/kubeconfig-entra"
