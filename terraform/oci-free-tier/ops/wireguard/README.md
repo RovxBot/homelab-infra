@@ -26,8 +26,8 @@ If the VPS is going to front Immich, public `443` must belong to the web proxy. 
 
 Relevant current cluster settings:
 
-- Realm public port: [apps/wotlk/realm-upsert-cronjob.yaml](/Users/sam/Git/homelab-infra/apps/wotlk/realm-upsert-cronjob.yaml)
-- Immich NodePort: [apps/immich/server.yaml](/Users/sam/Git/homelab-infra/apps/immich/server.yaml)
+- Realm public port: [apps/wotlk/realm-upsert-cronjob.yaml](../../../../apps/wotlk/realm-upsert-cronjob.yaml)
+- Immich NodePort: [apps/immich/server.yaml](../../../../apps/immich/server.yaml)
 
 ## Files
 
@@ -85,22 +85,16 @@ Immich/Jellyfin routes and WotLK forwarding unchanged.
 6. Point `immich.cooked.beer` and `jellyfin.cooked.beer` DNS at the VPS public IP.
 7. Update the WotLK realm to advertise `8443` instead of `443`.
 
-## Example systemd bootstrap
+## Systemd bootstrap
 
-```ini
-[Unit]
-Description=Homelab public edge rules
-After=network-online.target wg-quick@wg0.service
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/opt/homelab/ops/wireguard/vps-public-edge.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-```
+[`homelab-public-edge.service`](./homelab-public-edge.service) replays the
+reviewed firewall and forwarding rules after WireGuard starts. The Terraform
+cloud-init template installs and enables it on a fresh edge boot volume when a
+`wg0` peer configuration is supplied. For a running host, copy the unit, the
+reviewed script, and `sshd-hardening.conf` over private SSH; validate the SSH
+configuration with `sshd -t`, run `systemctl daemon-reload`, then enable the
+public-edge unit. The unit requires `wg-quick@wg0.service`, so it cannot claim
+success while the tunnel it forwards through is unavailable.
 
 ## Notes
 

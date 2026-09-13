@@ -21,6 +21,10 @@ locals {
   # execution receives it with the configured working directory.
   wireguard_caddyfile_b64   = base64encode(file("${path.module}/ops/wireguard/Caddyfile"))
   wireguard_edge_script_b64 = base64encode(file("${path.module}/ops/wireguard/vps-public-edge.sh"))
+  wireguard_edge_unit_b64   = base64encode(file("${path.module}/ops/wireguard/homelab-public-edge.service"))
+  wireguard_sshd_hardening_b64 = base64encode(
+    file("${path.module}/ops/wireguard/sshd-hardening.conf")
+  )
   common_tags = merge(
     {
       managed-by = "github-actions"
@@ -257,8 +261,9 @@ resource "oci_core_instance" "wireguard" {
   }
 
   source_details {
-    source_type = "image"
-    source_id   = var.wireguard_image_ocid
+    source_type                     = "image"
+    source_id                       = var.wireguard_image_ocid
+    is_preserve_boot_volume_enabled = true
   }
 
   create_vnic_details {
@@ -277,6 +282,10 @@ resource "oci_core_instance" "wireguard" {
       wireguard_install_caddy   = var.wireguard_install_caddy
       wireguard_caddyfile_b64   = local.wireguard_caddyfile_b64
       wireguard_edge_script_b64 = local.wireguard_edge_script_b64
+      wireguard_edge_unit_b64   = local.wireguard_edge_unit_b64
+      wireguard_sshd_hardening_b64 = local.wireguard_sshd_hardening_b64
+      wireguard_admin_public_key   = trimspace(var.wireguard_admin_public_key)
+      wireguard_admin_address      = var.wireguard_admin_address
     }))
   }
 }

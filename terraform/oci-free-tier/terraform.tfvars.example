@@ -26,6 +26,12 @@ wireguard_image_ocid = "ocid1.image.oc1.ap-melbourne-1.aaaaaaaayettssu2b7iwidreq
 wireguard_ocpus      = 1
 wireguard_memory_gbs = 1
 
+# Optional: restore the private administrator WireGuard peer on a fresh edge
+# boot volume. This is public key material; store the corresponding private key
+# only on the administrator workstation or in Bitwarden.
+# wireguard_admin_public_key = "base64-wireguard-public-key="
+wireguard_admin_address = "10.77.0.3/32"
+
 # Legacy Matrix resources are disabled in the edge module. Provision Matrix
 # through its independent Terraform module when Oracle ARM capacity is available.
 matrix_enabled       = false
