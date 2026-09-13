@@ -20,6 +20,9 @@ spec:
       labels:
         app: wireguard-client
     spec:
+      # This gateway does not call the Kubernetes API. Avoid projecting a
+      # default ServiceAccount credential into this privileged network pod.
+      automountServiceAccountToken: false
       # Pin to a single node so we only have one tunnel + NAT gateway.
       nodeSelector:
         kubernetes.io/hostname: metal7
