@@ -6,7 +6,7 @@ metadata:
   labels:
     homelab.cooked.beer/owner: platform
   annotations:
-    kyverno.cooked.beer/reason: Selected workloads still rely on tag-based updates or upstream-managed image tags.
+    kyverno.cooked.beer/reason: Longhorn chart workloads and WotLK workloads currently include images not pinned by digest.
     kyverno.cooked.beer/expires-at: "2026-08-31"
     github.cooked.beer/issue-create: "true"
 spec:
@@ -19,19 +19,4 @@ spec:
       - resources:
           namespaces:
             - longhorn-system
-            - wireguard
-            - wotlk
-      - resources:
-          kinds:
-            - Deployment
-            - CronJob
-            - StatefulSet
-          names:
-            - cloudflared
-            - grimguzzler-registration
-            - homepage-assets
-            - pod-report
-          namespaces:
-            - cloudflared
-            - homepage
             - wotlk
