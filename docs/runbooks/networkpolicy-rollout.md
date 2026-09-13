@@ -1,9 +1,32 @@
 # NetworkPolicy rollout
 
-This cluster is in the policy-inventory stage. Cilium is intentionally set to
-`policyEnforcementMode: never`; native Kubernetes `NetworkPolicy` objects are
-rendered and reconciled but do not affect traffic. Do not change that setting
-as part of adding or reviewing an application policy.
+This cluster is in the policy-audit preparation stage. Cilium deliberately
+retains `policyEnforcementMode: never`, while `policyAuditMode: true` verifies
+the agent configuration on every node. Native Kubernetes `NetworkPolicy`
+objects are rendered and reconciled but traffic remains non-enforcing. Do not
+change `policyEnforcementMode` as part of adding or reviewing an application
+policy.
+
+## Stage 1: cluster-wide audit preparation
+
+After Flux rolls Cilium one node at a time, validate the setting before
+considering any audit-backed enforcement work:
+
+```bash
+export KUBECONFIG="$HOME/.config/talos/cooked-k8s/kubeconfig-entra"
+scripts/cilium-policy-audit-health.sh
+```
+
+This stage does **not** make a namespace enforcing and does not enable Hubble,
+Prometheus, Grafana, or the host firewall. Its immediate rollback is a single
+Git revision setting `policyAuditMode: false`, while leaving
+`policyEnforcementMode: never` unchanged.
+
+The later evidence-gathering stage is a separate maintenance change to
+`policyEnforcementMode: default` while retaining audit mode. Audit mode then
+allows would-be denied L3/L4 traffic while recording verdicts. It must be
+time-boxed and reverted or followed by fully reviewed contracts; do not leave
+global audit mode on as a security end state.
 
 ## Current contracts
 
@@ -26,6 +49,7 @@ dependency checks; it does not authenticate to or mutate these services.
 ## Rules for the inventory stage
 
 - Keep `infra/cilium/helmrelease.yaml` at `policyEnforcementMode: never`.
+  `policyAuditMode: true` alone is only the non-enforcing preparation stage.
 - Do not add `homelab.cooked.beer/bootstrap: enabled` to any namespace. The
   Kyverno generator attached to that label creates namespace-wide ingress and
   egress deny-all policies and is not safe until the full namespace contract
@@ -72,11 +96,13 @@ media application's mutable inter-service dependencies.
 
 ## Later enforcement, separately
 
-Only after each selected namespace has documented ingress, DNS and egress
-contracts can a maintenance-window PR set Cilium to
-`policyEnforcementMode: default`. Start with a single, selector-specific
-backend policy and confirm the application plus Gatus. Do not enable it while
-the WotLK host-network SOAP policy has unknown enforcement behavior.
+Only after each selected endpoint has documented ingress, DNS and egress
+contracts can a separate maintenance-window PR set Cilium to
+`policyEnforcementMode: default` while retaining audit mode. This affects all
+currently selected endpoints, not only the policy being reviewed. Start only
+after Flux, Immich, Invoice Ninja, and the WotLK HostPort/SOAP contracts have
+been observed. In particular, do not enable it while the WotLK worldserver
+policy lacks Gatus and public HostPort evidence.
 
 The immediate rollback for a selected backend is to remove its new
 `NetworkPolicy`; under `default` that restores unrestricted traffic to the

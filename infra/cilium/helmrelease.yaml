@@ -52,6 +52,10 @@ spec:
           - 10.245.0.0/16
         clusterPoolIPv4MaskSize: 24
     policyEnforcementMode: never
+    # This is the first, non-enforcing phase of the NetworkPolicy project.
+    # It prepares policy audit on every agent without changing the deliberate
+    # allow-all posture. Do not change policyEnforcementMode in this revision.
+    policyAuditMode: true
     bpf:
       # Talos forwards Kubernetes DNS to the host by default. Keep legacy host
       # routing until that separate Talos/DNS design is explicitly changed.
