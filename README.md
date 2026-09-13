@@ -151,9 +151,12 @@ Repository CI is intentionally strict:
 - Validates rendered resources, public-edge configuration and WireGuard shell syntax.
 - Detects unresolved Secret references and forbidden credential-like files.
 - Requires exact SHA-256 digests for generated Flux bootstrap controller images.
+- Requires every Kyverno PolicyException to have a valid, unexpired expiry date.
 - Runs the Kyverno baseline gate, Gitleaks, GitGuardian, Zizmor, YAML lint and workflow lint.
 
 The Kyverno gate compares the repository against policies in `infra/kyverno/policies` and the reviewed debt baseline in `.github/kyverno-baseline.yaml`. New failures fail CI; resolved baseline entries must be removed rather than retained indefinitely.
+
+Exception expiry is a separate fail-closed check. Renewing an exception requires an explicit reviewed date change; an expired exception blocks the pull request until it is removed or deliberately renewed.
 
 Run the policy gate locally without changing the accepted baseline:
 
@@ -164,6 +167,13 @@ python3 scripts/ci/kyverno_gate.py check \
   --baseline .github/kyverno-baseline.yaml \
   --kyverno-bin /path/to/kyverno \
   --work-dir .work/kyverno-gate
+```
+
+Validate the expiry inventory locally (or supply a deterministic date when testing):
+
+```bash
+python3 scripts/ci/check_kyverno_exception_expiry.py
+python3 scripts/ci/check_kyverno_exception_expiry.py --today 2026-08-02
 ```
 
 Only regenerate the baseline after reviewing each accepted exception:
