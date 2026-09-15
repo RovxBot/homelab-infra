@@ -1,5 +1,21 @@
 default_config:
 
+http:
+  # Home Assistant runs on the host network for LAN discovery. Requests from
+  # Cloudflared reach it through the ClusterIP Service and are source-NATed to
+  # the node hosting the tunnel pod. Cloudflared may run on any schedulable
+  # cluster node, so trust only the explicit node addresses—not the LAN CIDR.
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 192.168.1.190 # metal0
+    - 192.168.1.191 # metal2
+    - 192.168.1.193 # metal3
+    - 192.168.1.47 # metal4
+    - 192.168.1.195 # metal5
+    - 192.168.1.196 # metal6
+    - 192.168.1.197 # metal7
+    - 192.168.1.84 # metal8
+
 frontend:
   extra_module_url:
     - /local/ha-map-tile-replace/ha-map-tile-replace.js?v=2
