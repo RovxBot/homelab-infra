@@ -55,6 +55,8 @@ spec:
           envFrom:
             - secretRef:
                 name: vaultwarden-env
+            - secretRef:
+                name: vaultwarden-sso-env
           env:
             - name: TZ
               value: Australia/Melbourne
