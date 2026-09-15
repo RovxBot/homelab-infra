@@ -18,6 +18,8 @@ spec:
     metadata:
       labels:
         app: vaultwarden
+      annotations:
+        homelab.cooked.beer/vaultwarden-sso-config-revision: "2026-09-15-enforced"
     spec:
       automountServiceAccountToken: false
       securityContext:

@@ -81,6 +81,26 @@ association is the already existing account with the exact matching email.
 usually provide the `email_verified` claim. It is safe to remove after the
 association is complete.
 
+### Persisted admin configuration
+
+Vaultwarden's admin panel can save settings in `/data/config.json`; values in
+that file override environment variables. After the first rollout, inspect the
+startup logs. If they report that any SSO environment variables are overridden,
+back up the in-volume `config.json` and remove only these persisted keys:
+
+```
+sso_enabled
+sso_only
+sso_signups_match_email
+sso_allow_unknown_email_verification
+sso_scopes
+sso_pkce
+```
+
+Do not copy `config.json` out of the volume or print it: it can include the
+admin token and other sensitive configuration. Restart Vaultwarden afterward
+and confirm that the startup log no longer lists SSO variables as overridden.
+
 Commit the encrypted file and let Flux reconcile it. Check the deployment and
 recent server logs without exposing secret values:
 
@@ -92,9 +112,18 @@ kubectl -n security logs deployment/vaultwarden --since=10m
 
 ## 3. Verify before enforcing SSO
 
-Use the public Vaultwarden URL, not a NodePort URL, and select **Log in with
-SSO**. Complete the Entra sign-in and MFA prompt, then enter the existing
-Vaultwarden master password to unlock the encrypted vault.
+Use the public Vaultwarden URL, not a NodePort URL. Some current Vaultwarden
+web-vault builds keep the normal email-first page and do not display an SSO
+button even when SSO is enabled. Start the OIDC flow directly instead:
+
+```
+https://vault.cooked.beer/#/sso?identifier=VW_DUMMY_IDENTIFIER_FOR_OIDC
+```
+
+`VW_DUMMY_IDENTIFIER_FOR_OIDC` is the fixed client-side identifier required by
+Vaultwarden's OIDC flow; it is not an Entra tenant, application, or secret.
+Complete the Entra sign-in and MFA prompt, then enter the existing Vaultwarden
+master password to unlock the encrypted vault.
 
 Verify all of the following before continuing:
 
