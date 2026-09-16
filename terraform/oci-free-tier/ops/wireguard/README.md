@@ -85,6 +85,18 @@ Immich/Jellyfin routes and WotLK forwarding unchanged.
 6. Point `immich.cooked.beer` and `jellyfin.cooked.beer` DNS at the VPS public IP.
 7. Update the WotLK realm to advertise `8443` instead of `443`.
 
+Terraform's cloud-init now manages this as
+`wireguard-edge-forwarding.service`. It waits for `wg-quick@wg0` before
+installing the NAT rules and runs again on boot. If the public WotLK ports are
+unreachable after a host recovery, inspect and restart the unit through the
+private WireGuard administration path:
+
+```bash
+sudo systemctl status wireguard-edge-forwarding.service
+sudo systemctl restart wireguard-edge-forwarding.service
+sudo iptables -t nat -S PREROUTING | grep -E '3724|8443'
+```
+
 ## Example systemd bootstrap
 
 ```ini
