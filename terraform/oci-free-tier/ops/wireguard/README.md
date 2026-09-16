@@ -100,6 +100,11 @@ sudo systemctl restart wireguard-edge-forwarding.service
 sudo iptables -t nat -S PREROUTING | grep -E '3724|8443'
 ```
 
+Changes to the OCI instance's `user_data` are intentionally ignored after the
+initial boot: the OCI provider would otherwise replace the live WireGuard VM.
+Bootstrap improvements take effect on its next deliberate replacement; use the
+private administration path for an urgent live repair instead.
+
 ## Example systemd bootstrap
 
 ```ini

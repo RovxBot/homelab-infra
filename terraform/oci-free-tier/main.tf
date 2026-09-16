@@ -294,6 +294,14 @@ resource "oci_core_instance" "wireguard" {
       wireguard_edge_script_b64 = local.wireguard_edge_script_b64
     }))
   }
+
+  # OCI forces a new instance when user_data changes. Cloud-init only consumes
+  # that value on first boot, and WireGuard is the priority service, so retain
+  # bootstrap updates for the next intentional replacement rather than
+  # replacing the live edge VM during a routine Terraform apply.
+  lifecycle {
+    ignore_changes = [metadata["user_data"]]
+  }
 }
 
 data "oci_core_vnic_attachments" "wireguard" {
