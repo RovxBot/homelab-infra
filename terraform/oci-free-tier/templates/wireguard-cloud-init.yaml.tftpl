@@ -20,6 +20,30 @@ write_files:
       net.ipv4.tcp_mtu_probing=1
       net.ipv6.conf.all.forwarding=1
 %{ if wireguard_install_caddy ~}
+  # The WotLK world backend must be a cryptokey route on the same peer as the
+  # auth backend. Keep the encrypted peer config as the source of truth, but
+  # correct older inputs during bootstrap so a recreated edge cannot forward
+  # 8443 traffic to OCI's default gateway.
+  - path: /usr/local/sbin/ensure-wireguard-wotlk-routes
+    owner: root:root
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      config=/etc/wireguard/wg0.conf
+      auth_backend_cidr=192.168.1.197/32
+      world_backend_cidr=192.168.1.47/32
+
+      [ -f "$config" ] || exit 0
+      grep -Fq "$world_backend_cidr" "$config" && exit 0
+
+      if ! grep -Eq "^[[:space:]]*AllowedIPs[[:space:]]*=.*192\\.168\\.1\\.197/32" "$config"; then
+        logger -t wireguard-edge-routing "not adding $world_backend_cidr: no peer routes $auth_backend_cidr"
+        exit 0
+      fi
+
+      sed -i '\|^[[:space:]]*AllowedIPs[[:space:]]*=.*192\\.168\\.1\\.197/32| s|$|, 192.168.1.47/32|' "$config"
   - path: /etc/caddy/Caddyfile
     owner: root:root
     permissions: "0644"
@@ -59,7 +83,7 @@ runcmd:
   - bash -lc 'iptables -C INPUT -p udp --dport ${wireguard_udp_port} -j ACCEPT 2>/dev/null || iptables -I INPUT 4 -p udp --dport ${wireguard_udp_port} -j ACCEPT'
   # Start the tunnel before any rule can send game traffic through it. The
   # forwarding unit below explicitly waits for this service on every boot.
-  - bash -lc 'if [ -n "${wireguard_peer_config_b64}" ]; then echo "${wireguard_peer_config_b64}" | base64 -d >/etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf && systemctl enable --now wg-quick@wg0; fi'
+  - bash -lc 'if [ -n "${wireguard_peer_config_b64}" ]; then echo "${wireguard_peer_config_b64}" | base64 -d >/etc/wireguard/wg0.conf && chmod 600 /etc/wireguard/wg0.conf && /usr/local/sbin/ensure-wireguard-wotlk-routes && systemctl enable --now wg-quick@wg0; fi'
 %{ if wireguard_install_caddy ~}
   - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor | tee /usr/share/keyrings/caddy-stable-archive-keyring.gpg >/dev/null'
   - bash -lc 'curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null'

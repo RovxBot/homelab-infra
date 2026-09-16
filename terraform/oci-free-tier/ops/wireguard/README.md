@@ -87,9 +87,12 @@ Immich/Jellyfin routes and WotLK forwarding unchanged.
 
 Terraform's cloud-init now manages this as
 `wireguard-edge-forwarding.service`. It waits for `wg-quick@wg0` before
-installing the NAT rules and runs again on boot. If the public WotLK ports are
-unreachable after a host recovery, inspect and restart the unit through the
-private WireGuard administration path:
+installing the NAT rules and runs again on boot. During initial provisioning it
+also ensures that the peer which routes auth (`192.168.1.197/32`) routes the
+world backend (`192.168.1.47/32`). Both addresses should remain in the
+encrypted `wg0.conf` input; the bootstrap check protects older inputs during a
+rebuild. If the public WotLK ports are unreachable after a host recovery,
+inspect and restart the unit through the private WireGuard administration path:
 
 ```bash
 sudo systemctl status wireguard-edge-forwarding.service
