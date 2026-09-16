@@ -9,8 +9,8 @@ output "matrix_vcn_id" {
 }
 
 output "matrix_public_ip" {
-  description = "Ephemeral public IP address of the Matrix instance."
-  value       = data.oci_core_vnic.matrix_primary.public_ip_address
+  description = "Reserved public IP address of the Matrix instance."
+  value       = oci_core_public_ip.matrix.ip_address
 }
 
 output "matrix_admin_registration_command" {

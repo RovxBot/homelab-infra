@@ -4,8 +4,8 @@ data "oci_identity_availability_domains" "ads" {
 
 locals {
   availability_domain = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
-  oci_private_key     = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
-  ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
+  oci_private_key     = var.private_key_pem != "" ? trimspace(var.private_key_pem) : (var.private_key_path != "" ? trimspace(file(pathexpand(var.private_key_path))) : "")
+  ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : (var.ssh_public_key_path != "" ? trimspace(file(pathexpand(var.ssh_public_key_path))) : "")
   matrix_image_ocid = var.matrix_enabled ? (
     var.matrix_image_ocid != "" ? var.matrix_image_ocid : data.oci_core_images.matrix[0].images[0].id
   ) : null
@@ -85,6 +85,20 @@ resource "oci_core_route_table" "public" {
   }
 }
 
+# OCI's default security list permits public SSH. The WireGuard edge uses an
+# explicit list with no ingress rules so its NSG is the single ingress policy.
+resource "oci_core_security_list" "public" {
+  compartment_id = var.compartment_ocid
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "homelab-public-security-list"
+  freeform_tags  = local.common_tags
+
+  egress_security_rules {
+    protocol    = "all"
+    destination = "0.0.0.0/0"
+  }
+}
+
 resource "oci_core_subnet" "public" {
   compartment_id             = var.compartment_ocid
   vcn_id                     = oci_core_vcn.main.id
@@ -92,6 +106,7 @@ resource "oci_core_subnet" "public" {
   cidr_block                 = var.subnet_cidr
   dns_label                  = "public"
   route_table_id             = oci_core_route_table.public.id
+  security_list_ids          = [oci_core_security_list.public.id]
   prohibit_public_ip_on_vnic = false
   freeform_tags              = local.common_tags
 }

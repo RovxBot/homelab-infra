@@ -5,6 +5,7 @@ packages:
   - docker-compose-plugin
   - caddy
   - coturn
+  - curl
   - jq
 
 write_files:
@@ -70,7 +71,7 @@ write_files:
     content: |
       services:
         postgres:
-          image: postgres:16-alpine
+          image: ${matrix_postgres_image}
           restart: unless-stopped
           environment:
             POSTGRES_USER: synapse
@@ -81,7 +82,7 @@ write_files:
             - matrix_postgres_data:/var/lib/postgresql/data
 
         synapse:
-          image: ghcr.io/element-hq/synapse:latest
+          image: ${matrix_synapse_image}
           restart: unless-stopped
           depends_on:
             - postgres
@@ -93,7 +94,7 @@ write_files:
             - matrix_synapse_data:/data
 
         element-web:
-          image: vectorim/element-web:latest
+          image: ${matrix_element_image}
           restart: unless-stopped
           ports:
             - 127.0.0.1:8080:80
@@ -119,12 +120,12 @@ write_files:
 
       systemctl enable --now docker
 
-      if ! docker run --rm -v matrix_synapse_data:/data busybox test -f /data/homeserver.yaml; then
+      if ! docker run --rm --entrypoint /bin/sh -v matrix_synapse_data:/data ${matrix_synapse_image} -c 'test -f /data/homeserver.yaml'; then
         docker run --rm \
           -e SYNAPSE_SERVER_NAME=${matrix_server_name} \
           -e SYNAPSE_REPORT_STATS=${matrix_report_stats} \
           -v matrix_synapse_data:/data \
-          ghcr.io/element-hq/synapse:latest generate
+          ${matrix_synapse_image} generate
       fi
 
       docker run --rm \
@@ -135,7 +136,7 @@ write_files:
         -e MATRIX_REGISTRATION_SHARED_SECRET=${matrix_registration_shared_secret} \
         -e MATRIX_TURN_SHARED_SECRET=${matrix_turn_shared_secret} \
         -v matrix_synapse_data:/data \
-        ghcr.io/element-hq/synapse:latest \
+        ${matrix_synapse_image} \
         -c '
       import os
       from pathlib import Path
@@ -185,8 +186,19 @@ write_files:
       path.write_text(yaml.safe_dump(data, sort_keys=False))
       '
 
-      PUBLIC_IP="$(curl -fsS -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v2/vnics/ | jq -r '.[0].publicIp')"
-      PRIVATE_IP="$(curl -fsS -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v2/vnics/ | jq -r '.[0].privateIp')"
+      PUBLIC_IP=""
+      PRIVATE_IP=""
+      for attempt in $(seq 1 60); do
+        VNIC_METADATA="$(curl -fsS -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v2/vnics/ || true)"
+        PUBLIC_IP="$(printf '%s' "$VNIC_METADATA" | jq -r '.[0].publicIp // empty')"
+        PRIVATE_IP="$(printf '%s' "$VNIC_METADATA" | jq -r '.[0].privateIp // empty')"
+        if [[ -n "$PUBLIC_IP" && -n "$PRIVATE_IP" ]]; then
+          break
+        fi
+        sleep 10
+      done
+      test -n "$PUBLIC_IP"
+      test -n "$PRIVATE_IP"
 
       if ! grep -q '^external-ip=' /etc/turnserver.conf; then
         printf '\nexternal-ip=%s/%s\n' "$PUBLIC_IP" "$PRIVATE_IP" >> /etc/turnserver.conf
@@ -202,4 +214,4 @@ write_files:
 runcmd:
   - /usr/local/bin/bootstrap-matrix.sh
 
-final_message: "Matrix bootstrap complete. Public ports 80/tcp, 443/tcp, 8448/tcp, 3478/tcp+udp, and ${matrix_turn_min_port}-${matrix_turn_max_port}/udp are expected to be opened by OCI NSG rules."
+final_message: "Matrix bootstrap complete. Public ports 80/tcp, 443/tcp, 8448/tcp, 3478/tcp+udp, and ${matrix_turn_min_port}-${matrix_turn_max_port}/tcp+udp are expected to be opened by OCI NSG rules."

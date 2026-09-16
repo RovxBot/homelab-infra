@@ -24,6 +24,9 @@ matrix_instance_name = "matrix"
 matrix_shape         = "VM.Standard.A1.Flex"
 matrix_ocpus         = 2
 matrix_memory_gbs    = 8
+# Fixed at 50 GB to keep the WireGuard and Matrix boot volumes within the
+# tenancy's 200 GB Always Free Block Volume allowance.
+matrix_boot_volume_size_in_gbs = 50
 matrix_server_name   = "matrix.example.com"
 matrix_acme_email    = "ops@example.com"
 
@@ -36,3 +39,9 @@ matrix_acme_email    = "ops@example.com"
 # matrix_report_stats = false
 # matrix_turn_min_port = 49152
 # matrix_turn_max_port = 49200
+
+# The module defaults to reviewed immutable ARM64 image digests. Keep the
+# defaults unless you are deliberately testing a replacement digest on ARM64.
+# matrix_synapse_image  = "ghcr.io/element-hq/synapse:latest@sha256:..."
+# matrix_postgres_image = "postgres:16-alpine@sha256:..."
+# matrix_element_image  = "vectorim/element-web:latest@sha256:..."

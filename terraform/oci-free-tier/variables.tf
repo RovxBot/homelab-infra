@@ -56,9 +56,14 @@ variable "ssh_public_key" {
 }
 
 variable "wireguard_shape" {
-  description = "OCI shape for the WireGuard edge instance."
+  description = "OCI Always Free shape reserved for the WireGuard edge instance."
   type        = string
   default     = "VM.Standard.E2.1.Micro"
+
+  validation {
+    condition     = var.wireguard_shape == "VM.Standard.E2.1.Micro"
+    error_message = "WireGuard is deliberately reserved on the Always Free VM.Standard.E2.1.Micro shape; do not move it to shared A1 capacity."
+  }
 }
 
 variable "wireguard_image_ocid" {
@@ -113,15 +118,15 @@ variable "wireguard_instance_name" {
 }
 
 variable "wireguard_ocpus" {
-  description = "OCPU count for the WireGuard instance."
+  description = "Compatibility input for a former Flex shape. VM.Standard.E2.1.Micro has a fixed Always Free allocation, so this value is not applied."
   type        = number
   default     = 1
 }
 
 variable "wireguard_memory_gbs" {
-  description = "Memory size in GB for the WireGuard instance."
+  description = "Compatibility input for a former Flex shape. VM.Standard.E2.1.Micro has a fixed 1 GB allocation, so this value is not applied."
   type        = number
-  default     = 6
+  default     = 1
 }
 
 variable "wireguard_udp_port" {
@@ -150,9 +155,14 @@ variable "wireguard_peer_config" {
 }
 
 variable "matrix_enabled" {
-  description = "Legacy in-module Matrix switch. Disabled by default while Matrix is extracted into an independent provision."
+  description = "Legacy in-module Matrix switch. It remains disabled while Matrix is owned by the independent provision."
   type        = bool
   default     = false
+
+  validation {
+    condition     = var.matrix_enabled == false
+    error_message = "Matrix must stay out of the WireGuard state. Use terraform/oci-matrix-free-tier and its dedicated workspace instead."
+  }
 }
 
 variable "matrix_instance_name" {

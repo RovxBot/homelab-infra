@@ -11,13 +11,24 @@ definitions remain only to avoid an unreviewed state migration. Do not set
 [terraform/oci-matrix-free-tier](../oci-matrix-free-tier/README.md) when
 Oracle ARM capacity becomes available.
 
+## Always Free edge contract
+
+WireGuard is reserved on one `VM.Standard.E2.1.Micro`: OCI's fixed Always Free
+AMD micro allocation (1/8 OCPU and 1 GB memory). It does not use A1 capacity,
+so the independent Matrix stack can consume the tenancy's 2 A1 OCPUs without
+displacing the edge. The Terraform input now rejects a shape change, keeping
+that priority decision explicit. Before replacing the instance, select an OCI
+Ubuntu image marked **Always Free Eligible** and confirm the tenancy still has
+enough of the shared 200 GB boot/block-volume allocation.
+
 ## Current edge exposure
 
 - `51820/UDP` for WireGuard.
 - `80/TCP`, `443/TCP`, `3724/TCP`, and `8443/TCP` for the intended public edge
   routes.
 - No public `22/TCP`: SSH is permitted only through the tested WireGuard
-  administration peer, with matching host firewall and OCI NSG policy.
+  administration peer, with matching host firewall, explicit no-ingress subnet
+  security list, and OCI NSG policy.
 
 The direct public `immich.cooked.beer` and `jellyfin.cooked.beer` routes are an
 intentional risk decision. Their application login controls remain mandatory;

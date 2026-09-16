@@ -15,8 +15,8 @@ data "oci_core_images" "matrix" {
 
 locals {
   availability_domain = coalesce(var.availability_domain_name, data.oci_identity_availability_domains.ads.availability_domains[0].name)
-  oci_private_key     = var.private_key_pem != "" ? trimspace(var.private_key_pem) : trimspace(file(var.private_key_path))
-  ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : trimspace(file(var.ssh_public_key_path))
+  oci_private_key     = var.private_key_pem != "" ? trimspace(var.private_key_pem) : (var.private_key_path != "" ? trimspace(file(pathexpand(var.private_key_path))) : "")
+  ssh_authorized_keys = var.ssh_public_key != "" ? trimspace(var.ssh_public_key) : (var.ssh_public_key_path != "" ? trimspace(file(pathexpand(var.ssh_public_key_path))) : "")
   matrix_image_ocid   = var.matrix_image_ocid != "" ? var.matrix_image_ocid : data.oci_core_images.matrix[0].images[0].id
   common_tags = merge(
     {
@@ -174,6 +174,23 @@ resource "oci_core_network_security_group_security_rule" "turn_relay_udp_ingress
   }
 }
 
+# Synapse advertises a TURN/TCP URI as a fallback for networks that block UDP.
+# TURN allocates the relay connection from this same configured port range.
+resource "oci_core_network_security_group_security_rule" "turn_relay_tcp_ingress" {
+  network_security_group_id = oci_core_network_security_group.matrix.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+
+  tcp_options {
+    destination_port_range {
+      min = var.matrix_turn_min_port
+      max = var.matrix_turn_max_port
+    }
+  }
+}
+
 resource "oci_core_instance" "matrix" {
   compartment_id      = var.compartment_ocid
   availability_domain = local.availability_domain
@@ -190,13 +207,14 @@ resource "oci_core_instance" "matrix" {
   }
 
   source_details {
-    source_type = "image"
-    source_id   = local.matrix_image_ocid
+    source_type             = "image"
+    source_id               = local.matrix_image_ocid
+    boot_volume_size_in_gbs = var.matrix_boot_volume_size_in_gbs
   }
 
   create_vnic_details {
     subnet_id        = oci_core_subnet.public.id
-    assign_public_ip = true
+    assign_public_ip = false
     nsg_ids          = [oci_core_network_security_group.matrix.id]
     display_name     = "${var.matrix_instance_name}-vnic"
     hostname_label   = "matrix"
@@ -213,7 +231,17 @@ resource "oci_core_instance" "matrix" {
       matrix_turn_shared_secret         = random_password.matrix_turn_shared_secret.result
       matrix_turn_min_port              = var.matrix_turn_min_port
       matrix_turn_max_port              = var.matrix_turn_max_port
+      matrix_synapse_image              = var.matrix_synapse_image
+      matrix_postgres_image             = var.matrix_postgres_image
+      matrix_element_image              = var.matrix_element_image
     }))
+  }
+
+  lifecycle {
+    precondition {
+      condition     = var.matrix_turn_min_port <= var.matrix_turn_max_port
+      error_message = "matrix_turn_min_port must not be greater than matrix_turn_max_port."
+    }
   }
 }
 
@@ -225,4 +253,20 @@ data "oci_core_vnic_attachments" "matrix" {
 
 data "oci_core_vnic" "matrix_primary" {
   vnic_id = data.oci_core_vnic_attachments.matrix.vnic_attachments[0].vnic_id
+}
+
+data "oci_core_private_ips" "matrix_primary" {
+  vnic_id = data.oci_core_vnic.matrix_primary.vnic_id
+}
+
+# A reserved address keeps DNS and coturn's advertised external address stable
+# across an instance replacement. It is attached after the VNIC is created.
+resource "oci_core_public_ip" "matrix" {
+  compartment_id = var.compartment_ocid
+  display_name   = "${var.matrix_instance_name}-public-ip"
+  lifetime       = "RESERVED"
+  private_ip_id = one([
+    for private_ip in data.oci_core_private_ips.matrix_primary.private_ips :
+    private_ip.id if private_ip.is_primary
+  ])
 }

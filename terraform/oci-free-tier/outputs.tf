@@ -14,10 +14,10 @@ output "wireguard_public_ip_ocid" {
 }
 
 output "ssh_commands" {
-  description = "Convenience SSH commands once the stack is applied."
+  description = "WireGuard administration status. Direct SSH to the public IP is deliberately disabled."
   value = {
-    wireguard = "ssh ubuntu@${oci_core_public_ip.wireguard.ip_address}"
-    matrix    = var.matrix_enabled ? "ssh ubuntu@${data.oci_core_vnic.matrix_primary[0].public_ip_address}" : null
+    wireguard = "Public SSH disabled. Connect through the tested WireGuard administration peer, then SSH to the edge's WireGuard address."
+    matrix    = null
   }
 }
 

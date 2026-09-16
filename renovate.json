@@ -28,6 +28,7 @@
   },
   "enabledManagers": [
     "dockerfile",
+    "custom.regex",
     "flux",
     "github-actions",
     "kubernetes",
@@ -48,6 +49,18 @@
     "age-key.txt",
     "clusters/home/flux-system/gotk-components.yaml",
     "immich_backup_*.sql"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^terraform\\/oci-matrix-free-tier\\/variables\\.tf$/"
+      ],
+      "datasourceTemplate": "docker",
+      "matchStrings": [
+        "# renovate: datasource=docker depName=(?<depName>\\S+)\\s+default\\s+=\\s+\\\"[^\\\"]+:(?<currentValue>[^@\\\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\\\""
+      ]
+    }
   ],
   "packageRules": [
     {
@@ -74,6 +87,7 @@
       "description": "Require an explicit review for every infrastructure dependency update.",
       "matchManagers": [
         "dockerfile",
+        "custom.regex",
         "flux",
         "github-actions",
         "kubernetes",
@@ -117,6 +131,7 @@
     {
       "description": "Release every Terraform update, including major provider changes and both OCI roots, in one reviewable PR.",
       "matchManagers": [
+        "custom.regex",
         "terraform"
       ],
       "groupName": "terraform",
