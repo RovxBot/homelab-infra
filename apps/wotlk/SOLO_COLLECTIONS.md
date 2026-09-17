@@ -13,6 +13,14 @@ with AzerothCore. The `db-import` init container is configured to apply all
 module updates before worldserver starts, so do not manually import the module
 base schema or its update files into this existing realm.
 
+The pinned v0.2.0 module captures a C++ structured binding in an SC2 lambda,
+which Clang correctly rejects in the realm's C++17 build. The image workflow
+applies [a narrowly scoped compatibility patch](patches/mod-solo-collections-cxx17.patch)
+that rebinds the same session as an ordinary reference. It does not alter the
+SC2 protocol, collection authority, or database behavior. Remove the patch
+only when changing to an upstream module release that includes the equivalent
+source fix.
+
 Before building the replacement image, take a restorable backup of the
 `acore_auth`, `acore_characters`, and `acore_world` databases. The old
 transmogrification tables and the existing compatible NPC spawns are left in

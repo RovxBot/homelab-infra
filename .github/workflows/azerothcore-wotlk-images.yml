@@ -115,6 +115,15 @@ jobs:
             done < "${modules_file}"
           fi
 
+          # mod-solo-collections v0.2.0 captures a range-for structured
+          # binding in a lambda. That capture requires C++20, while the
+          # Playerbots/AzerothCore build intentionally uses C++17. Rebind the
+          # session as an ordinary reference without changing SC2 behavior.
+          patch --batch -d .work/acore/modules/mod-solo-collections -p1 \
+            < apps/wotlk/patches/mod-solo-collections-cxx17.patch
+          grep -Fq 'for (auto& sessionEntry : _sessions)' \
+            .work/acore/modules/mod-solo-collections/src/SoloCollectionsProtocolServer.cpp
+
           write_module_conf_install_shim() {
             local module_dir="$1"
 

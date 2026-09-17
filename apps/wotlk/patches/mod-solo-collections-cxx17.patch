@@ -1,0 +1,15 @@
+diff --git a/src/SoloCollectionsProtocolServer.cpp b/src/SoloCollectionsProtocolServer.cpp
+--- a/src/SoloCollectionsProtocolServer.cpp
++++ b/src/SoloCollectionsProtocolServer.cpp
+@@ -83,9 +83,9 @@ void Sc2Server::OnDerivedOwnedChanged(AccountId accountId, CollectionTypeId type
+     std::scoped_lock lock(_mutex);
+     std::sort(owned.begin(), owned.end());
+     owned.erase(std::unique(owned.begin(), owned.end()), owned.end());
+-    for (auto& [sessionId, session] : _sessions)
++    for (auto& sessionEntry : _sessions)
+     {
+-        (void)sessionId;
++        auto& session = sessionEntry.second;
+         if (!session.Active || session.Account != accountId)
+             continue;
+         std::vector<CollectionId> previous = session.ExternalOwned[typeId];
