@@ -1,7 +1,8 @@
 USE acore_world;
 
 -- Orgrimmar Transmog NPC (Warpweaver)
--- Source template: mod-transmog creature_template entry 190010
+-- Source template: legacy transmog creature_template entry 190010, retained
+-- by mod-solo-collections for its compatible NPC workflow.
 -- Location (as provided):
 -- Map: 1 (Kalimdor), Zone/Area: 1637, Phase: 4294967295
 -- X: 1921.1827 Y: -4427.4233 Z: 24.90695 O: 4.5310626

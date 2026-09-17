@@ -1,7 +1,8 @@
 USE acore_world;
 
 -- Stormwind Transmog NPC (Ethereal Warpweaver)
--- Source template: mod-transmog creature_template entry 190011
+-- Source template: legacy transmog creature_template entry 190011, retained
+-- by mod-solo-collections for its compatible NPC workflow.
 -- Location (as provided):
 -- Map: 0 (Eastern Kingdoms), Zone/Area: 1519, Phase: 4294967295
 -- X: -8854.853 Y: 795.0616 Z: 96.33459 O: 1.3205462

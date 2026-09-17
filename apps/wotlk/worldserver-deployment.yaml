@@ -129,6 +129,8 @@ spec:
               render_file /etc-tpl/MultiBotBridge.conf /etc-out/modules/MultiBotBridge.conf
               render_file /etc-tpl/mod_ahbot.conf /etc-out/modules/mod_ahbot.conf
               render_file /etc-tpl/progression_system.conf /etc-out/modules/progression_system.conf
+              # mod-solo-collections intentionally retains the upstream
+              # transmog.conf filename for its collection and NPC settings.
               render_file /etc-tpl/transmog.conf /etc-out/modules/transmog.conf
               render_file /etc-tpl/mod-double-xp-weekend.conf /etc-out/modules/mod-double-xp-weekend.conf
               render_file /etc-tpl/mod_customnpcs.conf /etc-out/modules/mod_customnpcs.conf

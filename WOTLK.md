@@ -19,6 +19,7 @@ Key manifests live under:
 - `apps/wotlk/authserver-config.yaml`
 - `apps/wotlk/db-bootstrap-cronjob.yaml`
 - `apps/wotlk/CLUSTERING.md` (staged ToCloud9 cluster cutover)
+- `apps/wotlk/SOLO_COLLECTIONS.md` (SoloCollections deployment and client rollout)
 
 ## Prebuilt images
 
