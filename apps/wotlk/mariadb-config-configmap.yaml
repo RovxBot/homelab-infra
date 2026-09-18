@@ -5,5 +5,9 @@ metadata:
 data:
   zz-binlog-retention.cnf: |
     [mysqld]
+    # Keep the active AzerothCore character and world data set in InnoDB's
+    # cache.  The default 128MiB pool was substantially smaller than the
+    # roughly 2GiB game database working set.
+    innodb_buffer_pool_size = 3G
     binlog_expire_logs_seconds = 86400
     max_binlog_size = 256M
