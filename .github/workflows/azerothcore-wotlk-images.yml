@@ -115,6 +115,25 @@ jobs:
             done < "${modules_file}"
           fi
 
+          # A clean mod-solo-collections checkout deliberately compiles with
+          # UNPINNED development metadata.  Produce the ignored build-info
+          # include from the matching, tagged client source before CMake
+          # configures its static module sources.  Without this step the
+          # runtime cannot prove that its server mapping and client add-on
+          # came from the same release.
+          git clone --depth=1 --branch v0.2.0 \
+            https://github.com/haha2345/SoloCollectionsPlatform.git \
+            .work/solo-collections-platform
+          pwsh -NoLogo -NoProfile -File \
+            .work/solo-collections-platform/tools/release/New-SoloCollectionsBuildInfo.ps1 \
+            -AddonRoot .work/solo-collections-platform \
+            -ModuleRoot .work/acore/modules/mod-solo-collections \
+            -CoreRoot .work/acore \
+            -CoreBuildRoot .work/solo-collections-build-info
+          build_info=.work/acore/modules/mod-solo-collections/src/generated/SoloCollectionsBuildInfo.inc
+          test -s "${build_info}"
+          ! grep -Fq '"UNPINNED"' "${build_info}"
+
           # mod-solo-collections v0.2.0 captures a range-for structured
           # binding in a lambda. That capture requires C++20, while the
           # Playerbots/AzerothCore build intentionally uses C++17. Rebind the
