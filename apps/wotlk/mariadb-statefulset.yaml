@@ -22,7 +22,9 @@ spec:
           resources:
             requests:
               cpu: 200m
-              memory: 2Gi
+              # 3GiB is reserved for InnoDB's buffer pool; retain enough
+              # schedulable headroom for MySQL and kernel accounting.
+              memory: 5Gi
             limits:
               cpu: "2"
               memory: 6Gi
@@ -30,14 +32,22 @@ spec:
             - name: mysql
               containerPort: 3306
           readinessProbe:
-            tcpSocket:
-              port: mysql
+            # A TCP socket probe closes before the MySQL handshake and is
+            # counted as an aborted connection. Verify an actual local query.
+            exec:
+              command:
+                - sh
+                - -ec
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --protocol=socket -uroot --skip-column-names -e "SELECT 1" >/dev/null
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 6
           livenessProbe:
-            tcpSocket:
-              port: mysql
+            exec:
+              command:
+                - sh
+                - -ec
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --protocol=socket -uroot --skip-column-names -e "SELECT 1" >/dev/null
             periodSeconds: 20
             timeoutSeconds: 2
             failureThreshold: 3
