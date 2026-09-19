@@ -115,29 +115,56 @@ jobs:
             done < "${modules_file}"
           fi
 
-          # A clean mod-solo-collections checkout deliberately compiles with
-          # UNPINNED development metadata.  Produce the ignored build-info
-          # include from the matching, tagged client source before CMake
-          # configures its static module sources.  Without this step the
-          # runtime cannot prove that its server mapping and client add-on
-          # came from the same release.
-          git clone --depth=1 --branch v0.2.0 \
-            https://github.com/haha2345/SoloCollectionsPlatform.git \
-            .work/solo-collections-platform
+          # SoloCollections is maintained as one RovxBot source tree. Its
+          # AddOn/catalog and embedded C++ module must always be taken from
+          # the same checkout so SC2 catalog mismatches fail in CI instead of
+          # at the client journal.
+          source_config=apps/wotlk/config/solocollections-source.env
+          test -f "${source_config}"
+          # shellcheck source=/dev/null
+          source "${source_config}"
+          case "${SOLO_COLLECTIONS_REPOSITORY}" in
+            https://github.com/RovxBot/SoloCollectionsPlatform.git) ;;
+            *) echo "unexpected SoloCollections repository: ${SOLO_COLLECTIONS_REPOSITORY}" >&2; exit 1 ;;
+          esac
+          case "${SOLO_COLLECTIONS_REF}" in
+            *[!A-Za-z0-9._/-]*|'') echo "unsafe SoloCollections ref" >&2; exit 1 ;;
+          esac
+          test "${SOLO_COLLECTIONS_ADDON_ROOT}" = "SoloCollections"
+          test "${SOLO_COLLECTIONS_MODULE_ROOT}" = "mod-solo-collections"
+          git clone --depth=1 --branch "${SOLO_COLLECTIONS_REF}" \
+            "${SOLO_COLLECTIONS_REPOSITORY}" .work/solo-collections-platform
+
+          addon_root=.work/solo-collections-platform/${SOLO_COLLECTIONS_ADDON_ROOT}
+          module_source=.work/solo-collections-platform/${SOLO_COLLECTIONS_MODULE_ROOT}
+          test -f "${addon_root}/addon/SoloCollections/SoloCollections.toc"
+          test -f "${module_source}/include.sh"
+
+          # A clean module checkout deliberately compiles with UNPINNED
+          # development metadata. Generate the ignored build-info include
+          # from this exact composite source commit before copying its module
+          # into the AzerothCore build context.
           pwsh -NoLogo -NoProfile -File \
-            .work/solo-collections-platform/tools/release/New-SoloCollectionsBuildInfo.ps1 \
-            -AddonRoot .work/solo-collections-platform \
-            -ModuleRoot .work/acore/modules/mod-solo-collections \
+            "${addon_root}/tools/release/New-SoloCollectionsBuildInfo.ps1" \
+            -AddonRoot "${addon_root}" \
+            -ModuleRoot "${module_source}" \
             -CoreRoot .work/acore \
             -CoreBuildRoot .work/solo-collections-build-info
-          build_info=.work/acore/modules/mod-solo-collections/src/generated/SoloCollectionsBuildInfo.inc
+          build_info="${module_source}/src/generated/SoloCollectionsBuildInfo.inc"
           test -s "${build_info}"
           ! grep -Fq '"UNPINNED"' "${build_info}"
+          python3 apps/wotlk/scripts/verify_solocollections_catalog.py \
+            "${addon_root}/addon/SoloCollections/Data/Generated/Catalog.lua" \
+            "${module_source}/src/generated/SoloCollectionsProtocolCatalog.inc"
+          test ! -e .work/acore/modules/mod-solo-collections
+          cp -a "${module_source}" .work/acore/modules/mod-solo-collections
+          cmp -s "${build_info}" \
+            .work/acore/modules/mod-solo-collections/src/generated/SoloCollectionsBuildInfo.inc
 
-          # mod-solo-collections v0.2.0 captures a range-for structured
-          # binding in a lambda. That capture requires C++20, while the
-          # Playerbots/AzerothCore build intentionally uses C++17. Rebind the
-          # session as an ordinary reference without changing SC2 behavior.
+          # The embedded module captures a range-for structured binding in a
+          # lambda. The Playerbots/AzerothCore build uses C++17, so retain this
+          # behavior-preserving compatibility patch until the fork adopts an
+          # equivalent C++17-safe change.
           patch --batch -d .work/acore/modules/mod-solo-collections -p1 \
             < apps/wotlk/patches/mod-solo-collections-cxx17.patch
           grep -Fq 'for (auto& sessionEntry : _sessions)' \

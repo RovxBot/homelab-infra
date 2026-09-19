@@ -3,7 +3,9 @@
 #
 # Examples:
 # https://github.com/azerothcore/mod-ah-bot.git
-# https://github.com/haha2345/mod-solo-collections.git@v0.2.0
+# The composite SoloCollections source is configured separately in
+# config/solocollections-source.env. It embeds mod-solo-collections/ and the
+# image workflow installs that folder under AzerothCore/modules.
 
 https://github.com/azerothcore/mod-progression-system.git@main
 # The Playerbot-enabled core still requires the actual mod-playerbots module.
@@ -11,9 +13,6 @@ https://github.com/azerothcore/mod-progression-system.git@main
 # headers, SQL, and config assets expected by Playerbots-dependent modules.
 https://github.com/RovxBot/mod-playerbots.git@master
 https://github.com/NathanHandley/mod-ah-bot-plus@master
-# Server component of SoloCollectionsPlatform. Keep this tag aligned with the
-# SoloCollections client AddOn deployed to players' 3.3.5a clients.
-https://github.com/haha2345/mod-solo-collections.git@v0.2.0
 https://github.com/RovxBot/mod-weekend-xp.git@master
 https://github.com/RovxBot/mod-customnpcs.git@master
 https://github.com/RovxBot/mod-grimtokendailies.git@master

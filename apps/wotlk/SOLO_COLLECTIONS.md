@@ -1,25 +1,34 @@
 # SoloCollections rollout
 
 This realm replaces `azerothcore/mod-transmog` with the server component of
-[SoloCollectionsPlatform](https://github.com/haha2345/SoloCollectionsPlatform):
-`haha2345/mod-solo-collections@v0.2.0`. The module version is deliberately
-pinned so the server can be deployed with the matching client AddOn release.
+[RovxBot/SoloCollectionsPlatform](https://github.com/RovxBot/SoloCollectionsPlatform).
+That repository contains both the client/catalog source in `SoloCollections/`
+and its matching C++ backend in `mod-solo-collections/`. The image workflow
+checks out the configured source ref once, then builds the embedded module;
+the two sides therefore cannot drift to different SC2 catalog hashes.
 
 ## Server deployment
 
-`apps/wotlk/config/modules.txt` supplies the module to the image build. Its
-`include.sh` registers the module's tracked auth, characters, and world SQL
-with AzerothCore. The `db-import` init container is configured to apply all
-module updates before worldserver starts, so do not manually import the module
-base schema or its update files into this existing realm.
+`apps/wotlk/config/solocollections-source.env` selects the RovxBot repository,
+ref, and its two embedded roots. `apps/wotlk/config/modules.txt` deliberately
+does not list SoloCollections: the image workflow copies the embedded module
+to `AzerothCore/modules/mod-solo-collections` itself. Its `include.sh`
+registers the tracked auth, characters, and world SQL with AzerothCore. The
+`db-import` init container applies module updates before worldserver starts,
+so do not manually import the module base schema or update files into this
+existing realm.
 
-The pinned v0.2.0 module captures a C++ structured binding in an SC2 lambda,
-which Clang correctly rejects in the realm's C++17 build. The image workflow
-applies [a narrowly scoped compatibility patch](patches/mod-solo-collections-cxx17.patch)
+Before compiling, the workflow generates `SoloCollectionsBuildInfo.inc` from
+the same composite checkout and verifies the AddOn/module hashes for SC2 types
+10, 11, 12, 13, 14, 16, and 17. A mismatch or `UNPINNED` build fails CI rather
+than silently falling back to a character-local journal.
+
+The embedded module captures a C++ structured binding in an SC2 lambda, which
+Clang correctly rejects in the realm's C++17 build. The image workflow applies
+[a narrowly scoped compatibility patch](patches/mod-solo-collections-cxx17.patch)
 that rebinds the same session as an ordinary reference. It does not alter the
 SC2 protocol, collection authority, or database behavior. Remove the patch
-only when changing to an upstream module release that includes the equivalent
-source fix.
+only after the equivalent C++17-safe fix is committed to the RovxBot fork.
 
 Before building the replacement image, take a restorable backup of the
 `acore_auth`, `acore_characters`, and `acore_world` databases. The old
@@ -46,9 +55,8 @@ the server-authoritative SC2 backend. Armor and weapon mixing both start at
 ## Client rollout
 
 The server module alone does not provide the collections UI. After the server
-checks above pass, install the **matching v0.2.0**
-`SoloCollections/addon/SoloCollections` directory from
-SoloCollectionsPlatform into every WoW 3.3.5a client's
+checks above pass, install the AddOn from the same configured RovxBot source
+ref: `SoloCollections/addon/SoloCollections` into every WoW 3.3.5a client's
 `Interface/AddOns/SoloCollections` directory, then restart or reload the
 client. Do not run its legacy SC1/ALE collection backend in parallel.
 
