@@ -138,7 +138,6 @@ spec:
               render_file /etc-tpl/mod_customnpcs.conf /etc-out/modules/mod_customnpcs.conf
               render_file /etc-tpl/mod_grimtokendailies.conf /etc-out/modules/mod_grimtokendailies.conf
               render_file /etc-tpl/mod_guildfunds.conf /etc-out/modules/mod_guildfunds.conf
-              render_file /etc-tpl/mod_player_bot_level_brackets.conf /etc-out/modules/mod_player_bot_level_brackets.conf
               chmod -R a+rwX /etc-out
           env:
             - name: DB_HOST
