@@ -83,7 +83,7 @@ spec:
             - name: config
               mountPath: /config
         - name: wait-for-auth-schema
-          image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+          image: mysql:8.4@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           resources:
             requests:
               cpu: 50m
