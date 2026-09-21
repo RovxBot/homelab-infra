@@ -20,7 +20,7 @@ spec:
           automountServiceAccountToken: false
           restartPolicy: Never
           securityContext:
-            fsGroup: 1000
+            fsGroup: 10001
             fsGroupChangePolicy: OnRootMismatch
           containers:
             - name: extract

@@ -54,23 +54,24 @@ RUN cmake -G Ninja /src \
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Ubuntu 24.04 reserves UID/GID 1000 for its built-in ubuntu account.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates tzdata default-mysql-client libmysqlclient21 libssl3 libreadline8 \
         libjemalloc2 libbz2-1.0 libncursesw6 zlib1g \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd --gid 1000 skyfire \
-    && useradd --uid 1000 --gid 1000 --create-home --home-dir /opt/skyfire skyfire
+    && groupadd --gid 10001 skyfire \
+    && useradd --uid 10001 --gid skyfire --create-home --home-dir /opt/skyfire skyfire
 
-COPY --from=build --chown=1000:1000 /opt/skyfire /opt/skyfire
+COPY --from=build --chown=10001:10001 /opt/skyfire /opt/skyfire
 COPY --from=build /opt/openssl /opt/openssl
 # The upstream repo deliberately excludes the large world base dump. GitHub
 # Actions verifies the official release archive before it enters the context.
-COPY --from=build --chown=1000:1000 /src/sql /opt/skyfire/sql
+COPY --from=build --chown=10001:10001 /src/sql /opt/skyfire/sql
 
 RUN echo /opt/openssl/lib > /etc/ld.so.conf.d/skyfire-openssl.conf && ldconfig
 
 ENV TZ=Australia/Adelaide
-USER 1000:1000
+USER skyfire
 WORKDIR /opt/skyfire
 CMD ["/opt/skyfire/bin/worldserver"]

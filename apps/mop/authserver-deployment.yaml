@@ -21,7 +21,7 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: metal4
       securityContext:
-        fsGroup: 1000
+        fsGroup: 10001
         fsGroupChangePolicy: OnRootMismatch
       initContainers:
         - name: render-config
@@ -50,7 +50,7 @@ spec:
                 -e "s|\${DB_USER}|${user}|g" \
                 -e "s|\${DB_PASSWORD}|${password}|g" \
                 /config-template/authserver.conf > /config/authserver.conf
-              chown 1000:1000 /config/authserver.conf
+              chown 10001:10001 /config/authserver.conf
               chmod 0440 /config/authserver.conf
           env:
             - name: DB_HOST
