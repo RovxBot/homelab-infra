@@ -130,6 +130,28 @@ spec:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_PASSWORD
+        # Convert the directory name from early extraction runs before the
+        # worldserver validates its DataDir. New extractor runs publish `db2`
+        # directly, so this is an idempotent one-time compatibility step.
+        - name: normalize-client-data
+          image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          command:
+            - sh
+            - -ec
+            - |
+              if test -d /data/dbc && ! test -e /data/db2; then
+                mv /data/dbc /data/db2
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: /data
         - name: require-client-data
           image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
           resources:
@@ -143,7 +165,7 @@ spec:
             - sh
             - -ec
             - |
-              for directory in dbc maps vmaps mmaps; do
+              for directory in db2 maps vmaps mmaps; do
                 test -d "/data/${directory}" || {
                   echo "Missing /data/${directory}; bind a MoP 5.4.8 client PV and run skyfire-client-extract." >&2
                   exit 1
