@@ -33,7 +33,7 @@ spec:
         - name: install-airtouch-timer-picker
           # Install the reviewed dashboard module from the generated ConfigMap
           # before Home Assistant starts serving /local assets.
-          image: alpine/git:v2.54.0@sha256:52be47b4d5ffd7e65439b4872d498897426c41afa38fde44d6c2f2f3249aaa97
+          image: alpine/git:v2.54.0@sha256:8c843da8f112867e5d713f3bce85fbe815ec5582bd76bddb2e9121f8c7af9e8f
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
@@ -68,7 +68,7 @@ spec:
           # The custom component is not available through Home Assistant Core.
           # Pin both the installer image and source revision so component
           # upgrades are reviewed GitOps changes rather than mutable HACS pulls.
-          image: alpine/git:v2.54.0@sha256:52be47b4d5ffd7e65439b4872d498897426c41afa38fde44d6c2f2f3249aaa97
+          image: alpine/git:v2.54.0@sha256:8c843da8f112867e5d713f3bce85fbe815ec5582bd76bddb2e9121f8c7af9e8f
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
@@ -137,7 +137,7 @@ spec:
           # Pirate Weather is a custom Home Assistant component. Pin the
           # release revision so upgrades are reviewed GitOps changes rather
           # than mutable HACS pulls.
-          image: alpine/git:v2.54.0@sha256:52be47b4d5ffd7e65439b4872d498897426c41afa38fde44d6c2f2f3249aaa97
+          image: alpine/git:v2.54.0@sha256:8c843da8f112867e5d713f3bce85fbe815ec5582bd76bddb2e9121f8c7af9e8f
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
