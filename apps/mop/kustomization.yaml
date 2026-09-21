@@ -21,7 +21,7 @@ resources:
   - mariadb-service.yaml
   - mariadb-statefulset.yaml
   - data-pvc-rwx.yaml
-  - client-files-pvc.yaml
+  - client-files-pv.yaml
   - authserver-service.yaml
   - authserver-deployment.yaml
   - worldserver-service.yaml

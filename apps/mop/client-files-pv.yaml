@@ -1,0 +1,35 @@
+---
+# Read-only NFS PV for the WoW 5.4.8 build 18414 client on NAS #2.
+# Source: 192.168.1.154:/volume1/Plex Media/Games/MOP-5.4.8
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-wow-mop-client
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs
+  mountOptions:
+    - nfsvers=3
+    - nolock
+    - ro
+  nfs:
+    server: 192.168.1.154
+    path: "/volume1/Plex Media/Games/MOP-5.4.8"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: skyfire-client-files
+  namespace: wotlk
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: nfs
+  volumeName: nfs-wow-mop-client
+  resources:
+    requests:
+      storage: 100Gi
