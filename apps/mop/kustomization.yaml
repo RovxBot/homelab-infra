@@ -27,6 +27,7 @@ resources:
   - worldserver-service.yaml
   - worldserver-deployment.yaml
   - client-extract-cronjob.yaml
+  - client-db2-extract-cronjob.yaml
   - account-import-cronjob.yaml
   - ahbot-owner-bootstrap-cronjob.yaml
   - ../../secrets/mop-playerbots.enc.yaml

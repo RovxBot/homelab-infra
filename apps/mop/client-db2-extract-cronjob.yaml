@@ -1,19 +1,20 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: skyfire-client-extract
+  name: skyfire-client-db2-extract
 spec:
-  # Bind skyfire-client-files to a WoW 5.4.8 build 18414 client, then start a
-  # one-off Job from this CronJob. Full mmaps generation can take hours.
+  # One-time recovery for an early extractor run which left db2 in its
+  # ephemeral workspace. It runs mapextractor only; maps, vmaps, and mmaps are
+  # left untouched.
   suspend: true
-  schedule: "0 3 * * *"
+  schedule: "0 4 1 1 *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 604800
-      activeDeadlineSeconds: 172800
+      activeDeadlineSeconds: 3600
       backoffLimit: 0
       template:
         spec:
@@ -23,16 +24,16 @@ spec:
             fsGroup: 10001
             fsGroupChangePolicy: OnRootMismatch
           containers:
-            - name: extract
+            - name: extract-db2
               image: ghcr.io/rovxbot/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de
               imagePullPolicy: Always
               resources:
                 requests:
+                  cpu: "2"
+                  memory: 4Gi
+                limits:
                   cpu: "4"
                   memory: 8Gi
-                limits:
-                  cpu: "6"
-                  memory: 16Gi
               command:
                 - sh
                 - -ec
@@ -56,13 +57,13 @@ spec:
                   ln -s "${client_data}" /work/extract/Data
                   cd /work/extract
                   /opt/skyfire/bin/mapextractor
-                  /opt/skyfire/bin/vmap4extractor
-                  /opt/skyfire/bin/vmap4assembler Buildings vmaps
-                  /opt/skyfire/bin/mmaps_generator
-                  # mapextractor writes DBC and DB2 files to separate output
-                  # directories; worldserver expects both beneath DataDir.
-                  rm -rf /data/dbc /data/db2 /data/maps /data/vmaps /data/mmaps
-                  mv dbc db2 maps vmaps mmaps /data/
+                  db2_count="$(find db2 -maxdepth 1 -type f -name '*.db2' | wc -l)"
+                  test "${db2_count}" -ge 21 || {
+                    echo "Expected at least 21 DB2 files, found ${db2_count}." >&2
+                    exit 1
+                  }
+                  rm -rf /data/db2
+                  mv db2 /data/db2
               volumeMounts:
                 - name: client
                   mountPath: /client

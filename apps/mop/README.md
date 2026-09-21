@@ -21,6 +21,14 @@ running AzerothCore WotLK realm or its databases. It reuses only the existing
    It creates `dbc`, `db2`, `maps`, `vmaps`, and `mmaps` on
    `skyfire-data-rwx`. The worldserver remains unavailable until all five
    directories are present.
+
+   If the initial extractor was run before the `db2` publish fix, recover just
+   those files without regenerating maps or mmaps:
+
+   ```bash
+   kubectl -n wotlk create job --from=cronjob/skyfire-client-db2-extract skyfire-client-db2-extract-initial
+   kubectl -n wotlk logs -f job/skyfire-client-db2-extract-initial
+   ```
 4. Connect on the trusted LAN to auth at `192.168.1.47:3724`. The realm list
    advertises world traffic on `192.168.1.197:8085`. Neither is forwarded by
    the OCI public edge.
