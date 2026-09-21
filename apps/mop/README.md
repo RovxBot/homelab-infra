@@ -54,8 +54,8 @@ kubectl -n wotlk create job --from=cronjob/skyfire-ahbot-owner-bootstrap skyfire
 kubectl -n wotlk logs job/skyfire-ahbot-owner-bootstrap-initial
 ```
 
-The Job prints five generated, unused owner GUIDs. Add them to
-`AuctionHouseBot.GUIDs`, set `AuctionHouseBot.EnableSeller = true`, then commit
-and reconcile. Those characters are dummy listing owners and must never be
-logged in or reused for playerbots. The initial market target is 5,000 listings
-per auction house; buyers stay disabled until real-player supply warrants them.
+The initial bootstrap generated owner GUIDs `1000`–`1004`, now configured in
+[`config/mod_ahbot.conf`](config/mod_ahbot.conf). Those characters are dummy
+listing owners and must never be logged in or reused for playerbots. The initial
+market target is 5,000 listings per auction house; buyers stay disabled until
+real-player supply warrants them.
