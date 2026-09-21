@@ -1,0 +1,14 @@
+# Bind this to a static PV containing a legally obtained WoW 5.4.8 (build
+# 18414) client before starting the suspended extractor CronJob. An empty
+# storage class prevents an accidental dynamic volume being mistaken for data.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: skyfire-client-files
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 100Gi

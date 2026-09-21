@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: skyfire-mariadb
+spec:
+  selector:
+    app: skyfire-mariadb
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

@@ -1,0 +1,80 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skyfire-client-extract
+spec:
+  # Bind skyfire-client-files to a WoW 5.4.8 build 18414 client, then start a
+  # one-off Job from this CronJob. Full mmaps generation can take hours.
+  suspend: true
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 604800
+      activeDeadlineSeconds: 172800
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+          containers:
+            - name: extract
+              image: ghcr.io/rovxbot/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  cpu: "4"
+                  memory: 8Gi
+                limits:
+                  cpu: "6"
+                  memory: 16Gi
+              command:
+                - sh
+                - -ec
+                - |
+                  client_data=""
+                  for candidate in /client/Data /client/data; do
+                    if [ -d "${candidate}" ]; then
+                      client_data="${candidate}"
+                      break
+                    fi
+                  done
+                  if [ -z "${client_data}" ]; then
+                    client_data="$(find /client -maxdepth 4 -type d \( -name Data -o -name data \) -print -quit || true)"
+                  fi
+                  test -n "${client_data}" && test -d "${client_data}" || {
+                    echo 'Expected a WoW 5.4.8 client Data/ directory beneath /client.' >&2
+                    exit 1
+                  }
+                  rm -rf /work/extract
+                  mkdir -p /work/extract
+                  ln -s "${client_data}" /work/extract/Data
+                  cd /work/extract
+                  /opt/skyfire/bin/map_extractor
+                  /opt/skyfire/bin/vmap4_extractor
+                  /opt/skyfire/bin/vmap4_assembler Buildings vmaps
+                  /opt/skyfire/bin/mmaps_generator
+                  rm -rf /data/dbc /data/maps /data/vmaps /data/mmaps
+                  mv dbc maps vmaps mmaps /data/
+              volumeMounts:
+                - name: client
+                  mountPath: /client
+                  readOnly: true
+                - name: data
+                  mountPath: /data
+                - name: work
+                  mountPath: /work
+          volumes:
+            - name: client
+              persistentVolumeClaim:
+                claimName: skyfire-client-files
+            - name: data
+              persistentVolumeClaim:
+                claimName: skyfire-data-rwx
+            - name: work
+              emptyDir: {}

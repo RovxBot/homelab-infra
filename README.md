@@ -55,7 +55,7 @@ main
 
 | Path | Contents |
 | --- | --- |
-| `apps/` | Immich, media, Vaultwarden, Homepage, Invoice Ninja, WotLK and other application manifests |
+| `apps/` | Immich, media, Vaultwarden, Homepage, Invoice Ninja, WotLK, SkyFire MoP and other application manifests |
 | `infra/` | Entra RBAC, Cilium, Longhorn, backups, Cloudflared, WireGuard, Gatus, Kyverno and Metrics Server |
 | `clusters/` | Flux bootstrap and reconciliation boundaries |
 | `secrets/` | SOPS ciphertext only |

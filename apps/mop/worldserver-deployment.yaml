@@ -1,0 +1,200 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skyfire-worldserver
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skyfire-worldserver
+  template:
+    metadata:
+      labels:
+        app: skyfire-worldserver
+    spec:
+      automountServiceAccountToken: false
+      # WotLK auth traffic owns metal7:3724; this parallel realm uses the
+      # otherwise-free world listener on the same node.
+      nodeSelector:
+        kubernetes.io/hostname: metal7
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: render-config
+          image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          command:
+            - sh
+            - -ec
+            - |
+              escape_sed_replacement() {
+                printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+              }
+              host="$(escape_sed_replacement "$DB_HOST")"
+              port="$(escape_sed_replacement "$DB_PORT")"
+              user="$(escape_sed_replacement "$DB_USER")"
+              password="$(escape_sed_replacement "$DB_PASSWORD")"
+              for file in worldserver.conf playerbots.conf mod_ahbot.conf; do
+                sed \
+                  -e "s|\${DB_HOST}|${host}|g" \
+                  -e "s|\${DB_PORT}|${port}|g" \
+                  -e "s|\${DB_USER}|${user}|g" \
+                  -e "s|\${DB_PASSWORD}|${password}|g" \
+                  "/config-template/${file}" > "/config/${file}"
+              done
+              chown 1000:1000 /config/*.conf
+              chmod 0440 /config/*.conf
+          env:
+            - name: DB_HOST
+              value: skyfire-mariadb.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+              readOnly: true
+            - name: config
+              mountPath: /config
+        - name: wait-for-auth-schema
+          image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          command:
+            - sh
+            - -ec
+            - |
+              for attempt in $(seq 1 300); do
+                if MYSQL_PWD="$DB_PASSWORD" mysql --protocol=tcp --host "$DB_HOST" --port "$DB_PORT" \
+                    --user "$DB_USER" --database skyfire_auth --skip-column-names \
+                    --execute 'SELECT 1 FROM realmlist LIMIT 1' >/dev/null 2>&1; then
+                  MYSQL_PWD="$DB_PASSWORD" mysql --protocol=tcp --host "$DB_HOST" --port "$DB_PORT" \
+                    --user "$DB_USER" --database skyfire_auth --execute "
+                      INSERT INTO realmlist
+                        (id, name, address, localAddress, localSubnetMask, port, icon, flag, timezone, allowedSecurityLevel, population, gamebuild)
+                      VALUES
+                        (1, 'SkyFire MoP', '192.168.1.197', '192.168.1.197', '255.255.255.0', 8085, 0, 0, 3, 0, 0, 18414)
+                      ON DUPLICATE KEY UPDATE
+                        name = VALUES(name), address = VALUES(address), localAddress = VALUES(localAddress),
+                        localSubnetMask = VALUES(localSubnetMask), port = VALUES(port), flag = VALUES(flag),
+                        gamebuild = VALUES(gamebuild);"
+                  exit 0
+                fi
+                sleep 2
+              done
+              echo 'SkyFire auth schema was not ready after 10 minutes.' >&2
+              exit 1
+          env:
+            - name: DB_HOST
+              value: skyfire-mariadb.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+        - name: require-client-data
+          image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          command:
+            - sh
+            - -ec
+            - |
+              for directory in dbc maps vmaps mmaps; do
+                test -d "/data/${directory}" || {
+                  echo "Missing /data/${directory}; bind a MoP 5.4.8 client PV and run skyfire-client-extract." >&2
+                  exit 1
+                }
+              done
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
+      containers:
+        - name: worldserver
+          image: ghcr.io/rovxbot/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de
+          imagePullPolicy: Always
+          command: [/opt/skyfire/bin/worldserver]
+          ports:
+            - name: world
+              containerPort: 8085
+              hostPort: 8085
+              hostIP: 192.168.1.197
+              protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: world
+            periodSeconds: 5
+            timeoutSeconds: 2
+            # First boot imports the 121 MB world base, then applies updates.
+            failureThreshold: 360
+          readinessProbe:
+            tcpSocket:
+              port: world
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: world
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+          volumeMounts:
+            - name: config
+              mountPath: /opt/skyfire/etc
+              readOnly: true
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config-template
+          configMap:
+            name: skyfire-config
+        - name: config
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: skyfire-data-rwx

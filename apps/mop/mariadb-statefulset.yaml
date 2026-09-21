@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: skyfire-mariadb
+spec:
+  serviceName: skyfire-mariadb
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: skyfire-mariadb
+  template:
+    metadata:
+      labels:
+        app: skyfire-mariadb
+    spec:
+      automountServiceAccountToken: false
+      priorityClassName: wotlk-critical
+      containers:
+        - name: mysql
+          image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+          resources:
+            requests:
+              cpu: 250m
+              memory: 3Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          ports:
+            - name: mysql
+              containerPort: 3306
+          readinessProbe:
+            exec:
+              command: [sh, -ec, 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --protocol=socket -uroot --skip-column-names -e "SELECT 1" >/dev/null']
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command: [sh, -ec, 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --protocol=socket -uroot --skip-column-names -e "SELECT 1" >/dev/null']
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_ROOT_PASSWORD
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+            - name: MYSQL_ROOT_HOST
+              value: "%"
+          volumeMounts:
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: init-sql
+          configMap:
+            name: skyfire-mariadb-init
+            defaultMode: 0555
+        - name: data
+          persistentVolumeClaim:
+            claimName: skyfire-mariadb-data

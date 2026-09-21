@@ -1,6 +1,6 @@
 # WotLK Server Stack
 
-This repo contains my WotLK (AzerothCore + Playerbots) deployment and related tooling. It is designed for my homelab and may require adjustments for other environments.
+This repo contains my WotLK (AzerothCore + Playerbots) deployment and related tooling. It is designed for my homelab and may require adjustments for other environments. The parallel SkyFire MoP 5.4.8 realm is documented in [`apps/mop/README.md`](apps/mop/README.md).
 
 ## What is included
 

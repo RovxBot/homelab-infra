@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: skyfire-worldserver
+spec:
+  selector:
+    app: skyfire-worldserver
+  ports:
+    - name: world
+      port: 8085
+      targetPort: world
+      protocol: TCP

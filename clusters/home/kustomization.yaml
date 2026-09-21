@@ -12,6 +12,7 @@ resources:
   - apps/grimguzzler-registration-kustomization.yaml
   - apps/invoiceninja-kustomization.yaml
   - apps/wotlk-kustomization.yaml
+  - apps/mop-kustomization.yaml
   - infrastructure/longhorn-node-disks-kustomization.yaml
   - apps/memos-kustomization.yaml
   - apps/wger-kustomization.yaml

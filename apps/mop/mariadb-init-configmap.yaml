@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skyfire-mariadb-init
+data:
+  10-create-skyfire-databases.sh: |
+    #!/bin/sh
+    set -eu
+    mysql --protocol=socket -uroot -p"${MYSQL_ROOT_PASSWORD}" <<SQL
+    CREATE DATABASE IF NOT EXISTS skyfire_auth CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
+    CREATE DATABASE IF NOT EXISTS skyfire_characters CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
+    CREATE DATABASE IF NOT EXISTS skyfire_world CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
+    CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+    GRANT ALL PRIVILEGES ON skyfire_auth.* TO '${MYSQL_USER}'@'%';
+    GRANT ALL PRIVILEGES ON skyfire_characters.* TO '${MYSQL_USER}'@'%';
+    GRANT ALL PRIVILEGES ON skyfire_world.* TO '${MYSQL_USER}'@'%';
+    FLUSH PRIVILEGES;
+    SQL

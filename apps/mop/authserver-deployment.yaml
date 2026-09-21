@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skyfire-authserver
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: skyfire-authserver
+  template:
+    metadata:
+      labels:
+        app: skyfire-authserver
+    spec:
+      automountServiceAccountToken: false
+      # WotLK world traffic owns metal4:8085; this parallel realm uses the
+      # otherwise-free standard auth listener on the same node.
+      nodeSelector:
+        kubernetes.io/hostname: metal4
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: render-config
+          image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          command:
+            - sh
+            - -ec
+            - |
+              escape_sed_replacement() {
+                printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+              }
+              host="$(escape_sed_replacement "$DB_HOST")"
+              port="$(escape_sed_replacement "$DB_PORT")"
+              user="$(escape_sed_replacement "$DB_USER")"
+              password="$(escape_sed_replacement "$DB_PASSWORD")"
+              sed \
+                -e "s|\${DB_HOST}|${host}|g" \
+                -e "s|\${DB_PORT}|${port}|g" \
+                -e "s|\${DB_USER}|${user}|g" \
+                -e "s|\${DB_PASSWORD}|${password}|g" \
+                /config-template/authserver.conf > /config/authserver.conf
+              chown 1000:1000 /config/authserver.conf
+              chmod 0440 /config/authserver.conf
+          env:
+            - name: DB_HOST
+              value: skyfire-mariadb.wotlk.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wotlk-mariadb-auth
+                  key: MARIADB_PASSWORD
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+              readOnly: true
+            - name: config
+              mountPath: /config
+      containers:
+        - name: authserver
+          image: ghcr.io/rovxbot/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de
+          imagePullPolicy: Always
+          command: [/opt/skyfire/bin/authserver]
+          ports:
+            - name: auth
+              containerPort: 3724
+              hostPort: 3724
+              hostIP: 192.168.1.47
+              protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: auth
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 120
+          readinessProbe:
+            tcpSocket:
+              port: auth
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: auth
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /opt/skyfire/etc
+              readOnly: true
+      volumes:
+        - name: config-template
+          configMap:
+            name: skyfire-config
+        - name: config
+          emptyDir: {}

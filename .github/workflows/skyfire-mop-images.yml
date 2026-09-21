@@ -1,0 +1,67 @@
+name: Build SkyFire MoP images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lowercase image owner
+        shell: bash
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+      - name: Prepare pinned SkyFire source and database
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ops/mop-images/database.env
+          core_repo="$(cat ops/mop-images/skyfire.repo)"
+          core_ref="$(cat ops/mop-images/skyfire.ref)"
+          playerbots_ref="$(cat ops/mop-images/mod-playerbots.ref)"
+          ahbot_repo="$(cat ops/mop-images/mod-ahbot.repo)"
+          ahbot_ref="$(cat ops/mop-images/mod-ahbot.ref)"
+          for ref in "${core_ref}" "${playerbots_ref}" "${ahbot_ref}"; do
+            [[ "${ref}" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid pinned Git ref: ${ref}" >&2; exit 1; }
+          done
+          rm -rf .work/skyfire .work/mod-ahbot .work/skyfire-db
+          mkdir -p .work/skyfire .work/skyfire-db
+          git -C .work/skyfire init
+          git -C .work/skyfire remote add origin "${core_repo}"
+          git -C .work/skyfire fetch --depth=1 origin "${core_ref}"
+          git -C .work/skyfire checkout --detach FETCH_HEAD
+          test "$(git -C .work/skyfire rev-parse HEAD)" = "${core_ref}"
+          git -C .work/skyfire submodule update --init --recursive --depth=1
+          test "$(git -C .work/skyfire/modules/mod-playerbots rev-parse HEAD)" = "${playerbots_ref}"
+          git clone --depth=1 "${ahbot_repo}" .work/mod-ahbot
+          git -C .work/mod-ahbot fetch --depth=1 origin "${ahbot_ref}"
+          git -C .work/mod-ahbot checkout --detach FETCH_HEAD
+          test "$(git -C .work/mod-ahbot rev-parse HEAD)" = "${ahbot_ref}"
+          cp -a .work/mod-ahbot .work/skyfire/modules/mod-ahbot
+          curl --fail --silent --show-error --location --output .work/skyfire-db/release.zip "${SKYFIRE_DATABASE_URL}"
+          echo "${SKYFIRE_DATABASE_SHA256}  .work/skyfire-db/release.zip" | sha256sum --check
+          unzip -p .work/skyfire-db/release.zip "${SKYFIRE_DATABASE_ARCHIVE_MEMBER}" > .work/skyfire/sql/world_database.sql
+          test -s .work/skyfire/sql/world_database.sql
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .work/skyfire
+          file: ops/mop-images/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de
+            ghcr.io/${{ env.OWNER_LC }}/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de-${{ github.sha }}
