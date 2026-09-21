@@ -1,0 +1,178 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skyfire-account-import
+spec:
+  # This is a one-time, manually started migration. It remains suspended after
+  # completion so an ordinary Flux reconciliation can never re-import accounts.
+  suspend: true
+  schedule: "0 0 1 1 *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 604800
+      activeDeadlineSeconds: 900
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          containers:
+            - name: import
+              image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              env:
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+                - name: SOURCE_DB_HOST
+                  value: wotlk-mariadb.wotlk.svc.cluster.local
+                - name: SOURCE_DB_NAME
+                  value: acore_auth
+                - name: SOURCE_PLAYERBOTS_DB_NAME
+                  value: acore_playerbots
+                - name: TARGET_DB_HOST
+                  value: skyfire-mariadb.wotlk.svc.cluster.local
+                - name: TARGET_DB_NAME
+                  value: skyfire_auth
+                # These guards make the migration fail closed if the source
+                # population changes before this reviewed one-time import.
+                - name: EXPECTED_ACCOUNT_COUNT
+                  value: "16"
+                - name: EXPECTED_GM_ACCESS_COUNT
+                  value: "4"
+              command:
+                - sh
+                - -ec
+                - |
+                  set -eu
+
+                  mysql_for() {
+                    host="$1"
+                    shift
+                    MYSQL_PWD="${DB_ROOT_PASSWORD}" command mysql \
+                      --protocol=tcp \
+                      --host "${host}" \
+                      --port 3306 \
+                      --user root \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
+                      "$@"
+                  }
+
+                  source_db() {
+                    mysql_for "${SOURCE_DB_HOST}" --database "${SOURCE_DB_NAME}" "$@"
+                  }
+
+                  target_db() {
+                    mysql_for "${TARGET_DB_HOST}" --database "${TARGET_DB_NAME}" "$@"
+                  }
+
+                  wait_for_database() {
+                    host="$1"
+                    for _ in $(seq 1 120); do
+                      if mysql_for "${host}" --execute "SELECT 1" >/dev/null 2>&1; then
+                        return 0
+                      fi
+                      sleep 2
+                    done
+                    echo "Timed out waiting for ${host}." >&2
+                    return 1
+                  }
+
+                  wait_for_database "${SOURCE_DB_HOST}"
+                  wait_for_database "${TARGET_DB_HOST}"
+
+                  target_count="$(target_db --batch --skip-column-names --execute \
+                    "SELECT COUNT(*) FROM account")"
+                  test "${target_count}" = "0" || {
+                    echo "Refusing import: ${TARGET_DB_NAME}.account already contains ${target_count} rows." >&2
+                    exit 1
+                  }
+
+                  source_count="$(source_db --batch --skip-column-names --execute \
+                    "SELECT COUNT(*)
+                     FROM account AS a
+                     LEFT JOIN ${SOURCE_PLAYERBOTS_DB_NAME}.playerbots_account_type AS p
+                       ON p.account_id = a.id
+                     WHERE p.account_id IS NULL
+                       AND a.username NOT LIKE 'rndbot%'")"
+                  test "${source_count}" = "${EXPECTED_ACCOUNT_COUNT}" || {
+                    echo "Refusing import: expected ${EXPECTED_ACCOUNT_COUNT} human accounts, found ${source_count}." >&2
+                    exit 1
+                  }
+
+                  gm_access_count="$(source_db --batch --skip-column-names --execute \
+                    "SELECT COUNT(*)
+                     FROM account_access AS aa
+                     INNER JOIN account AS a ON a.id = aa.id
+                     LEFT JOIN ${SOURCE_PLAYERBOTS_DB_NAME}.playerbots_account_type AS p
+                       ON p.account_id = a.id
+                     WHERE p.account_id IS NULL
+                       AND a.username NOT LIKE 'rndbot%'
+                       AND aa.gmlevel = 3")"
+                  test "${gm_access_count}" = "${EXPECTED_GM_ACCESS_COUNT}" || {
+                    echo "Refusing import: expected ${EXPECTED_GM_ACCESS_COUNT} GM level-3 rows, found ${gm_access_count}." >&2
+                    exit 1
+                  }
+
+                  import_sql=/work/import.sql
+                  {
+                    printf '%s\n' 'START TRANSACTION;'
+                    source_db --batch --skip-column-names --raw --execute "
+                      SELECT CONCAT(
+                        'INSERT INTO \`account\` (id, username, salt, verifier, session_key, token_key, email, reg_mail, email_login_converted, joindate, last_ip, failed_logins, locked, lock_country, last_login, online, expansion, mutetime, mutereason, muteby, locale, os, recruiter, hasBoost) VALUES (',
+                        a.id, ',', QUOTE(a.username), ',',
+                        'UNHEX(', QUOTE(HEX(a.salt)), '),',
+                        'UNHEX(', QUOTE(HEX(a.verifier)), '),',
+                        'NULL,', QUOTE(''), ',', QUOTE(''), ',', QUOTE(''), ',',
+                        '0, UTC_TIMESTAMP(), ', QUOTE(''), ', 0, 0, ', QUOTE(''), ', NULL, 0, 4, 0, ',
+                        QUOTE(''), ',', QUOTE(''), ',', a.locale, ',', QUOTE(a.os), ', 0, 0);'
+                      )
+                      FROM account AS a
+                      LEFT JOIN ${SOURCE_PLAYERBOTS_DB_NAME}.playerbots_account_type AS p
+                        ON p.account_id = a.id
+                      WHERE p.account_id IS NULL
+                        AND a.username NOT LIKE 'rndbot%'
+                      ORDER BY a.id;"
+                    source_db --batch --skip-column-names --raw --execute "
+                      SELECT CONCAT(
+                        'INSERT INTO \`account_access\` (id, gmlevel, RealmID) VALUES (',
+                        aa.id, ',', aa.gmlevel, ',', aa.RealmID, ');'
+                      )
+                      FROM account_access AS aa
+                      INNER JOIN account AS a ON a.id = aa.id
+                      LEFT JOIN ${SOURCE_PLAYERBOTS_DB_NAME}.playerbots_account_type AS p
+                        ON p.account_id = a.id
+                      WHERE p.account_id IS NULL
+                        AND a.username NOT LIKE 'rndbot%'
+                        AND aa.gmlevel = 3
+                      ORDER BY aa.id, aa.RealmID;"
+                    printf '%s\n' 'COMMIT;'
+                  } > "${import_sql}"
+
+                  account_inserts="$(grep -c '^INSERT INTO `account`' "${import_sql}" || true)"
+                  gm_access_inserts="$(grep -c '^INSERT INTO `account_access`' "${import_sql}" || true)"
+                  test "${account_inserts}" = "${EXPECTED_ACCOUNT_COUNT}"
+                  test "${gm_access_inserts}" = "${EXPECTED_GM_ACCESS_COUNT}"
+
+                  target_db < "${import_sql}"
+                  rm -f "${import_sql}"
+
+                  echo "Imported ${account_inserts} human accounts and ${gm_access_inserts} GM level-3 access rows."
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+          volumes:
+            - name: work
+              emptyDir: {}

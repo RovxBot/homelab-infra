@@ -27,3 +27,4 @@ resources:
   - worldserver-service.yaml
   - worldserver-deployment.yaml
   - client-extract-cronjob.yaml
+  - account-import-cronjob.yaml
