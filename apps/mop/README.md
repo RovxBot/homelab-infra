@@ -31,13 +31,22 @@ longer than a normal server restart.
 
 ## Modules
 
-`mod-playerbots` is the SkyFire core's pinned submodule and is enabled. Bot
-creation and random logins are intentionally disabled until an operator picks
-a dedicated bot-account password and desired population in
-[`config/playerbots.conf`](config/playerbots.conf). Do not use a real-player
-or database password for bot accounts.
+`mod-playerbots` is the SkyFire core's pinned submodule. The initial profile
+creates 250 dedicated `RNDBOT` accounts (one random level 1–90 character per
+account) and keeps at most 250 bots online, with LFG fill enabled. Its generated
+bot-only password is held in the SOPS-encrypted `skyfire-playerbots` Secret;
+never use a real-player or database password for bot accounts.
 
-`mod-ahbot` is compiled from its pinned companion repository. It stays idle
-until `AuctionHouseBot.GUIDs` contains one or more unused, non-playerbot
-character GUIDs and `AuctionHouseBot.EnableSeller = true`. Those characters
-are dummy listing owners and must never be logged in.
+`mod-ahbot` is compiled from its pinned companion repository. It remains idle
+until the character schema exists and the owner bootstrap is run:
+
+```bash
+kubectl -n wotlk create job --from=cronjob/skyfire-ahbot-owner-bootstrap skyfire-ahbot-owner-bootstrap-initial
+kubectl -n wotlk logs job/skyfire-ahbot-owner-bootstrap-initial
+```
+
+The Job prints five generated, unused owner GUIDs. Add them to
+`AuctionHouseBot.GUIDs`, set `AuctionHouseBot.EnableSeller = true`, then commit
+and reconcile. Those characters are dummy listing owners and must never be
+logged in or reused for playerbots. The initial market target is 5,000 listings
+per auction house; buyers stay disabled until real-player supply warrants them.

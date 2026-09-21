@@ -44,12 +44,14 @@ spec:
               port="$(escape_sed_replacement "$DB_PORT")"
               user="$(escape_sed_replacement "$DB_USER")"
               password="$(escape_sed_replacement "$DB_PASSWORD")"
+              playerbots_password="$(escape_sed_replacement "$PLAYERBOTS_ACCOUNT_PASSWORD")"
               for file in worldserver.conf playerbots.conf mod_ahbot.conf; do
                 sed \
                   -e "s|\${DB_HOST}|${host}|g" \
                   -e "s|\${DB_PORT}|${port}|g" \
                   -e "s|\${DB_USER}|${user}|g" \
                   -e "s|\${DB_PASSWORD}|${password}|g" \
+                  -e "s|\${PLAYERBOTS_ACCOUNT_PASSWORD}|${playerbots_password}|g" \
                   "/config-template/${file}" > "/config/${file}"
               done
               chown 10001:10001 /config/*.conf
@@ -69,6 +71,11 @@ spec:
                 secretKeyRef:
                   name: wotlk-mariadb-auth
                   key: MARIADB_PASSWORD
+            - name: PLAYERBOTS_ACCOUNT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: skyfire-playerbots
+                  key: AUTO_CREATE_ACCOUNT_PASSWORD
           volumeMounts:
             - name: config-template
               mountPath: /config-template

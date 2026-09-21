@@ -1,0 +1,108 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: skyfire-ahbot-owner-bootstrap
+spec:
+  # Start once after worldserver has initialized skyfire_characters. This job
+  # creates five non-loginable, non-playerbot listing-owner characters only.
+  suspend: true
+  schedule: "0 0 1 1 *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 604800
+      activeDeadlineSeconds: 900
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          containers:
+            - name: bootstrap
+              image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              env:
+                - name: DB_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: wotlk-mariadb-auth
+                      key: MARIADB_ROOT_PASSWORD
+                - name: DB_HOST
+                  value: skyfire-mariadb.wotlk.svc.cluster.local
+              command:
+                - sh
+                - -ec
+                - |
+                  set -eu
+
+                  db() {
+                    MYSQL_PWD="${DB_ROOT_PASSWORD}" command mysql \
+                      --protocol=tcp \
+                      --host "${DB_HOST}" \
+                      --port 3306 \
+                      --user root \
+                      --ssl-mode=DISABLED \
+                      --get-server-public-key \
+                      "$@"
+                  }
+
+                  for _ in $(seq 1 120); do
+                    table_count="$(db --database skyfire_characters --batch --skip-column-names --execute \
+                      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'skyfire_characters' AND table_name = 'characters'")"
+                    if test "${table_count}" = "1"; then
+                      break
+                    fi
+                    sleep 2
+                  done
+                  test "${table_count:-0}" = "1" || {
+                    echo 'Timed out waiting for the SkyFire character schema.' >&2
+                    exit 1
+                  }
+
+                  existing_account="$(db --database skyfire_auth --batch --skip-column-names --execute \
+                    "SELECT COUNT(*) FROM account WHERE username = 'AHBOTOWNERS'")"
+                  existing_characters="$(db --database skyfire_characters --batch --skip-column-names --execute \
+                    "SELECT COUNT(*) FROM characters WHERE name IN ('AHBOTONE','AHBOTTWO','AHBOTTHREE','AHBOTFOUR','AHBOTFIVE')")"
+                  test "${existing_account}" = "0" || {
+                    echo 'Refusing bootstrap: AHBOTOWNERS already exists.' >&2
+                    exit 1
+                  }
+                  test "${existing_characters}" = "0" || {
+                    echo 'Refusing bootstrap: one or more AHBot owner names already exist.' >&2
+                    exit 1
+                  }
+
+                  owners="$(db --batch --skip-column-names --execute "
+                    START TRANSACTION;
+                    SET @account_id = (SELECT GREATEST(1000, COALESCE(MAX(id), 0) + 1) FROM skyfire_auth.account);
+                    SET @first_guid = (SELECT GREATEST(1000, COALESCE(MAX(guid), 0) + 1) FROM skyfire_characters.characters);
+
+                    INSERT INTO skyfire_auth.account
+                      (id, username, salt, verifier, session_key, token_key, email, reg_mail, email_login_converted, joindate, last_ip, failed_logins, locked, lock_country, last_login, online, expansion, mutetime, mutereason, muteby, locale, os, recruiter, hasBoost)
+                    VALUES
+                      (@account_id, 'AHBOTOWNERS', RANDOM_BYTES(32), RANDOM_BYTES(32), NULL, '', '', '', 0, UTC_TIMESTAMP(), '', 0, 0, '', NULL, 0, 4, 0, '', '', 0, 'Win', 0, 0);
+
+                    INSERT INTO skyfire_characters.characters
+                      (guid, realm, account, name, slot, race, class, gender, level, health, taximask)
+                    VALUES
+                      (@first_guid,     1, @account_id, 'AHBOTONE',   0, 1, 1, 0, 1, 100, ''),
+                      (@first_guid + 1, 1, @account_id, 'AHBOTTWO',   1, 1, 1, 0, 1, 100, ''),
+                      (@first_guid + 2, 1, @account_id, 'AHBOTTHREE', 2, 1, 1, 0, 1, 100, ''),
+                      (@first_guid + 3, 1, @account_id, 'AHBOTFOUR',  3, 1, 1, 0, 1, 100, ''),
+                      (@first_guid + 4, 1, @account_id, 'AHBOTFIVE',  4, 1, 1, 0, 1, 100, '');
+
+                    INSERT INTO skyfire_auth.realmcharacters (realmid, acctid, numchars)
+                    VALUES (1, @account_id, 5);
+                    COMMIT;
+
+                    SELECT CONCAT(@first_guid, ',', @first_guid + 1, ',', @first_guid + 2, ',', @first_guid + 3, ',', @first_guid + 4);
+                  ")"
+                  echo "Created isolated AHBot owner GUIDs: ${owners}"
