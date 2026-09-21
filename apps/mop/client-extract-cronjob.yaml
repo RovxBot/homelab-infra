@@ -59,10 +59,13 @@ spec:
                   /opt/skyfire/bin/vmap4extractor
                   /opt/skyfire/bin/vmap4assembler Buildings vmaps
                   /opt/skyfire/bin/mmaps_generator
-                  # SkyFire 5.4.8 writes its extracted DB2 files to `dbc`, but
-                  # worldserver resolves them from DataDir/db2.
-                  rm -rf /data/db2 /data/maps /data/vmaps /data/mmaps
-                  mv dbc /data/db2
+                  # The extractor writes DBC and DB2 files into `dbc`, whereas
+                  # SkyFire resolves the two extensions from separate paths.
+                  rm -rf /data/dbc /data/db2 /data/maps /data/vmaps /data/mmaps
+                  mkdir -p /data/dbc /data/db2
+                  find dbc -maxdepth 1 -type f -name '*.dbc' -exec mv {} /data/dbc/ \;
+                  find dbc -maxdepth 1 -type f -name '*.db2' -exec mv {} /data/db2/ \;
+                  rmdir dbc
                   mv maps vmaps mmaps /data/
               volumeMounts:
                 - name: client
