@@ -55,9 +55,9 @@ spec:
                   mkdir -p /work/extract
                   ln -s "${client_data}" /work/extract/Data
                   cd /work/extract
-                  /opt/skyfire/bin/map_extractor
-                  /opt/skyfire/bin/vmap4_extractor
-                  /opt/skyfire/bin/vmap4_assembler Buildings vmaps
+                  /opt/skyfire/bin/mapextractor
+                  /opt/skyfire/bin/vmap4extractor
+                  /opt/skyfire/bin/vmap4assembler Buildings vmaps
                   /opt/skyfire/bin/mmaps_generator
                   rm -rf /data/dbc /data/maps /data/vmaps /data/mmaps
                   mv dbc maps vmaps mmaps /data/
