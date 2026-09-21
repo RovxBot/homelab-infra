@@ -1,6 +1,6 @@
 # SkyFire 5.4.8 requires C++23/GCC 14 and Boost 1.91. Ubuntu 24.04 supplies
 # the supported base platform; Boost is built from a checksum-pinned archive.
-ARG UBUNTU_VERSION=24.04@sha256:2edbbc5dc405e9612ba3584ce95480277e3eb374407b5505fe26f17df77c7dbc
+ARG UBUNTU_VERSION=24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 
 FROM ubuntu:${UBUNTU_VERSION} AS build
 ARG DEBIAN_FRONTEND=noninteractive
