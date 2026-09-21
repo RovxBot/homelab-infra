@@ -23,7 +23,7 @@ RUN curl --fail --silent --show-error --location --output /tmp/boost.tar.bz2 \
     && tar -xjf /tmp/boost.tar.bz2 -C /tmp \
     && cd "/tmp/${BOOST_ARCHIVE}" \
     && ./bootstrap.sh --prefix=/opt/boost \
-    && ./b2 --with-system --with-filesystem --with-program_options \
+    && ./b2 --with-filesystem --with-program_options \
         link=static runtime-link=static variant=release install \
     && rm -rf /tmp/boost.tar.bz2 "/tmp/${BOOST_ARCHIVE}"
 
