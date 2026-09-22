@@ -14,6 +14,10 @@ spec:
     metadata:
       labels:
         app: skyfire-worldserver
+      annotations:
+        # Rotate the runtime-rendered bot credential after the fixed Secret
+        # reconciles. Increment this value whenever that credential rotates.
+        homelab.cooked.beer/playerbots-secret-revision: "2026-09-22"
     spec:
       automountServiceAccountToken: false
       # The launcher routes both legacy-auth and world traffic to this node.
