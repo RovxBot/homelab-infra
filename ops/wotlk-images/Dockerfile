@@ -91,13 +91,15 @@ ARG CCACHE_COMPRESSLEVEL="9"
 ARG CCACHE_COMPILERCHECK="content"
 ARG CCACHE_LOGFILE=""
 
-# Clang links against Ubuntu's GNU C++ standard library. Keep the toolchain
-# that supplies it as a direct dependency rather than relying only on
-# build-essential's transitive dependency. The smoke test catches a missing
-# libstdc++ linker development file before CMake configures AzerothCore.
+# Ubuntu 26.04's Clang 21 selects GCC 16 after libboost-all-dev installs its
+# GCC 16 runtime, while the default g++ package only installs libstdc++ 15.
+# Install the matching development library so Clang can resolve -lstdc++.
+# The smoke test catches future toolchain-version mismatches before CMake
+# configures AzerothCore.
 RUN /usr/local/bin/apt-update                                          \
     && apt-get install -y --no-install-recommends                     \
-        build-essential g++ ccache libtool cmake-data make cmake clang \
+        build-essential g++ libstdc++-16-dev ccache libtool cmake-data \
+        make cmake clang                                               \
         git lsb-base curl unzip default-mysql-client openssl          \
         default-libmysqlclient-dev libboost-all-dev libssl-dev        \
         libmysql++-dev libreadline-dev zlib1g-dev libbz2-dev          \
