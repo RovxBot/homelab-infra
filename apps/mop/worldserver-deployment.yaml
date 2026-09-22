@@ -155,7 +155,7 @@ spec:
               readOnly: true
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f
+          image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f-3afb83ac8434dd8b3311095c54824157532a3534
           imagePullPolicy: Always
           command: [/opt/skyfire/bin/worldserver]
           ports:
