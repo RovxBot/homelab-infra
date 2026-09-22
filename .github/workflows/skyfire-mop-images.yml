@@ -32,21 +32,28 @@ jobs:
           source ops/mop-images/database.env
           core_repo="$(cat ops/mop-images/skyfire.repo)"
           core_ref="$(cat ops/mop-images/skyfire.ref)"
+          playerbots_repo="$(cat ops/mop-images/mod-playerbots.repo)"
           playerbots_ref="$(cat ops/mop-images/mod-playerbots.ref)"
           ahbot_repo="$(cat ops/mop-images/mod-ahbot.repo)"
           ahbot_ref="$(cat ops/mop-images/mod-ahbot.ref)"
           for ref in "${core_ref}" "${playerbots_ref}" "${ahbot_ref}"; do
             [[ "${ref}" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid pinned Git ref: ${ref}" >&2; exit 1; }
           done
-          rm -rf .work/skyfire .work/mod-ahbot .work/skyfire-db
-          mkdir -p .work/skyfire .work/skyfire-db
+          rm -rf .work/skyfire .work/mod-playerbots .work/mod-ahbot .work/skyfire-db
+          mkdir -p .work/skyfire .work/mod-playerbots .work/skyfire-db
           git -C .work/skyfire init
           git -C .work/skyfire remote add origin "${core_repo}"
           git -C .work/skyfire fetch --depth=1 origin "${core_ref}"
           git -C .work/skyfire checkout --detach FETCH_HEAD
           test "$(git -C .work/skyfire rev-parse HEAD)" = "${core_ref}"
           git -C .work/skyfire submodule update --init --recursive --depth=1
-          test "$(git -C .work/skyfire/modules/mod-playerbots rev-parse HEAD)" = "${playerbots_ref}"
+          git -C .work/mod-playerbots init
+          git -C .work/mod-playerbots remote add origin "${playerbots_repo}"
+          git -C .work/mod-playerbots fetch --depth=1 origin "${playerbots_ref}"
+          git -C .work/mod-playerbots checkout --detach FETCH_HEAD
+          test "$(git -C .work/mod-playerbots rev-parse HEAD)" = "${playerbots_ref}"
+          rm -rf .work/skyfire/modules/mod-playerbots
+          cp -a .work/mod-playerbots .work/skyfire/modules/mod-playerbots
           git clone --depth=1 "${ahbot_repo}" .work/mod-ahbot
           git -C .work/mod-ahbot fetch --depth=1 origin "${ahbot_ref}"
           git -C .work/mod-ahbot checkout --detach FETCH_HEAD
@@ -63,5 +70,5 @@ jobs:
           file: ops/mop-images/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de
-            ghcr.io/${{ env.OWNER_LC }}/skyfire-mop:core-a5a4bdbfe016e41f76618d37f91119f2fd9931de-${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f
+            ghcr.io/${{ env.OWNER_LC }}/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f-${{ github.sha }}

@@ -8,7 +8,9 @@ running AzerothCore WotLK realm or its databases. It reuses only the existing
 ## First deployment
 
 1. Run the **Build SkyFire MoP images** workflow and wait for the GHCR package
-   tag `core-a5a4bdbfe016e41f76618d37f91119f2fd9931de` to exist.
+   tag `core-ef7d36a6c2c83db59fb81765104f38fc5e71163f` to exist. This is the
+   Authnet-capable ProjectSkyfire core with the standalone DigiD702 playerbots
+   module copied into `modules/mod-playerbots` at build time.
 2. Bind `skyfire-client-files` to a static PV containing a legally obtained
    WoW 5.4.8 build 18414 client. Its `Data/` directory may be directly at the
    PV root or up to four levels below it.
@@ -29,9 +31,13 @@ running AzerothCore WotLK realm or its databases. It reuses only the existing
    kubectl -n wotlk create job --from=cronjob/skyfire-client-db2-extract skyfire-client-db2-extract-initial
    kubectl -n wotlk logs -f job/skyfire-client-db2-extract-initial
    ```
-4. Connect on the trusted LAN to auth at `192.168.1.47:3724`. The realm list
-   advertises world traffic on `192.168.1.197:8085`. Neither is forwarded by
-   the OCI public edge.
+4. On Windows, configure **SkyFire Launcher** with client location set to the
+   unmodified 5.4.8 build 18414 directory, login address `192.168.1.47`, and
+   **Authnet login disabled**. Start every game launch through the launcher so
+   it applies its temporary legacy-routing changes; the client files remain
+   untouched. Legacy auth is on TCP `3724`; the realm list advertises world
+   traffic on `192.168.1.197:8085`. Neither is forwarded by the OCI public
+   edge.
 
 The authserver creates `skyfire_auth` automatically. The first worldserver
 boot imports the checksum-verified SkyFire DB release, the core's auth and
@@ -40,11 +46,13 @@ longer than a normal server restart.
 
 ## Modules
 
-`mod-playerbots` is the SkyFire core's pinned submodule. The initial profile
-creates 250 dedicated `RNDBOT` accounts (one random level 1–90 character per
-account) and keeps at most 250 bots online, with LFG fill enabled. Its generated
-bot-only password is held in the SOPS-encrypted `skyfire-playerbots` Secret;
-never use a real-player or database password for bot accounts.
+`mod-playerbots` is a separately pinned DigiD702 module copied into the
+ProjectSkyfire core's `modules/mod-playerbots` directory during the image
+build. The initial profile creates 250 dedicated `RNDBOT` accounts (one random
+level 1–90 character per account) and keeps at most 250 bots online, with LFG
+fill enabled. Its generated bot-only password is held in the SOPS-encrypted
+`skyfire-playerbots` Secret; never use a real-player or database password for
+bot accounts.
 
 `mod-ahbot` is compiled from its pinned companion repository. It remains idle
 until the character schema exists and the owner bootstrap is run:
