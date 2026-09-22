@@ -1,7 +1,28 @@
 diff --git a/src/PlayerbotMgr.cpp b/src/PlayerbotMgr.cpp
-index 8e4a69e..d05713a 100644
+index 8e4a69e..2ace4f9 100644
 --- a/src/PlayerbotMgr.cpp
 +++ b/src/PlayerbotMgr.cpp
+@@ -618,7 +618,7 @@ void PlayerbotMgr::UpdateLfgAutoJoin(uint32 diff)
+             for (uint32 dungeonId : mq.dungeons)
+             {
+-                lfg::LFGDungeonData const* dungeon = sLFGMgr->GetLFGDungeon(dungeonId);
++                lfg::LFGDungeonData const* dungeon = sLFGMgr->GetLFGDungeonData(dungeonId);
+                 if (!dungeon)
+-                    dungeon = sLFGMgr->GetLFGDungeon(dungeonId & 0x00FFFFFFu);
++                    dungeon = sLFGMgr->GetLFGDungeonData(dungeonId & 0x00FFFFFFu);
+                 if (!dungeon)
+                     continue;
+@@ -648,8 +648,8 @@ void PlayerbotMgr::UpdateLfgAutoJoin(uint32 diff)
+         ++botsJoined;
+ 
+         char const* dungeonName = "dungeon";
+-        if (lfg::LFGDungeonData const* first = sLFGMgr->GetLFGDungeon(*botDungeons.begin()))
++        if (lfg::LFGDungeonData const* first = sLFGMgr->GetLFGDungeonData(*botDungeons.begin()))
+             dungeonName = first->name.c_str();
+-        else if (lfg::LFGDungeonData const* first = sLFGMgr->GetLFGDungeon(*botDungeons.begin() & 0x00FFFFFFu))
++        else if (lfg::LFGDungeonData const* first = sLFGMgr->GetLFGDungeonData(*botDungeons.begin() & 0x00FFFFFFu))
+             dungeonName = first->name.c_str();
+ 
 @@ -715,7 +715,7 @@ bool PlayerbotMgr::SpawnBot(uint64 characterGuid, bool isRandom, std::string* er
  
      // Bots always run at player security regardless of the owning account's level.

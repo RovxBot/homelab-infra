@@ -87,15 +87,17 @@ index eb4cd78fcf..b1c0b8ce29 100644
          }
      }
 diff --git a/src/server/game/DungeonFinding/LFGMgr.h b/src/server/game/DungeonFinding/LFGMgr.h
-index 4afff5a60a..b0a449b5f7 100644
+index 4afff5a60a..3cc5bbb7b5 100644
 --- a/src/server/game/DungeonFinding/LFGMgr.h
 +++ b/src/server/game/DungeonFinding/LFGMgr.h
-@@ -417,6 +417,8 @@ namespace lfg
+@@ -417,6 +417,10 @@ namespace lfg
          void UpdateBoot(uint64 guid, bool accept);
          /// Updates proposal to join dungeon with player answer
          void UpdateProposal(uint32 proposalId, uint64 guid, bool accept);
 +        uint32 GetActiveProposalIdForPlayer(uint64 guid) const;
 +        uint8 GetRoleCheckRoles(uint64 gguid, uint64 playerGuid) const;
++        // Read-only lookup for modules that need dungeon level/name metadata.
++        LFGDungeonData const* GetLFGDungeonData(uint32 id) { return GetLFGDungeon(id); }
          /// Updates the role check with player answer
          void UpdateRoleCheck(uint64 gguid, uint64 guid = 0, uint8 roles = PLAYER_ROLE_NONE);
          /// Sets player lfg roles
