@@ -183,7 +183,7 @@ ENV ACORE_COMPONENT=undefined
 
 RUN /usr/local/bin/apt-update && \
     apt-get install -y --no-install-recommends \
-      libmysqlclient21 libreadline8 \
+      libmysqlclient24 libreadline8t64 \
       gettext-base default-mysql-client && \
     rm -rf /var/lib/apt/lists/*
 
