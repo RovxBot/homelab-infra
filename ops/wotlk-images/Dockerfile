@@ -94,8 +94,9 @@ ARG CCACHE_LOGFILE=""
 # Ubuntu 26.04's Clang 21 selects GCC 16 after libboost-all-dev installs its
 # GCC 16 runtime, while the default g++ package only installs libstdc++ 15.
 # Install the matching development library so Clang can resolve -lstdc++.
-# The smoke test catches future toolchain-version mismatches before CMake
-# configures AzerothCore.
+# MySQL 8.4's static dependency chain also requires the XZ and ICU development
+# linker symlinks. The smoke test catches missing toolchain or linker packages
+# before CMake configures AzerothCore.
 RUN /usr/local/bin/apt-update                                          \
     && apt-get install -y --no-install-recommends                     \
         build-essential g++ libstdc++-16-dev ccache libtool cmake-data \
@@ -103,9 +104,13 @@ RUN /usr/local/bin/apt-update                                          \
         git lsb-base curl unzip default-mysql-client openssl          \
         default-libmysqlclient-dev libboost-all-dev libssl-dev        \
         libmysql++-dev libreadline-dev zlib1g-dev libbz2-dev          \
+        liblzma-dev libicu-dev                                         \
         libncurses5-dev                                               \
     && printf '%s\n' 'int main() { return 0; }' | clang++ -x c++ - -o /tmp/clang-cxx-smoke-test \
     && rm -f /tmp/clang-cxx-smoke-test                                \
+    && printf '%s\n' 'int main() { return 0; }' | clang++ -x c++ - \
+        -llzma -licudata -licui18n -licuuc -o /tmp/clang-link-smoke-test \
+    && rm -f /tmp/clang-link-smoke-test                               \
     && rm -rf /var/lib/apt/lists/*
 
 COPY CMakeLists.txt /azerothcore/CMakeLists.txt
@@ -155,7 +160,7 @@ ENV ACORE_COMPONENT=undefined
 
 RUN /usr/local/bin/apt-update && \
     apt-get install -y --no-install-recommends \
-      libmysqlclient24 libreadline8t64 \
+      libmysqlclient24 libreadline8t64 liblzma5 libicu78 \
       gettext-base default-mysql-client && \
     rm -rf /var/lib/apt/lists/*
 
