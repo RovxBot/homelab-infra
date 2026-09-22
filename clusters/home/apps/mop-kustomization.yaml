@@ -5,8 +5,6 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  dependsOn:
-    - name: apps-wotlk
   path: ./apps/mop
   prune: true
   sourceRef:

@@ -16,8 +16,7 @@ spec:
         app: skyfire-worldserver
     spec:
       automountServiceAccountToken: false
-      # WotLK auth traffic owns metal7:3724; this parallel realm uses the
-      # otherwise-free world listener on the same node.
+      # This realm's world listener is pinned to its LAN IP.
       nodeSelector:
         kubernetes.io/hostname: metal7
       securityContext:
@@ -58,18 +57,18 @@ spec:
               chmod 0440 /config/*.conf
           env:
             - name: DB_HOST
-              value: skyfire-mariadb.wotlk.svc.cluster.local
+              value: skyfire-mariadb.mop.svc.cluster.local
             - name: DB_PORT
               value: "3306"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: wotlk-mariadb-auth
+                  name: mop-mariadb-auth
                   key: MARIADB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: wotlk-mariadb-auth
+                  name: mop-mariadb-auth
                   key: MARIADB_PASSWORD
             - name: PLAYERBOTS_ACCOUNT_PASSWORD
               valueFrom:
@@ -117,18 +116,18 @@ spec:
               exit 1
           env:
             - name: DB_HOST
-              value: skyfire-mariadb.wotlk.svc.cluster.local
+              value: skyfire-mariadb.mop.svc.cluster.local
             - name: DB_PORT
               value: "3306"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: wotlk-mariadb-auth
+                  name: mop-mariadb-auth
                   key: MARIADB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: wotlk-mariadb-auth
+                  name: mop-mariadb-auth
                   key: MARIADB_PASSWORD
         - name: require-client-data
           image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6

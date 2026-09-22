@@ -1,23 +1,22 @@
 # SkyFire MoP realm
 
-This is a parallel SkyFire 5.4.8 (build 18414) realm. It does not modify the
-running AzerothCore WotLK realm or its databases. It reuses only the existing
-`wotlk-mariadb-auth` credentials because both stacks currently live in the
-`wotlk` namespace; its MariaDB data and Longhorn volumes are independent.
+This is an independent SkyFire 5.4.8 (build 18414) realm in the `mop`
+namespace. It has its own MariaDB instance, SOPS-encrypted database
+credentials, Longhorn volumes, client-data PV, and Flux reconciliation.
 
 ## First deployment
 
 1. Run the **Build SkyFire MoP images** workflow and wait for the GHCR package
    tag `core-ef7d36a6c2c83db59fb81765104f38fc5e71163f` to exist. This is the
-   Authnet-capable ProjectSkyfire core with the standalone DigiD702 playerbots
-   module copied into `modules/mod-playerbots` at build time.
+   ProjectSkyfire core with the standalone DigiD702 playerbots module copied
+   into `modules/mod-playerbots` at build time.
 2. Bind `skyfire-client-files` to a static PV containing a legally obtained
    WoW 5.4.8 build 18414 client. Its `Data/` directory may be directly at the
    PV root or up to four levels below it.
 3. Run the one-off extractor:
 
    ```bash
-   kubectl -n wotlk create job --from=cronjob/skyfire-client-extract skyfire-client-extract-initial
+   kubectl -n mop create job --from=cronjob/skyfire-client-extract skyfire-client-extract-initial
    ```
 
    It creates `dbc`, `db2`, `maps`, `vmaps`, and `mmaps` on
@@ -28,8 +27,8 @@ running AzerothCore WotLK realm or its databases. It reuses only the existing
    those files without regenerating maps or mmaps:
 
    ```bash
-   kubectl -n wotlk create job --from=cronjob/skyfire-client-db2-extract skyfire-client-db2-extract-initial
-   kubectl -n wotlk logs -f job/skyfire-client-db2-extract-initial
+   kubectl -n mop create job --from=cronjob/skyfire-client-db2-extract skyfire-client-db2-extract-initial
+   kubectl -n mop logs -f job/skyfire-client-db2-extract-initial
    ```
 4. On Windows, configure **SkyFire Launcher** with client location set to the
    unmodified 5.4.8 build 18414 directory, login address `192.168.1.47`, and
@@ -58,8 +57,8 @@ bot accounts.
 until the character schema exists and the owner bootstrap is run:
 
 ```bash
-kubectl -n wotlk create job --from=cronjob/skyfire-ahbot-owner-bootstrap skyfire-ahbot-owner-bootstrap-initial
-kubectl -n wotlk logs job/skyfire-ahbot-owner-bootstrap-initial
+kubectl -n mop create job --from=cronjob/skyfire-ahbot-owner-bootstrap skyfire-ahbot-owner-bootstrap-initial
+kubectl -n mop logs job/skyfire-ahbot-owner-bootstrap-initial
 ```
 
 The initial bootstrap generated owner GUIDs `1000`–`1004`, now configured in

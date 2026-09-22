@@ -4,7 +4,8 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: nfs-wow-mop-client
+  # Separate PV identity lets the fresh MoP app bind the read-only client data.
+  name: nfs-wow-mop-client-mop
 spec:
   capacity:
     storage: 100Gi
@@ -24,12 +25,12 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: skyfire-client-files
-  namespace: wotlk
+  namespace: mop
 spec:
   accessModes:
     - ReadOnlyMany
   storageClassName: nfs
-  volumeName: nfs-wow-mop-client
+  volumeName: nfs-wow-mop-client-mop
   resources:
     requests:
       storage: 100Gi

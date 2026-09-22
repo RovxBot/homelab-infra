@@ -33,10 +33,10 @@ spec:
                 - name: DB_ROOT_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: wotlk-mariadb-auth
+                      name: mop-mariadb-auth
                       key: MARIADB_ROOT_PASSWORD
                 - name: DB_HOST
-                  value: skyfire-mariadb.wotlk.svc.cluster.local
+                  value: skyfire-mariadb.mop.svc.cluster.local
               command:
                 - sh
                 - -ec

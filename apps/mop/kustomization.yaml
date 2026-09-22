@@ -1,6 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: wotlk
+namespace: mop
 labels:
   - includeSelectors: false
     includeTemplates: true
@@ -16,6 +16,7 @@ configMapGenerator:
     options:
       disableNameSuffixHash: false
 resources:
+  - namespace.yaml
   - mariadb-init-configmap.yaml
   - mariadb-pvc.yaml
   - mariadb-service.yaml
@@ -28,6 +29,6 @@ resources:
   - worldserver-deployment.yaml
   - client-extract-cronjob.yaml
   - client-db2-extract-cronjob.yaml
-  - account-import-cronjob.yaml
   - ahbot-owner-bootstrap-cronjob.yaml
+  - ../../secrets/mop-mariadb-auth.enc.yaml
   - ../../secrets/mop-playerbots.enc.yaml

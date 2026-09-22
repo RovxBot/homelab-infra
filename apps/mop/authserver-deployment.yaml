@@ -16,8 +16,7 @@ spec:
         app: skyfire-authserver
     spec:
       automountServiceAccountToken: false
-      # WotLK world traffic owns metal4:8085; this parallel realm uses the
-      # otherwise-free standard auth listener on the same node.
+      # This realm's legacy authentication listener is pinned to its LAN IP.
       nodeSelector:
         kubernetes.io/hostname: metal4
       securityContext:
@@ -54,18 +53,18 @@ spec:
               chmod 0440 /config/authserver.conf
           env:
             - name: DB_HOST
-              value: skyfire-mariadb.wotlk.svc.cluster.local
+              value: skyfire-mariadb.mop.svc.cluster.local
             - name: DB_PORT
               value: "3306"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: wotlk-mariadb-auth
+                  name: mop-mariadb-auth
                   key: MARIADB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: wotlk-mariadb-auth
+                  name: mop-mariadb-auth
                   key: MARIADB_PASSWORD
           volumeMounts:
             - name: config-template
