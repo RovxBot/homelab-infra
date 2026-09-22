@@ -91,13 +91,19 @@ ARG CCACHE_COMPRESSLEVEL="9"
 ARG CCACHE_COMPILERCHECK="content"
 ARG CCACHE_LOGFILE=""
 
+# Clang links against Ubuntu's GNU C++ standard library. Keep the toolchain
+# that supplies it as a direct dependency rather than relying only on
+# build-essential's transitive dependency. The smoke test catches a missing
+# libstdc++ linker development file before CMake configures AzerothCore.
 RUN /usr/local/bin/apt-update                                          \
     && apt-get install -y --no-install-recommends                     \
-        build-essential ccache libtool cmake-data make cmake clang    \
+        build-essential g++ ccache libtool cmake-data make cmake clang \
         git lsb-base curl unzip default-mysql-client openssl          \
         default-libmysqlclient-dev libboost-all-dev libssl-dev        \
         libmysql++-dev libreadline-dev zlib1g-dev libbz2-dev          \
         libncurses5-dev                                               \
+    && printf '%s\n' 'int main() { return 0; }' | clang++ -x c++ - -o /tmp/clang-cxx-smoke-test \
+    && rm -f /tmp/clang-cxx-smoke-test                                \
     && rm -rf /var/lib/apt/lists/*
 
 COPY CMakeLists.txt /azerothcore/CMakeLists.txt
