@@ -160,7 +160,7 @@ ENV ACORE_COMPONENT=undefined
 
 RUN /usr/local/bin/apt-update && \
     apt-get install -y --no-install-recommends \
-      libmysqlclient24 libreadline8t64 liblzma5 libicu78 \
+      libmysqlclient24 libreadline8t64 liblzma5 libicu78 libncurses6 \
       gettext-base default-mysql-client && \
     rm -rf /var/lib/apt/lists/*
 

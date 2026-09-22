@@ -359,6 +359,11 @@ jobs:
               /usr/local/bin/authserver \
               /usr/bin/authserver; do
               if [ -x "$path" ]; then
+                ldd "$path" >/tmp/authserver-ldd.txt
+                if grep -Fq "not found" /tmp/authserver-ldd.txt; then
+                  cat /tmp/authserver-ldd.txt >&2
+                  exit 1
+                fi
                 "$path" --version >/tmp/authserver-version.txt 2>&1 || \
                 "$path" -v >/tmp/authserver-version.txt 2>&1 || true
                 test -s /tmp/authserver-version.txt || "$path" --help >/tmp/authserver-version.txt 2>&1 || true
@@ -378,14 +383,17 @@ jobs:
           image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:worldserver-${REF_TAG}-${IMAGE_SUFFIX}"
           docker run --rm --entrypoint bash "${image}" -lc '
             set -euo pipefail
-            test -f /usr/local/lib/libsidecar.so
-            ldd /azerothcore/env/dist/bin/worldserver | grep -q "libsidecar.so"
             for path in \
               /azerothcore/env/dist/bin/worldserver \
               /azerothcore/bin/worldserver \
               /usr/local/bin/worldserver \
               /usr/bin/worldserver; do
               if [ -x "$path" ]; then
+                ldd "$path" >/tmp/worldserver-ldd.txt
+                if grep -Fq "not found" /tmp/worldserver-ldd.txt; then
+                  cat /tmp/worldserver-ldd.txt >&2
+                  exit 1
+                fi
                 "$path" --version >/tmp/worldserver-version.txt 2>&1 || \
                 "$path" -v >/tmp/worldserver-version.txt 2>&1 || true
                 test -s /tmp/worldserver-version.txt || "$path" --help >/tmp/worldserver-version.txt 2>&1 || true
