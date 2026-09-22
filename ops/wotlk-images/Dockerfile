@@ -178,9 +178,28 @@ VOLUME /azerothcore/env/dist/etc
 
 ENV PATH="/azerothcore/env/dist/bin:$PATH"
 
-RUN groupadd --gid "$GROUP_ID" "$DOCKER_USER" && \
-    useradd -d /azerothcore --uid "$USER_ID" --gid "$GROUP_ID" "$DOCKER_USER" && \
-    passwd -d "$DOCKER_USER" && \
+# Ubuntu 26.04 reserves UID/GID 1000 in its base image. Reuse that identity
+# when present so the default Kubernetes ownership settings remain unchanged.
+RUN set -eu; \
+    existing_group="$(getent group "$GROUP_ID" || true)"; \
+    if [ -n "$existing_group" ]; then \
+      group_name="${existing_group%%:*}"; \
+      if [ "$group_name" != "$DOCKER_USER" ]; then groupmod --new-name "$DOCKER_USER" "$group_name"; fi; \
+    else \
+      groupadd --gid "$GROUP_ID" "$DOCKER_USER"; \
+    fi; \
+    existing_user="$(getent passwd "$USER_ID" || true)"; \
+    if [ -n "$existing_user" ]; then \
+      user_name="${existing_user%%:*}"; \
+      if [ "$user_name" != "$DOCKER_USER" ]; then \
+        usermod --login "$DOCKER_USER" --home /azerothcore --gid "$GROUP_ID" "$user_name"; \
+      else \
+        usermod --home /azerothcore --gid "$GROUP_ID" "$DOCKER_USER"; \
+      fi; \
+    else \
+      useradd --home-dir /azerothcore --uid "$USER_ID" --gid "$GROUP_ID" "$DOCKER_USER"; \
+    fi; \
+    passwd -d "$DOCKER_USER"; \
     chown -R "$DOCKER_USER:$DOCKER_USER" /azerothcore
 
 COPY --chown=$USER_ID:$GROUP_ID \
