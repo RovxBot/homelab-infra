@@ -20,8 +20,13 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: metal4
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
         fsGroup: 10001
         fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: render-config
           image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
@@ -49,7 +54,6 @@ spec:
                 -e "s|\${DB_USER}|${user}|g" \
                 -e "s|\${DB_PASSWORD}|${password}|g" \
                 /config-template/authserver.conf > /config/authserver.conf
-              chown 10001:10001 /config/authserver.conf
               chmod 0440 /config/authserver.conf
           env:
             - name: DB_HOST
@@ -72,11 +76,16 @@ spec:
               readOnly: true
             - name: config
               mountPath: /config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            privileged: false
       containers:
         - name: authserver
           # Build and push this immutable-source tag with the SkyFire MoP image
           # workflow before applying this rollout.
-          image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f
+          image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f@sha256:03eaef947ff111a3d806ab8f978d623c75911ec133b7366adc364d25e5b1c26e
           imagePullPolicy: Always
           command: [/opt/skyfire/bin/authserver]
           ports:
@@ -110,6 +119,11 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            privileged: false
           volumeMounts:
             - name: config
               mountPath: /opt/skyfire/etc

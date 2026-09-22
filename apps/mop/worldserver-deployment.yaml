@@ -20,8 +20,13 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: metal7
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
         fsGroup: 10001
         fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: render-config
           image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
@@ -53,7 +58,6 @@ spec:
                   -e "s|\${PLAYERBOTS_ACCOUNT_PASSWORD}|${playerbots_password}|g" \
                   "/config-template/${file}" > "/config/${file}"
               done
-              chown 10001:10001 /config/*.conf
               chmod 0440 /config/*.conf
           env:
             - name: DB_HOST
@@ -81,6 +85,11 @@ spec:
               readOnly: true
             - name: config
               mountPath: /config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            privileged: false
         - name: wait-for-auth-schema
           image: mysql:8.4@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           resources:
@@ -129,6 +138,11 @@ spec:
                 secretKeyRef:
                   name: mop-mariadb-auth
                   key: MARIADB_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            privileged: false
         - name: require-client-data
           image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
           resources:
@@ -152,9 +166,14 @@ spec:
             - name: data
               mountPath: /data
               readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            privileged: false
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f-3afb83ac8434dd8b3311095c54824157532a3534
+          image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f-3afb83ac8434dd8b3311095c54824157532a3534@sha256:03eaef947ff111a3d806ab8f978d623c75911ec133b7366adc364d25e5b1c26e
           imagePullPolicy: Always
           command: [/opt/skyfire/bin/worldserver]
           ports:
@@ -189,6 +208,11 @@ spec:
             limits:
               cpu: "4"
               memory: 8Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            privileged: false
           volumeMounts:
             - name: config
               mountPath: /opt/skyfire/etc
