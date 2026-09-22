@@ -20,6 +20,7 @@ configMapGenerator:
       - mod_customnpcs.conf=config/mod_customnpcs.conf
       - mod_grimtokendailies.conf=config/mod_grimtokendailies.conf
       - mod_guildfunds.conf=config/mod_guildfunds.conf
+      - mod-dungeon-clear.conf=conf/mod_dungeon-clear.conf
     options:
       disableNameSuffixHash: false
   - name: wotlk-modules-list
