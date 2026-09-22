@@ -31,11 +31,11 @@ credentials, Longhorn volumes, client-data PV, and Flux reconciliation.
    kubectl -n mop logs -f job/skyfire-client-db2-extract-initial
    ```
 4. On Windows, configure **SkyFire Launcher** with client location set to the
-   unmodified 5.4.8 build 18414 directory, login address `192.168.1.47`, and
+   unmodified 5.4.8 build 18414 directory, login address `192.168.1.84`, and
    **Authnet login disabled**. Start every game launch through the launcher so
    it applies its temporary legacy-routing changes; the client files remain
    untouched. Legacy auth is on TCP `3724`; the realm list advertises world
-   traffic on `192.168.1.197:8085`. Neither is forwarded by the OCI public
+   traffic on `192.168.1.84:8085`. Neither is forwarded by the OCI public
    edge.
 
 The authserver creates `skyfire_auth` automatically. The first worldserver

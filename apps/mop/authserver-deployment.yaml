@@ -16,9 +16,9 @@ spec:
         app: skyfire-authserver
     spec:
       automountServiceAccountToken: false
-      # This realm's legacy authentication listener is pinned to its LAN IP.
+      # The launcher routes both legacy-auth and world traffic to this node.
       nodeSelector:
-        kubernetes.io/hostname: metal4
+        kubernetes.io/hostname: metal8
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -92,7 +92,7 @@ spec:
             - name: auth
               containerPort: 3724
               hostPort: 3724
-              hostIP: 192.168.1.47
+              hostIP: 192.168.1.84
               protocol: TCP
           startupProbe:
             tcpSocket:
