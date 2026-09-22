@@ -69,38 +69,6 @@ RUN /usr/local/bin/apt-update                                            \
 
 WORKDIR /azerothcore
 
-FROM skeleton AS libsidecar-build
-
-# Build ToCloud9's real libsidecar in the same Ubuntu 22.04 environment as
-# AzerothCore. The published v1.0.0 Linux asset targets newer glibc/libstdc++
-# and cannot link into this image (it requires GLIBC 2.38 and GLIBCXX 3.4.32).
-ARG LIBSIDECAR_REV=cc31fa84018e3dd2d400f828c37fe48ab6220e8e
-
-RUN /usr/local/bin/apt-update \
-    && apt-get install -y --no-install-recommends \
-      git cmake make gcc g++ build-essential libssl-dev zlib1g-dev pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /build
-
-RUN git init tocloud9 \
-    && cd tocloud9 \
-    && git remote add origin https://github.com/walkline/ToCloud9.git \
-    && git fetch --depth=1 origin "${LIBSIDECAR_REV}" \
-    && git checkout --detach FETCH_HEAD \
-    && test "$(git rev-parse HEAD)" = "${LIBSIDECAR_REV}" \
-    && mkdir -p /api \
-    && cp -a api/proto /api/proto
-
-WORKDIR /build/tocloud9/game-server/libsidecar-cpp/build
-
-RUN cmake .. \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DBUILD_TESTS=OFF \
-      -DUSE_SYSTEM_GRPC=OFF \
-      -DUSE_SYSTEM_PROTOBUF=OFF \
-    && cmake --build . --config Release -j "$(nproc)"
-
 FROM skeleton AS build
 
 ARG CAPPS_BUILD="all"
@@ -137,9 +105,6 @@ COPY conf /azerothcore/conf
 COPY deps /azerothcore/deps
 COPY src /azerothcore/src
 COPY modules /azerothcore/modules
-COPY --from=libsidecar-build /build/tocloud9/game-server/libsidecar-cpp/include/ /azerothcore/deps/libsidecar/include/
-COPY --from=libsidecar-build /build/tocloud9/game-server/libsidecar-cpp/build/generated/include/tc9_version.h /azerothcore/deps/libsidecar/include/tc9_version.h
-COPY --from=libsidecar-build /build/tocloud9/game-server/libsidecar-cpp/build/libsidecar.so /azerothcore/deps/libsidecar/libsidecar.so
 
 ARG CACHEBUST=1
 
@@ -161,7 +126,6 @@ RUN --mount=type=cache,id=ccache,target=/ccache,sharing=locked \
        -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"          \
        -DCMAKE_C_COMPILER_LAUNCHER="ccache"            \
        -DBoost_USE_STATIC_LIBS="ON"                    \
-       -DUSE_REAL_LIBSIDECAR=ON                         \
        ${CMAKE_EXTRA_OPTIONS} \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
@@ -186,10 +150,6 @@ RUN /usr/local/bin/apt-update && \
       libmysqlclient24 libreadline8t64 \
       gettext-base default-mysql-client && \
     rm -rf /var/lib/apt/lists/*
-
-# worldserver is linked against this shared library when clustering is enabled.
-COPY --from=libsidecar-build /build/tocloud9/game-server/libsidecar-cpp/build/libsidecar.so /usr/local/lib/libsidecar.so
-RUN ldconfig
 
 COPY --from=build /azerothcore/env/dist/etc/ /azerothcore/env/ref/etc
 COPY --from=module-conf-assets /module-conf-assets/ /azerothcore/env/ref/etc/modules/
