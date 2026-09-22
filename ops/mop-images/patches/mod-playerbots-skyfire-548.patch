@@ -1,0 +1,31 @@
+diff --git a/src/PlayerbotMgr.cpp b/src/PlayerbotMgr.cpp
+index 8e4a69e..d05713a 100644
+--- a/src/PlayerbotMgr.cpp
++++ b/src/PlayerbotMgr.cpp
+@@ -715,7 +715,7 @@ bool PlayerbotMgr::SpawnBot(uint64 characterGuid, bool isRandom, std::string* er
+ 
+     // Bots always run at player security regardless of the owning account's level.
+     WorldSession* botSession = new WorldSession(accountId, nullptr, AccountTypes::SEC_PLAYER, expansion,
+-        0, LOCALE_enUS, 0, false, false, false);
++        0, LOCALE_enUS, 0, false, false, false, false, "", SessionKey{});
+     botSession->SetBot(true);
+     uint32 const botRealm = ResolveBotVirtualRealm();
+     botSession->SetVirtualRealmID(botRealm);
+@@ -790,7 +790,7 @@ bool PlayerbotMgr::BeginSpawnBot(uint64 characterGuid, bool isRandom, uint32 acc
+ 
+     uint8 expansion = uint8(sWorld->getIntConfig(WorldIntConfigs::CONFIG_EXPANSION));
+     WorldSession* botSession = new WorldSession(accountId, nullptr, AccountTypes::SEC_PLAYER, expansion,
+-        0, LOCALE_enUS, 0, false, false, false);
++        0, LOCALE_enUS, 0, false, false, false, false, "", SessionKey{});
+     botSession->SetBot(true);
+     uint32 const botRealm = ResolveBotVirtualRealm();
+     botSession->SetVirtualRealmID(botRealm);
+@@ -2940,7 +2940,7 @@ bool PlayerbotMgr::CreateOneCharacter(uint32 accountId, std::vector<PendingBotIn
+         level = uint8(minL + uint32(std::rand() % int(maxL - minL + 1)));
+ 
+     WorldSession* sess = new WorldSession(accountId, nullptr, AccountTypes::SEC_PLAYER, expansion,
+-        0, LOCALE_enUS, 0, false, false, false);
++        0, LOCALE_enUS, 0, false, false, false, false, "", SessionKey{});
+     sess->SetBot(true);
+     // Match real characters (global realmID is set at world startup from RealmID
+     // conf or auth.realmlist). Never persist the unset sentinel 0xFFFFFFFF.
