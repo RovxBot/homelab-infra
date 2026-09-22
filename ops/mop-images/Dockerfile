@@ -1,4 +1,4 @@
-# SkyFire 5.4.8 requires C++23/GCC 14 and Boost 1.91. Ubuntu 24.04 supplies
+# SkyFire 5.4.8 requires C++23/GCC 14 and Boost 1.91. Ubuntu 26.04 supplies
 # the supported base platform; Boost is built from a checksum-pinned archive.
 ARG UBUNTU_VERSION=26.04@sha256:da6fc2be547864451aa253836dd926da33623312df4a9a243e35dc877c378a78
 
@@ -54,10 +54,10 @@ RUN cmake -G Ninja /src \
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Ubuntu 24.04 reserves UID/GID 1000 for its built-in ubuntu account.
+# Ubuntu 26.04 reserves UID/GID 1000 for its built-in ubuntu account.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates tzdata default-mysql-client libmysqlclient21 libssl3 libreadline8 \
+        ca-certificates tzdata default-mysql-client libmysqlclient24 libssl3t64 libreadline8t64 \
         libjemalloc2 libbz2-1.0 libncursesw6 zlib1g \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 skyfire \
