@@ -41,6 +41,16 @@ index 8e4a69e..2ace4f9 100644
      botSession->SetBot(true);
      uint32 const botRealm = ResolveBotVirtualRealm();
      botSession->SetVirtualRealmID(botRealm);
+@@ -2436,7 +2436,8 @@ uint32 PlayerbotMgr::CreateBotPopulation(std::string* report)
+         uint32 accountId = AccountMgr::GetId(username);
+         if (!accountId)
+         {
+-            AccountOpResult res = sAccountMgr->CreateAccount(username, _autoPassword, "");
++            // SkyFire's account API requires a syntactically valid, unique email.
++            AccountOpResult res = sAccountMgr->CreateAccount(username, _autoPassword, username + "@playerbots.invalid");
+             if (res != AccountOpResult::AOR_OK)
+             {
+                 SF_LOG_ERROR("modules", "[mod-playerbots] Failed to create bot account '%s' (error %u).",
 @@ -2940,7 +2940,7 @@ bool PlayerbotMgr::CreateOneCharacter(uint32 accountId, std::vector<PendingBotIn
          level = uint8(minL + uint32(std::rand() % int(maxL - minL + 1)));
  
