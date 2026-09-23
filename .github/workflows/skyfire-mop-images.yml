@@ -51,7 +51,6 @@ jobs:
           git -C .work/skyfire fetch --depth=1 origin "${core_ref}"
           git -C .work/skyfire checkout --detach FETCH_HEAD
           test "$(git -C .work/skyfire rev-parse HEAD)" = "${core_ref}"
-          git -C .work/skyfire apply --ignore-space-change "$GITHUB_WORKSPACE/ops/mop-images/patches/skyfire-548-playerbots-hooks.patch"
           git -C .work/skyfire submodule update --init --recursive --depth=1
           git -C .work/mod-playerbots init
           git -C .work/mod-playerbots remote add origin "${playerbots_repo}"

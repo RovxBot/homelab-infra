@@ -7,9 +7,9 @@ credentials, Longhorn volumes, client-data PV, and Flux reconciliation.
 ## First deployment
 
 1. Run the **Build SkyFire MoP images** workflow and wait for the GHCR package
-   tag `core-ef7d36a6c2c83db59fb81765104f38fc5e71163f` to exist. This is the
-   ProjectSkyfire core with the standalone DigiD702 playerbots module copied
-   into `modules/mod-playerbots` at build time.
+   tag for the commit pinned in `ops/mop-images/skyfire.ref` to exist. This is
+   the RovxBot SkyFire fork with the standalone DigiD702 playerbots module
+   copied into `modules/mod-playerbots` at build time.
 2. Bind `skyfire-client-files` to a static PV containing a legally obtained
    WoW 5.4.8 build 18414 client. Its `Data/` directory may be directly at the
    PV root or up to four levels below it.
@@ -46,7 +46,7 @@ longer than a normal server restart.
 ## Modules
 
 `mod-playerbots` is a separately pinned DigiD702 module copied into the
-ProjectSkyfire core's `modules/mod-playerbots` directory during the image
+RovxBot SkyFire fork's `modules/mod-playerbots` directory during the image
 build. The initial profile creates 250 dedicated `RNDBOT` accounts (one random
 level 1–90 character per account) and keeps at most 250 bots online, with LFG
 fill enabled. Its generated bot-only password is held in the SOPS-encrypted
