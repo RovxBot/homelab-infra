@@ -30,7 +30,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: extract-db2
-              image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f@sha256:186d389c14768004624710f46e8369ae2a9cb6fa22f3f9933f50c38e6db5c0a3
+              image: ghcr.io/rovxbot/skyfire-mop:core-ef7d36a6c2c83db59fb81765104f38fc5e71163f-ea3349cd0deaea0a9a1fbf15885b05ef73fb4dc2@sha256:d612f5161d9daeb329d65717eaabd85ef6735931d6eeeab478d120751b897f99
               imagePullPolicy: Always
               resources:
                 requests:
