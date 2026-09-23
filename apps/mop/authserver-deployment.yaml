@@ -85,7 +85,7 @@ spec:
         - name: authserver
           # Build and push this immutable-source tag with the SkyFire MoP image
           # workflow before applying this rollout.
-          image: ghcr.io/rovxbot/skyfire-mop:core-84304933f7cd7741a84259af8d95ce7430e0a5b3-f9d67f65f8e6abc9f6c190d0e8cadb496917d56b@sha256:01fa08d10c258a4a67b7ffbf1d0d8a3458de6acc8df57ac585dcf087d567215c
+          image: ghcr.io/rovxbot/skyfire-mop:core-11bd16f87d0cafbc9e02be2b94e214523c080291-8f0528f025b104f69307c269ca412e99a7223e1e@sha256:6f5fd91bdf92945d63e8fad25d275adac4f8bf81a5f286b0b715f00071b09b65
           imagePullPolicy: Always
           command: [/opt/skyfire/bin/authserver]
           ports:
