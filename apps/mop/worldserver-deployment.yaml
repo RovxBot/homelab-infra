@@ -177,7 +177,7 @@ spec:
             privileged: false
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/skyfire-mop:core-7d71dc05a4dcb2a1ea4916302c692794aaa9a364-fb822bbc0abad93e8d9fdf690df5ad4b7c32fc2a@sha256:753c1d841e99e4dcb4479b7a2b81643e898f105b1005b409cfe572a6ed170c26
+          image: ghcr.io/rovxbot/skyfire-mop:core-21d5cb192b38c4675cc5c1aa6fc0b35e031501f6-cdbd4fe376ccfc070dfb4b9da83828a07b860eca@sha256:14c14720c7257b1ec2e6b4b89c0a780e2b9b67475f0cf5b681c97e3d959ce942
           imagePullPolicy: Always
           command: [/opt/skyfire/bin/worldserver]
           ports:
