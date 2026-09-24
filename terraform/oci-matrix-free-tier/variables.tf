@@ -215,7 +215,7 @@ variable "matrix_postgres_image" {
   type        = string
 
   # renovate: datasource=docker depName=postgres
-  default = "postgres:16-alpine@sha256:738d1359df5aa0b6d50a9071e989c49fdd39152a2a805c6ff131bf5e2243e0b3"
+  default = "postgres:16-alpine@sha256:2c942175a1255a9abe0366e48c1b401d9f50f835b04dfea13f111609b5530df7"
 
   validation {
     condition     = can(regex("^postgres:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_postgres_image))
@@ -228,7 +228,7 @@ variable "matrix_element_image" {
   type        = string
 
   # renovate: datasource=docker depName=vectorim/element-web
-  default = "vectorim/element-web:latest@sha256:bd1bba6518a253d4de3e6747dd5b1d5cc2afbad6a1aa5234aebe15ef9c90ce1f"
+  default = "vectorim/element-web:latest@sha256:ff778a340ef3bfb23e2a37ebe1b48cc1e35b3b718f73a0196c5a95abfccabf99"
 
   validation {
     condition     = can(regex("^vectorim/element-web:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_element_image))
