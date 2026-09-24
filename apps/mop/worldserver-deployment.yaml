@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: skyfire-worldserver
 spec:
-  replicas: 0
+  replicas: 1
   revisionHistoryLimit: 2
   strategy:
     type: Recreate
