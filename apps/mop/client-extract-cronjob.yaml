@@ -29,7 +29,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: extract
-              image: ghcr.io/rovxbot/skyfire-mop:core-efaddb7471234f64a2d07c35eda9207fa7074ce5-81c59267aeff1ca3e36ac6b21a812d68731aa684@sha256:471af7ccb5763b7ed10a09403dadb3584523cb2ede11748a81557c82c17f4f69
+              image: ghcr.io/rovxbot/skyfire-mop:core-e9658923c192413496093f6df2f263f85cb05ba4-fc70ceebce646a2e82129c52dcf7546a3debe0fb@sha256:cfe57aae778528b2d830a960807ac063ab9ad0047849a0a818ad330b4daa505b
               imagePullPolicy: Always
               resources:
                 requests:
