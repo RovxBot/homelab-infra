@@ -11,8 +11,6 @@ configMapGenerator:
     files:
       - worldserver.conf=config/worldserver.conf
       - authserver.conf=config/authserver.conf
-      - playerbots.conf=config/playerbots.conf
-      - mod_ahbot.conf=config/mod_ahbot.conf
     options:
       disableNameSuffixHash: false
 resources:
@@ -29,6 +27,4 @@ resources:
   - worldserver-deployment.yaml
   - client-extract-cronjob.yaml
   - client-db2-extract-cronjob.yaml
-  - ahbot-owner-bootstrap-cronjob.yaml
   - ../../secrets/mop-mariadb-auth.enc.yaml
-  - ../../secrets/mop-playerbots.enc.yaml

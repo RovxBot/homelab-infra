@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: skyfire-worldserver
 spec:
-  replicas: 1
+  replicas: 0
   revisionHistoryLimit: 2
   strategy:
     type: Recreate
@@ -14,10 +14,6 @@ spec:
     metadata:
       labels:
         app: skyfire-worldserver
-      annotations:
-        # Rotate the runtime-rendered bot credential after the fixed Secret
-        # reconciles. Increment this value whenever that credential rotates.
-        homelab.cooked.beer/playerbots-secret-revision: "2026-09-22"
     spec:
       automountServiceAccountToken: false
       # The launcher routes both legacy-auth and world traffic to this node.
@@ -52,17 +48,13 @@ spec:
               port="$(escape_sed_replacement "$DB_PORT")"
               user="$(escape_sed_replacement "$DB_USER")"
               password="$(escape_sed_replacement "$DB_PASSWORD")"
-              playerbots_password="$(escape_sed_replacement "$PLAYERBOTS_ACCOUNT_PASSWORD")"
-              for file in worldserver.conf playerbots.conf mod_ahbot.conf; do
-                sed \
-                  -e "s|\${DB_HOST}|${host}|g" \
-                  -e "s|\${DB_PORT}|${port}|g" \
-                  -e "s|\${DB_USER}|${user}|g" \
-                  -e "s|\${DB_PASSWORD}|${password}|g" \
-                  -e "s|\${PLAYERBOTS_ACCOUNT_PASSWORD}|${playerbots_password}|g" \
-                  "/config-template/${file}" > "/config/${file}"
-              done
-              chmod 0440 /config/*.conf
+              sed \
+                -e "s|\${DB_HOST}|${host}|g" \
+                -e "s|\${DB_PORT}|${port}|g" \
+                -e "s|\${DB_USER}|${user}|g" \
+                -e "s|\${DB_PASSWORD}|${password}|g" \
+                /config-template/worldserver.conf > /config/worldserver.conf
+              chmod 0440 /config/worldserver.conf
           env:
             - name: DB_HOST
               value: skyfire-mariadb.mop.svc.cluster.local
@@ -78,11 +70,6 @@ spec:
                 secretKeyRef:
                   name: mop-mariadb-auth
                   key: MARIADB_PASSWORD
-            - name: PLAYERBOTS_ACCOUNT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: skyfire-playerbots
-                  key: AUTO_CREATE_ACCOUNT_PASSWORD
           volumeMounts:
             - name: config-template
               mountPath: /config-template

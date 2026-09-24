@@ -47,7 +47,8 @@ RUN cmake -G Ninja /src \
         -DOPENSSL_ROOT_DIR=/opt/openssl \
         -DCMAKE_C_COMPILER=gcc-14 \
         -DCMAKE_CXX_COMPILER=g++-14 \
-        -DMODULES=ON -DTOOLS=ON -DWITH_WARNINGS=OFF -DWITHOUT_GIT=ON \
+        -DMODULES=OFF -DTOOLS=ON -DPACKET_LOG_SERVER=ON \
+        -DUSE_COREPCH=ON -DUSE_SCRIPTPCH=ON -DSKYFIRE_BUILD_TESTS=OFF \
     && cmake --build . --parallel "$(nproc)" \
     && cmake --install .
 
