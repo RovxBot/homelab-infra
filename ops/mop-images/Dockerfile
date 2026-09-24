@@ -12,7 +12,7 @@ ARG OPENSSL_SHA256=2db3f3a0d6ea4b59e1f094ace2c8cd536dffb87cdc39084c5afa1e6f7f37d
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl bzip2 build-essential gcc-14 g++-14 cmake ninja-build \
+        ca-certificates curl git bzip2 build-essential gcc-14 g++-14 cmake ninja-build \
         default-libmysqlclient-dev libssl-dev libreadline-dev zlib1g-dev libbz2-dev \
         libncurses-dev libjemalloc-dev \
     && rm -rf /var/lib/apt/lists/*
