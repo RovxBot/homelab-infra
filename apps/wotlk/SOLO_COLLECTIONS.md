@@ -48,9 +48,13 @@ place; this change does not delete player appearance data.
    client AddOn.
 
 The rendered `transmog.conf` selects `SoloCollections.Backend = Cpp`, enabling
-the server-authoritative SC2 backend. Armor and weapon mixing both start at
-`same`; broaden either rule only after gameplay testing. The retained
-`Transmogrification.*` options govern the module's compatible NPC workflow.
+the server-authoritative SC2 backend. The wardrobe allows all armor types, but
+uses its Retail-compatible `family` weapon policy. The NPC workflow accepts
+cross-tier armor and the module's matching `MODERN` weapon groups, while
+keeping main-hand/off-hand, ranged, and two-hand weapon boundaries intact. Poor
+and common-quality appearances are enabled; source weapon proficiency remains
+required. The retained
+`Transmogrification.*` options govern that compatible NPC workflow.
 
 ## Client rollout
 
