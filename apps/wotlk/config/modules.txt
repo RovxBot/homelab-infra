@@ -8,10 +8,10 @@
 # image workflow installs that folder under AzerothCore/modules.
 
 https://github.com/azerothcore/mod-progression-system.git@main
-# The test-staging core and module must use their matching test-staging refs.
-# This branch is mirrored in our fork, so image builds continue to consume the
-# RovxBot-owned source while remaining API-compatible with the selected core.
-https://github.com/RovxBot/mod-playerbots.git@test-staging
+# The Playerbot-enabled core still requires the actual mod-playerbots module.
+# Keep this explicit so image builds and runtime source clones both include the
+# headers, SQL, and config assets expected by Playerbots-dependent modules.
+https://github.com/RovxBot/mod-playerbots.git@master
 https://github.com/NathanHandley/mod-ah-bot-plus@master
 https://github.com/RovxBot/mod-weekend-xp.git@master
 https://github.com/RovxBot/mod-customnpcs.git@master
