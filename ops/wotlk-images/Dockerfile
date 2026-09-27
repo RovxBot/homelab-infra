@@ -167,12 +167,13 @@ RUN /usr/local/bin/apt-update && \
 COPY --from=build /azerothcore/env/dist/etc/ /azerothcore/env/ref/etc
 COPY --from=module-conf-assets /module-conf-assets/ /azerothcore/env/ref/etc/modules/
 
-# mod-progression-system's DatabaseScript reads bracket SQL from /modules.
-# Keep that source tree in the runtime image so worldserver can apply the
-# idempotent progression migration after db-import creates the world schema.
+# mod-progression-system's DatabaseScript resolves its bracket SQL relative to
+# AzerothCore's source root. Keep its source tree at that expected location so
+# worldserver can apply the idempotent progression migration after db-import
+# creates the world schema.
 COPY --chown=$USER_ID:$GROUP_ID \
      --from=build \
-     /azerothcore/modules/mod-progression-system /modules/mod-progression-system
+     /azerothcore/modules/mod-progression-system /azerothcore/modules/mod-progression-system
 
 VOLUME /azerothcore/env/dist/etc
 
