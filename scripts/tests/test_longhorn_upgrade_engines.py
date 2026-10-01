@@ -26,6 +26,28 @@ def fixture(detached=False):
 
 
 class UpgradeGuards(unittest.TestCase):
+    def test_wait_for_replica_inventory_and_process_convergence(self):
+        items = fixture()
+        target = "docker.io/longhornio/longhorn-engine:v1.11.1"
+        items[0]["spec"]["image"] = target
+        items[0]["status"]["currentImage"] = target
+        for item in items[1:]:
+            item["spec"]["image"] = target
+            item["status"] = {**item.get("status", {}), "currentState": "running", "currentImage": target}
+        self.assertTrue(upgrade.upgrade_complete(items, "test", target))
+        self.assertFalse(upgrade.upgrade_complete(items[:-1], "test", target))
+        for field, value in [("currentState", "starting"), ("currentImage", "longhornio/longhorn-engine:v1.10.1")]:
+            changed = copy.deepcopy(items)
+            changed[2]["status"][field] = value
+            self.assertFalse(upgrade.upgrade_complete(changed, "test", target))
+        changed = copy.deepcopy(items)
+        changed[0]["status"]["robustness"] = "degraded"
+        self.assertFalse(upgrade.upgrade_complete(changed, "test", target))
+        changed = copy.deepcopy(items)
+        changed[0]["status"]["state"] = "detached"
+        changed[2]["spec"]["image"] = "longhornio/longhorn-engine:v1.10.1"
+        self.assertFalse(upgrade.upgrade_complete(changed, "test", target))
+
     def test_refuse_unsupported_versions_and_in_progress_upgrade(self):
         items = fixture()
         upgrade.preflight(items, "test", "docker.io/longhornio/longhorn-engine:v1.11.1")

@@ -87,6 +87,28 @@ def preflight(items, name, target):
     return volume
 
 
+def upgrade_complete(items, name, target):
+    """Require a consistent process inventory before accepting controller convergence."""
+    volume = next(o for o in items if o["kind"] == "Volume" and o["metadata"]["name"] == name)
+    if volume["spec"]["image"] != target or volume["status"].get("currentImage") != target:
+        return False
+    try:
+        health(items)
+    except UnsafeUpgrade:
+        # Separate resource lists can straddle the replacement of replica CRs.
+        # The caller still checks other volumes strictly and cannot start the
+        # next upgrade until this volume passes all checks within the timeout.
+        return False
+    active = [o for o in items if o["kind"] in {"Engine", "Replica"} and
+              o["spec"]["volumeName"] == name and o["spec"].get("active")]
+    if not active or any(o["spec"].get("image") != target for o in active):
+        return False
+    if volume["status"]["state"] == "attached":
+        return all(o["status"].get("currentState") == "running" and
+                   o["status"].get("currentImage") == target for o in active)
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("volume", help="Upgrade exactly this volume; no bulk option")
@@ -130,14 +152,11 @@ def main():
     for attempt in range(150):
         current = get("volumes.longhorn.io,engines.longhorn.io,replicas.longhorn.io")["items"]
         v = next(o for o in current if o["kind"] == "Volume" and o["metadata"]["name"] == args.volume)
-        if v["spec"]["image"] == args.image and v["status"].get("currentImage") == args.image:
-            health(current)
-            running = [o for o in current if o["kind"] in {"Engine", "Replica"} and o["spec"]["volumeName"] == args.volume and o["spec"].get("active") and o["status"].get("currentState") == "running"]
-            if all(o["status"].get("currentImage") == args.image for o in running):
-                print("Verified: engine upgrade completed; every attached volume retains required healthy replicas", flush=True)
-                return
         # Do not initiate further changes if another volume loses its healthy copies.
         health([o for o in current if o["spec"].get("volumeName", o["metadata"]["name"]) != args.volume], check_images=False)
+        if upgrade_complete(current, args.volume, args.image):
+            print("Verified: engine upgrade completed; every attached volume retains required healthy replicas", flush=True)
+            return
         if attempt % 10 == 0:
             print(f"Waiting for {args.volume}: {v['status']['state']}/{v['status']['robustness']}, image={v['status'].get('currentImage')}", flush=True)
         time.sleep(2)
