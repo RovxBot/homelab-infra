@@ -1,0 +1,7 @@
+apiVersion: longhorn.io/v1beta2
+kind: SystemBackup
+metadata:
+  name: pre-upgrade-20261001
+  namespace: longhorn-system
+spec:
+  volumeBackupPolicy: always
