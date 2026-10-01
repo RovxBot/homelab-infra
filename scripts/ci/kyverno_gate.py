@@ -190,10 +190,24 @@ def write_documents(documents: list[dict[str, Any]], output_dir: Path) -> list[P
 
 
 def load_policy_reports(raw_output: str) -> list[dict[str, Any]]:
+    # Kyverno 1.15 prints mutation diagnostics and rendered YAML alongside its
+    # JSON reports, sometimes directly before an opening brace. Decode reports
+    # explicitly so diagnostics cannot break parsing or hide validation failures.
+    report_kinds = {"PolicyReport", "ClusterPolicyReport", "Report", "ClusterReport"}
     reports: list[dict[str, Any]] = []
-    for document in yaml.safe_load_all(raw_output):
-        if isinstance(document, dict):
+    decoder = json.JSONDecoder()
+    position = 0
+    while (start := raw_output.find("{", position)) != -1:
+        try:
+            document, consumed = decoder.raw_decode(raw_output[start:])
+        except json.JSONDecodeError:
+            position = start + 1
+            continue
+        if isinstance(document, dict) and document.get("kind") in report_kinds:
             reports.append(document)
+        position = start + consumed
+    if raw_output.strip() and not reports:
+        raise RuntimeError("Kyverno returned output without a readable JSON policy report")
     return reports
 
 
