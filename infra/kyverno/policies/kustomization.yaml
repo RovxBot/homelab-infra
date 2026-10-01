@@ -6,3 +6,4 @@ resources:
   - policy-exception-accountability.yaml
   - platform-flux-guardrails.yaml
   - platform-namespace-bootstrap.yaml
+  - longhorn-csi-registrar-lifecycle.yaml
