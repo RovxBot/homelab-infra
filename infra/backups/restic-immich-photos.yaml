@@ -60,11 +60,16 @@ spec:
                 - -lc
                 - |
                   set -euo pipefail
-                  restic snapshots >/dev/null 2>&1 || restic init
                   restic backup /data \
                     --host k8s \
                     --tag immich \
                     --one-file-system
+                  restic forget \
+                    --host k8s \
+                    --tag immich \
+                    --path /data \
+                    --keep-last 1 \
+                    --prune
               volumeMounts:
                 - name: photos
                   mountPath: /data
@@ -82,85 +87,5 @@ spec:
             - name: photos
               persistentVolumeClaim:
                 claimName: nfs-immich-uploads
-            - name: cache
-              emptyDir: {}
----
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: restic-immich-photos-maintenance
-  namespace: immich
-spec:
-  schedule: "15 5 1 * *"
-  concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 2
-  failedJobsHistoryLimit: 2
-  jobTemplate:
-    spec:
-      ttlSecondsAfterFinished: 86400
-      backoffLimit: 1
-      template:
-        spec:
-          automountServiceAccountToken: false
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            fsGroup: 1000
-            fsGroupChangePolicy: OnRootMismatch
-            seccompProfile:
-              type: RuntimeDefault
-          restartPolicy: Never
-          containers:
-            - name: restic
-              image: restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510
-              imagePullPolicy: IfNotPresent
-              securityContext:
-                allowPrivilegeEscalation: false
-                capabilities:
-                  drop:
-                    - ALL
-              env:
-                - name: RESTIC_RETRY_LOCK
-                  value: 2m
-                - name: AWS_ACCESS_KEY_ID
-                  valueFrom:
-                    secretKeyRef:
-                      name: restic-b2-photos
-                      key: AWS_ACCESS_KEY_ID
-                - name: AWS_SECRET_ACCESS_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: restic-b2-photos
-                      key: AWS_SECRET_ACCESS_KEY
-                - name: RESTIC_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: restic-b2-photos
-                      key: RESTIC_PASSWORD
-                - name: RESTIC_REPOSITORY
-                  value: "s3:https://s3.us-east-005.backblazeb2.com/cooked-photos/restic/immich-uploads"
-                - name: RESTIC_CACHE_DIR
-                  value: /cache
-              command:
-                - sh
-                - -lc
-                - |
-                  set -euo pipefail
-                  restic snapshots >/dev/null 2>&1 || restic init
-                  restic forget \
-                    --keep-weekly 2 \
-                    --prune
-              volumeMounts:
-                - name: cache
-                  mountPath: /cache
-              resources:
-                requests:
-                  cpu: 100m
-                  memory: 256Mi
-                limits:
-                  cpu: "1"
-                  memory: 1Gi
-          volumes:
             - name: cache
               emptyDir: {}
