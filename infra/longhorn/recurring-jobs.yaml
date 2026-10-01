@@ -10,6 +10,6 @@ spec:
   retain: 2
   concurrency: 1
   parameters:
-    volume-backup-policy: disabled
+    volume-backup-policy: always
   groups:
     - system-backup
