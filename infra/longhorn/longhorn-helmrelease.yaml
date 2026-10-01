@@ -45,6 +45,11 @@ spec:
                 path: /spec/updateStrategy/rollingUpdate/maxUnavailable
                 value: 1
   values:
+    # Preserve host-originated V1 iSCSI access on Cilium while upgrading.
+    # The 1.12.1 default internal policy omits the node initiator on TCP/3260.
+    networkPolicies:
+      restrictInternalTraffic: false
+
     service:
       ui:
         type: NodePort
