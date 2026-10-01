@@ -8,7 +8,8 @@ to disk pressure and lengthens maintenance.
 
 The local policy retains two recent snapshots per volume. Older local historical
 versions are intentionally retired, including points without a retained B2
-backup. Do not archive those older versions or delete existing B2 backups.
+backup. Do not archive those older versions. This procedure only retires local
+points; remote latest-only retention follows [the B2 policy](longhorn-b2-lifecycle.md).
 Apply this policy through the guarded one-volume-at-a-time procedure below.
 Future cleanup requires the same backup, replica-health and CSI-reference gates.
 
