@@ -202,7 +202,7 @@ variable "matrix_synapse_image" {
   type        = string
 
   # renovate: datasource=docker depName=ghcr.io/element-hq/synapse
-  default = "ghcr.io/element-hq/synapse:latest@sha256:700c047866357b5b9cd615986ff7f9aab4f2890e639def91298d4603a5313446"
+  default = "ghcr.io/element-hq/synapse:latest@sha256:5195af645cfc530f7f54ca5e87c8498b2e7c2d26529ea3cff8e5969b84d990a1"
 
   validation {
     condition     = can(regex("^ghcr\\.io/element-hq/synapse:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_synapse_image))
@@ -228,7 +228,7 @@ variable "matrix_element_image" {
   type        = string
 
   # renovate: datasource=docker depName=vectorim/element-web
-  default = "vectorim/element-web:latest@sha256:ff778a340ef3bfb23e2a37ebe1b48cc1e35b3b718f73a0196c5a95abfccabf99"
+  default = "vectorim/element-web:latest@sha256:48eb5ccdccd9890c83d827385d6a8c2a257624b0cf6959c429fdef56cf51c294"
 
   validation {
     condition     = can(regex("^vectorim/element-web:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_element_image))
