@@ -7,11 +7,11 @@
     "docker:pinDigests",
     "helpers:pinGitHubActionDigests"
   ],
-  "timezone": "Australia/Melbourne",
+  "timezone": "Australia/Adelaide",
   "labels": [
     "dependencies"
   ],
-  "rebaseWhen": "behind-base-branch",
+  "rebaseWhen": "conflicted",
   "prCreation": "immediate",
   "prHourlyLimit": 2,
   "prConcurrentLimit": 3,
@@ -24,7 +24,11 @@
     "prCreation": "immediate",
     "addLabels": [
       "security"
-    ]
+    ],
+    "groupName": null,
+    "schedule": [],
+    "updateNotScheduled": true,
+    "rebaseWhen": "behind-base-branch"
   },
   "enabledManagers": [
     "dockerfile",
@@ -96,7 +100,7 @@
       "automerge": false
     },
     {
-      "description": "Make application updates a single, deliberately approved maintenance batch: application releases and their supporting images share one PR, including across major/minor boundaries. Include the triggering package in the Dashboard title so the release-batch workflow can approve only real application releases.",
+      "description": "Group non-routine application releases and their supporting release changes per application. Include the triggering package in the Dashboard title for the release-batch workflow. Routine patch and digest changes are overridden by the weekly maintenance rule below.",
       "matchFileNames": [
         "apps/grimguzzler-registration/**",
         "apps/home-assistant/**",
@@ -502,6 +506,40 @@
       "matchUpdateTypes": [
         "major"
       ],
+      "automerge": false
+    },
+    {
+      "description": "Collect routine image, chart and Action patch/digest/pin updates in one Monday maintenance PR. Keep cluster-control components, Terraform and pipeline-owned game images outside this batch.",
+      "matchManagers": [
+        "dockerfile",
+        "flux",
+        "github-actions",
+        "kubernetes"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "matchFileNames": [
+        "!infra/cilium/**",
+        "!infra/kyverno/**",
+        "!infra/kyverno-policies/**",
+        "!infra/longhorn/**",
+        "!infra/longhorn-node-disks/**",
+        "!infra/gpu-operator/**",
+        "!clusters/home/flux-system/**"
+      ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "groupSingleUpdates": true,
+      "dependencyDashboardApproval": false,
+      "schedule": [
+        "* * * * 1"
+      ],
+      "updateNotScheduled": false,
+      "commitMessageTopic": "{{groupName}}",
       "automerge": false
     }
   ]

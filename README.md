@@ -1,7 +1,6 @@
 # homelab-infra
 
 [![Repo Checks](https://github.com/RovxBot/homelab-infra/actions/workflows/ci.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/ci.yml)
-[![Security Review](https://github.com/RovxBot/homelab-infra/actions/workflows/security-review.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/security-review.yml)
 [![WotLK Images](https://github.com/RovxBot/homelab-infra/actions/workflows/azerothcore-wotlk-images.yml/badge.svg)](https://github.com/RovxBot/homelab-infra/actions/workflows/azerothcore-wotlk-images.yml)
 
 GitOps source for the `cooked-k8s` Talos Kubernetes homelab. Flux reconciles reviewed `main` into the cluster; this repository holds desired state, not live credentials, rendered Talos machine configurations, backups or Terraform state.
@@ -20,7 +19,7 @@ This is a personal, opinionated homelab—not a turnkey production template. It 
 | Networking | Cilium is the primary Geneve CNI; kube-proxy remains enabled and policy enforcement is intentionally `never` |
 | Edge | Cloudflare Tunnel for managed public routes; OCI WireGuard edge for intended Immich and Jellyfin public paths |
 | Policy | PSA, Kyverno and CI gates provide progressive workload hardening |
-| Dependency updates | Hosted Renovate App, manual merges only, with dashboard gates for maintenance-sensitive changes |
+| Dependency updates | Hosted Renovate App, one Monday patch/digest batch, manual merges and dashboard gates for maintenance-sensitive changes |
 | Observability trade-off | No Grafana, Prometheus, Loki or Prometheus Operator; use Gatus, `kubectl top`, logs, events, Talos and Longhorn |
 
 ## Repository boundaries
@@ -145,13 +144,34 @@ flux -n flux-system reconcile kustomization apps-wotlk --with-source
 
 ### CI and policy gates
 
-Repository CI is intentionally strict:
+`Repo Checks` selects relevant jobs once per PR. Validation runs on PR creation
+and new commits, with a full audit of `main` every Monday at 00:00 UTC and on
+manual dispatch. Validation is not repeated on every merge; the OCI plan and
+image-promotion workflows retain their operational triggers.
+
+| Changed files | Checks selected |
+| --- | --- |
+| Every PR | Secret scan, forbidden-file check and check-selection tests |
+| `apps/`, `infra/`, `clusters/`, `secrets/`, policy baseline or manifest validators | Flux/Kustomize renders, schema validation, Secret references and Kyverno baseline |
+| Workflows or YAML lint configuration | Actionlint, workflow YAML lint and Zizmor |
+| Terraform source, lockfiles, lint configuration or templates | Formatting, validation and TFLint for the affected Terraform roots |
+| Public-edge `Caddyfile` | Caddy configuration validation |
+| Operational shell scripts | Shell syntax validation |
+| `renovate.json` | Strict Renovate configuration validation |
+| CI workflow or check-selector changes; scheduled/manual audit | All of the above |
+
+Home Assistant changes also run the dedicated AirTouch regression workflow.
+GitGuardian remains an independent integration. The existing required check
+names (`repo-checks`, `actionlint`, `yamllint`, `gitleaks`, `validate`) are
+preserved. Unrelated jobs are skipped before allocating a runner, and the
+`repo-checks` gate fails if check selection or any selected check fails.
+
+When selected, manifest validation:
 
 - Renders the Flux entrypoint and every `apps/`, `infra/` and `clusters/` Kustomize root.
-- Validates rendered resources, public-edge configuration and WireGuard shell syntax.
-- Detects unresolved Secret references and forbidden credential-like files.
+- Validates rendered resources and detects unresolved Secret references.
 - Requires exact SHA-256 digests for generated Flux bootstrap controller images.
-- Runs the Kyverno baseline gate, Gitleaks, GitGuardian, Zizmor, YAML lint and workflow lint.
+- Runs the Kyverno baseline gate against the complete repository when manifests change.
 
 The Kyverno gate compares the repository against policies in `infra/kyverno/policies` and the reviewed debt baseline in `.github/kyverno-baseline.yaml`. New failures fail CI; resolved baseline entries must be removed rather than retained indefinitely.
 

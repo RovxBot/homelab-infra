@@ -2,91 +2,67 @@ name: Repo Checks
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
+  # Recheck the complete repository weekly; avoid duplicating PR validation on merge.
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: repo-checks-${{ github.ref }}
+  group: repo-checks-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  detect-repo-check-changes:
+  changes:
     runs-on: ubuntu-latest
     outputs:
-      should_run: ${{ steps.changes.outputs.should_run }}
+      manifests: ${{ steps.changes.outputs.manifests }}
+      public_edge: ${{ steps.changes.outputs.public_edge }}
+      shell: ${{ steps.changes.outputs.shell }}
+      workflows: ${{ steps.changes.outputs.workflows }}
+      renovate: ${{ steps.changes.outputs.renovate }}
+      terraform: ${{ steps.changes.outputs.terraform }}
+      terraform_matrix: ${{ steps.changes.outputs.terraform_matrix }}
     steps:
-      - name: Checkout
-        if: github.event_name == 'pull_request'
+      - name: Checkout PR history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Detect manifest-relevant changes
+      - name: Test check selection
+        run: python3 -m unittest discover -s scripts/ci/tests -v
+
+      - name: Select relevant checks
         id: changes
-        shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          set -euo pipefail
+          python3 scripts/ci/detect_changes.py \
+            --event "$EVENT_NAME" --base "$BASE_SHA" --head "$HEAD_SHA"
 
-          if [[ "$EVENT_NAME" != "pull_request" ]]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          git fetch --no-tags origin "$BASE_REF"
-          range="$(git merge-base HEAD "origin/$BASE_REF")...HEAD"
-          changed_files="$(git diff --name-only "$range")"
-          printf 'Changed files in %s:\n%s\n' "$range" "$changed_files"
-
-          if echo "$changed_files" | grep -Eq '^(\.github/workflows/ci\.yml|\.github/kyverno-baseline\.yaml|apps/|clusters/|infra/|terraform/oci-free-tier/ops/wireguard/|terraform/oci-matrix-free-tier/|scripts/|secrets/)'; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  repo-checks:
-    needs: detect-repo-check-changes
+  manifest-validation:
+    needs: changes
+    if: needs.changes.outputs.manifests == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - name: Ensure forbidden files are not tracked
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          forbidden_regex='(^|/)(age-key\.txt|.*\.key|.*\.pem|.*\.p12|.*\.pfx|.*\.age|.*\.agekey|immich_backup_.*\.sql|modules/mod-playerbots/data/sql/playerbots/base/playerbots_travelnode_path\.sql)$'
-          if git ls-files | grep -E "$forbidden_regex"; then
-            echo "Forbidden files are tracked. Remove them before merging."
-            exit 1
-          fi
-
       - name: Require digest-pinned Flux bootstrap controller images
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/ci/check_flux_bootstrap_digests.py \
             clusters/home/flux-system/gotk-components.yaml
 
-      - name: Skip expensive checks when manifest files are unchanged
-        if: needs.detect-repo-check-changes.outputs.should_run != 'true'
-        shell: bash
-        run: echo "No manifest-relevant changes detected; repo checks are not needed."
-
       - name: Install kustomize
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -97,7 +73,6 @@ jobs:
           kustomize version
 
       - name: Render Flux entrypoint
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -106,7 +81,6 @@ jobs:
           test -s .work/rendered.yaml
 
       - name: Render every Kustomize source root
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -115,31 +89,7 @@ jobs:
             kustomize build --load-restrictor LoadRestrictionsNone "$directory" > /dev/null
           done < <(find apps infra clusters -name kustomization.yaml -type f | sort)
 
-      - name: Validate public-edge Caddyfile
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            --mount "type=bind,source=${GITHUB_WORKSPACE}/terraform/oci-free-tier/ops/wireguard/Caddyfile,target=/etc/caddy/Caddyfile,readonly" \
-            --entrypoint caddy \
-            caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d \
-            validate --config /etc/caddy/Caddyfile --adapter caddyfile
-
-      - name: Validate operational shell scripts
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r -d '' script; do
-            bash -n "$script"
-          done < <(
-            find terraform/oci-free-tier/ops/wireguard -maxdepth 1 -type f -name '*.sh' -print0
-            find scripts -maxdepth 1 -type f -name '*.sh' -print0
-          )
-
       - name: Install kubeconform
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -150,7 +100,6 @@ jobs:
           kubeconform -v
 
       - name: Install Kyverno CLI
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -161,14 +110,12 @@ jobs:
           kyverno version
 
       - name: Validate rendered manifests
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
           kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.34.0 .work/rendered.yaml
 
       - name: Check unresolved Secret references
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -176,7 +123,6 @@ jobs:
           python3 scripts/ci/check_secret_refs.py .work/rendered.yaml
 
       - name: Run Kyverno baseline gate
-        if: needs.detect-repo-check-changes.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -188,8 +134,290 @@ jobs:
             --work-dir .work/kyverno-gate
 
       - name: Upload Kyverno gate artifacts
-        if: failure() && needs.detect-repo-check-changes.outputs.should_run == 'true'
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: kyverno-gate-artifacts
           path: .work/kyverno-gate
+
+  public-edge:
+    needs: changes
+    if: needs.changes.outputs.public_edge == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate public-edge Caddyfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --mount "type=bind,source=${GITHUB_WORKSPACE}/terraform/oci-free-tier/ops/wireguard/Caddyfile,target=/etc/caddy/Caddyfile,readonly" \
+            --entrypoint caddy \
+            caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d \
+            validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+  shell-syntax:
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate operational shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' script; do
+            bash -n "$script"
+          done < <(
+            find terraform/oci-free-tier/ops/wireguard -type f -name '*.sh' -print0
+            find scripts -type f -name '*.sh' -print0
+          )
+
+  actionlint:
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install shellcheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIONLINT_VERSION="1.7.8"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            -o /tmp/actionlint.tgz
+          tar -xzf /tmp/actionlint.tgz -C /tmp
+          sudo mv /tmp/actionlint /usr/local/bin/actionlint
+          actionlint -version
+
+      - name: Lint GitHub Actions workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          actionlint
+
+  yamllint:
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+
+      - name: Install yamllint
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet yamllint
+
+      - name: Lint YAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          yamllint -c .yamllint.yml .github/workflows
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Ensure forbidden files are not tracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden_regex='(^|/)(age-key\.txt|.*\.key|.*\.pem|.*\.p12|.*\.pfx|.*\.age|.*\.agekey|immich_backup_.*\.sql|modules/mod-playerbots/data/sql/playerbots/base/playerbots_travelnode_path\.sql)$'
+          if git ls-files | grep -E "$forbidden_regex"; then
+            echo "Forbidden files are tracked. Remove them before merging."
+            exit 1
+          fi
+
+      - name: Scan git history for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  zizmor:
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+
+      - name: Install zizmor
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet zizmor==1.30.1
+
+      - name: Audit GitHub Actions workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          zizmor .github/workflows
+
+  terraform-validation:
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.terraform_matrix) }}
+    env:
+      TERRAFORM_ROOT: terraform/${{ matrix.stack }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+
+      - name: Check Terraform formatting
+        run: terraform -chdir="$TERRAFORM_ROOT" fmt -check -diff -recursive
+
+      - name: Terraform init
+        run: terraform -chdir="$TERRAFORM_ROOT" init -backend=false
+
+      - name: Terraform validate
+        run: terraform -chdir="$TERRAFORM_ROOT" validate
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@1cf010d3c7aef302051ccdb68c14c5dc2efa34ef # v6
+
+      - name: Init TFLint
+        run: |
+          cd "$TERRAFORM_ROOT"
+          tflint --init
+
+      - name: Run TFLint
+        run: |
+          cd "$TERRAFORM_ROOT"
+          tflint --recursive
+
+  validate:
+    # Preserve the stable required name; skip its runner for unrelated PRs.
+    if: always() && needs.changes.outputs.terraform == 'true'
+    needs:
+      - changes
+      - terraform-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful Terraform validation when selected
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          TERRAFORM_RESULT: ${{ needs.terraform-validation.result }}
+        run: |
+          test "$CHANGES_RESULT" = "success"
+          test "$TERRAFORM_RESULT" = "success"
+
+  renovate-config:
+    needs: changes
+    if: needs.changes.outputs.renovate == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Validate Renovate configuration
+        run: npx --yes --package renovate@44.126.1 renovate-config-validator --strict renovate.json
+
+  repo-checks:
+    # Always report the existing required name. A failed detector or selected
+    # check must fail this gate; irrelevant jobs may safely be skipped.
+    if: always()
+    needs:
+      - changes
+      - manifest-validation
+      - public-edge
+      - shell-syntax
+      - actionlint
+      - yamllint
+      - gitleaks
+      - zizmor
+      - validate
+      - renovate-config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful checks
+        env:
+          CHECK_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          import os
+          import sys
+
+          results = json.loads(os.environ['CHECK_RESULTS'])
+          failed = [name for name, job in results.items() if job['result'] not in {'success', 'skipped'}]
+          required = {'changes', 'gitleaks'}
+          selectors = {
+              'manifests': ['manifest-validation'],
+              'public_edge': ['public-edge'],
+              'shell': ['shell-syntax'],
+              'workflows': ['actionlint', 'yamllint', 'zizmor'],
+              'renovate': ['renovate-config'],
+              'terraform': ['validate'],
+          }
+          outputs = results['changes'].get('outputs', {})
+          for selector, jobs in selectors.items():
+              if outputs.get(selector) not in {'true', 'false'}:
+                  print('Missing or invalid check selection: ' + selector)
+                  sys.exit(1)
+              if outputs.get(selector) == 'true':
+                  required.update(jobs)
+          for name in required:
+              if results[name]['result'] != 'success' and name not in failed:
+                  failed.append(name)
+          if failed:
+              print('Checks failed or were cancelled: ' + ', '.join(failed))
+              sys.exit(1)
+          print('All selected checks passed.')
+          PYCODE

@@ -10,16 +10,36 @@ maintenance cadence. Security PRs can still bypass the normal concurrent limit.
 The limits do not close existing PRs; triage or close those explicitly from the
 Dashboard.
 
-Routine updates wait for approval on the Dependency Dashboard instead of
-consuming an open-PR slot. Renovate batches every supported application and its
-supporting images into that application's update PR, including a major
-application release with its available dependency changes. The
+After merging this configuration, let the hosted App reconcile its Dashboard.
+Existing PRs are not merged into the weekly PR automatically; review the old
+queue and close superseded routine PRs if Renovate has not pruned them. Their
+replacement updates are eligible for the Monday batch. Existing non-routine
+PRs still occupy the three-PR limit, so the weekly PR may wait for a free slot.
+
+Routine patch, digest and pin updates for application/infrastructure images,
+non-critical charts and GitHub Actions share one `weekly maintenance` PR.
+Renovate may create or refresh this batch on Mondays in `Australia/Adelaide`;
+the full-day window gives the hosted App time to run. These updates do not need
+Dashboard approval and are held outside Monday, including updates to an
+already-open batch. One batch remains open until reviewed; this is not a new
+PR every week when an earlier batch is still pending.
+
+Minor and major releases retain their existing per-application groups and
+Dashboard approval behavior. Renovate batches a supported application and its
+non-routine supporting-image changes into that application's release PR. The
 `renovate-release-app-batches` workflow approves a batch only when its
 Dashboard entry includes a tracked primary application image. It retries the
 Dashboard while Renovate finishes dependency lookup, then Renovate creates one
-PR containing that release and every pending supporting-image update in the
-same application group. A supporting-image-only batch remains in the Dashboard
-for manual triage.
+PR containing that release and the pending non-routine supporting-image changes
+in the same application group. Routine patches/digests go into weekly
+maintenance instead. A supporting-image-only release batch remains in the
+Dashboard for manual triage.
+
+Cluster-control components (Cilium, Flux bootstrap, Kyverno, Longhorn and GPU
+Operator) stay out of weekly maintenance. Terraform remains in its own group.
+The existing disabled database majors, primary-CNI runbook and pipeline-owned
+WotLK image exclusions still apply. A digest update to a floating tag can change
+runtime behavior; review the complete weekly diff before merging.
 
 The workflow does not run Renovate or create dependency branches itself. It has
 only `issues: write`, edits the existing Dashboard checkbox, and is limited to
@@ -49,8 +69,9 @@ review the upstream migration notes before merging its PR.
 
 ## Triage
 
-1. Start at the Dependency Dashboard. Application-release batches are approved
-   automatically and open as one PR; approve a supporting-image-only batch
+1. Review the Monday `weekly maintenance` PR for routine patch/digest changes.
+   Application-release batches are approved automatically on the Dependency
+   Dashboard and open separately; approve a supporting-image-only release batch
    manually only when it is worth a standalone maintenance change.
 2. Terraform changes open as one automatic PR. Require a maintenance plan for
    Cilium, Talos, Kubernetes, Longhorn, GPU Operator, Kyverno, OCI edge and
@@ -61,9 +82,21 @@ review the upstream migration notes before merging its PR.
 4. After a merged GitOps change, verify Flux and the affected workload before
    selecting the next update.
 
-`main` requires branches to be current before merge, so Renovate deliberately
-rebases a dependency PR after `main` advances. Treat the regenerated commit as
-a fresh review: wait for CI again and renew the required code-owner approval.
+Renovate uses `rebaseWhen: conflicted`, so advancing `main` does not regenerate
+every open dependency PR. New dependency versions can still update a PR, and
+weekly maintenance only refreshes within its Monday window. Vulnerability-fix
+PRs remain immediately eligible and rebase when behind `main`.
+
+`main` still requires branches to be current before merge. When ready to merge
+an outdated PR, select Renovate's rebase/retry checkbox or add the `rebase`
+label. A manual rebase request bypasses the ordinary schedule. Wait for CI on
+that new commit and renew any dismissed code-owner approval before merging.
+Update and merge one PR at a time to avoid triggering checks on the whole queue.
+
+The consolidated PR workflow retains all five required status-check names and
+only allocates expensive jobs for relevant changes. A scheduled/manual audit
+checks the full repository; the validation workflows no longer repeat on every
+merge. Flux still reconciles reviewed changes from `main`.
 
 ## Required approval gates
 
