@@ -201,7 +201,8 @@ def main():
         action(args.volume, "snapshotCRCreate", {"name": args.snapshot_name, "labels": {"maintenance": "longhorn-upgrade-20261001"}})
     for _ in range(90):
         created = get("snapshots.longhorn.io", args.snapshot_name)
-        if created["status"].get("readyToUse") and not created["status"].get("markRemoved"):
+        status = created.get("status", {})
+        if status.get("readyToUse") and not status.get("markRemoved"):
             break
         time.sleep(2)
     else:
