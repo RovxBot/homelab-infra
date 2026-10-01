@@ -16,12 +16,14 @@ permissions:
 
 concurrency:
   group: renovate-release-app-batches
-  cancel-in-progress: true
+  # Finish the current approval; subsequent edits queue a fresh Dashboard read.
+  cancel-in-progress: false
 
 jobs:
   release-application-batch:
     if: (github.event_name == 'push' || github.event.issue.title == 'Renovate Dependency Dashboard') && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - name: Approve batches containing an application release
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
@@ -44,11 +46,8 @@ jobs:
               'vaultwarden/server',
               'wger/server',
             ];
-            const delay = (milliseconds) =>
-              new Promise((resolve) => setTimeout(resolve, milliseconds));
-
-            // Renovate edits the Dashboard before completing its dependency lookup.
-            // Re-read it until a completed run has added the application release.
+            // Read current state once. Renovate's later Dashboard edits trigger
+            // another run when newly discovered application releases appear.
             let issueNumber = context.payload.issue?.number;
             if (!issueNumber) {
               const { data: issues } = await github.rest.issues.listForRepo({
@@ -66,54 +65,42 @@ jobs:
               return;
             }
 
-            for (let attempt = 1; attempt <= 5; attempt += 1) {
-              const { data: issue } = await github.rest.issues.get({
-                ...context.repo,
-                issue_number: issueNumber,
-              });
-              const body = issue.body ?? '';
-              const heading = '## Pending Approval\n';
-              const pendingStart = body.indexOf(heading);
-
-              if (pendingStart !== -1) {
-                const pendingEnd = body.indexOf('\n## ', pendingStart + heading.length);
-                const pending = body.slice(
-                  pendingStart,
-                  pendingEnd === -1 ? body.length : pendingEnd,
-                );
-                let approved = 0;
-                const approvedPending = pending.replace(
-                  /- \[ \] <!-- approve-branch=[^>]+ -->\s*([^\n]+)/g,
-                  (entry, title) => {
-                    if (!primaryApplicationImages.some((image) => title.includes(image))) {
-                      return entry;
-                    }
-
-                    approved += 1;
-                    return entry.replace('- [ ]', '- [x]');
-                  },
-                );
-
-                if (approved > 0) {
-                  const updatedBody =
-                    body.slice(0, pendingStart) +
-                    approvedPending +
-                    (pendingEnd === -1 ? '' : body.slice(pendingEnd));
-
-                  await github.rest.issues.update({
-                    ...context.repo,
-                    issue_number: issue.number,
-                    body: updatedBody,
-                  });
-                  core.info(`Approved ${approved} application release batch(es).`);
-                  return;
-                }
-              }
-
-              if (attempt < 5) {
-                core.info(`No application release found; retrying Dashboard read (${attempt}/5).`);
-                await delay(30_000);
-              }
+            const { data: issue } = await github.rest.issues.get({
+              ...context.repo,
+              issue_number: issueNumber,
+            });
+            const body = issue.body ?? '';
+            const heading = /^## Pending Approval\r?$/m.exec(body);
+            if (!heading) {
+              core.info('No pending approvals; nothing to do.');
+              return;
             }
 
-            core.info('No pending batch includes a primary application image.');
+            const nextHeading = /^## /gm;
+            nextHeading.lastIndex = heading.index + heading[0].length;
+            const pendingEnd = nextHeading.exec(body)?.index ?? body.length;
+            const pending = body.slice(heading.index, pendingEnd);
+            let approved = 0;
+            const approvedPending = pending.replace(
+              /^[ \t]*- \[ \] <!-- approve-branch=[^>]+ -->[ \t]*([^\r\n]+)/gm,
+              (entry, title) => {
+                if (!primaryApplicationImages.some((image) => title.includes(image))) {
+                  return entry;
+                }
+
+                approved += 1;
+                return entry.replace('- [ ]', '- [x]');
+              },
+            );
+
+            if (approved === 0) {
+              core.info('No pending batch includes a primary application image; nothing to do.');
+              return;
+            }
+
+            await github.rest.issues.update({
+              ...context.repo,
+              issue_number: issue.number,
+              body: body.slice(0, heading.index) + approvedPending + body.slice(pendingEnd),
+            });
+            core.info(`Approved ${approved} application release batch(es).`);

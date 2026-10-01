@@ -28,8 +28,10 @@ Minor and major releases retain their existing per-application groups and
 Dashboard approval behavior. Renovate batches a supported application and its
 non-routine supporting-image changes into that application's release PR. The
 `renovate-release-app-batches` workflow approves a batch only when its
-Dashboard entry includes a tracked primary application image. It retries the
-Dashboard while Renovate finishes dependency lookup, then Renovate creates one
+Dashboard entry includes a tracked primary application image. It reads the
+current Dashboard once per relevant event and exits successfully without
+writing when no application release needs approval. Later Dashboard edits
+trigger a fresh read when new application releases appear. Renovate creates one
 PR containing that release and the pending non-routine supporting-image changes
 in the same application group. Routine patches/digests go into weekly
 maintenance instead. A supporting-image-only release batch remains in the
@@ -48,6 +50,10 @@ a new application batch rule. It also scans the existing Dashboard after a
 relevant change reaches `main`, so a pending application release is not left
 waiting for a later Dashboard edit. This preserves the hosted Renovate GitHub
 App as the sole dependency-update runner.
+
+Dashboard approval runs are serialized without canceling the active run.
+Repeated edits can replace a queued run; the next run reads the current
+Dashboard. There is no polling or waiting for an application release to appear.
 
 Terraform updates bypass Dashboard approval and are grouped across every
 Terraform root and update type into one reviewable PR.

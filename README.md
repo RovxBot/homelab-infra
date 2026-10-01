@@ -153,7 +153,7 @@ image-promotion workflows retain their operational triggers.
 | --- | --- |
 | Every PR | Secret scan, forbidden-file check and check-selection tests |
 | `apps/`, `infra/`, `clusters/`, `secrets/`, policy baseline or manifest validators | Flux/Kustomize renders, schema validation, Secret references and Kyverno baseline |
-| Workflows or YAML lint configuration | Actionlint, workflow YAML lint and Zizmor |
+| Workflows, workflow tests or YAML lint configuration | Actionlint, Dashboard approval tests, workflow YAML lint and Zizmor |
 | Terraform source, lockfiles, lint configuration or templates | Formatting, validation and TFLint for the affected Terraform roots |
 | Public-edge `Caddyfile` | Caddy configuration validation |
 | Operational shell scripts | Shell syntax validation |
