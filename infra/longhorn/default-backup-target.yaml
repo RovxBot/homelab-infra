@@ -6,3 +6,6 @@ metadata:
 spec:
   backupTargetURL: "s3://cooked-k8s@us-east-005/longhorn"
   credentialSecret: longhorn-b2-credentials
+  # Backup create/delete operations request their own sync. Refresh explicitly
+  # to discover changes made outside Longhorn, rather than scanning B2 idle.
+  pollInterval: "0s"
