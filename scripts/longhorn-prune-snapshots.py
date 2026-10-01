@@ -233,7 +233,10 @@ def main():
         action(args.volume, "snapshotCRDelete", {"name": target["metadata"]["name"]})
     # Snapshot controllers may retire a long chain over several native passes.
     # Keep checking health while allowing up to three hours on this one volume.
+    deadline = time.monotonic() + 3 * 60 * 60
     for attempt in range(2160):
+        if time.monotonic() >= deadline:
+            break
         current = state(with_backups=False)
         guard_health(current)
         remaining = [s for s in current if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
