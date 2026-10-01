@@ -51,6 +51,7 @@ class CheckSelectionTests(unittest.TestCase):
 
     def test_workflow_pin_changes_run_workflow_checks(self):
         self.assertEqual(self.selected([".github/workflows/azerothcore-wotlk-images.yml"]), {"workflows"})
+        self.assertEqual(self.selected([".github/tests/renovate-release-app-batches.test.cjs"]), {"workflows"})
         self.assertEqual(self.selected([".yamllint.yml"]), {"workflows"})
 
     def test_renovate_config_has_its_own_validation(self):
