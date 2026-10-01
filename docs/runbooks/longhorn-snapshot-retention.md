@@ -19,7 +19,9 @@ For the initial cleanup:
    The isolated Gatus backup restore passed SQLite integrity checking.
 2. Complete engine upgrades to the running manager's default engine first.
    Every attached volume must have at least three healthy RW replicas on
-   distinct nodes, with no rebuild, restore or migration in progress.
+   distinct nodes, with no rebuild, restore or migration in progress. Each
+   replica disk must have at least one volume's size plus 10% free for temporary
+   parent-to-child copying during native snapshot coalescing.
 3. Process exactly one volume at a time after this PR is merged. For example:
 
    ```sh

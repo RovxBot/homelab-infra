@@ -72,6 +72,24 @@ class SnapshotCleanupGuards(unittest.TestCase):
                 prune.guard_snapshot_references(targets, [content])
         prune.guard_snapshot_references(targets, [{"status": {"snapshotHandle": "snap://test/keep"}}])
 
+    def test_requires_temporary_coalescing_space_on_every_replica_disk(self):
+        items = fixture(); volume, replicas = items[0], items[3:]
+        volume["spec"]["size"] = "10"
+        nodes = []
+        for i, replica in enumerate(replicas):
+            replica["spec"]["diskID"] = f"uuid{i}"
+            nodes.append({"metadata": {"name": f"metal{i}"}, "status": {"diskStatus": {
+                "default": {"diskUUID": f"uuid{i}", "storageAvailable": 11,
+                            "conditions": [{"type": "Ready", "status": "True"}]}}}})
+        prune.guard_compaction_space(volume, replicas, nodes)
+        for field, value in [("storageAvailable", 10), ("diskUUID", "another"), ("conditions", [])]:
+            changed = copy.deepcopy(nodes)
+            changed[1]["status"]["diskStatus"]["default"][field] = value
+            with self.assertRaises(prune.UnsafeCleanup):
+                prune.guard_compaction_space(volume, replicas, changed)
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_compaction_space(volume, replicas, nodes[:2])
+
 
 if __name__ == "__main__":
     unittest.main()

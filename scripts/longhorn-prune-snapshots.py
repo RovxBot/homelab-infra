@@ -87,6 +87,23 @@ def guard_snapshot_references(targets, contents):
             raise UnsafeCleanup("A CSI VolumeSnapshotContent still references a selected snapshot")
 
 
+def guard_compaction_space(volume, replicas, nodes):
+    # Coalescing can temporarily copy a whole parent into its child before
+    # unlinking the parent. Require one volume's size plus 10% on each disk.
+    needed = (int(volume["spec"]["size"]) * 11 + 9) // 10
+    node_map = {n["metadata"]["name"]: n for n in nodes}
+    for replica in replicas:
+        spec = replica["spec"]
+        if spec["volumeName"] != volume["metadata"]["name"] or not spec.get("active"):
+            continue
+        node = node_map.get(spec.get("nodeID"), {})
+        disk = next((d for d in node.get("status", {}).get("diskStatus", {}).values()
+                     if d.get("diskUUID") == spec.get("diskID")), {})
+        ready = any(c["type"] == "Ready" and c["status"] == "True" for c in disk.get("conditions", []))
+        if not ready or disk.get("storageAvailable", 0) < needed:
+            raise UnsafeCleanup(f"{spec.get('nodeID')} lacks ready disk space for temporary snapshot coalescing")
+
+
 def action(volume, name, body):
     path = "/api/v1/namespaces/longhorn-system/services/longhorn-backend:9500/proxy/v1/volumes/" + volume + "?action=" + name
     run(["kubectl", "--request-timeout=20s", "create", "--raw", path, "-f", "-"], json.dumps(body))
@@ -120,6 +137,7 @@ def main():
     if any(v["spec"]["image"] != image for v in items if v["kind"] == "Volume"):
         raise UnsafeCleanup("Finish engine upgrades before compaction")
     volume = next(v for v in items if v["kind"] == "Volume" and v["metadata"]["name"] == args.volume)
+    guard_compaction_space(volume, [r for r in items if r["kind"] == "Replica"], get("nodes.longhorn.io")["items"])
     backup = next(b for b in items if b["kind"] == "Backup" and b["metadata"]["name"] == volume["status"]["lastBackup"])
     snapshot_name = backup["status"]["snapshotName"]
     snapshots = [s for s in items if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
