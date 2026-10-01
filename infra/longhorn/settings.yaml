@@ -1,6 +1,15 @@
 apiVersion: longhorn.io/v1beta2
 kind: Setting
 metadata:
+  name: allow-collecting-longhorn-usage-metrics
+  namespace: longhorn-system
+# Talos bind-mounted data paths cannot be classified by the optional anonymous
+# device-type collector. Version checks and operational metrics remain enabled.
+value: "false"
+---
+apiVersion: longhorn.io/v1beta2
+kind: Setting
+metadata:
   name: recurring-job-max-retention
   namespace: longhorn-system
 value: "10"
