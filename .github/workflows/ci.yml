@@ -216,6 +216,9 @@ jobs:
           set -euo pipefail
           actionlint
 
+      - name: Test Renovate Dashboard approval behavior
+        run: node .github/tests/renovate-release-app-batches.test.cjs
+
   yamllint:
     needs: changes
     if: needs.changes.outputs.workflows == 'true'

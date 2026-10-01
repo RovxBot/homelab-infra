@@ -39,7 +39,7 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
             for path in paths
         ),
         "workflows": full or any(
-            path.startswith(".github/workflows/") or path == ".yamllint.yml"
+            path.startswith((".github/workflows/", ".github/tests/")) or path == ".yamllint.yml"
             for path in paths
         ),
         "renovate": full or "renovate.json" in paths,
