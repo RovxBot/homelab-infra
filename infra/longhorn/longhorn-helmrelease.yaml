@@ -60,7 +60,8 @@ spec:
       backupTargetName: default
 
     preUpgradeChecker:
-      jobEnabled: false
+      jobEnabled: true
+      upgradeVersionCheck: true
 
     defaultSettings:
       priorityClass: longhorn-critical
