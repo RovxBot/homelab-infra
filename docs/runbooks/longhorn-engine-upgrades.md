@@ -32,6 +32,10 @@ volumes use Longhorn's live upgrade; detached volumes use its offline upgrade.
 The script waits for the volume and its active processes to use the target
 image, then rechecks all volume replica health. Inspect application readiness
 and recent Longhorn logs after each volume before proceeding to the next.
+Resource lists may briefly straddle the replacement of old replica CRs. The
+helper waits for a consistent inventory, three healthy copies and the expected
+active process images within its existing timeout. It checks other volumes
+strictly throughout and never proceeds on incomplete convergence.
 
 If any guard or completion check fails, stop and inspect the existing operation.
 Do not downgrade an engine or manager, delete replicas, change replica data
