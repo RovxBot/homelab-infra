@@ -87,6 +87,14 @@ def guard_snapshot_references(targets, contents):
             raise UnsafeCleanup("A CSI VolumeSnapshotContent still references a selected snapshot")
 
 
+def physical_compaction_complete(engine, keep):
+    purge = engine["status"].get("purgeStatus") or {}
+    if any(p.get("isPurging") or p.get("error") for p in purge.values()):
+        return False
+    snapshots = engine["status"].get("snapshots") or {}
+    return bool(snapshots) and set(snapshots) == set(keep) | {"volume-head"}
+
+
 def guard_compaction_space(volume, replicas, nodes, parent_sizes=None):
     # V1 FoldFile writes child extents into the existing removed parent, then
     # replaces the child with that parent. Missing parent extents plus a 10%
@@ -223,7 +231,12 @@ def main():
         if latest["metadata"]["uid"] != target["metadata"]["uid"] or latest["spec"]["volume"] != args.volume or latest["status"]["creationTime"] != target["status"]["creationTime"]:
             raise UnsafeCleanup("Snapshot identity changed; stop before deletion")
         action(args.volume, "snapshotCRDelete", {"name": target["metadata"]["name"]})
-    for attempt in range(360):
+    # Snapshot controllers may retire a long chain over several native passes.
+    # Keep checking health while allowing up to three hours on this one volume.
+    deadline = time.monotonic() + 3 * 60 * 60
+    for attempt in range(2160):
+        if time.monotonic() >= deadline:
+            break
         current = state(with_backups=False)
         guard_health(current)
         remaining = [s for s in current if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
@@ -239,8 +252,7 @@ def main():
             purge = engine["status"].get("purgeStatus") or {}
             if any(p.get("error") for p in purge.values()):
                 raise UnsafeCleanup("Snapshot purge reported an error; stop before changing another volume")
-            snapshots_on_disk = engine["status"].get("snapshots") or {}
-            if attempt and not targets_present and not any(p.get("isPurging") for p in purge.values()) and not any(t["metadata"]["name"] in snapshots_on_disk for t in targets):
+            if attempt and not targets_present and physical_compaction_complete(engine, keep):
                 if not extra and keep == final_keep:
                     guard_backups(state(), dt.datetime.now(dt.timezone.utc))
                     print("Verified: two recent local points retained; older selected points purged; healthy replicas and B2 backups preserved", flush=True)

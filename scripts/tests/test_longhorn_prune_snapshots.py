@@ -32,6 +32,21 @@ def fixture():
 
 
 class SnapshotCleanupGuards(unittest.TestCase):
+    def test_resumed_cleanup_waits_for_remaining_physical_layers(self):
+        keep = {"backup", "maintenance"}
+        engine = {"status": {"snapshots": {"volume-head": {}, "backup": {}, "maintenance": {}},
+                             "purgeStatus": {"r0": {"isPurging": False, "error": ""}}}}
+        self.assertTrue(prune.physical_compaction_complete(engine, keep))
+        engine["status"]["snapshots"]["retired-cr-already-gone"] = {"removed": True}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        del engine["status"]["snapshots"]["retired-cr-already-gone"]
+        engine["status"]["purgeStatus"]["r0"]["isPurging"] = True
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        engine["status"]["purgeStatus"]["r0"] = {"isPurging": False, "error": "I/O error"}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        engine["status"]["snapshots"] = {}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+
     def test_keep_newest_two_and_protect_recovery_backup(self):
         snapshots = [snapshot("old", "2026-05-10T00:00:00Z"), snapshot("backup", "2026-10-01T07:00:00Z"),
                      snapshot("maintenance", "2026-10-01T08:00:00Z"), snapshot("removed", "2026-10-01T09:00:00Z", True)]

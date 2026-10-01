@@ -42,6 +42,10 @@ For the initial cleanup:
    referenced by CSI VolumeSnapshotContent and waits for native compaction to
    finish, checking volume health throughout. The backup's snapshot capture time
    must be within 24 hours; an old snapshot backed up today is insufficient.
+   Long chains can require multiple native purge passes. The helper allows
+   up to three hours on the selected volume and requires its physical snapshot
+   tree to contain only the two retained points and the current volume head.
+   A resumed run cannot treat already-retired CRs as proof of physical cleanup.
 5. Verify the two retained points are ready, the selected older points are gone,
    and healthy replicas and B2 recovery points remain. Stop on any error before
    processing another volume. Snapshot retirement cannot be undone unless a
