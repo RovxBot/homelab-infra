@@ -200,7 +200,9 @@ def load_policy_reports(raw_output: str) -> list[dict[str, Any]]:
     while (start := raw_output.find("{", position)) != -1:
         try:
             document, consumed = decoder.raw_decode(raw_output[start:])
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
+            if re.match(r'\{\s*"kind"\s*:\s*"(?:PolicyReport|ClusterPolicyReport|Report|ClusterReport)"', raw_output[start:]):
+                raise RuntimeError("Kyverno returned a malformed JSON policy report") from exc
             position = start + 1
             continue
         if isinstance(document, dict) and document.get("kind") in report_kinds:

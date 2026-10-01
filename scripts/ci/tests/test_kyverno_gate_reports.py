@@ -35,6 +35,8 @@ class PolicyReportParsingTests(unittest.TestCase):
         for output in ["Mutation has been applied successfully.", '{"kind":"ClusterReport",', '{"kind":"DaemonSet"}']:
             with self.assertRaises(RuntimeError):
                 load_policy_reports(output)
+        with self.assertRaises(RuntimeError):
+            load_policy_reports('{"kind":"ClusterReport","results":\n' + json.dumps(report(result="pass")))
         self.assertEqual(load_policy_reports(""), [])
 
 
