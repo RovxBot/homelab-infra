@@ -7,8 +7,7 @@ spec:
   name: metal5
   disks:
     default-disk-081400000000:
-      allowScheduling: false
-      evictionRequested: true
+      allowScheduling: true
       diskType: filesystem
       path: /var/lib/longhorn/
       storageReserved: 37697460633
