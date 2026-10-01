@@ -1,0 +1,24 @@
+{
+  "buckets": [
+    {
+      "bucketName": "cooked-k8s",
+      "lifecycleRules": [
+        {
+          "fileNamePrefix": "longhorn/",
+          "daysFromHidingToDeleting": 1,
+          "daysFromUploadingToHiding": null
+        }
+      ]
+    },
+    {
+      "bucketName": "cooked-photos",
+      "lifecycleRules": [
+        {
+          "fileNamePrefix": "restic/immich-uploads/",
+          "daysFromHidingToDeleting": 1,
+          "daysFromUploadingToHiding": null
+        }
+      ]
+    }
+  ]
+}
