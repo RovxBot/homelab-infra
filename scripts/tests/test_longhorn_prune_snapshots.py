@@ -89,6 +89,13 @@ class SnapshotCleanupGuards(unittest.TestCase):
                 prune.guard_compaction_space(volume, replicas, changed)
         with self.assertRaises(prune.UnsafeCleanup):
             prune.guard_compaction_space(volume, replicas, nodes[:2])
+        constrained = copy.deepcopy(nodes)
+        constrained[1]["status"]["diskStatus"]["default"]["storageAvailable"] = 4
+        # A parent already allocated to 8 of 10 bytes needs at most 2 more,
+        # plus the margin. Measurements must cover the constrained replica.
+        prune.guard_compaction_space(volume, replicas, constrained, {"r1": [8]})
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_compaction_space(volume, replicas, constrained, {"r1": [6]})
 
 
 if __name__ == "__main__":

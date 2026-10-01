@@ -87,10 +87,13 @@ def guard_snapshot_references(targets, contents):
             raise UnsafeCleanup("A CSI VolumeSnapshotContent still references a selected snapshot")
 
 
-def guard_compaction_space(volume, replicas, nodes):
-    # Coalescing can temporarily copy a whole parent into its child before
-    # unlinking the parent. Require one volume's size plus 10% on each disk.
-    needed = (int(volume["spec"]["size"]) * 11 + 9) // 10
+def guard_compaction_space(volume, replicas, nodes, parent_sizes=None):
+    # V1 FoldFile writes child extents into the existing removed parent, then
+    # replaces the child with that parent. Missing parent extents plus a 10%
+    # volume-size margin bound temporary allocation. Without measured sizes,
+    # conservatively allow a whole additional volume.
+    size = int(volume["spec"]["size"])
+    margin = (size + 9) // 10
     node_map = {n["metadata"]["name"]: n for n in nodes}
     for replica in replicas:
         spec = replica["spec"]
@@ -100,8 +103,51 @@ def guard_compaction_space(volume, replicas, nodes):
         disk = next((d for d in node.get("status", {}).get("diskStatus", {}).values()
                      if d.get("diskUUID") == spec.get("diskID")), {})
         ready = any(c["type"] == "Ready" and c["status"] == "True" for c in disk.get("conditions", []))
+        measured = (parent_sizes or {}).get(replica["metadata"]["name"])
+        additional = size if measured is None else max([0] + [max(0, size - n) for n in measured])
+        needed = additional + margin
         if not ready or disk.get("storageAvailable", 0) < needed:
             raise UnsafeCleanup(f"{spec.get('nodeID')} lacks ready disk space for temporary snapshot coalescing")
+
+
+def check_compaction_space(volume, items, nodes, retiring):
+    replicas = [r for r in items if r["kind"] == "Replica"]
+    engines = [e for e in items if e["kind"] == "Engine" and e["spec"]["volumeName"] == volume["metadata"]["name"] and e["spec"].get("active") and e["status"].get("currentState") == "running"]
+    node_map = {n["metadata"]["name"]: n for n in nodes}
+    measured = {}
+    full_allowance = (int(volume["spec"]["size"]) * 11 + 9) // 10
+    for replica in replicas:
+        spec = replica["spec"]
+        if spec["volumeName"] != volume["metadata"]["name"] or not spec.get("active"):
+            continue
+        disk = next((d for d in node_map.get(spec.get("nodeID"), {}).get("status", {}).get("diskStatus", {}).values() if d.get("diskUUID") == spec.get("diskID")), {})
+        if disk.get("storageAvailable", 0) >= full_allowance or not engines:
+            continue
+        snapshots = engines[0]["status"].get("snapshots") or {}
+        if not snapshots:
+            raise UnsafeCleanup("Cannot measure compaction allocation without the physical snapshot tree")
+        parents = [name for name, s in snapshots.items() if name != "volume-head" and
+                   (s.get("removed") or name in retiring or not s.get("usercreated")) and s.get("children")]
+        directory = spec["dataDirectoryName"]
+        disk_path = spec["diskPath"].rstrip("/")
+        if disk_path not in {"/var/lib/longhorn", "/var/lib/longhorn/extra"} or not re.fullmatch(r"[a-z0-9-]+", directory) or any(not re.fullmatch(r"[a-z0-9-]+", name) for name in parents):
+            raise UnsafeCleanup("Unexpected replica path or snapshot name")
+        pod = get("pods", replica["status"]["instanceManagerName"])
+        if pod["spec"]["nodeName"] != spec["nodeID"] or not any(c["type"] == "Ready" and c["status"] == "True" for c in pod["status"].get("conditions", [])):
+            raise UnsafeCleanup("The replica instance manager is not ready on its recorded node")
+        sizes = []
+        if parents:
+            paths = ["/host" + disk_path + "/replicas/" + directory + "/volume-snap-" + name + ".img" for name in parents]
+            output = run(["kubectl", "--request-timeout=20s", "-n", "longhorn-system", "exec", pod["metadata"]["name"], "--", "stat", "-c", "%b %B"] + paths)
+            for line in output.splitlines():
+                blocks, block_size = map(int, line.split())
+                if blocks < 0 or block_size <= 0:
+                    raise UnsafeCleanup("Invalid snapshot allocation measurement")
+                sizes.append(blocks * block_size)
+            if len(sizes) != len(parents):
+                raise UnsafeCleanup("Incomplete snapshot allocation measurements")
+        measured[replica["metadata"]["name"]] = sizes
+    guard_compaction_space(volume, replicas, nodes, measured)
 
 
 def action(volume, name, body):
@@ -137,7 +183,6 @@ def main():
     if any(v["spec"]["image"] != image for v in items if v["kind"] == "Volume"):
         raise UnsafeCleanup("Finish engine upgrades before compaction")
     volume = next(v for v in items if v["kind"] == "Volume" and v["metadata"]["name"] == args.volume)
-    guard_compaction_space(volume, [r for r in items if r["kind"] == "Replica"], get("nodes.longhorn.io")["items"])
     backup = next(b for b in items if b["kind"] == "Backup" and b["metadata"]["name"] == volume["status"]["lastBackup"])
     snapshot_name = backup["status"]["snapshotName"]
     snapshots = [s for s in items if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
@@ -145,6 +190,8 @@ def main():
     if existing and existing["spec"]["volume"] != args.volume:
         raise UnsafeCleanup("The requested maintenance snapshot name belongs to another volume")
     if not args.apply:
+        retiring = {s["metadata"]["name"] for s in snapshots if s["metadata"]["name"] not in {snapshot_name, args.snapshot_name}}
+        check_compaction_space(volume, items, get("nodes.longhorn.io")["items"], retiring)
         print(f"Dry run: create/reuse {args.snapshot_name}, retain it and backup snapshot {snapshot_name}; retire older local history on {args.volume}.")
         print("Current visible points:", [(s["metadata"]["name"], s["status"].get("creationTime")) for s in snapshots if s["status"].get("readyToUse") and not s["status"].get("markRemoved")])
         return
@@ -164,9 +211,11 @@ def main():
     guard_backups(current, dt.datetime.now(dt.timezone.utc))
     snapshots = [s for s in current if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
     keep, targets = select_snapshots(snapshots, snapshot_name)
+    check_compaction_space(volume, current, get("nodes.longhorn.io")["items"], {s["metadata"]["name"] for s in targets})
     crd = run(["kubectl", "get", "crd", "volumesnapshotcontents.snapshot.storage.k8s.io", "--ignore-not-found", "-o", "json"])
     contents = get("volumesnapshotcontents.snapshot.storage.k8s.io")["items"] if crd.strip() else []
-    guard_snapshot_references(targets, contents)
+    physical_removed = [{"metadata": {"name": name}} for e in current if e["kind"] == "Engine" and e["spec"]["volumeName"] == args.volume and e["spec"].get("active") for name, s in (e["status"].get("snapshots") or {}).items() if name != "volume-head" and (s.get("removed") or not s.get("usercreated"))]
+    guard_snapshot_references(targets + physical_removed, contents)
     print(f"Retain {sorted(keep)}; retire {len(targets)} older points", flush=True)
     for target in targets:
         latest = get("snapshots.longhorn.io", target["metadata"]["name"])

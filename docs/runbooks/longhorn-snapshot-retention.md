@@ -20,8 +20,11 @@ For the initial cleanup:
 2. Complete engine upgrades to the running manager's default engine first.
    Every attached volume must have at least three healthy RW replicas on
    distinct nodes, with no rebuild, restore or migration in progress. Each
-   replica disk must have at least one volume's size plus 10% free for temporary
-   parent-to-child copying during native snapshot coalescing.
+   replica disk must have temporary space for native snapshot coalescing.
+   The helper initially allows one additional volume plus 10%. On constrained
+   replicas it reads allocated blocks with `stat`, then bounds the extra space
+   needed to fill each removed parent before Longhorn replaces its child.
+   It retains the 10% margin and does not edit any replica file.
 3. Process exactly one volume at a time after this PR is merged. For example:
 
    ```sh
@@ -57,3 +60,4 @@ procedure does not create data backups or change remote backup retention.
 References: [snapshot retention](https://longhorn.io/docs/1.13.0/snapshots-and-backups/scheduling-backups-and-snapshots/),
 [space management](https://longhorn.io/kb/space-consumption-guideline/), and
 [native snapshot deletion](https://longhorn.io/docs/1.13.0/snapshots-and-backups/setup-a-snapshot/).
+The V1 allocation calculation follows [the 1.11.1 native purge implementation](https://github.com/longhorn/longhorn-engine/blob/v1.11.1/pkg/sync/rpc/server.go).
