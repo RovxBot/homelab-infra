@@ -152,7 +152,10 @@ jobs:
             -CoreBuildRoot .work/solo-collections-build-info
           build_info="${module_source}/src/generated/SoloCollectionsBuildInfo.inc"
           test -s "${build_info}"
-          ! grep -Fq '"UNPINNED"' "${build_info}"
+          if grep -Fq '"UNPINNED"' "${build_info}"; then
+            echo "SoloCollections build metadata must be pinned before building images." >&2
+            exit 1
+          fi
           python3 apps/wotlk/scripts/verify_solocollections_catalog.py \
             "${addon_root}/addon/SoloCollections/Data/Generated/Catalog.lua" \
             "${module_source}/src/generated/SoloCollectionsProtocolCatalog.inc"
