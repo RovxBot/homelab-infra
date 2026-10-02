@@ -18,7 +18,37 @@ def claims():
              "spec": {"volumeName": "original-pv"}, "status": {"phase": "Bound"}}]
 
 
+def pending_snapshots():
+    return [{"metadata": {"name": name, "uid": name + "-uid"},
+             "status": {"readyToUse": True, "markRemoved": False, "creationTime": when}}
+            for name, when in [("backup", "2026-10-02T05:20:00Z"), ("maintenance", "2026-10-02T07:20:00Z")]] + [
+        {"metadata": {"name": "old", "uid": "old-uid", "deletionTimestamp": "2026-10-02T07:21:00Z"},
+         "status": {"readyToUse": True, "markRemoved": False, "creationTime": "2026-10-01T05:20:00Z"}}]
+
+
 class IdleSnapshotGuards(unittest.TestCase):
+    def test_unmarked_points_require_prior_deletion_and_older_capture(self):
+        snapshots = pending_snapshots()
+        self.assertEqual(idle.pending_snapshot_plan(snapshots, "backup")[0], {"backup", "maintenance"})
+        for mutate in [lambda s: s[-1]["metadata"].pop("deletionTimestamp"),
+                       lambda s: s[-1]["status"].update(readyToUse=False),
+                       lambda s: s[-1]["status"].update(creationTime="2026-10-02T05:21:00Z"),
+                       lambda s: s[0]["metadata"].update(deletionTimestamp="now")]:
+            changed = copy.deepcopy(snapshots); mutate(changed)
+            with self.assertRaises(idle.guards.UnsafeCleanup): idle.pending_snapshot_plan(changed, "backup")
+        snapshots[-1]["status"].update(markRemoved=True, readyToUse=False)
+        idle.pending_snapshot_plan(snapshots, "backup")
+        snapshots[-1]["metadata"].pop("deletionTimestamp")
+        with self.assertRaises(idle.guards.UnsafeCleanup): idle.pending_snapshot_plan(snapshots, "backup")
+
+    def test_snapshot_identity_changes_stop_before_any_further_action(self):
+        snapshots = pending_snapshots(); expected = idle.pending_snapshot_plan(snapshots, "backup")[2]
+        for index in [0, 1, 2]:
+            changed = copy.deepcopy(snapshots); changed[index]["metadata"]["uid"] = "replacement"
+            with self.assertRaises(idle.guards.UnsafeCleanup): idle.pending_snapshot_plan(changed, "backup", expected)
+        with self.assertRaises(idle.guards.UnsafeCleanup): idle.pending_snapshot_plan(snapshots[:2], "backup", expected)
+        self.assertEqual(idle.pending_snapshot_plan(snapshots[:2], "backup", expected, True)[1], [])
+
     def test_active_and_terminating_consumers_block_maintenance(self):
         pod = {"kind": "Pod", "metadata": {"namespace": "app", "name": "consumer"},
                "spec": {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}, "status": {"phase": "Running"}}
@@ -58,10 +88,10 @@ class IdleSnapshotGuards(unittest.TestCase):
         replicas = [{"kind": "Replica", "metadata": {"name": "r"+str(i)},
                      "spec": {"active": True, "volumeName": "test", "nodeID": "metal"+str(i), "diskID": "disk", "healthyAt": now, "failedAt": ""}} for i in range(3)]
         backup = {"kind": "Backup", "metadata": {"name": "backup"}, "status": {"state": "Completed", "progress": 100, "volumeName": "test", "url": "s3://recovery", "snapshotName": "backup", "snapshotCreatedAt": now}}
-        snapshots = [{"kind": "Snapshot", "metadata": {"name": name}, "spec": {"volume": "test"},
+        snapshots = [{"kind": "Snapshot", "metadata": {"name": name, "uid": name + "-uid"}, "spec": {"volume": "test"},
                       "status": {"readyToUse": True, "markRemoved": False, "creationTime": now}} for name in ["backup", "maintenance"]]
-        snapshots.append({"kind": "Snapshot", "metadata": {"name": "parent", "deletionTimestamp": now}, "spec": {"volume": "test"},
-                          "status": {"markRemoved": True, "readyToUse": False, "creationTime": "2026-01-01T00:00:00Z"}})
+        snapshots.append({"kind": "Snapshot", "metadata": {"name": "parent", "uid": "parent-uid", "deletionTimestamp": now}, "spec": {"volume": "test"},
+                          "status": {"markRemoved": False, "readyToUse": True, "creationTime": "2026-01-01T00:00:00Z"}})
         attachment = {"metadata": {"uid": "attachment-uid", "ownerReferences": [{"kind": "Volume", "name": "test", "uid": "volume-uid"}]},
                       "spec": {"volume": "test", "attachmentTickets": {}}}
         nodes = [{"metadata": {"name": "metal"+str(i)}, "status": {"conditions": [{"type": "Ready", "status": "True"}],

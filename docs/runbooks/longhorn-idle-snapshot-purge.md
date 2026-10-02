@@ -1,8 +1,9 @@
 # Resume an idle volume's pending snapshot purge
 
-Longhorn 1.11.1 can clear a stopped engine's current image. Its snapshot deletion
+Longhorn can clear a stopped engine's current image. Its snapshot deletion
 controller then interprets the empty image as an upgrade and postpones creating
-its automatic attachment ticket. A marked parent can remain pending even though
+its automatic attachment ticket. This was observed on 1.11.1 and 1.13.0.
+A marked parent or an older Ready snapshot can remain pending even though
 the volume has three healthy retained copies and two protected restore points.
 
 Use `scripts/longhorn-resume-idle-snapshot-purge.py` only for that idle-volume
@@ -11,6 +12,10 @@ detached RWO volume, its original Bound PV/PVC, no active consumers or CSI
 attachments, no native attachment tickets, complete manager and engine upgrades,
 fresh completed backups for every volume, three healthy copies, a ready host,
 compaction headroom and no CSI snapshot reference to the selected old parents.
+Every selected point must already have a native deletion timestamp. An unmarked
+Ready point must be older than both protected points. The helper checks snapshot
+UIDs and CSI references again before attachment, preserves the protected UIDs
+during purging and never requests an additional snapshot deletion.
 
 ```sh
 volume=pvc-9f978c4b-ea57-4933-bd9d-6daa38f6d6dd
@@ -39,6 +44,6 @@ inspect the named `longhorn-idle-snapshot-maintenance` ticket and verify the sam
 volume and claims before removing that ticket through a normal native detach.
 Never clear the whole attachment map to resolve this maintenance request.
 
-Sources: [native attachment and detachment](https://github.com/longhorn/longhorn-manager/blob/v1.11.1/manager/volume.go),
-[snapshot deletion controller](https://github.com/longhorn/longhorn-manager/blob/v1.11.1/controller/snapshot_controller.go),
-and [engine-upgrade predicate](https://github.com/longhorn/longhorn-manager/blob/v1.11.1/controller/utils.go).
+Sources: [native attachment and detachment](https://github.com/longhorn/longhorn-manager/blob/v1.13.0/manager/volume.go),
+[snapshot deletion controller](https://github.com/longhorn/longhorn-manager/blob/v1.13.0/controller/snapshot_controller.go),
+and [engine-upgrade predicate](https://github.com/longhorn/longhorn-manager/blob/v1.13.0/controller/utils.go).
