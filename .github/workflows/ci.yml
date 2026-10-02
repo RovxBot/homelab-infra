@@ -35,6 +35,9 @@ jobs:
       - name: Test check selection
         run: python3 -m unittest discover -s scripts/ci/tests -v
 
+      - name: Test storage maintenance guards
+        run: python3 -m unittest discover -s scripts/tests -v
+
       - name: Select relevant checks
         id: changes
         env:
