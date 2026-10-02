@@ -7,3 +7,10 @@ resources:
   - default-backup-target.yaml
   - recurring-jobs.yaml
   - settings.yaml
+  - weekly-backup-retention.yaml
+configMapGenerator:
+  - name: longhorn-latest-backup-retention-code
+    namespace: longhorn-system
+    files:
+      - ../../scripts/longhorn-retire-backup-history.py
+      - ../../scripts/longhorn-upgrade-engines.py

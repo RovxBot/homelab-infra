@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: longhorn-latest-backup-retention
+  namespace: longhorn-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: longhorn-latest-backup-retention
+  namespace: longhorn-system
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  resourceNames:
+  - longhorn-manager
+  verbs:
+  - get
+- apiGroups:
+  - longhorn.io
+  resources:
+  - backuptargets
+  resourceNames:
+  - default
+  verbs:
+  - get
+- apiGroups:
+  - longhorn.io
+  resources:
+  - settings
+  resourceNames:
+  - default-engine-image
+  - auto-cleanup-when-delete-backup
+  verbs:
+  - get
+- apiGroups:
+  - longhorn.io
+  resources:
+  - volumes
+  - engines
+  - replicas
+  - backupvolumes
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - longhorn.io
+  resources:
+  - backups
+  - systembackups
+  verbs:
+  - get
+  - list
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: longhorn-latest-backup-retention
+  namespace: longhorn-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: longhorn-latest-backup-retention
+subjects:
+- kind: ServiceAccount
+  name: longhorn-latest-backup-retention
+  namespace: longhorn-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: longhorn-latest-backup-retention-csi
+rules:
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotcontents
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: longhorn-latest-backup-retention-csi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: longhorn-latest-backup-retention-csi
+subjects:
+- kind: ServiceAccount
+  name: longhorn-latest-backup-retention
+  namespace: longhorn-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: longhorn-latest-backup-retention
+  namespace: longhorn-system
+spec:
+  schedule: 0 5 * * 0
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      backoffLimit: 0
+      activeDeadlineSeconds: 86400
+      template:
+        metadata:
+          labels:
+            homelab.cooked.beer/owner: sam
+        spec:
+          serviceAccountName: longhorn-latest-backup-retention
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: retention
+            image: python:3.14-alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01
+            command:
+            - python3
+            - /policy/longhorn-retire-backup-history.py
+            - --after-weekly-system-backup
+            - --apply
+            env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: '1'
+            - name: PYTHONUNBUFFERED
+              value: '1'
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: '1'
+                memory: 512Mi
+            volumeMounts:
+            - name: policy
+              mountPath: /policy
+              readOnly: true
+          volumes:
+          - name: policy
+            configMap:
+              name: longhorn-latest-backup-retention-code
