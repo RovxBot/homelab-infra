@@ -27,6 +27,13 @@ copies, fresh recovery points and an empty attachment map in the detached state.
 It never forces detachment, changes replica files, deletes volumes or claims,
 or removes another controller's ticket.
 
+The checker waits through native attaching and detaching transitions, including
+the brief attached/unknown state before engine startup reports healthy. During
+that wait it requires three retained healthy copies on distinct nodes, unchanged
+engine identity and healthy unrelated volumes. It authorizes no further action
+until normal attached health checks pass. A failed copy, degraded volume or
+unexpected restore, migration or image change stops the check.
+
 An error leaves the current state for inspection. If interrupted after attachment,
 inspect the named `longhorn-idle-snapshot-maintenance` ticket and verify the same
 volume and claims before removing that ticket through a normal native detach.

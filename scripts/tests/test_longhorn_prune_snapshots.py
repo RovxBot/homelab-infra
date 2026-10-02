@@ -90,6 +90,29 @@ class SnapshotCleanupGuards(unittest.TestCase):
         del engine["status"]["snapshots"]["old-parent"]
         self.assertTrue(prune.physical_compaction_complete(engine, keep))
 
+    def test_idle_attachment_waits_for_health_after_state_becomes_attached(self):
+        items = fixture()
+        items[0]["status"]["robustness"] = "unknown"
+        items[1]["status"].update(currentState="starting", replicaModeMap={})
+        self.assertFalse(prune.snapshot_health_stable(items, "test", True))
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(items, "test", False)
+        for mutate in [lambda r: r[-1]["spec"].update(failedAt="now"),
+                       lambda r: r[0]["spec"].update(image="unexpected-upgrade"),
+                       lambda r: r[0]["status"].update(robustness="degraded")]:
+            changed = copy.deepcopy(items)
+            mutate(changed)
+            with self.assertRaises(prune.UnsafeCleanup):
+                prune.snapshot_health_stable(changed, "test", True)
+        unrelated = copy.deepcopy(items[0])
+        unrelated["metadata"]["name"] = "unrelated"
+        unrelated["status"]["robustness"] = "degraded"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(items + [unrelated], "test", True)
+        items[0]["status"]["robustness"] = "healthy"
+        items[1]["status"].update(currentState="running", replicaModeMap={f"r{i}": "RW" for i in range(3)})
+        self.assertTrue(prune.snapshot_health_stable(items, "test", True))
+
     def test_refuse_incomplete_or_stale_snapshot_backup(self):
         items = fixture(); now = dt.datetime(2026, 10, 1, 8, tzinfo=dt.timezone.utc)
         prune.guard_backups(items, now)
