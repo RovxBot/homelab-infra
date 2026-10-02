@@ -50,6 +50,23 @@ def check_attachment(attachment, volume):
         raise guards.UnsafeCleanup("Native attachment ownership changed")
 
 
+def pending_snapshot_plan(snapshots, backup_snapshot, expected=None, allow_complete=False):
+    keep, targets = guards.select_snapshots(snapshots, backup_snapshot)
+    protected = [o for o in snapshots if o["metadata"]["name"] in keep]
+    if len(keep) != 2 or any(o["metadata"].get("deletionTimestamp") for o in protected) or (not targets and not allow_complete):
+        raise guards.UnsafeCleanup("Require two protected points and previously requested native deletions")
+    oldest = min(o["status"]["creationTime"] for o in protected)
+    for target in targets:
+        status = target.get("status", {})
+        if not target["metadata"].get("deletionTimestamp") or (not status.get("markRemoved") and
+                (not status.get("readyToUse") or status["creationTime"] >= oldest)):
+            raise guards.UnsafeCleanup("Only marked parents or older Ready snapshots already pending deletion may resume")
+    identities = {o["metadata"]["name"]: o["metadata"]["uid"] for o in protected + targets}
+    if expected and any(expected.get(name) != uid for name, uid in identities.items()):
+        raise guards.UnsafeCleanup("Protected or pending snapshot identity changed")
+    return keep, targets, identities
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("volume")
@@ -76,9 +93,7 @@ def main():
         raise guards.UnsafeCleanup("The idle volume has another attachment request")
     snapshots = [o for o in items if o["kind"] == "Snapshot" and o["spec"]["volume"] == args.volume]
     backup = next(o for o in items if o["kind"] == "Backup" and o["metadata"]["name"] == volume["status"]["lastBackup"])
-    keep, targets = guards.select_snapshots(snapshots, backup["status"]["snapshotName"])
-    if len(keep) != 2 or not targets or any(not o["metadata"].get("deletionTimestamp") or not o["status"].get("markRemoved") for o in targets):
-        raise guards.UnsafeCleanup("Require two protected points and only already-marked parents pending native deletion")
+    keep, targets, snapshot_identities = pending_snapshot_plan(snapshots, backup["status"]["snapshotName"])
     guards.guard_snapshot_references(targets, guards.get("volumesnapshotcontents.snapshot.storage.k8s.io")["items"])
     nodes = guards.get("nodes.longhorn.io")["items"]
     node = next(o for o in nodes if o["metadata"]["name"] == args.node)
@@ -89,9 +104,18 @@ def main():
     if not args.apply:
         print("Dry run: no changes made")
         return
+    current_items = guards.state()
+    guards.guard_health(current_items)
+    guards.guard_backups(current_items, dt.datetime.now(dt.timezone.utc))
+    current_snapshots = [o for o in current_items if o["kind"] == "Snapshot" and o["spec"]["volume"] == args.volume]
+    current_keep, current_targets, _ = pending_snapshot_plan(current_snapshots, backup["status"]["snapshotName"], snapshot_identities)
+    if current_keep != keep:
+        raise guards.UnsafeCleanup("The protected restore points changed before attachment")
+    guards.guard_snapshot_references(current_targets, guards.get("volumesnapshotcontents.snapshot.storage.k8s.io")["items"])
     current = guards.get("volumes.longhorn.io", args.volume)
     latest_attachment = guards.get("volumeattachments.longhorn.io", args.volume)
     if current["metadata"]["uid"] != volume["metadata"]["uid"] or current["status"]["state"] != "detached" or \
+            current["status"]["lastBackup"] != backup["metadata"]["name"] or current["spec"]["image"] != image or \
             latest_attachment["metadata"]["uid"] != attachment["metadata"]["uid"] or latest_attachment["spec"].get("attachmentTickets") or \
             unused_claim_identity(cluster_resources(), args.volume) != identity:
         raise guards.UnsafeCleanup("Original idle-volume identities changed before attachment")
@@ -106,7 +130,10 @@ def main():
         if current["metadata"]["uid"] != volume["metadata"]["uid"]:
             raise guards.UnsafeCleanup("Original volume identity changed")
         engines = [o for o in current_items if o["kind"] == "Engine" and o["spec"]["volumeName"] == args.volume and o["spec"].get("active")]
-        pending = [o for o in current_items if o["kind"] == "Snapshot" and o["spec"]["volume"] == args.volume and o["metadata"]["name"] not in keep]
+        current_snapshots = [o for o in current_items if o["kind"] == "Snapshot" and o["spec"]["volume"] == args.volume]
+        current_keep, pending, _ = pending_snapshot_plan(current_snapshots, backup["status"]["snapshotName"], snapshot_identities, True)
+        if current_keep != keep:
+            raise guards.UnsafeCleanup("The protected restore points changed during native purging")
         tickets = guards.get("volumeattachments.longhorn.io", args.volume)["spec"]["attachmentTickets"]
         if current["status"]["state"] == "attached" and len(engines) == 1 and not pending and \
                 guards.physical_compaction_complete(engines[0], keep) and set(tickets) == {TICKET}:
