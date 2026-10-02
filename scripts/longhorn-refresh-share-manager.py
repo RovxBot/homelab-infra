@@ -125,7 +125,8 @@ def client_contracts(resources, clients):
         contracts[(pod["metadata"]["namespace"], owner["kind"], owner["name"], owner["uid"], images, claims)] += 1
     return contracts
 
-def remounted_clients(volume, server, resources, original_claims, original_contracts, previous_remount):
+def remounted_clients(volume, server, resources, original_claims, original_contracts, previous_remount,
+                      original_clients=None, now=None):
     claims, clients = consumers(volume, resources, require_ready=False)
     if claims != original_claims:
         raise UnsafeRefresh("An original claim or PV identity changed")
@@ -137,14 +138,26 @@ def remounted_clients(volume, server, resources, original_claims, original_contr
         return False
     requested_at = dt.datetime.fromisoformat(remount.replace("Z", "+00:00"))
     server_start = server["status"].get("startTime")
-    if not server_start or dt.datetime.fromisoformat(server_start.replace("Z", "+00:00")) <= requested_at:
+    if not server_start:
         return False
+    server_started_at = dt.datetime.fromisoformat(server_start.replace("Z", "+00:00"))
+    recreate = server_started_at > requested_at
+    if not recreate:
+        # The native controller skips recreation unless the server started
+        # strictly after the request. Second-resolution timestamps can be
+        # equal. Preserve the exact original clients in that case and wait
+        # past the native five-second delay plus its 30-second deletion grace.
+        now = now or dt.datetime.now(dt.timezone.utc)
+        if now < requested_at + dt.timedelta(seconds=35):
+            return False
+        if clients != original_clients:
+            raise UnsafeRefresh("A client identity changed without the selected native remount path")
     if contracts != original_contracts:
         return False
     for pod in (o for o in resources if o["kind"] == "Pod" and
                 (o["metadata"]["namespace"], o["metadata"]["name"], o["metadata"]["uid"]) in clients):
         started = pod["status"].get("startTime")
-        if not ready(pod) or not started or dt.datetime.fromisoformat(started.replace("Z", "+00:00")) < requested_at:
+        if not ready(pod) or not started or recreate and dt.datetime.fromisoformat(started.replace("Z", "+00:00")) < requested_at:
             return False
     return True
 
@@ -266,7 +279,7 @@ def main():
                 time.sleep(2)
                 continue
             resources_now = get("pv,pvc,pod", namespace=None)["items"]
-            if not remounted_clients(current_volume, new, resources_now, original_claims, original_contracts, previous_remount):
+            if not remounted_clients(current_volume, new, resources_now, original_claims, original_contracts, previous_remount, original_clients):
                 recovered_since = None
                 time.sleep(2)
                 continue

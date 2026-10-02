@@ -75,8 +75,23 @@ class ShareManagerGuards(unittest.TestCase):
         for resources in [original, original[:2]]:
             self.assertFalse(refresh.remounted_clients(volume, server, resources, claims, contracts, None))
         volume["status"].update(remountRequestedAt="2026-10-02T05:00:00Z", shareState="running")
-        server["status"]["startTime"] = "2026-10-02T04:59:59Z"
+        server["status"]["startTime"] = "2026-10-02T05:00:01Z"
         self.assertFalse(refresh.remounted_clients(volume, server, original, claims, contracts, None))
+
+    def test_same_second_native_skip_preserves_ready_original_clients(self):
+        volume, _, server = export()
+        volume["status"].update(remountRequestedAt="2026-10-02T05:00:00Z", shareState="running")
+        server["status"]["startTime"] = "2026-10-02T05:00:00Z"
+        original = clients()
+        claims, selected = refresh.consumers(volume, original)
+        contracts = refresh.client_contracts(original, selected)
+        now = dt.datetime.fromisoformat("2026-10-02T05:00:34+00:00")
+        self.assertFalse(refresh.remounted_clients(volume, server, original, claims, contracts, None, selected, now))
+        self.assertTrue(refresh.remounted_clients(volume, server, original, claims, contracts, None, selected, now+dt.timedelta(seconds=1)))
+        changed = copy.deepcopy(original)
+        changed[2]["metadata"]["uid"] = "unexpected-replacement"
+        with self.assertRaises(refresh.UnsafeRefresh):
+            refresh.remounted_clients(volume, server, changed, claims, contracts, None, selected, now+dt.timedelta(seconds=1))
 
     def test_unmanaged_client_blocks_native_recovery_refresh(self):
         for owners in [[], [{"kind": "Job", "name": "one-shot", "uid": "job", "controller": True}]]:

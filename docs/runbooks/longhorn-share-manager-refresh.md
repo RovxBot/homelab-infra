@@ -33,7 +33,11 @@ and resource-version preconditions. The native controller recreates it. It does
 not delete original volumes, replicas, PVCs, PVs or workload pods, and does not
 use forced deletion. It waits for the native remount timestamp and replacement
 clients started at or after that request, with the same controllers, images,
-claim specifications and client counts. It verifies stable ready clients for at
+claim specifications and client counts. Longhorn skips client recreation when
+the replacement server did not start strictly after the remount request; both
+timestamps can fall in the same second. In that case the helper preserves the
+exact original Ready clients and waits at least 35 seconds after the request
+before accepting responsive mounts. It verifies stable ready clients for at
 least five seconds, the replacement server image, original endpoint and storage
 identities, healthy replicas, responsive NFS mounts and fresh recovery backups
 before reporting completion. The helper never deletes workload pods itself.
