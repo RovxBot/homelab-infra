@@ -8,10 +8,13 @@ replicas have passed the post-refresh checks.
 
 The reviewed helper requires three healthy replicas on distinct nodes, fresh
 Completed recovery backups for every original volume, matching current manager,
-default engine and share-manager versions, fully converged engine and replica
+default engine and configured share-manager versions, fully converged engine and replica
 processes, and a running export at its original endpoint. It records the original
 PV, PVC, client pod, volume and ShareManager identities. It checks the client's
 NFS filesystem before and after the restart using read-only `stat` probes.
+The desired share-manager image comes from the ready manager DaemonSet's explicit
+`--share-manager-image` command argument and must match its manager image version.
+Longhorn does not expose that image as a `share-manager-image` Setting.
 
 Run the dry check first, then apply the same selected volume:
 

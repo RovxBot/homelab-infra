@@ -38,6 +38,25 @@ def clients():
 
 
 class ShareManagerGuards(unittest.TestCase):
+    def test_manager_command_is_the_authoritative_share_image(self):
+        container = {"name": "longhorn-manager", "image": "docker.io/longhornio/longhorn-manager:v1.13.0",
+                     "command": ["longhorn-manager", "daemon", "--share-manager-image", TARGET]}
+        ds = {"spec": {"template": {"spec": {"containers": [container]}}}}
+        self.assertEqual(refresh.configured_share_image(ds), TARGET)
+        container["command"] = ["longhorn-manager", "daemon"]
+        container["args"] = ["--share-manager-image=" + TARGET]
+        self.assertEqual(refresh.configured_share_image(ds), TARGET)
+
+    def test_missing_duplicate_or_mismatched_manager_configuration_stops_refresh(self):
+        for command, image in [(["longhorn-manager", "daemon"], "longhornio/longhorn-manager:v1.13.0"),
+                (["--share-manager-image"], "longhornio/longhorn-manager:v1.13.0"),
+                (["--share-manager-image", TARGET, "--share-manager-image=" + TARGET], "longhornio/longhorn-manager:v1.13.0"),
+                (["--share-manager-image", TARGET], "longhornio/longhorn-manager:v1.12.1"),
+                (["--share-manager-image", TARGET], "untrusted/longhorn-manager:v1.13.0")]:
+            ds = {"spec": {"template": {"spec": {"containers": [{"name": "longhorn-manager", "image": image, "command": command}]}}}}
+            with self.assertRaises(refresh.UnsafeRefresh):
+                refresh.configured_share_image(ds)
+
     def test_missing_or_non_nfs_client_mount_blocks_refresh(self):
         volume, _, _ = export()
         with patch.object(refresh, "run", return_value="ext2/ext3\n"):
@@ -148,10 +167,14 @@ class ShareManagerGuards(unittest.TestCase):
         replacement["spec"]["containers"][0]["image"] = TARGET
         def get(resource, name=None, namespace="longhorn-system"):
             if resource == "daemonset":
-                return {"metadata": {"generation": 1}, "status": {"desiredNumberScheduled": 3, "numberReady": 3,
+                return {"metadata": {"generation": 1},
+                        "spec": {"template": {"spec": {"containers": [{"name": "longhorn-manager",
+                            "image": "docker.io/longhornio/longhorn-manager:v1.13.0",
+                            "command": ["longhorn-manager", "daemon", "--share-manager-image", TARGET]}]}}},
+                        "status": {"desiredNumberScheduled": 3, "numberReady": 3,
                         "updatedNumberScheduled": 3, "observedGeneration": 1}}
             if resource == "settings.longhorn.io":
-                return {"value": {"default-engine-image": image, "current-longhorn-version": "v1.13.0", "share-manager-image": TARGET}[name]}
+                return {"value": {"default-engine-image": image, "current-longhorn-version": "v1.13.0"}[name]}
             if resource == "volumes.longhorn.io,engines.longhorn.io,replicas.longhorn.io": return {"items": [volume, engine] + replicas}
             if resource == "backups.longhorn.io": return {"items": backups}
             if resource == "sharemanagers.longhorn.io": return manager
