@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - snapshot.storage.k8s.io_volumesnapshots.yaml
+  - snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+  - snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+  - rbac.yaml
+  - deployment.yaml
+patches:
+  # Preserve snapshot API objects if this dependency is removed from Flux.
+  - target:
+      kind: CustomResourceDefinition
+    patch: |-
+      - op: add
+        path: /metadata/annotations/kustomize.toolkit.fluxcd.io~1prune
+        value: disabled
