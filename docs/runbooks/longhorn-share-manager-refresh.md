@@ -2,15 +2,18 @@
 
 A live V1 engine upgrade can leave a healthy share-manager pod running the prior
 image. After all managers and all volume engines are on 1.13.0, refresh the four
-RWX exports one at a time. This restarts each NFS server; clients can temporarily
-wait for service recovery. Do not refresh another export until its clients and
+RWX exports one at a time. This restarts each NFS server; Longhorn 1.13's native
+remount recovery also recreates managed client pods after the server is serving.
+Do not refresh another export until its replacement clients and
 replicas have passed the post-refresh checks.
 
 The reviewed helper requires three healthy replicas on distinct nodes, fresh
 Completed recovery backups for every original volume, matching current manager,
 default engine and configured share-manager versions, fully converged engine and replica
 processes, and a running export at its original endpoint. It records the original
-PV, PVC, client pod, volume and ShareManager identities. It checks the client's
+PV, PVC, client controller, volume and ShareManager identities. It records client
+counts, images and claim specifications, and requires managed ReplicaSet or
+StatefulSet clients with native unexpected-detach recovery enabled. It checks the client's
 NFS filesystem before and after the restart using read-only `stat` probes.
 The desired share-manager image comes from the ready manager DaemonSet's explicit
 `--share-manager-image` command argument and must match its manager image version.
@@ -27,10 +30,13 @@ python3 scripts/longhorn-refresh-share-manager.py "$volume" --image "$image" --a
 
 The helper normally deletes only the existing share-manager pod, with exact UID
 and resource-version preconditions. The native controller recreates it. It does
-not delete or replace original volumes, replicas, PVCs, PVs or client pods, and
-does not use forced deletion. It requires the replacement image, the same export
-endpoint and original resource identities, healthy replicas, responsive NFS
-mounts, ready clients and a fresh recovery backup before reporting completion.
+not delete original volumes, replicas, PVCs, PVs or workload pods, and does not
+use forced deletion. It waits for the native remount timestamp and replacement
+clients started at or after that request, with the same controllers, images,
+claim specifications and client counts. It verifies stable ready clients for at
+least five seconds, the replacement server image, original endpoint and storage
+identities, healthy replicas, responsive NFS mounts and fresh recovery backups
+before reporting completion. The helper never deletes workload pods itself.
 Stop on any failed check and inspect the selected export before continuing.
 
 The four exports are Skyfire storage, WotLK storage, wger media and wger static.
@@ -39,3 +45,4 @@ that is expected native live-upgrade behavior. Do not delete a busy instance
 manager to change its displayed image.
 
 Reference: [V1 instance managers during upgrades](https://longhorn.io/docs/1.13.0/deploy/upgrade/instance-manager-pods-during-upgrade/).
+Native remount behavior: [Longhorn 1.13 pod controller](https://github.com/longhorn/longhorn-manager/blob/v1.13.0/controller/kubernetes_pod_controller.go).
