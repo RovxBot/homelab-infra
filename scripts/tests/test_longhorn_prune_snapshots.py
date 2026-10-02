@@ -52,9 +52,43 @@ class SnapshotCleanupGuards(unittest.TestCase):
                      snapshot("maintenance", "2026-10-01T08:00:00Z"), snapshot("removed", "2026-10-01T09:00:00Z", True)]
         keep, retire = prune.select_snapshots(snapshots, "backup")
         self.assertEqual(keep, {"backup", "maintenance"})
-        self.assertEqual([s["metadata"]["name"] for s in retire], ["old"])
+        self.assertEqual([s["metadata"]["name"] for s in retire], ["old", "removed"])
         with self.assertRaises(prune.UnsafeCleanup):
             prune.select_snapshots(snapshots, "old")
+
+    def test_native_detached_transition_waits_without_weakening_other_volumes(self):
+        items = fixture()
+        items[0]["status"]["state"] = "attaching"
+        self.assertFalse(prune.snapshot_health_stable(items, "test", True))
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(items, "test", False)
+        items[0]["status"]["state"] = "detaching"
+        self.assertFalse(prune.snapshot_health_stable(items, "test", True))
+        changed = copy.deepcopy(items)
+        changed[-1]["spec"]["failedAt"] = "now"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(changed, "test", True)
+        changed = copy.deepcopy(items)
+        other = copy.deepcopy(items[0])
+        other["metadata"]["name"] = "unrelated"
+        other["status"].update(state="attached", robustness="degraded")
+        changed.append(other)
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(changed, "test", True)
+        items[0]["status"]["state"] = "detached"
+        self.assertTrue(prune.snapshot_health_stable(items, "test", True))
+
+    def test_already_removed_parent_still_needs_native_retirement(self):
+        snapshots = [snapshot("backup", "2026-10-01T07:00:00Z"),
+                     snapshot("maintenance", "2026-10-01T08:00:00Z"),
+                     snapshot("old-parent", "2026-01-01T00:00:00Z", True)]
+        keep, targets = prune.select_snapshots(snapshots, "backup")
+        self.assertEqual(keep, {"backup", "maintenance"})
+        self.assertEqual([s["metadata"]["name"] for s in targets], ["old-parent"])
+        engine = {"status": {"snapshots": {name: {} for name in keep | {"volume-head", "old-parent"}}}}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        del engine["status"]["snapshots"]["old-parent"]
+        self.assertTrue(prune.physical_compaction_complete(engine, keep))
 
     def test_refuse_incomplete_or_stale_snapshot_backup(self):
         items = fixture(); now = dt.datetime(2026, 10, 1, 8, tzinfo=dt.timezone.utc)
