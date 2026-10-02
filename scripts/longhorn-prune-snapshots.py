@@ -72,7 +72,9 @@ def guard_backups(items, now):
 def snapshot_health_stable(items, name, initially_detached):
     """Wait for native snapshot attachment; never authorize work in transition."""
     volume = next(o for o in items if o["kind"] == "Volume" and o["metadata"]["name"] == name)
-    if not initially_detached or volume["status"]["state"] not in {"attaching", "detaching"}:
+    status = volume["status"]
+    starting = status["state"] == "attached" and status.get("robustness") == "unknown"
+    if not initially_detached or (status["state"] not in {"attaching", "detaching"} and not starting):
         guard_health(items)
         return True
     guard_health([o for o in items if o.get("spec", {}).get("volumeName", o["metadata"]["name"]) != name])
