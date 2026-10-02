@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Refresh one healthy RWX export to its current Longhorn share-manager image."""
 import argparse
+from collections import Counter
 import datetime as dt
 import importlib.util
 import json
@@ -80,7 +81,7 @@ def check_export(volume, manager, pod, target):
         raise UnsafeRefresh("No forward share-manager refresh is required")
     return endpoint
 
-def consumers(volume, resources):
+def consumers(volume, resources, require_ready=True):
     name = volume["metadata"]["name"]
     pvs = [o for o in resources if o["kind"] == "PersistentVolume" and
            o.get("spec", {}).get("csi", {}).get("driver") == "driver.longhorn.io" and
@@ -103,12 +104,49 @@ def consumers(volume, resources):
     for pod in (o for o in resources if o["kind"] == "Pod" and o["status"].get("phase") not in {"Succeeded", "Failed"}):
         names = {v.get("persistentVolumeClaim", {}).get("claimName") for v in pod["spec"].get("volumes", [])}
         if any(ns == pod["metadata"]["namespace"] and claim in names for ns, claim, _, _ in claims):
-            if not ready(pod):
+            if require_ready and not ready(pod):
                 raise UnsafeRefresh("An original NFS client is unready or terminating")
             clients.append((pod["metadata"]["namespace"], pod["metadata"]["name"], pod["metadata"]["uid"]))
-    if not clients:
+    if require_ready and not clients:
         raise UnsafeRefresh("The original RWX export has no ready workload clients")
     return set(claims), set(clients)
+
+def client_contracts(resources, clients):
+    contracts = Counter()
+    for pod in (o for o in resources if o["kind"] == "Pod" and
+                (o["metadata"]["namespace"], o["metadata"]["name"], o["metadata"]["uid"]) in clients):
+        owners = [o for o in pod["metadata"].get("ownerReferences", []) if o.get("controller")]
+        if len(owners) != 1 or owners[0].get("kind") not in {"ReplicaSet", "StatefulSet"} or not owners[0].get("uid"):
+            raise UnsafeRefresh("Require original clients managed by an exact ReplicaSet or StatefulSet")
+        owner = owners[0]
+        images = tuple((c["name"], c["image"]) for c in pod["spec"].get("initContainers", []) + pod["spec"]["containers"])
+        claims = tuple(sorted((v["name"], v["persistentVolumeClaim"]["claimName"]) for v in pod["spec"].get("volumes", [])
+                              if "persistentVolumeClaim" in v))
+        contracts[(pod["metadata"]["namespace"], owner["kind"], owner["name"], owner["uid"], images, claims)] += 1
+    return contracts
+
+def remounted_clients(volume, server, resources, original_claims, original_contracts, previous_remount):
+    claims, clients = consumers(volume, resources, require_ready=False)
+    if claims != original_claims:
+        raise UnsafeRefresh("An original claim or PV identity changed")
+    contracts = client_contracts(resources, clients)
+    if any(contract not in original_contracts for contract in contracts):
+        raise UnsafeRefresh("A client controller, image or claim specification changed")
+    remount = volume["status"].get("remountRequestedAt")
+    if not remount or remount == previous_remount or volume["status"].get("shareState") != "running":
+        return False
+    requested_at = dt.datetime.fromisoformat(remount.replace("Z", "+00:00"))
+    server_start = server["status"].get("startTime")
+    if not server_start or dt.datetime.fromisoformat(server_start.replace("Z", "+00:00")) <= requested_at:
+        return False
+    if contracts != original_contracts:
+        return False
+    for pod in (o for o in resources if o["kind"] == "Pod" and
+                (o["metadata"]["namespace"], o["metadata"]["name"], o["metadata"]["uid"]) in clients):
+        started = pod["status"].get("startTime")
+        if not ready(pod) or not started or dt.datetime.fromisoformat(started.replace("Z", "+00:00")) < requested_at:
+            return False
+    return True
 
 def check_nfs_mounts(volume, resources):
     claims, clients = consumers(volume, resources)
@@ -178,6 +216,10 @@ def main():
     endpoint = check_export(volume, manager, pod, args.image)
     original_resources = get("pv,pvc,pod", namespace=None)["items"]
     original_claims, original_clients = consumers(volume, original_resources)
+    original_contracts = client_contracts(original_resources, original_clients)
+    if image_version(args.image) < (1, 13, 0) or get("settings.longhorn.io", "auto-delete-pod-when-volume-detached-unexpectedly")["value"] != "true":
+        raise UnsafeRefresh("Require Longhorn 1.13 native managed-client remount recovery enabled")
+    previous_remount = volume["status"].get("remountRequestedAt")
     check_nfs_mounts(volume, original_resources)
     print(f"Checked {args.volume}: refresh {pod_name} to {args.image}; original clients {len(original_clients)}", flush=True)
     if not args.apply:
@@ -190,15 +232,19 @@ def main():
     latest_volume = next(v for v in latest_items if v["kind"] == "Volume" and v["metadata"]["name"] == args.volume)
     latest_manager = get("sharemanagers.longhorn.io", args.volume)
     latest_pod = get("pod", pod_name)
+    latest_resources = get("pv,pvc,pod", namespace=None)["items"]
     if latest_volume["metadata"]["uid"] != volume["metadata"]["uid"] or \
             latest_manager["metadata"]["uid"] != manager["metadata"]["uid"] or \
             latest_pod["metadata"]["uid"] != pod["metadata"]["uid"] or \
             check_export(latest_volume, latest_manager, latest_pod, args.image) != endpoint or \
-            consumers(latest_volume, get("pv,pvc,pod", namespace=None)["items"]) != (original_claims, original_clients):
+            consumers(latest_volume, latest_resources) != (original_claims, original_clients) or \
+            client_contracts(latest_resources, original_clients) != original_contracts:
         raise UnsafeRefresh("The original export or client identities changed before the restart")
     options = {"apiVersion": "v1", "kind": "DeleteOptions", "preconditions":
                {"uid": pod["metadata"]["uid"], "resourceVersion": pod["metadata"]["resourceVersion"]}}
     run(["kubectl", "--request-timeout=20s", "delete", "--raw", "/api/v1/namespaces/longhorn-system/pods/" + pod_name, "-f", "-"], json.dumps(options))
+    recovered_since = None
+    recovered_identity = None
     for _ in range(180):
         current_items = get("volumes.longhorn.io,engines.longhorn.io,replicas.longhorn.io")["items"]
         engine.health([o for o in current_items if o["spec"].get("volumeName", o["metadata"]["name"]) != args.volume])
@@ -215,18 +261,27 @@ def main():
                 manager_now["status"].get("state") == "running" and manager_now["status"].get("endpoint") == endpoint and current_volume["status"].get("shareEndpoint") == endpoint:
             try:
                 engine.health(current_items)
-                resources_now = get("pv,pvc,pod", namespace=None)["items"]
-                claims_now, clients_now = consumers(current_volume, resources_now)
-            except (engine.UnsafeUpgrade, UnsafeRefresh):
+            except engine.UnsafeUpgrade:
+                recovered_since = None
                 time.sleep(2)
                 continue
-            if claims_now != original_claims or clients_now != original_clients:
-                raise UnsafeRefresh("An original claim, PV or client pod identity changed")
+            resources_now = get("pv,pvc,pod", namespace=None)["items"]
+            if not remounted_clients(current_volume, new, resources_now, original_claims, original_contracts, previous_remount):
+                recovered_since = None
+                time.sleep(2)
+                continue
+            identity = (current_volume["status"]["remountRequestedAt"], frozenset(consumers(current_volume, resources_now)[1]))
+            if recovered_since is None or recovered_identity != identity:
+                recovered_since, recovered_identity = time.monotonic(), identity
+            if time.monotonic() - recovered_since < 5:
+                time.sleep(2)
+                continue
             check_nfs_mounts(current_volume, resources_now)
             backups_now = get("backups.longhorn.io")["items"]
             recovery_guard(current_items, backups_now, engine, default, dt.datetime.now(dt.timezone.utc))
-            print("Verified: current share-manager image, original endpoint/volume/claims, ready clients and healthy replicas", flush=True)
+            print("Verified: current share-manager image, original endpoint/volume/claims/controllers, completed native client remounts and healthy replicas", flush=True)
             return
+        recovered_since = None
         time.sleep(2)
     raise UnsafeRefresh("Export refresh is incomplete; stop before changing another export")
 

@@ -30,14 +30,61 @@ def clients():
                    "claimRef": {"namespace": "app", "name": "data", "uid": "claim-uid"}}, "status": {"phase": "Bound"}}
     pvc = {"kind": "PersistentVolumeClaim", "metadata": {"namespace": "app", "name": "data", "uid": "claim-uid"},
            "spec": {"volumeName": "original-pv"}, "status": {"phase": "Bound"}}
-    pod = {"kind": "Pod", "metadata": {"namespace": "app", "name": "consumer", "uid": "client-uid"},
+    pod = {"kind": "Pod", "metadata": {"namespace": "app", "name": "consumer", "uid": "client-uid",
+           "ownerReferences": [{"kind": "ReplicaSet", "name": "app-rs", "uid": "controller-original", "controller": True}]},
            "spec": {"volumes": [{"name": "data", "persistentVolumeClaim": {"claimName": "data"}}],
-                    "containers": [{"name": "app", "volumeMounts": [{"name": "data", "mountPath": "/data"}]}]},
-           "status": {"phase": "Running", "conditions": [{"type": "Ready", "status": "True"}]}}
+                    "containers": [{"name": "app", "image": "app:original", "volumeMounts": [{"name": "data", "mountPath": "/data"}]}]},
+           "status": {"phase": "Running", "startTime": "2026-10-02T04:00:00Z", "conditions": [{"type": "Ready", "status": "True"}]}}
     return [pv, pvc, pod]
 
 
 class ShareManagerGuards(unittest.TestCase):
+    def test_ready_old_client_does_not_finish_before_native_remount(self):
+        volume, _, server = export()
+        volume["status"].update(remountRequestedAt="2026-10-02T05:00:00Z", shareState="running")
+        server["status"]["startTime"] = "2026-10-02T05:00:01Z"
+        original = clients()
+        claims, selected = refresh.consumers(volume, original)
+        contracts = refresh.client_contracts(original, selected)
+        self.assertFalse(refresh.remounted_clients(volume, server, original, claims, contracts, None))
+        replacement = copy.deepcopy(original)
+        replacement[2]["metadata"]["uid"] = "native-replacement"
+        replacement[2]["status"].update(startTime="2026-10-02T05:00:10Z", phase="Pending")
+        self.assertFalse(refresh.remounted_clients(volume, server, replacement, claims, contracts, None))
+        replacement[2]["status"]["phase"] = "Running"
+        self.assertTrue(refresh.remounted_clients(volume, server, replacement, claims, contracts, None))
+
+    def test_native_replacement_cannot_change_claim_controller_or_image(self):
+        volume, _, server = export()
+        original = clients()
+        claims, selected = refresh.consumers(volume, original)
+        contracts = refresh.client_contracts(original, selected)
+        for mutate in [lambda r: r[0]["metadata"].update(uid="foreign-pv"),
+                       lambda r: r[2]["metadata"]["ownerReferences"][0].update(uid="foreign-controller"),
+                       lambda r: r[2]["spec"]["containers"][0].update(image="app:changed")]:
+            changed = copy.deepcopy(original)
+            mutate(changed)
+            with self.assertRaises(refresh.UnsafeRefresh):
+                refresh.remounted_clients(volume, server, changed, claims, contracts, None)
+
+    def test_missing_clients_or_unchanged_remount_wait_instead_of_succeeding(self):
+        volume, _, server = export()
+        original = clients()
+        claims, selected = refresh.consumers(volume, original)
+        contracts = refresh.client_contracts(original, selected)
+        for resources in [original, original[:2]]:
+            self.assertFalse(refresh.remounted_clients(volume, server, resources, claims, contracts, None))
+        volume["status"].update(remountRequestedAt="2026-10-02T05:00:00Z", shareState="running")
+        server["status"]["startTime"] = "2026-10-02T04:59:59Z"
+        self.assertFalse(refresh.remounted_clients(volume, server, original, claims, contracts, None))
+
+    def test_unmanaged_client_blocks_native_recovery_refresh(self):
+        for owners in [[], [{"kind": "Job", "name": "one-shot", "uid": "job", "controller": True}]]:
+            changed = clients()
+            changed[2]["metadata"]["ownerReferences"] = owners
+            with self.assertRaises(refresh.UnsafeRefresh):
+                refresh.client_contracts(changed, {("app", "consumer", "client-uid")})
+
     def test_manager_command_is_the_authoritative_share_image(self):
         container = {"name": "longhorn-manager", "image": "docker.io/longhornio/longhorn-manager:v1.13.0",
                      "command": ["longhorn-manager", "daemon", "--share-manager-image", TARGET]}
@@ -165,7 +212,10 @@ class ShareManagerGuards(unittest.TestCase):
         replacement = copy.deepcopy(old)
         replacement["metadata"]["uid"] = "pod-replacement"
         replacement["spec"]["containers"][0]["image"] = TARGET
+        replacement["status"]["startTime"] = "2026-10-02T05:00:01Z"
+        resource_reads = 0
         def get(resource, name=None, namespace="longhorn-system"):
+            nonlocal resource_reads
             if resource == "daemonset":
                 return {"metadata": {"generation": 1},
                         "spec": {"template": {"spec": {"containers": [{"name": "longhorn-manager",
@@ -174,15 +224,25 @@ class ShareManagerGuards(unittest.TestCase):
                         "status": {"desiredNumberScheduled": 3, "numberReady": 3,
                         "updatedNumberScheduled": 3, "observedGeneration": 1}}
             if resource == "settings.longhorn.io":
-                return {"value": {"default-engine-image": image, "current-longhorn-version": "v1.13.0"}[name]}
+                return {"value": {"default-engine-image": image, "current-longhorn-version": "v1.13.0",
+                        "auto-delete-pod-when-volume-detached-unexpectedly": "true"}[name]}
             if resource == "volumes.longhorn.io,engines.longhorn.io,replicas.longhorn.io": return {"items": [volume, engine] + replicas}
             if resource == "backups.longhorn.io": return {"items": backups}
             if resource == "sharemanagers.longhorn.io": return manager
             if resource == "pod": return old
-            if resource == "pods": return {"items": [replacement]}
-            if resource == "pv,pvc,pod": return {"items": clients()}
+            if resource == "pods":
+                volume["status"].update(remountRequestedAt="2026-10-02T05:00:00Z", shareState="running")
+                return {"items": [replacement]}
+            if resource == "pv,pvc,pod":
+                resource_reads += 1
+                resources = clients()
+                if resource_reads > 2:
+                    resources[2]["metadata"]["uid"] = "native-replacement-client"
+                    resources[2]["status"]["startTime"] = "2026-10-02T05:00:10Z"
+                return {"items": resources}
             self.fail(resource)
         with patch.object(refresh, "get", side_effect=get), patch.object(refresh, "run", return_value="nfs\n") as native, \
+                patch.object(refresh.time, "monotonic", side_effect=[0, 0, 6]), patch.object(refresh.time, "sleep"), \
                 patch.object(refresh.sys, "argv", ["refresh", "test", "--image", TARGET, "--apply"]):
             refresh.main()
         deletions = [call for call in native.call_args_list if call.args[0][2] == "delete"]
