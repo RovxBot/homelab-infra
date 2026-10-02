@@ -69,13 +69,36 @@ def guard_backups(items, now):
             raise UnsafeCleanup(f"{name}'s recovery backup is older than 24 hours")
 
 
+def snapshot_health_stable(items, name, initially_detached):
+    """Wait for native snapshot attachment; never authorize work in transition."""
+    volume = next(o for o in items if o["kind"] == "Volume" and o["metadata"]["name"] == name)
+    if not initially_detached or volume["status"]["state"] not in {"attaching", "detaching"}:
+        guard_health(items)
+        return True
+    guard_health([o for o in items if o.get("spec", {}).get("volumeName", o["metadata"]["name"]) != name])
+    spec, status = volume["spec"], volume["status"]
+    if spec.get("dataEngine") != "v1" or spec.get("dataSource") or spec.get("cloneMode") or \
+            status.get("restoreRequired") or spec.get("migrationNodeID") or spec["image"] != status["currentImage"]:
+        raise UnsafeCleanup("Unexpected restore, migration or engine change during snapshot attachment")
+    copies = {r["spec"].get("nodeID") for r in items if r["kind"] == "Replica" and
+              r["spec"]["volumeName"] == name and r["spec"].get("active") and
+              r["spec"].get("healthyAt") and not r["spec"].get("failedAt")}
+    copies.discard(None)
+    copies.discard("")
+    if len(copies) < max(3, spec["numberOfReplicas"]):
+        raise UnsafeCleanup("The transitioning volume lost its healthy retained copies")
+    return False
+
+
 def select_snapshots(snapshots, protected_backup_snapshot):
     visible = [s for s in snapshots if s.get("status", {}).get("readyToUse") and not s["status"].get("markRemoved")]
     visible.sort(key=lambda s: (s["status"]["creationTime"], s["metadata"]["name"]), reverse=True)
     keep = {s["metadata"]["name"] for s in visible[:2]}
     if protected_backup_snapshot not in keep:
         raise UnsafeCleanup("The latest completed backup snapshot must be one of the two retained points; refresh the backup first")
-    return keep, [s for s in visible[2:]]
+    # Deleting an already-marked parent CR lets the native snapshot controller
+    # attach an idle volume and finish physical purging before it detaches.
+    return keep, visible[2:] + [s for s in snapshots if s.get("status", {}).get("markRemoved")]
 
 
 def guard_snapshot_references(targets, contents):
@@ -191,6 +214,7 @@ def main():
     if any(v["spec"]["image"] != image for v in items if v["kind"] == "Volume"):
         raise UnsafeCleanup("Finish engine upgrades before compaction")
     volume = next(v for v in items if v["kind"] == "Volume" and v["metadata"]["name"] == args.volume)
+    initially_detached = volume["status"]["state"] == "detached"
     backup = next(b for b in items if b["kind"] == "Backup" and b["metadata"]["name"] == volume["status"]["lastBackup"])
     snapshot_name = backup["status"]["snapshotName"]
     snapshots = [s for s in items if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
@@ -215,8 +239,13 @@ def main():
         time.sleep(2)
     else:
         raise UnsafeCleanup("The maintenance snapshot did not become ready; no older history was removed")
-    current = state()
-    guard_health(current)
+    for _ in range(90):
+        current = state()
+        if snapshot_health_stable(current, args.volume, initially_detached):
+            break
+        time.sleep(2)
+    else:
+        raise UnsafeCleanup("Native snapshot attachment did not settle; no older history was removed")
     guard_backups(current, dt.datetime.now(dt.timezone.utc))
     snapshots = [s for s in current if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
     keep, targets = select_snapshots(snapshots, snapshot_name)
@@ -238,12 +267,16 @@ def main():
         if time.monotonic() >= deadline:
             break
         current = state(with_backups=False)
-        guard_health(current)
+        if not snapshot_health_stable(current, args.volume, initially_detached):
+            time.sleep(5)
+            continue
         remaining = [s for s in current if s["kind"] == "Snapshot" and s["spec"]["volume"] == args.volume]
         final_keep, extra = select_snapshots(remaining, snapshot_name)
         targets_present = any(s["metadata"]["name"] in {t["metadata"]["name"] for t in targets} for s in remaining)
         active = [e for e in current if e["kind"] == "Engine" and e["spec"]["volumeName"] == args.volume and e["spec"].get("active") and e["status"].get("currentState") == "running"]
-        if not active and not targets_present and not extra and keep == final_keep:
+        stopped = [e for e in current if e["kind"] == "Engine" and e["spec"]["volumeName"] == args.volume and e["spec"].get("active")]
+        if not active and not targets_present and not extra and keep == final_keep and \
+                len(stopped) == 1 and physical_compaction_complete(stopped[0], keep):
             guard_backups(state(), dt.datetime.now(dt.timezone.utc))
             print("Verified: detached volume retains two recent points and its healthy copies; selected old points are gone", flush=True)
             return
@@ -252,7 +285,7 @@ def main():
             purge = engine["status"].get("purgeStatus") or {}
             if any(p.get("error") for p in purge.values()):
                 raise UnsafeCleanup("Snapshot purge reported an error; stop before changing another volume")
-            if attempt and not targets_present and physical_compaction_complete(engine, keep):
+            if attempt and not initially_detached and not targets_present and physical_compaction_complete(engine, keep):
                 if not extra and keep == final_keep:
                     guard_backups(state(), dt.datetime.now(dt.timezone.utc))
                     print("Verified: two recent local points retained; older selected points purged; healthy replicas and B2 backups preserved", flush=True)

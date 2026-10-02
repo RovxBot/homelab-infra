@@ -46,6 +46,12 @@ For the initial cleanup:
    up to three hours on the selected volume and requires its physical snapshot
    tree to contain only the two retained points and the current volume head.
    A resumed run cannot treat already-retired CRs as proof of physical cleanup.
+   On an initially detached volume, the helper waits through native snapshot
+   attachment transitions while checking its three retained healthy copies and
+   keeping every other volume's checks strict. It retires already-marked parent
+   CRs through the native controller and waits for the volume to detach again
+   with the same physical three-layer tree. It never manually attaches, forcibly
+   detaches, or accepts a transition as successful compaction.
 5. Verify the two retained points are ready, the selected older points are gone,
    and healthy replicas and B2 recovery points remain. Stop on any error before
    processing another volume. Snapshot retirement cannot be undone unless a
