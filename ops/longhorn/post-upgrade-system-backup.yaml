@@ -1,0 +1,11 @@
+# Manual operation only after all managers, engines and RWX exports reach 1.13.0.
+apiVersion: longhorn.io/v1beta2
+kind: SystemBackup
+metadata:
+  name: post-upgrade-20261002
+  namespace: longhorn-system
+  labels:
+    homelab.cooked.beer/maintenance-purpose: post-upgrade-recovery
+    homelab.cooked.beer/expected-longhorn-version: v1.13.0
+spec:
+  volumeBackupPolicy: always
