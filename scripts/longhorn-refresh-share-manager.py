@@ -42,6 +42,28 @@ def image_version(image):
         raise UnsafeRefresh("Expected a stable official Longhorn share-manager image")
     return tuple(map(int, match.groups()))
 
+def configured_share_image(daemonset):
+    containers = [c for c in daemonset["spec"]["template"]["spec"]["containers"] if c["name"] == "longhorn-manager"]
+    if len(containers) != 1:
+        raise UnsafeRefresh("Require one configured Longhorn manager container")
+    container = containers[0]
+    command = container.get("command", []) + container.get("args", [])
+    images = []
+    for index, arg in enumerate(command):
+        if arg == "--share-manager-image":
+            if index + 1 >= len(command):
+                raise UnsafeRefresh("The manager share-image argument has no value")
+            images.append(command[index + 1])
+        elif arg.startswith("--share-manager-image="):
+            images.append(arg.split("=", 1)[1])
+    if len(images) != 1:
+        raise UnsafeRefresh("Require one explicit manager share-image argument")
+    version = image_version(images[0])
+    manager = re.fullmatch(r"(?:docker.io/)?longhornio/longhorn-manager:v(\d+)\.(\d+)\.(\d+)", container["image"])
+    if not manager or tuple(map(int, manager.groups())) != version:
+        raise UnsafeRefresh("Configured manager and share-manager versions differ")
+    return images[0]
+
 def check_export(volume, manager, pod, target):
     name = volume["metadata"]["name"]
     if volume["spec"]["accessMode"] != "rwx" or manager["metadata"]["name"] != name or manager["spec"].get("image") != target:
@@ -143,7 +165,7 @@ def main():
         raise UnsafeRefresh("Finish the manager rollout first")
     default = get("settings.longhorn.io", "default-engine-image")["value"]
     current = get("settings.longhorn.io", "current-longhorn-version")["value"]
-    if get("settings.longhorn.io", "share-manager-image")["value"] != args.image or \
+    if configured_share_image(manager_ds) != args.image or \
             image_version(args.image) != engine.version(default) or current != "v" + ".".join(map(str, image_version(args.image))):
         raise UnsafeRefresh("The target must match the running managers and their default engine")
     items = get("volumes.longhorn.io,engines.longhorn.io,replicas.longhorn.io")["items"]
