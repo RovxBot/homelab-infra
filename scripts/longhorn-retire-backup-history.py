@@ -305,21 +305,109 @@ def after_weekly_backup(client, guards, apply=False):
         retire_volume(client, guards, volume["metadata"]["name"], volume["status"]["lastBackup"], apply)
     retire_systems(client, guards, selected["metadata"]["name"], apply)
 
+def check_reviewed_plan(client, guards, plan):
+    """Accept partial progress, but never a new identity or recovery point."""
+    items = global_state(client, guards)
+    volumes = {o["metadata"]["name"]: o for o in items if o["kind"] == "Volume"}
+    if not volumes or {name: v["metadata"]["uid"] for name, v in volumes.items()} != plan["originalVolumes"]:
+        raise UnsafeRetention("Original volume identities changed")
+    proof = plan["restoreVerification"]
+    if proof.get("verificationCopyRemoved") is not True or proof.get("cloneHealthyCopies") != 3 or \
+            proof.get("originalClaimsVerified", 0) != plan["originalClaimsVerified"] or \
+            plan["originalClaimsVerified"] <= 0 or "SQLite integrity: ok" not in proof.get("sqliteIntegrity", ""):
+        raise UnsafeRetention("A successful isolated restore and original-claim verification are required")
+    plans = {p["volume"]: p for p in plan["plans"]}
+    if len(plans) != len(plan["plans"]) or {p["volume"] for p in plans.values() if p["live"]} != set(volumes):
+        raise UnsafeRetention("The reviewed plan must cover all original live volumes exactly once")
+    source = plans[proof["sourceVolume"]]
+    if plan["originalVolumes"].get(proof["sourceVolume"]) != proof["sourceVolumeUID"] or \
+            (source["keep"], source["keepUID"]) != (proof["sourceBackup"], proof["sourceBackupUID"]):
+        raise UnsafeRetention("The retained source backup must match the successful restore")
+    backup_volumes = client.get("backupvolumes")["items"]
+    if len(backup_volumes) != len(plans) or {v["spec"]["volumeName"] for v in backup_volumes} != set(plans):
+        raise UnsafeRetention("The reviewed backup-volume inventory changed")
+    backups = [o for o in items if o["kind"] == "Backup"]
+    covered = set()
+    approved = {}
+    targets = []
+    for bv in backup_volumes:
+        p = plans[bv["spec"]["volumeName"]]
+        if (bv["metadata"]["name"], bv["metadata"]["uid"]) != (p["backupVolumeName"], p["backupVolumeUID"]):
+            raise UnsafeRetention("Reviewed backup-volume identity changed")
+        keep, older = retention_plan(backups, bv, p["keep"])
+        if keep["metadata"]["uid"] != p["keepUID"] or \
+                p["volume"] in volumes and volumes[p["volume"]]["status"].get("lastBackup") != p["keep"]:
+            raise UnsafeRetention("Reviewed protected recovery identity changed")
+        covered.add(keep["metadata"]["name"])
+        for old in older:
+            name = old["metadata"]["name"]
+            if p["older"].get(name) != old["metadata"]["uid"]:
+                raise UnsafeRetention("An older recovery point was not included in the reviewed plan")
+            covered.add(name)
+            approved[BASE + "backups/" + name] = old["metadata"]["uid"]
+        targets.extend(older)
+    if covered != {b["metadata"]["name"] for b in backups}:
+        raise UnsafeRetention("An unreviewed backup exists outside the plan")
+    guard_backup_references(targets, client.csi_snapshot_contents())
+    keep_system, older_systems = system_plan(client.get("systembackups")["items"], plan["system"]["name"])
+    if keep_system["metadata"]["uid"] != plan["system"]["uid"]:
+        raise UnsafeRetention("Reviewed system recovery identity changed")
+    for old in older_systems:
+        name = old["metadata"]["name"]
+        if plan["olderSystems"].get(name) != old["metadata"]["uid"]:
+            raise UnsafeRetention("An older system archive was not included in the reviewed plan")
+        approved[BASE + "systembackups/" + name] = old["metadata"]["uid"]
+    return approved
+
+def retire_reviewed_plan(client, guards, plan, apply=False):
+    # No new privileges: this proxy permits only native historical backup
+    # deletions whose identities survive a fresh full-plan check at each DELETE.
+    class ReviewedClient:
+        def get(self, *args, **kwargs):
+            return client.get(*args, **kwargs)
+
+        def csi_snapshot_contents(self):
+            return client.csi_snapshot_contents()
+
+        def request(self, path, body=None, missing_ok=False):
+            if body is not None:
+                approved = check_reviewed_plan(client, guards, plan)
+                if not apply or path not in approved or body.get("preconditions", {}).get("uid") != approved[path]:
+                    raise UnsafeRetention("Deletion is outside the exact reviewed historical identities")
+            return client.request(path, body, missing_ok)
+
+    approved = check_reviewed_plan(client, guards, plan)
+    print(f"Reviewed plan: protect {len(plan['plans'])} volume backups; retire {len(approved)} historical objects", flush=True)
+    reviewed = ReviewedClient()
+    for index, p in enumerate(plan["plans"], 1):
+        check_reviewed_plan(client, guards, plan)
+        print(f"Reviewed volume {index}/{len(plan['plans'])}: {p['volume']}", flush=True)
+        retire_volume(reviewed, guards, p["volume"], p["keep"], apply)
+    retire_systems(reviewed, guards, plan["system"]["name"], apply)
+    remaining = check_reviewed_plan(client, guards, plan)
+    if apply and remaining:
+        raise UnsafeRetention("Reviewed retention has not converged")
+    print(json.dumps({"reviewedPlanComplete": bool(apply), "protectedBackups": len(plan["plans"]),
+                      "system": plan["system"], "restoreVerified": True}), flush=True)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("volume", nargs="?")
     parser.add_argument("--system-archives", action="store_true")
     parser.add_argument("--after-weekly-system-backup", action="store_true")
+    parser.add_argument("--reviewed-plan", type=Path, help="Immutable reviewed identity plan with successful restore proof")
     parser.add_argument("--expected-latest")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
-    if sum([bool(args.volume), args.system_archives, args.after_weekly_system_backup]) != 1:
+    if sum([bool(args.volume), args.system_archives, args.after_weekly_system_backup, bool(args.reviewed_plan)]) != 1:
         raise UnsafeRetention("Select exactly one volume or the system archives")
     if args.volume and not re.fullmatch(r"pvc-[a-f0-9-]{36}", args.volume):
         raise UnsafeRetention("Use the exact reviewed PVC-backed Longhorn volume identity")
-    if args.apply and not args.expected_latest and not args.after_weekly_system_backup:
+    if args.apply and not args.expected_latest and not args.after_weekly_system_backup and not args.reviewed_plan:
         raise UnsafeRetention("Apply requires the latest backup name from a reviewed dry run")
-    if args.after_weekly_system_backup:
+    if args.reviewed_plan:
+        retire_reviewed_plan(Client(), load_guards(), json.loads(args.reviewed_plan.read_text()), args.apply)
+    elif args.after_weekly_system_backup:
         after_weekly_backup(Client(), load_guards(), args.apply)
     elif args.system_archives:
         retire_systems(Client(), load_guards(), args.expected_latest, args.apply)

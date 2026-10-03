@@ -31,6 +31,29 @@ Use `--system-archives --expected-latest SYSTEM --apply` only with a fresh Ready
 system backup that includes completed volume data. The one-time maintenance
 run also reviews all retired volume recovery points.
 
+For a long manual cleanup, run the worker as a Kubernetes Job so closing the
+client does not interrupt it. Use the preview-only template
+[`reviewed-backup-retention-job.yaml`](../../ops/longhorn/reviewed-backup-retention-job.yaml)
+with the exact deployed retention-code ConfigMap and a separate immutable
+ConfigMap containing `plan.json`. This template is not deployed by GitOps.
+
+The reviewed plan contains `originalVolumes` (name to UID),
+`originalClaimsVerified` (the number checked independently before the job),
+`plans` (each volume's `volume`, `live`, `backupVolumeName`, `backupVolumeUID`,
+`keep`, `keepUID`, and `older` name-to-UID map), `system` (name and UID), and
+`olderSystems` (name-to-UID map). Include the successful isolated restore result
+as `restoreVerification`, including its exact `sourceBackupUID`. Complete the
+restore-copy cleanup and verify original claims and local compaction first.
+
+Run the preview job and inspect its successful logs. Create a separately named
+apply job with the same immutable plan and append `--apply` to its command.
+Every native deletion checks the full plan again, including all protected live
+and retired backups and the restore source. A changed identity, new backup,
+expired 24-hour recovery window, or native error stops the job. Restarting with
+the same plan permits already completed deletions without broadening the plan.
+Do not refresh the recovery capture while a retention job is still running;
+after it stops, take a fresh capture and review a new plan if needed.
+
 B2 lifecycle deletes hidden or superseded object versions after one day under
 the approved prefixes. Current objects never expire by upload age. Provider
 cleanup and usage counters can lag, so the account cap is set after completed
