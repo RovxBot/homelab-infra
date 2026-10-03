@@ -1,0 +1,65 @@
+# One-off manual job. Replace both ConfigMap names with exact reviewed immutable identities.
+# Preview is the default; append --apply only after reviewing successful preview logs.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: reviewed-backup-retention
+  namespace: longhorn-system
+spec:
+  ttlSecondsAfterFinished: 604800
+  backoffLimit: 0
+  activeDeadlineSeconds: 86400
+  template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+    spec:
+      serviceAccountName: longhorn-latest-backup-retention
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: retention
+        image: python:3.14-alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01
+        command:
+        - python3
+        - /policy/longhorn-retire-backup-history.py
+        - --reviewed-plan
+        - /review/plan.json
+        env:
+        - name: PYTHONDONTWRITEBYTECODE
+          value: '1'
+        - name: PYTHONUNBUFFERED
+          value: '1'
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi
+        volumeMounts:
+        - name: policy
+          mountPath: /policy
+          readOnly: true
+        - name: review
+          mountPath: /review
+          readOnly: true
+      volumes:
+      - name: policy
+        configMap:
+          name: RETENTION_CODE_CONFIGMAP
+      - name: review
+        configMap:
+          name: REVIEWED_PLAN_CONFIGMAP

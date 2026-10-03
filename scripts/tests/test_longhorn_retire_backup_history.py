@@ -3,6 +3,7 @@ import datetime as dt
 import importlib.util
 import pathlib
 import unittest
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location("retention", pathlib.Path(__file__).resolve().parents[1] / "longhorn-retire-backup-history.py")
 retention = importlib.util.module_from_spec(spec)
@@ -269,5 +270,118 @@ class RetentionGuards(unittest.TestCase):
         client.volume["status"]["robustness"] = "degraded"
         with self.assertRaises(retention.UnsafeRetention): retention.retire_volume(client, guards, VOLUME, "newest", True)
         self.assertEqual(client.deleted, [])
+
+class ReviewedPlanGuards(unittest.TestCase):
+    def setUp(self):
+        self.client = FakeClient()
+        self.client.volume["metadata"]["uid"] = "volume-uid"
+        self.plan = {"originalVolumes": {VOLUME: "volume-uid"}, "originalClaimsVerified": 2,
+            "plans": [{"volume": VOLUME, "live": True, "backupVolumeName": "backup-volume",
+                       "backupVolumeUID": "bv-uid", "keep": "newest", "keepUID": "newest-uid",
+                       "older": {"old": "old-uid"}}], "system": {"name": "system", "uid": "system-uid"},
+            "olderSystems": {}, "restoreVerification": {"verificationCopyRemoved": True,
+                "cloneHealthyCopies": 3, "originalClaimsVerified": 2, "sqliteIntegrity": "SQLite integrity: ok",
+                "sourceVolume": VOLUME, "sourceVolumeUID": "volume-uid", "sourceBackup": "newest",
+                "sourceBackupUID": "newest-uid"}}
+        self.guards = retention.load_guards()
+
+    def check(self):
+        return retention.check_reviewed_plan(self.client, self.guards, self.plan)
+
+    def test_partial_progress_is_resumable_and_cannot_delete_protected_backup(self):
+        self.assertEqual(self.check(), {retention.BASE + "backups/old": "old-uid"})
+        self.client.backups.pop(0)
+        self.assertEqual(self.check(), {})
+
+    def test_unreviewed_history_and_changed_protected_identities_stop(self):
+        for change in ["older", "keeper", "volume", "backup-volume", "system"]:
+            with self.subTest(change=change):
+                self.setUp()
+                if change == "older": self.plan["plans"][0]["older"] = {}
+                if change == "keeper": self.plan["plans"][0]["keepUID"] = "replacement"
+                if change == "volume": self.plan["originalVolumes"][VOLUME] = "replacement"
+                if change == "backup-volume": self.plan["plans"][0]["backupVolumeUID"] = "replacement"
+                if change == "system": self.plan["system"]["uid"] = "replacement"
+                with self.assertRaises(retention.UnsafeRetention): self.check()
+                self.assertEqual(self.client.deleted, [])
+
+    def test_restore_must_match_retained_source_and_claim_verification(self):
+        for field, value in [("verificationCopyRemoved", False), ("cloneHealthyCopies", 2),
+                             ("originalClaimsVerified", 1), ("sqliteIntegrity", "corrupt"),
+                             ("sourceBackupUID", "replacement"), ("sourceVolumeUID", "replacement")]:
+            with self.subTest(field=field):
+                self.setUp()
+                self.plan["restoreVerification"][field] = value
+                with self.assertRaises(retention.UnsafeRetention): self.check()
+                self.assertEqual(self.client.deleted, [])
+
+    def test_duplicate_volume_inventory_and_foreign_backup_stop(self):
+        self.plan["plans"].append(copy.deepcopy(self.plan["plans"][0]))
+        with self.assertRaises(retention.UnsafeRetention): self.check()
+        self.setUp()
+        foreign = copy.deepcopy(self.client.backups[0])
+        foreign["metadata"]["name"] = "foreign"
+        foreign["status"]["volumeName"] = "unreviewed-volume"
+        self.client.backups.append(foreign)
+        with self.assertRaises(retention.UnsafeRetention): self.check()
+
+    def test_full_dry_run_never_mutates(self):
+        retention.retire_reviewed_plan(self.client, self.guards, self.plan)
+        self.assertEqual(self.client.deleted, [])
+
+    def test_apply_rechecks_reviewed_old_uid_immediately_before_delete(self):
+        def fake_retire(client, guards, volume, expected_latest, apply):
+            self.client.backups[0]["metadata"]["uid"] = "changed-after-preview"
+            client.request(retention.BASE + "backups/old", retention.delete_options(self.client.backups[0]))
+        with mock.patch.object(retention, "retire_volume", side_effect=fake_retire):
+            with self.assertRaises(retention.UnsafeRetention):
+                retention.retire_reviewed_plan(self.client, self.guards, self.plan, True)
+        self.assertEqual(self.client.deleted, [])
+
+    def test_apply_finishes_with_only_exact_keepers_and_restart_is_noop(self):
+        original_get = self.client.get
+        original_request = self.client.request
+        def native_get(resource, name=None, missing_ok=False):
+            if resource == "backups" and name:
+                return next((b for b in self.client.backups if b["metadata"]["name"] == name), None)
+            return original_get(resource, name, missing_ok)
+        def native_request(path, body=None, missing_ok=False):
+            if body is None: return original_request(path, body, missing_ok)
+            self.client.deleted.append((path, body))
+            self.client.backups = [b for b in self.client.backups if path != retention.BASE + "backups/" + b["metadata"]["name"]]
+            return {"kind": "Status", "status": "Success"}
+        self.client.get = native_get
+        self.client.request = native_request
+        retention.retire_reviewed_plan(self.client, self.guards, self.plan, True)
+        retention.retire_reviewed_plan(self.client, self.guards, self.plan, True)
+        self.assertEqual(len(self.client.deleted), 1)
+        self.assertEqual(self.client.deleted[0][1]["preconditions"], {"uid": "old-uid", "resourceVersion": "1"})
+        self.assertEqual([b["metadata"]["uid"] for b in self.client.backups], ["newest-uid"])
+
+    def test_retired_volume_keeper_is_protected_from_inventory_changes(self):
+        retired = "pvc-22222222-2222-2222-2222-222222222222"
+        bv, points = fixtures()
+        bv["spec"]["volumeName"] = retired
+        bv["metadata"].update(name="retired-bv", uid="retired-bv-uid")
+        for point in points:
+            name = "retired-" + point["metadata"]["name"]
+            point["metadata"].update(name=name, uid=name + "-uid")
+            point["metadata"]["labels"]["backup-volume"] = retired
+            point["metadata"]["ownerReferences"] = [{"kind": "BackupVolume", "name": "retired-bv", "uid": "retired-bv-uid"}]
+            point["status"].update(volumeName=retired, url=retention.DESTINATION + "?backup=" + name + "&volume=" + retired)
+        bv["status"]["lastBackupName"] = "retired-newest"
+        self.client.backups.extend(points)
+        original_get = self.client.get
+        def get(resource, name=None, missing_ok=False):
+            if resource == "backupvolumes" and not name: return {"items": [self.client.backup_volume, bv]}
+            return original_get(resource, name, missing_ok)
+        self.client.get = get
+        self.plan["plans"].append({"volume": retired, "live": False, "backupVolumeName": "retired-bv",
+            "backupVolumeUID": "retired-bv-uid", "keep": "retired-newest", "keepUID": "retired-newest-uid",
+            "older": {"retired-old": "retired-old-uid"}})
+        self.assertEqual(len(self.check()), 2)
+        points[-1]["metadata"]["uid"] = "replaced-retired-keeper"
+        with self.assertRaises(retention.UnsafeRetention): self.check()
+        self.assertEqual(self.client.deleted, [])
 
 if __name__ == "__main__": unittest.main()
