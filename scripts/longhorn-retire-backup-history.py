@@ -34,23 +34,39 @@ class Client:
         directory = Path("/var/run/secrets/kubernetes.io/serviceaccount")
         self.token_path = directory / "token"
         self.in_cluster = self.token_path.exists()
+        self.next_request = 0.0
         if self.in_cluster:
             self.context = ssl.create_default_context(cafile=str(directory / "ca.crt"))
 
     def request(self, path, body=None, missing_ok=False):
         method = "GET" if body is None else "DELETE"
         if self.in_cluster:
-            request = urllib.request.Request("https://kubernetes.default.svc" + path,
-                headers={"Authorization": "Bearer " + self.token_path.read_text().strip(),
-                         "Content-Type": "application/json"},
-                data=None if body is None else json.dumps(body).encode(), method=method)
-            try:
-                with urllib.request.urlopen(request, context=self.context, timeout=30) as result:
-                    return json.load(result)
-            except urllib.error.HTTPError as error:
-                if missing_ok and error.code == 404:
-                    return None
-                raise UnsafeRetention(f"Kubernetes {method} failed with HTTP {error.code}") from None
+            for attempt in range(6):
+                # Match client-go's default 5 QPS, without bursts. Reads are
+                # retried only for API throttling; mutations always fail closed.
+                delay = self.next_request - time.monotonic()
+                if delay > 0:
+                    time.sleep(delay)
+                self.next_request = time.monotonic() + 0.2
+                request = urllib.request.Request("https://kubernetes.default.svc" + path,
+                    headers={"Authorization": "Bearer " + self.token_path.read_text().strip(),
+                             "Content-Type": "application/json"},
+                    data=None if body is None else json.dumps(body).encode(), method=method)
+                try:
+                    with urllib.request.urlopen(request, context=self.context, timeout=30) as result:
+                        return json.load(result)
+                except urllib.error.HTTPError as error:
+                    error.close()
+                    if missing_ok and error.code == 404:
+                        return None
+                    if method == "GET" and error.code == 429 and attempt < 5:
+                        retry_after = error.headers.get("Retry-After", "") if error.headers else ""
+                        delay = int(retry_after) if retry_after.isdigit() else 2 ** attempt
+                        if delay > 30:
+                            raise UnsafeRetention("Kubernetes requested a longer throttling pause; stop for inspection") from None
+                        time.sleep(max(1, delay))
+                        continue
+                    raise UnsafeRetention(f"Kubernetes {method} failed with HTTP {error.code}") from None
         command = ["kubectl", "--request-timeout=20s", "get" if body is None else "delete", "--raw", path]
         if body is not None:
             command += ["-f", "-"]
