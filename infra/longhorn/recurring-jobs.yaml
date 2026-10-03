@@ -7,9 +7,9 @@ spec:
   name: default-weekly-system-backup
   task: system-backup
   cron: "15 4 * * 0"
-  retain: 2
+  retain: 1
   concurrency: 1
   parameters:
-    volume-backup-policy: disabled
+    volume-backup-policy: always
   groups:
     - system-backup

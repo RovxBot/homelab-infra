@@ -35,6 +35,9 @@ jobs:
       - name: Test check selection
         run: python3 -m unittest discover -s scripts/ci/tests -v
 
+      - name: Test storage maintenance guards
+        run: python3 -m unittest discover -s scripts/tests -v
+
       - name: Select relevant checks
         id: changes
         env:
@@ -215,6 +218,9 @@ jobs:
         run: |
           set -euo pipefail
           actionlint
+
+      - name: Test Renovate Dashboard approval behavior
+        run: node .github/tests/renovate-release-app-batches.test.cjs
 
   yamllint:
     needs: changes

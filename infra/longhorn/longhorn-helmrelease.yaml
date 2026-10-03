@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: longhorn
-      version: 1.11.1
+      version: 1.13.0
       sourceRef:
         kind: HelmRepository
         name: longhorn
@@ -24,7 +24,10 @@ spec:
     crds: CreateReplace
     disableTakeOwnership: false
     remediation:
-      retries: 3
+      # Longhorn migrations require a forward recovery. Leave a failed upgrade
+      # available for inspection without automatically rolling back managers.
+      retries: 0
+      remediateLastFailure: false
     timeout: 15m
   # The chart defaults the manager DaemonSet to 100% unavailable during a
   # rollout. Limit maintenance to one node so volume control-plane recovery
@@ -42,6 +45,11 @@ spec:
                 path: /spec/updateStrategy/rollingUpdate/maxUnavailable
                 value: 1
   values:
+    # Preserve host-originated V1 iSCSI access on Cilium while upgrading.
+    # The 1.12.1 default internal policy omits the node initiator on TCP/3260.
+    networkPolicies:
+      restrictInternalTraffic: false
+
     service:
       ui:
         type: NodePort
@@ -60,7 +68,8 @@ spec:
       backupTargetName: default
 
     preUpgradeChecker:
-      jobEnabled: false
+      jobEnabled: true
+      upgradeVersionCheck: true
 
     defaultSettings:
       priorityClass: longhorn-critical

@@ -1,0 +1,174 @@
+import copy
+import datetime as dt
+import importlib.util
+from pathlib import Path
+import unittest
+
+
+path = Path(__file__).resolve().parents[1] / "longhorn-prune-snapshots.py"
+module_spec = importlib.util.spec_from_file_location("prune", path)
+prune = importlib.util.module_from_spec(module_spec)
+module_spec.loader.exec_module(prune)
+
+
+def snapshot(name, created, removed=False):
+    return {"metadata": {"name": name}, "status": {"creationTime": created, "readyToUse": not removed, "markRemoved": removed}}
+
+
+def fixture():
+    volume = {"kind": "Volume", "metadata": {"name": "test"},
+              "spec": {"dataEngine": "v1", "image": "engine", "numberOfReplicas": 3},
+              "status": {"state": "attached", "robustness": "healthy", "currentImage": "engine",
+                         "lastBackup": "backup", "lastBackupAt": "2026-10-01T08:00:00Z"}}
+    replicas = [{"kind": "Replica", "metadata": {"name": f"r{i}"},
+                 "spec": {"volumeName": "test", "nodeID": f"metal{i}", "active": True,
+                          "healthyAt": "2026-09-30T00:00:00Z", "failedAt": ""}} for i in range(3)]
+    engine = {"kind": "Engine", "metadata": {"name": "engine"}, "spec": {"volumeName": "test", "active": True},
+              "status": {"currentState": "running", "replicaModeMap": {f"r{i}": "RW" for i in range(3)}}}
+    backup = {"kind": "Backup", "metadata": {"name": "backup"},
+              "status": {"state": "Completed", "progress": 100, "url": "s3://test", "volumeName": "test",
+                         "snapshotCreatedAt": "2026-10-01T07:00:00Z"}}
+    return [volume, engine, backup] + replicas
+
+
+class SnapshotCleanupGuards(unittest.TestCase):
+    def test_resumed_cleanup_waits_for_remaining_physical_layers(self):
+        keep = {"backup", "maintenance"}
+        engine = {"status": {"snapshots": {"volume-head": {}, "backup": {}, "maintenance": {}},
+                             "purgeStatus": {"r0": {"isPurging": False, "error": ""}}}}
+        self.assertTrue(prune.physical_compaction_complete(engine, keep))
+        engine["status"]["snapshots"]["retired-cr-already-gone"] = {"removed": True}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        del engine["status"]["snapshots"]["retired-cr-already-gone"]
+        engine["status"]["purgeStatus"]["r0"]["isPurging"] = True
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        engine["status"]["purgeStatus"]["r0"] = {"isPurging": False, "error": "I/O error"}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        engine["status"]["snapshots"] = {}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+
+    def test_keep_newest_two_and_protect_recovery_backup(self):
+        snapshots = [snapshot("old", "2026-05-10T00:00:00Z"), snapshot("backup", "2026-10-01T07:00:00Z"),
+                     snapshot("maintenance", "2026-10-01T08:00:00Z"), snapshot("removed", "2026-10-01T09:00:00Z", True)]
+        keep, retire = prune.select_snapshots(snapshots, "backup")
+        self.assertEqual(keep, {"backup", "maintenance"})
+        self.assertEqual([s["metadata"]["name"] for s in retire], ["old", "removed"])
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.select_snapshots(snapshots, "old")
+
+    def test_native_detached_transition_waits_without_weakening_other_volumes(self):
+        items = fixture()
+        items[0]["status"]["state"] = "attaching"
+        self.assertFalse(prune.snapshot_health_stable(items, "test", True))
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(items, "test", False)
+        items[0]["status"]["state"] = "detaching"
+        self.assertFalse(prune.snapshot_health_stable(items, "test", True))
+        changed = copy.deepcopy(items)
+        changed[-1]["spec"]["failedAt"] = "now"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(changed, "test", True)
+        changed = copy.deepcopy(items)
+        other = copy.deepcopy(items[0])
+        other["metadata"]["name"] = "unrelated"
+        other["status"].update(state="attached", robustness="degraded")
+        changed.append(other)
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(changed, "test", True)
+        items[0]["status"]["state"] = "detached"
+        self.assertTrue(prune.snapshot_health_stable(items, "test", True))
+
+    def test_already_removed_parent_still_needs_native_retirement(self):
+        snapshots = [snapshot("backup", "2026-10-01T07:00:00Z"),
+                     snapshot("maintenance", "2026-10-01T08:00:00Z"),
+                     snapshot("old-parent", "2026-01-01T00:00:00Z", True)]
+        keep, targets = prune.select_snapshots(snapshots, "backup")
+        self.assertEqual(keep, {"backup", "maintenance"})
+        self.assertEqual([s["metadata"]["name"] for s in targets], ["old-parent"])
+        engine = {"status": {"snapshots": {name: {} for name in keep | {"volume-head", "old-parent"}}}}
+        self.assertFalse(prune.physical_compaction_complete(engine, keep))
+        del engine["status"]["snapshots"]["old-parent"]
+        self.assertTrue(prune.physical_compaction_complete(engine, keep))
+
+    def test_idle_attachment_waits_for_health_after_state_becomes_attached(self):
+        items = fixture()
+        items[0]["status"]["robustness"] = "unknown"
+        items[1]["status"].update(currentState="starting", replicaModeMap={})
+        self.assertFalse(prune.snapshot_health_stable(items, "test", True))
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(items, "test", False)
+        for mutate in [lambda r: r[-1]["spec"].update(failedAt="now"),
+                       lambda r: r[0]["spec"].update(image="unexpected-upgrade"),
+                       lambda r: r[0]["status"].update(robustness="degraded")]:
+            changed = copy.deepcopy(items)
+            mutate(changed)
+            with self.assertRaises(prune.UnsafeCleanup):
+                prune.snapshot_health_stable(changed, "test", True)
+        unrelated = copy.deepcopy(items[0])
+        unrelated["metadata"]["name"] = "unrelated"
+        unrelated["status"]["robustness"] = "degraded"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.snapshot_health_stable(items + [unrelated], "test", True)
+        items[0]["status"]["robustness"] = "healthy"
+        items[1]["status"].update(currentState="running", replicaModeMap={f"r{i}": "RW" for i in range(3)})
+        self.assertTrue(prune.snapshot_health_stable(items, "test", True))
+
+    def test_refuse_incomplete_or_stale_snapshot_backup(self):
+        items = fixture(); now = dt.datetime(2026, 10, 1, 8, tzinfo=dt.timezone.utc)
+        prune.guard_backups(items, now)
+        for field, value in [("state", "InProgress"), ("state", "Error"), ("volumeName", "other"), ("progress", 10), ("url", ""), ("snapshotCreatedAt", "2025-12-01T00:00:00Z")]:
+            changed = copy.deepcopy(items); changed[2]["status"][field] = value
+            with self.assertRaises(prune.UnsafeCleanup):
+                prune.guard_backups(changed, now)
+
+    def test_refuse_rebuilding_colocated_or_upgrading_volumes(self):
+        items = fixture(); prune.guard_health(items)
+        changed = copy.deepcopy(items); changed[1]["status"]["replicaModeMap"]["r0"] = "WO"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_health(changed)
+        changed = copy.deepcopy(items); changed[3]["spec"]["nodeID"] = "metal1"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_health(changed)
+        changed = copy.deepcopy(items); changed[0]["spec"]["image"] = "new"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_health(changed)
+        changed = copy.deepcopy(items); changed[0]["spec"]["cloneMode"] = "linked-clone"
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_health(changed)
+
+    def test_refuse_referenced_csi_snapshot(self):
+        targets = [snapshot("old", "2026-05-10T00:00:00Z")]
+        for content in [{"spec": {"source": {"snapshotHandle": "snap://test/old"}}},
+                        {"status": {"snapshotHandle": "snap://test/old"}}]:
+            with self.assertRaises(prune.UnsafeCleanup):
+                prune.guard_snapshot_references(targets, [content])
+        prune.guard_snapshot_references(targets, [{"status": {"snapshotHandle": "snap://test/keep"}}])
+
+    def test_requires_temporary_coalescing_space_on_every_replica_disk(self):
+        items = fixture(); volume, replicas = items[0], items[3:]
+        volume["spec"]["size"] = "10"
+        nodes = []
+        for i, replica in enumerate(replicas):
+            replica["spec"]["diskID"] = f"uuid{i}"
+            nodes.append({"metadata": {"name": f"metal{i}"}, "status": {"diskStatus": {
+                "default": {"diskUUID": f"uuid{i}", "storageAvailable": 11,
+                            "conditions": [{"type": "Ready", "status": "True"}]}}}})
+        prune.guard_compaction_space(volume, replicas, nodes)
+        for field, value in [("storageAvailable", 10), ("diskUUID", "another"), ("conditions", [])]:
+            changed = copy.deepcopy(nodes)
+            changed[1]["status"]["diskStatus"]["default"][field] = value
+            with self.assertRaises(prune.UnsafeCleanup):
+                prune.guard_compaction_space(volume, replicas, changed)
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_compaction_space(volume, replicas, nodes[:2])
+        constrained = copy.deepcopy(nodes)
+        constrained[1]["status"]["diskStatus"]["default"]["storageAvailable"] = 4
+        # A parent already allocated to 8 of 10 bytes needs at most 2 more,
+        # plus the margin. Measurements must cover the constrained replica.
+        prune.guard_compaction_space(volume, replicas, constrained, {"r1": [8]})
+        with self.assertRaises(prune.UnsafeCleanup):
+            prune.guard_compaction_space(volume, replicas, constrained, {"r1": [6]})
+
+
+if __name__ == "__main__":
+    unittest.main()

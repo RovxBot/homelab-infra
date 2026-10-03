@@ -1,0 +1,48 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: longhorn-csi-registrar-lifecycle
+  annotations:
+    policies.kyverno.io/title: Longhorn CSI Registrar Shutdown
+    policies.kyverno.io/category: Operations
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/subject: DaemonSet
+    pod-policies.kyverno.io/autogen-controllers: none
+    policies.kyverno.io/description: >-
+      Longhorn's registrar images have no shell, so their shell-based preStop
+      hook fails. The registrar removes its registration socket on SIGTERM.
+      Remove only that redundant hook on the known Longhorn CSI DaemonSet.
+spec:
+  background: false
+  rules:
+    - name: use-native-registrar-shutdown
+      match:
+        any:
+          - resources:
+              kinds:
+                - apps/v1/DaemonSet
+              namespaces:
+                - longhorn-system
+              names:
+                - longhorn-csi-plugin
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.template.spec.containers[0].name || '' }}"
+            operator: Equals
+            value: node-driver-registrar
+          - key: "{{ request.object.spec.template.spec.containers[0].image || '' }}"
+            operator: AnyIn
+            value:
+              - docker.io/longhornio/csi-node-driver-registrar:v2.16.0
+              - docker.io/longhornio/csi-node-driver-registrar:v2.17.0
+              - docker.io/longhornio/csi-node-driver-registrar:v2.18.0
+              - longhornio/csi-node-driver-registrar:v2.16.0
+              - longhornio/csi-node-driver-registrar:v2.17.0
+              - longhornio/csi-node-driver-registrar:v2.18.0
+          - key: "{{ request.object.spec.template.spec.containers[0].lifecycle.preStop.exec.command[0] || '' }}"
+            operator: Equals
+            value: /bin/sh
+      mutate:
+        patchesJson6902: |-
+          - op: remove
+            path: /spec/template/spec/containers/0/lifecycle/preStop
