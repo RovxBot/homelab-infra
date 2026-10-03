@@ -20,6 +20,11 @@ backup UID/resourceVersion, CSI snapshot references and the protected newest
 identity before each removal, waits for native finalizers and stops on any error. Retired volumes
 are excluded from future automatic runs and keep their latest recovery point.
 
+In-cluster Kubernetes requests are paced at five per second without bursts.
+Throttled reads retry at most five times, honoring a numeric `Retry-After` up
+to 30 seconds or using bounded exponential delays. Deletes and other API
+errors stop immediately; they are never retried automatically.
+
 Review one volume before applying its exact protected backup name:
 
 ```sh

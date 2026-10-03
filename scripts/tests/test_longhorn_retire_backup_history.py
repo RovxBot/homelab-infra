@@ -1,6 +1,7 @@
 import copy
 import datetime as dt
 import importlib.util
+import io
 import pathlib
 import unittest
 from unittest import mock
@@ -383,5 +384,56 @@ class ReviewedPlanGuards(unittest.TestCase):
         points[-1]["metadata"]["uid"] = "replaced-retired-keeper"
         with self.assertRaises(retention.UnsafeRetention): self.check()
         self.assertEqual(self.client.deleted, [])
+
+class InClusterReadThrottling(unittest.TestCase):
+    def client(self):
+        client = retention.Client.__new__(retention.Client)
+        client.in_cluster = True
+        client.context = mock.sentinel.context
+        client.token_path = mock.Mock()
+        client.token_path.read_text.return_value = "test-token"
+        client.next_request = 0.0
+        return client
+
+    def error(self, code, retry_after=None):
+        headers = {} if retry_after is None else {"Retry-After": retry_after}
+        return retention.urllib.error.HTTPError("https://kubernetes.default.svc", code, "test", headers, io.BytesIO())
+
+    def test_throttled_read_honors_retry_after_then_succeeds(self):
+        with mock.patch.object(retention.urllib.request, "urlopen", side_effect=[self.error(429, "2"), io.BytesIO(b'{"ok":true}')]) as request, \
+                mock.patch.object(retention.time, "sleep") as sleep:
+            self.assertEqual(self.client().request("/read"), {"ok": True})
+            self.assertEqual(request.call_count, 2)
+            self.assertIn(mock.call(2), sleep.call_args_list)
+
+    def test_repeated_throttling_is_bounded(self):
+        with mock.patch.object(retention.urllib.request, "urlopen", side_effect=self.error(429)) as request, \
+                mock.patch.object(retention.time, "sleep"):
+            with self.assertRaises(retention.UnsafeRetention): self.client().request("/read")
+            self.assertEqual(request.call_count, 6)
+
+    def test_delete_and_auth_failure_are_never_retried(self):
+        for body, code in [({"preconditions": {"uid": "old-uid", "resourceVersion": "1"}}, 429), (None, 403)]:
+            with mock.patch.object(retention.urllib.request, "urlopen", side_effect=self.error(code)) as request:
+                with self.assertRaises(retention.UnsafeRetention): self.client().request("/resource", body)
+                self.assertEqual(request.call_count, 1)
+
+    def test_missing_resource_and_long_server_pause_stop_without_retries(self):
+        with mock.patch.object(retention.urllib.request, "urlopen", side_effect=self.error(404)) as request:
+            self.assertIsNone(self.client().request("/resource", missing_ok=True))
+            self.assertEqual(request.call_count, 1)
+        with mock.patch.object(retention.urllib.request, "urlopen", side_effect=self.error(429, "60")) as request:
+            with self.assertRaises(retention.UnsafeRetention): self.client().request("/read")
+            self.assertEqual(request.call_count, 1)
+
+    def test_consecutive_requests_are_paced_without_bursts(self):
+        client = self.client()
+        with mock.patch.object(retention.time, "monotonic", return_value=100), \
+                mock.patch.object(retention.time, "sleep") as sleep, \
+                mock.patch.object(retention.urllib.request, "urlopen", side_effect=[io.BytesIO(b'{}'), io.BytesIO(b'{}')]):
+            client.request("/first")
+            client.request("/second")
+            self.assertEqual(sleep.call_count, 1)
+            self.assertAlmostEqual(sleep.call_args.args[0], 0.2)
 
 if __name__ == "__main__": unittest.main()
