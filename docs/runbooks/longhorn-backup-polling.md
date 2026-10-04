@@ -15,7 +15,8 @@ polling also requires an explicit refresh.
 Minimizing request traffic does not enforce the storage budget. As of October
 2026, B2 pay-as-you-go Class A/B/C API calls are free; storage, tax, exchange
 rates and downloads beyond the free allowance determine the account cost.
-The requested limit is AUD $5/month for the whole account, including photos.
+The goal is the lowest practical whole-account cost, including photos; AUD 5
+per month is a guide. Preserve a usable recovery point and room for new backups.
 Retaining fewer backup sets must use native Longhorn or Restic cleanup so
 blocks referenced by the newest recovery point remain available. Bucket
 upload-age expiration is unsuitable for either shared-block backup store.

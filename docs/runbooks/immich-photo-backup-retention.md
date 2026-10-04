@@ -21,8 +21,9 @@ unlock a repository or delete pack files directly.
 
 The bucket-side rule expires hidden object versions one day after deletion;
 current pack files remain available regardless of upload age. Usage counters
-and billing can take time to reflect cleanup. The AUD 5/month budget covers
-this bucket and the Longhorn bucket together.
+and billing can take time to reflect cleanup. Minimize this bucket's cost and
+the Longhorn bucket's cost together while preserving a usable restore point.
+AUD 5 per month is a guide, not a firm limit; avoid caps that block new backups.
 
 References: [Restic retention and pruning](https://restic.readthedocs.io/en/stable/060_forget.html),
 [repository checks](https://restic.readthedocs.io/en/stable/045_working_with_repos.html),
