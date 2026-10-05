@@ -477,8 +477,15 @@ jobs:
               }
             done
             grep -Fq "SoloCollections.Backend" \
-              /azerothcore/env/ref/etc/modules/transmog.conf.dist
-            test -f /modules/mod-progression-system/src/Bracket_70_2_2/sql/world/progression_70_2_2_disables.sql
+              /azerothcore/env/ref/etc/modules/transmog.conf.dist || {
+              echo "SoloCollections.Backend missing from transmog.conf.dist" >&2
+              exit 1
+            }
+            progression_sql=/azerothcore/modules/mod-progression-system/src/Bracket_70_2_2/sql/world/progression_70_2_2_disables.sql
+            test -f "${progression_sql}" || {
+              echo "missing progression SQL: ${progression_sql}" >&2
+              exit 1
+            }
           '
 
           docker run --rm --entrypoint bash "${world_image}" -lc '
@@ -490,9 +497,16 @@ jobs:
               /usr/bin/worldserver; do
               if [ -x "$path" ]; then
                 if command -v strings >/dev/null 2>&1; then
-                  strings "$path" | grep -Eq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts"
+                  # Consume all strings output so pipefail cannot treat SIGPIPE as a missing marker.
+                  strings "$path" | grep -E "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" >/dev/null || {
+                    echo "mod-customnpcs markers missing from ${path}" >&2
+                    exit 1
+                  }
                 else
-                  grep -aEq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" "$path"
+                  grep -aEq "ModCustomNPCs|CustomNPCs|Addmod_customnpcsScripts" "$path" || {
+                    echo "mod-customnpcs markers missing from ${path}" >&2
+                    exit 1
+                  }
                 fi
                 exit 0
               fi
@@ -510,9 +524,15 @@ jobs:
               /usr/bin/worldserver; do
               if [ -x "$path" ]; then
                 if command -v strings >/dev/null 2>&1; then
-                  strings "$path" | grep -Eq "GrimTokenDailies|Addmod_grimtokendailiesScripts"
+                  strings "$path" | grep -E "GrimTokenDailies|Addmod_grimtokendailiesScripts" >/dev/null || {
+                    echo "mod-grimtokendailies markers missing from ${path}" >&2
+                    exit 1
+                  }
                 else
-                  grep -aEq "GrimTokenDailies|Addmod_grimtokendailiesScripts" "$path"
+                  grep -aEq "GrimTokenDailies|Addmod_grimtokendailiesScripts" "$path" || {
+                    echo "mod-grimtokendailies markers missing from ${path}" >&2
+                    exit 1
+                  }
                 fi
                 exit 0
               fi
@@ -530,7 +550,7 @@ jobs:
               /usr/bin/worldserver; do
               if [ -x "$path" ]; then
                 if command -v strings >/dev/null 2>&1; then
-                  strings "$path" | grep -Eq "mod-multibot-bridge|MultiBotBridge|Addmod_multibot_bridgeScripts|MBOT" || {
+                  strings "$path" | grep -E "mod-multibot-bridge|MultiBotBridge|Addmod_multibot_bridgeScripts|MBOT" >/dev/null || {
                     echo "mod-multibot-bridge markers missing from ${path}" >&2
                     exit 1
                   }
