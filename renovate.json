@@ -121,6 +121,9 @@
       "separateMajorMinor": false,
       "groupSingleUpdates": true,
       "commitMessageTopic": "{{groupName}} application dependency {{depName}}",
+      "group": {
+        "commitMessageTopic": "{{groupName}} application dependency {{depName}}"
+      },
       "automerge": false
     },
     {
@@ -130,6 +133,17 @@
       ],
       "groupName": "github-actions",
       "groupSlug": "github-actions",
+      "automerge": false
+    },
+    {
+      "description": "Open major GitHub Action and runner upgrades as a separate reviewable PR without Dashboard approval.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": false,
       "automerge": false
     },
     {
@@ -540,6 +554,42 @@
       ],
       "updateNotScheduled": false,
       "commitMessageTopic": "{{groupName}}",
+      "group": {
+        "commitMessageTopic": "{{groupName}}"
+      },
+      "automerge": false
+    },
+    {
+      "description": "Include routine Python helper-image updates in weekly maintenance while retaining the Kyverno and Longhorn controller approval gates.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
+      "matchFileNames": [
+        "infra/kyverno/automation/github-issue-sync-cronjob.yaml",
+        "infra/longhorn/weekly-backup-retention.yaml"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "groupSingleUpdates": true,
+      "dependencyDashboardApproval": false,
+      "schedule": [
+        "* * * * 1"
+      ],
+      "updateNotScheduled": false,
+      "commitMessageTopic": "{{groupName}}",
+      "group": {
+        "commitMessageTopic": "{{groupName}}"
+      },
       "automerge": false
     }
   ]

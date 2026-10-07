@@ -15,7 +15,7 @@ for (const line of source.split('\n')) {
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const handler = new AsyncFunction('github', 'context', 'core', 'setTimeout', lines.join('\n'));
 
-const primary = ' - [ ] <!-- approve-branch=renovate/jellyfin -->update jellyfin (`jellyfin/jellyfin`)';
+const primary = ' - [ ] <!-- approve-branch=renovate/jellyfin -->chore(deps): update jellyfin application dependency jellyfin/jellyfin';
 const helper = ' - [ ] <!-- approve-branch=renovate/kyverno -->update python:3.14-alpine docker digest';
 const heading = '## Pending Approval\n\n';
 
@@ -66,6 +66,21 @@ test('a pending application release is approved with one update', async () => {
     owner: 'example', repo: 'homelab', issue_number: 1,
     body: body.replace(primary, primary.replace('[ ]', '[x]')),
   }]);
+});
+
+test('a multi-package application batch includes the primary image in its package list', async () => {
+  const entry = ' - [ ] <!-- approve-branch=renovate/jellyfin -->chore(deps): update jellyfin application dependency busybox (`busybox`, `jellyfin/jellyfin`)';
+  const body = heading + entry + '\n';
+  const calls = await run({ body });
+  assert.equal(calls.update.length, 1);
+  assert.equal(calls.update[0].body, body.replace(entry, entry.replace('[ ]', '[x]')));
+});
+
+test('an application group containing only a helper stays pending', async () => {
+  const entry = ' - [ ] <!-- approve-branch=renovate/jellyfin -->chore(deps): update jellyfin application dependency busybox';
+  const calls = await run({ body: heading + entry + '\n\n## Detected Dependencies\njellyfin/jellyfin\n' });
+  assert.equal(calls.get.length, 1);
+  assert.equal(calls.update.length, 0);
 });
 
 test('multiple application releases share one write and preserve other approvals', async () => {
