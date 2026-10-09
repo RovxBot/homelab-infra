@@ -37,8 +37,23 @@ in the same application group. Routine patches/digests go into weekly
 maintenance instead. A supporting-image-only release batch remains in the
 Dashboard for manual triage.
 
+Application release titles set both `commitMessageTopic` and
+`group.commitMessageTopic`. Renovate applies the group template even when
+`groupSingleUpdates` produces a one-package batch; without that override, a
+Jellyfin-only release appears as `update jellyfin` and the approval workflow
+cannot identify `jellyfin/jellyfin`. Multiple-package entries also list their
+packages, so the primary image remains detectable when a helper supplies the
+title. The weekly rule overrides both templates to keep its usual batch title.
+After this correction reaches `main`, let the hosted App regenerate the
+Dashboard titles; that edit triggers application-release approval.
+
 Cluster-control components (Cilium, Flux bootstrap, Kyverno, Longhorn and GPU
-Operator) stay out of weekly maintenance. Terraform remains in its own group.
+Operator) stay out of weekly maintenance. The Python images in
+`infra/kyverno/automation/github-issue-sync-cronjob.yaml` and
+`infra/longhorn/weekly-backup-retention.yaml` are narrow exceptions: only their
+patch and digest updates join the Monday batch without Dashboard approval.
+Minor and major Python runtime upgrades still need approval in their component
+groups. Terraform remains in its own group.
 The existing disabled database majors, primary-CNI runbook and pipeline-owned
 WotLK image exclusions still apply. A digest update to a floating tag can change
 runtime behavior; review the complete weekly diff before merging.
@@ -57,6 +72,12 @@ Dashboard. There is no polling or waiting for an application release to appear.
 
 Terraform updates bypass Dashboard approval and are grouped across every
 Terraform root and update type into one reviewable PR.
+
+Major GitHub Actions updates, including runner-image upgrades detected by the
+GitHub Actions manager, bypass Dashboard approval and open separately in the
+`major-github-actions` group. They do not wait for Monday, and still require
+successful CI and manual merge review. Routine Action patch/digest/pin updates
+join weekly maintenance; minor Action updates retain Dashboard approval.
 
 GitHub vulnerability alerts are the exception: Renovate opens their remediation
 PRs immediately, without Dashboard approval and without applying the normal
