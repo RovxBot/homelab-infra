@@ -17,5 +17,5 @@ https://github.com/RovxBot/mod-weekend-xp.git@master
 https://github.com/RovxBot/mod-customnpcs.git@master
 https://github.com/RovxBot/mod-grimtokendailies.git@master
 https://github.com/RovxBot/mod-guildfunds.git@master
-https://github.com/Wishmaster117/mod-multibot-bridge@main
+https://github.com/RovxBot/mod-multibot-bridge@main
 https://github.com/RovxBot/mod-dungeon-clear@master
