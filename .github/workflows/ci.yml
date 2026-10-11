@@ -247,7 +247,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          yamllint -c .yamllint.yml .github/workflows
+          yamllint -c .yamllint.yml .github/workflows .github/actionlint.yaml
 
   gitleaks:
     runs-on: ubuntu-latest

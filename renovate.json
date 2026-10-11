@@ -140,10 +140,51 @@
       "matchManagers": [
         "github-actions"
       ],
+      "matchDepTypes": [
+        "action",
+        "workflow",
+        "github-runner"
+      ],
       "matchUpdateTypes": [
         "major"
       ],
       "dependencyDashboardApproval": false,
+      "automerge": false
+    },
+    {
+      "description": "Keep CI language runtime line upgrades separate from Action and runner upgrades, with Dashboard approval before proposing them.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "uses-with"
+      ],
+      "matchFileNames": [
+        ".github/workflows/**",
+        "!.github/workflows/home-assistant-checks.yml"
+      ],
+      "groupName": "ci runtimes",
+      "groupSlug": "ci-runtimes",
+      "groupSingleUpdates": true,
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "description": "Keep Home Assistant regression tests on Python 3.14, matching the deployed release. Review this constraint when Home Assistant changes its Python runtime.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "uses-with"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "matchFileNames": [
+        ".github/workflows/home-assistant-checks.yml"
+      ],
+      "allowedVersions": "/^3\\.14(?:\\.|$)/",
       "automerge": false
     },
     {
@@ -544,6 +585,34 @@
         "!infra/longhorn-node-disks/**",
         "!infra/gpu-operator/**",
         "!clusters/home/flux-system/**"
+      ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "groupSingleUpdates": true,
+      "dependencyDashboardApproval": false,
+      "schedule": [
+        "* * * * 1"
+      ],
+      "updateNotScheduled": false,
+      "commitMessageTopic": "{{groupName}}",
+      "group": {
+        "commitMessageTopic": "{{groupName}}"
+      },
+      "automerge": false
+    },
+    {
+      "description": "Include registration Dockerfile frontend minor upgrades in weekly maintenance; the registration workflow validates the build and smoke tests the image.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchPackageNames": [
+        "docker/dockerfile"
+      ],
+      "matchFileNames": [
+        "ops/grimguzzler-registration/Dockerfile"
+      ],
+      "matchUpdateTypes": [
+        "minor"
       ],
       "groupName": "weekly maintenance",
       "groupSlug": "weekly-maintenance",
