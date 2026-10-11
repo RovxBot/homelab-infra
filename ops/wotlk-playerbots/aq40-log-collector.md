@@ -1,7 +1,7 @@
 # AQ40 Log Collector
 
-This deployment captures only the dedicated `playerbots_aq40` strategy logger.
-The worldserver writes `AQ40.log` to the pod-local log volume, and the
+This deployment is configured to capture the dedicated `playerbots_aq40` strategy logger.
+The worldserver routes that logger to `AQ40.log` on the pod-local log volume, and the
 `aq40-log-collector` sidecar tails that file and persists a copy under:
 
 `/azerothcore/env/dist/data/aq40-logs/`
@@ -20,13 +20,11 @@ kubectl -n wotlk exec deploy/wotlk-worldserver -c aq40-log-collector -- \
   ls -lah /azerothcore/env/dist/data/aq40-logs
 ```
 
-The AQ40 strategy logger is enabled in
-`apps/wotlk/config/playerbots.conf` via:
+The current `RovxBot/mod-playerbots` master source no longer provides the
+AQ40 strategy logger or its enable/throttle settings. Those obsolete settings
+have been removed from `apps/wotlk/config/playerbots.conf`.
 
-```ini
-AiPlayerbot.Aq40StrategyLog = 1
-AiPlayerbot.Aq40StrategyLogThrottleMs = 1000
-```
-
-If you want less noise, increase `AiPlayerbot.Aq40StrategyLogThrottleMs`. If
-you want to disable AQ40 raid tracing entirely, set `AiPlayerbot.Aq40StrategyLog = 0`.
+The `Appender.Aq40` and `Logger.playerbots_aq40` entries in
+`apps/wotlk/config/worldserver.conf` still route any `playerbots_aq40` output to
+`AQ40.log`, and the collector remains configured to archive it. New raid traces
+require a module build that emits that logger; the current fork does not.
