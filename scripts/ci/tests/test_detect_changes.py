@@ -57,6 +57,11 @@ class CheckSelectionTests(unittest.TestCase):
     def test_renovate_config_has_its_own_validation(self):
         self.assertEqual(self.selected(["renovate.json"]), {"renovate"})
 
+    def test_runner_allowance_changes_run_workflow_checks(self):
+        for path in [".github/actionlint.yaml", ".github/actionlint.yml"]:
+            with self.subTest(path=path):
+                self.assertEqual(self.selected([path]), {"workflows"})
+
     def test_only_affected_terraform_roots_are_selected(self):
         for stack in detect.TERRAFORM_STACKS:
             for filename in ["main.tf", "provider.tf.json", ".terraform.lock.hcl", "templates/cloud-init.yaml.tftpl"]:
