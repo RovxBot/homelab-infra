@@ -24,6 +24,12 @@ Dashboard approval and are held outside Monday, including updates to an
 already-open batch. One batch remains open until reviewed; this is not a new
 PR every week when an earlier batch is still pending.
 
+Minor updates to the digest-pinned `docker/dockerfile` frontend in
+`ops/grimguzzler-registration/Dockerfile` also join weekly maintenance without
+Dashboard approval. This exception applies only to the build frontend; PHP
+runtime line upgrades still need approval. The registration workflow builds
+the image and runs its smoke tests on the weekly PR when that Dockerfile changes.
+
 Minor and major releases retain their existing per-application groups and
 Dashboard approval behavior. Renovate batches a supported application and its
 non-routine supporting-image changes into that application's release PR. The
@@ -78,6 +84,23 @@ GitHub Actions manager, bypass Dashboard approval and open separately in the
 `major-github-actions` group. They do not wait for Monday, and still require
 successful CI and manual merge review. Routine Action patch/digest/pin updates
 join weekly maintenance; minor Action updates retain Dashboard approval.
+
+Language runtime inputs such as `python-version` and `node-version` are
+distinct from Action versions. Their minor and major upgrades in general CI
+form a separate `ci-runtimes` group and require Dashboard approval. Routine
+runtime patches retain the weekly maintenance schedule. Home Assistant's
+regression workflow is constrained to Python 3.14 to match the deployed release;
+review that constraint alongside a Home Assistant release that changes its
+Python runtime. Do not approve an old combined Python entry before the hosted
+App has reconciled these rules and excluded the Home Assistant workflow.
+
+The repository explicitly allows `ubuntu-26.04` in `.github/actionlint.yaml`
+because the pinned actionlint 1.7.8 does not recognise that GitHub-hosted label.
+Home Assistant CI has already passed on this runner. Remove the allowance when
+the pinned linter includes it. Changes to either supported actionlint config
+filename select workflow validation. After this fix reaches `main`, request a
+rebase of the outstanding major Actions PR and wait for checks on the new head;
+retrying its old head will still use the old linter configuration.
 
 GitHub vulnerability alerts are the exception: Renovate opens their remediation
 PRs immediately, without Dashboard approval and without applying the normal
