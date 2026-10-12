@@ -48,13 +48,18 @@ spec:
               port="$(escape_sed_replacement "$DB_PORT")"
               user="$(escape_sed_replacement "$DB_USER")"
               password="$(escape_sed_replacement "$DB_PASSWORD")"
+              # Init containers can run again after a node restart. Replace
+              # the existing read-only config atomically instead of truncating it.
+              staging="$(mktemp /config/.authserver.conf.XXXXXX)"
+              trap 'rm -f "$staging"' EXIT
               sed \
                 -e "s|\${DB_HOST}|${host}|g" \
                 -e "s|\${DB_PORT}|${port}|g" \
                 -e "s|\${DB_USER}|${user}|g" \
                 -e "s|\${DB_PASSWORD}|${password}|g" \
-                /config-template/authserver.conf > /config/authserver.conf
-              chmod 0440 /config/authserver.conf
+                /config-template/authserver.conf > "$staging"
+              chmod 0440 "$staging"
+              mv "$staging" /config/authserver.conf
           env:
             - name: DB_HOST
               value: skyfire-mariadb.mop.svc.cluster.local

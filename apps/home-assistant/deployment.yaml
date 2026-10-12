@@ -157,15 +157,20 @@ spec:
                 exit 1
               fi
 
-              staging="$(mktemp -d)"
-              git clone --depth 1 --branch v1.9.1 https://github.com/Pirate-Weather/pirate-weather-ha.git "$staging/repository"
+              staging="$(mktemp -d /config/.pirateweather.XXXXXX)"
+              trap 'rm -rf "$staging"' EXIT
+              git init "$staging/repository"
+              git -C "$staging/repository" remote add origin https://github.com/Pirate-Weather/pirate-weather-ha.git
+              # Fetch the reviewed commit directly; upstream may remove a tag.
+              git -C "$staging/repository" fetch --depth 1 origin "$revision"
+              git -C "$staging/repository" checkout --detach FETCH_HEAD
               actual_revision="$(git -C "$staging/repository" rev-parse HEAD)"
               test "$actual_revision" = "$revision"
               test -f "$staging/repository/custom_components/pirateweather/manifest.json"
 
               mkdir -p /config/custom_components
+              printf '%s\n' "$revision" > "$staging/repository/custom_components/pirateweather/.gitops-revision"
               mv "$staging/repository/custom_components/pirateweather" "$component"
-              printf '%s\n' "$revision" > "$component/.gitops-revision"
               echo "Installed Pirate Weather custom component v1.9.1"
           securityContext:
             allowPrivilegeEscalation: false
