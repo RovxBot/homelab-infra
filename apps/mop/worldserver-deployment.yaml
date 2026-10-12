@@ -48,13 +48,18 @@ spec:
               port="$(escape_sed_replacement "$DB_PORT")"
               user="$(escape_sed_replacement "$DB_USER")"
               password="$(escape_sed_replacement "$DB_PASSWORD")"
+              # Init containers can run again after a node restart. Replace
+              # the existing read-only config atomically instead of truncating it.
+              staging="$(mktemp /config/.worldserver.conf.XXXXXX)"
+              trap 'rm -f "$staging"' EXIT
               sed \
                 -e "s|\${DB_HOST}|${host}|g" \
                 -e "s|\${DB_PORT}|${port}|g" \
                 -e "s|\${DB_USER}|${user}|g" \
                 -e "s|\${DB_PASSWORD}|${password}|g" \
-                /config-template/worldserver.conf > /config/worldserver.conf
-              chmod 0440 /config/worldserver.conf
+                /config-template/worldserver.conf > "$staging"
+              chmod 0440 "$staging"
+              mv "$staging" /config/worldserver.conf
           env:
             - name: DB_HOST
               value: skyfire-mariadb.mop.svc.cluster.local
