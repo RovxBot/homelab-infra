@@ -12,3 +12,8 @@ Please include:
 - A short description of the issue being fixed.
 - The source of the fix (issue URL, commit, or forum post).
 - Any rollout or verification steps.
+
+## Applied data fixes
+
+- [Cooking reagent correction](notes/cooking-reagents.md): sync obsolete recipe
+  ingredients in the server's `Spell.dbc` with the pinned AzerothCore client data.
