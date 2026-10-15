@@ -184,6 +184,40 @@ use a unique query parameter such as `check=<unix-time>` on the authenticated
 Compare actual exported timestamps as well as totals; a healthy Pod does not
 prove that the full history has been imported.
 
+For a full reconciliation, download a fresh Last.fm export and use Koito's
+Settings export (or authenticated `/apis/web/v1/export`):
+
+```bash
+python3 scripts/koito-audit-lastfm.py \
+  /tmp/rovbot-recenttracks.json /tmp/koito_export.json \
+  --report /tmp/koito-history-audit.json
+```
+
+The audit matches timestamps plus recording IDs or title/artist aliases, with
+one-to-one matching when several plays share a timestamp. It separately reports
+missing source records, additional Koito activity, and same-timestamp entries
+that Koito collapses because they share a recording ID. The report contains
+personal listening metadata, so keep it outside Git. The command exits nonzero
+when source records remain missing.
+
+Koito v0.3.2's JSON export can omit tracks when multiple listens share the
+timestamp at a 1,000-record page boundary. If the export count is below the
+uncached statistics count, check each reported missing timestamp through the
+authenticated `/apis/web/v1/listens?from=<unix>&to=<unix>&limit=500&check=<unique>`
+endpoint before importing it again. Preserve the complete API responses as:
+
+```json
+[{"unix": 1705452820, "data": {"items": [], "total_record_count": 0,
+  "has_next_page": false, "current_page": 1}}]
+```
+
+The `data` object must be the actual response, including every returned item.
+Pass this private file as `--listen-checks /tmp/koito-listen-checks.json` to the
+audit command. It replaces the checked timestamps with direct API evidence,
+rejects incomplete pages, and reports verified export omissions separately.
+The audit also recognizes featured artist credits split into their separate
+contributors by Koito, requiring every named contributor to be present.
+
 ### Recover an interrupted large import
 
 The original 47,003-scrobble import exceeded a 1 GiB container memory limit and

@@ -63,17 +63,18 @@ spec:
             - name: KOITO_FETCH_IMAGES_DURING_IMPORT
               value: "true"
             - name: KOITO_DISABLE_DEEZER
-              value: "true"
+              value: "false"
             - name: KOITO_DISABLE_COVER_ART_ARCHIVE
-              value: "true"
+              value: "false"
             - name: KOITO_DISABLE_MUSICBRAINZ
-              value: "true"
+              value: "false"
             - name: KOITO_MUSICBRAINZ_RATE_LIMIT
               value: "1"
             - name: KOITO_LASTFM_API_KEY
-              # Temporary recovery: import history without network enrichment.
-              # Restore all image sources after every batch completes.
-              value: ""
+              valueFrom:
+                secretKeyRef:
+                  name: koito
+                  key: LASTFM_API_KEY
           startupProbe:
             httpGet:
               path: /apis/web/v1/health
