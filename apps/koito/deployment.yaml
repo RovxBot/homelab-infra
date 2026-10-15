@@ -36,6 +36,12 @@ spec:
           env:
             - name: TZ
               value: Australia/Adelaide
+            # Keep Go's managed heap below the container limit, with headroom
+            # for libvips' native allocations while processing artwork.
+            - name: GOMEMLIMIT
+              value: 768MiB
+            - name: VIPS_CONCURRENCY
+              value: "2"
             - name: KOITO_FORCE_TZ
               value: Australia/Adelaide
             - name: KOITO_CONFIG_DIR
@@ -57,18 +63,17 @@ spec:
             - name: KOITO_FETCH_IMAGES_DURING_IMPORT
               value: "true"
             - name: KOITO_DISABLE_DEEZER
-              value: "false"
+              value: "true"
             - name: KOITO_DISABLE_COVER_ART_ARCHIVE
-              value: "false"
+              value: "true"
             - name: KOITO_DISABLE_MUSICBRAINZ
-              value: "false"
+              value: "true"
             - name: KOITO_MUSICBRAINZ_RATE_LIMIT
               value: "1"
             - name: KOITO_LASTFM_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: koito
-                  key: LASTFM_API_KEY
+              # Temporary recovery: import history without network enrichment.
+              # Restore all image sources after every batch completes.
+              value: ""
           startupProbe:
             httpGet:
               path: /apis/web/v1/health
@@ -98,10 +103,10 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 256Mi
+              memory: 512Mi
             limits:
               cpu: "2"
-              memory: 1Gi
+              memory: 2Gi
           volumeMounts:
             - name: data
               mountPath: /etc/koito

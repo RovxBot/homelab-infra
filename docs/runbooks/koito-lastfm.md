@@ -17,6 +17,8 @@ chosen initial setup uses Koito's own login and `KOITO_LOGIN_GATE=true`.
 
 - Flux: `apps-koito`, source `apps/koito`, depends on `infrastructure`.
 - Koito: pinned v0.3.2 image, one replica, Recreate updates, UID/GID 1000.
+  The memory limit is 2 GiB, with `GOMEMLIMIT=768MiB` and
+  `VIPS_CONCURRENCY=2` to leave headroom for native image processing.
 - `koito-data`: 20 GiB Longhorn volume mounted at `/etc/koito`; includes the
   SQLite database, import files, uploaded artwork and image cache.
 - `koito-lastfm-bridge-data`: 1 GiB Longhorn volume mounted at `/config`;
@@ -142,34 +144,71 @@ python3 scripts/koito-export-lastfm.py \
 unset LASTFM_API_KEY
 ```
 
-Keep the export outside Git; it is personal listening history. Select the
-current Koito Pod, copy using a temporary name that Koito does not recognize,
-then rename and restart:
+Keep the export outside Git; it is personal listening history. Split it into
+500-scrobble native import files before copying it to the cluster:
+
+```bash
+python3 scripts/koito-prepare-lastfm-import.py \
+  /tmp/rovbot-recenttracks.json /tmp/koito-import-batches
+```
+
+The helper validates every record, preserves the source order and fields,
+and produces a manifest with record counts and SHA-256 hashes. Each completed
+batch moves to `import_complete/`, so a restart only replays the unfinished
+batch. A single large file must replay from its beginning after a restart.
+
+Select the current Koito Pod, copy to a staging directory outside `import/`,
+then move only the batch files into place and restart:
 
 ```bash
 KOITO_POD="$(kubectl -n koito get pod -l app=koito \
   -o jsonpath='{.items[0].metadata.name}')"
-kubectl -n koito cp /tmp/rovbot-recenttracks.json \
-  "$KOITO_POD:/etc/koito/import/lastfm-upload.part"
-kubectl -n koito exec "$KOITO_POD" -- mv \
-  /etc/koito/import/lastfm-upload.part /etc/koito/import/rovbot-recenttracks.json
+kubectl -n koito cp /tmp/koito-import-batches \
+  "$KOITO_POD:/etc/koito/import-staging"
+kubectl -n koito exec "$KOITO_POD" -- sh -ec \
+  'for file in /etc/koito/import-staging/*recenttracks*.json; do mv "$file" /etc/koito/import/; done'
 kubectl -n koito rollout restart deployment/koito
 kubectl -n koito rollout status deployment/koito --timeout=10m
 ```
 
 Health readiness indicates the server is available, not that the background
-import is complete. Check that the file moves into
-`/etc/koito/import_complete/rovbot-recenttracks.json` and compare Koito's
-all-time listen count and earliest listen against Last.fm. Counts may differ
+import is complete. Check that every batch listed in the manifest moves into
+`/etc/koito/import_complete/`, then compare Koito's uncached all-time listen
+count and earliest listen against Last.fm. Counts may differ
 where Last.fm supplied malformed data or duplicate track/timestamp entries.
 Check recent warning/error logs if the file stays in `import/`.
 
-MusicBrainz remains enabled at its public one-request-per-second limit, so
-large imports and artwork backfills can take hours. For an unusually large
-export, raise the memory limit before import or split the export into smaller
-JSON arrays of page objects. Last.fm does not supply track duration, so hours
-listened may initially be incomplete; Koito's MusicBrainz backfill and future
-listens can fill durations where available.
+Koito v0.3.2 caches its statistics responses for 30 minutes. During verification,
+use a unique query parameter such as `check=<unix-time>` on the authenticated
+`/apis/web/v1/stats?period=all_time` request to avoid reading an earlier count.
+Compare actual exported timestamps as well as totals; a healthy Pod does not
+prove that the full history has been imported.
+
+### Recover an interrupted large import
+
+The original 47,003-scrobble import exceeded a 1 GiB container memory limit and
+restarted repeatedly. Inspect `lastState.terminated.reason` and restart counts
+when progress stops. Increasing the memory limit alone does not create an
+import checkpoint.
+
+Take a verified Koito JSON export first. Preserve the original Last.fm file
+outside `import/` (for example under `/etc/koito/import_archive/`) before
+replacing it with batches. Keep the existing database and artwork cache.
+
+For a bulk recovery, temporarily pause network enrichment through GitOps:
+set `KOITO_DISABLE_MUSICBRAINZ`, `KOITO_DISABLE_DEEZER` and
+`KOITO_DISABLE_COVER_ART_ARCHIVE` to `true`, and temporarily replace the
+`KOITO_LASTFM_API_KEY` environment reference with `value: ""`. This leaves
+the encrypted Last.fm credentials and the live polling bridge intact. Existing
+artwork stays on the volume. After **every batch** completes, restore all three
+disable flags to `false` and restore `KOITO_LASTFM_API_KEY` from the Secret.
+The rollout starts metadata and missing-artwork backfills with the normal
+sources available again.
+
+Temporarily disabling MusicBrainz skips automatic aliases for newly imported
+artists; existing aliases and supplied MusicBrainz IDs are retained. Last.fm
+does not supply track duration, so hours listened may initially be incomplete;
+Koito's MusicBrainz backfill and future listens can fill durations where available.
 
 The bridge replays up to 200 recent listens on startup; this is not a complete
 history recovery mechanism after a long outage. Re-run the exporter with
