@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koito-lastfm-bridge
+  namespace: koito
+spec:
+  # Enable after filling the Last.fm credentials and Koito token in SOPS.
+  # Authenticate Last.fm once through a localhost port-forward (see runbook).
+  replicas: 0
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: koito-lastfm-bridge
+  template:
+    metadata:
+      labels:
+        app: koito-lastfm-bridge
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: multi-scrobbler
+          image: foxxmd/multi-scrobbler:0.19.2@sha256:449274cb8b5b855cc361056862aed6a11e5dcc0a72e2acb279ac78edf834a1c7
+          imagePullPolicy: IfNotPresent
+          # Run the same Node entry point as upstream's s6 service, as UID 1000.
+          # The image's default /init requires root to set up its services.
+          command:
+            - /usr/bin/node
+            - /app/src/backend/index.ts
+          ports:
+            - name: http
+              containerPort: 9078
+          env:
+            - name: TZ
+              value: Australia/Adelaide
+            - name: CONFIG_DIR
+              value: /config
+            - name: DATA_DIR
+              value: /config
+            - name: LOGS_DIR
+              value: /config/logs
+            - name: SOURCE_LASTFM_ID
+              value: lastfm-rovbot
+            - name: SOURCE_LASTFM_NAME
+              value: Last.fm rovbot
+            - name: SOURCE_LASTFM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: koito
+                  key: LASTFM_API_KEY
+            - name: SOURCE_LASTFM_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: koito
+                  key: LASTFM_SHARED_SECRET
+            - name: SOURCE_LASTFM_REDIRECT_URI
+              value: http://localhost:9078/lastfm/callback
+            - name: KOITO_ID
+              value: koito
+            - name: KOITO_URL
+              value: http://koito-web.koito.svc.cluster.local:80
+            - name: KOITO_USER
+              value: rovbot
+            - name: KOITO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: koito
+                  key: KOITO_API_TOKEN
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          # An expired upstream credential should affect readiness, without
+          # repeatedly restarting the bridge and replaying its startup backlog.
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /config
+            - name: config
+              mountPath: /config/config.json
+              subPath: config.json
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: koito-lastfm-bridge-data
+        - name: config
+          configMap:
+            name: koito-lastfm-bridge-config
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi

@@ -26,6 +26,12 @@
         target: _blank
 
 - Media:
+    - Koito:
+        href: https://koito.cooked.beer
+        siteMonitor: http://koito-web.koito.svc.cluster.local:80/apis/web/v1/health
+        description: Listening history mirrored from Last.fm rovbot
+        icon: mdi-music-note
+        target: _blank
     - Jellyfin (LAN):
         href: http://192.168.1.190:32096
         siteMonitor: http://jellyfin.media.svc.cluster.local:8096

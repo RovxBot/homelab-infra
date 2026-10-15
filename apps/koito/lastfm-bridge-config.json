@@ -1,0 +1,13 @@
+{
+  "baseUrl": "http://localhost:9078",
+  "logging": {
+    "level": "info",
+    "file": false
+  },
+  "sourceDefaults": {
+    "scrobbleBacklog": true,
+    "scrobbleBacklogCount": 200,
+    "logPayload": false,
+    "logPlayerState": false
+  }
+}

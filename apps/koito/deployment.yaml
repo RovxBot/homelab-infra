@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koito
+  namespace: koito
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: koito
+  template:
+    metadata:
+      labels:
+        app: koito
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: koito
+          image: gabehf/koito:v0.3.2@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4110
+          env:
+            - name: TZ
+              value: Australia/Adelaide
+            - name: KOITO_FORCE_TZ
+              value: Australia/Adelaide
+            - name: KOITO_CONFIG_DIR
+              value: /etc/koito
+            - name: KOITO_DEFAULT_USERNAME
+              value: rovbot
+            - name: KOITO_DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: koito
+                  key: KOITO_DEFAULT_PASSWORD
+            - name: KOITO_LOGIN_GATE
+              value: "true"
+            - name: KOITO_ENABLE_STRUCTURED_LOGGING
+              value: "true"
+            # v0.3.2 prints the bootstrap password at INFO on first startup.
+            - name: KOITO_LOG_LEVEL
+              value: warn
+            - name: KOITO_FETCH_IMAGES_DURING_IMPORT
+              value: "true"
+            - name: KOITO_DISABLE_DEEZER
+              value: "false"
+            - name: KOITO_DISABLE_COVER_ART_ARCHIVE
+              value: "false"
+            - name: KOITO_DISABLE_MUSICBRAINZ
+              value: "false"
+            - name: KOITO_MUSICBRAINZ_RATE_LIMIT
+              value: "1"
+            - name: KOITO_LASTFM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: koito
+                  key: LASTFM_API_KEY
+          startupProbe:
+            httpGet:
+              path: /apis/web/v1/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /apis/web/v1/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /apis/web/v1/health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /etc/koito
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: koito-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
