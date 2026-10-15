@@ -24,8 +24,10 @@ chosen initial setup uses Koito's own login and `KOITO_LOGIN_GATE=true`.
 - Multi-Scrobbler: pinned 0.19.2 image; its web UI is available only through a
   localhost port-forward. The upstream Node entry point runs directly as a
   non-root user, bypassing the image's root-only s6 initialization.
-- The bridge starts at zero replicas until its Koito token is configured.
-  The API key and shared secret are in `secrets/koito.enc.yaml`.
+- The bridge runs at one replica after its dedicated Koito token is configured.
+  The token, API key and shared secret are in `secrets/koito.enc.yaml`.
+  For a fresh database, stage the bridge at zero replicas until a new token is
+  generated and encrypted.
 
 Neither the bridge nor Koito forwards listens back to Last.fm. The sole
 configured source is Last.fm; the sole client is Koito. Keep existing player
@@ -87,8 +89,9 @@ Secret. The token authenticates the internal bridge even with the login gate
 enabled. Multi-Scrobbler's `KOITO_URL` is the application's **base URL**, with
 no `/apis/listenbrainz` suffix; its native Koito client adds that path.
 
-Change `replicas` to `1` in `apps/koito/lastfm-bridge.yaml`, commit the Secret
-and replica change, and wait for Flux to start the bridge. Establish:
+If the bridge was staged at zero replicas, change `replicas` to `1` in
+`apps/koito/lastfm-bridge.yaml`. Commit the encrypted Secret and replica change,
+and wait for Flux to start the bridge. Establish:
 
 ```bash
 kubectl -n koito port-forward deployment/koito-lastfm-bridge 9078:9078
@@ -103,7 +106,8 @@ Until authorization succeeds, the bridge's readiness probe and Flux health
 check can report not ready. Its TCP liveness probe deliberately leaves it
 running so the authentication flow can be completed. Once authenticated,
 check `http://localhost:9078/api/health` returns 200 and both the Last.fm source
-and Koito client are ready; then close the port-forward.
+and Koito client are ready; then close the port-forward. Gatus checks this
+endpoint internally and alerts if either connection becomes unhealthy.
 
 Play a track through an existing player. Confirm it appears first in Last.fm,
 then in Koito with the same timestamp, and confirm restarting the bridge does
