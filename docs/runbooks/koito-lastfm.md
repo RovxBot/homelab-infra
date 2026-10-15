@@ -109,6 +109,16 @@ check `http://localhost:9078/api/health` returns 200 and both the Last.fm source
 and Koito client are ready; then close the port-forward. Gatus checks this
 endpoint internally and alerts if either connection becomes unhealthy.
 
+After the first successful authorization, restart the bridge once to verify
+the saved session and start its discovery worker immediately. In 0.19.2 the
+authorization callback can start polling while the discovery queue waits for
+the next 20-minute heartbeat. Close the old port-forward before restarting:
+
+```bash
+kubectl -n koito rollout restart deployment/koito-lastfm-bridge
+kubectl -n koito rollout status deployment/koito-lastfm-bridge --timeout=5m
+```
+
 Play a track through an existing player. Confirm it appears first in Last.fm,
 then in Koito with the same timestamp, and confirm restarting the bridge does
 not add another copy. The bridge uses its persistent history plus Koito's
