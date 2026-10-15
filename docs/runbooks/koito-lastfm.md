@@ -200,6 +200,24 @@ that Koito collapses because they share a recording ID. The report contains
 personal listening metadata, so keep it outside Git. The command exits nonzero
 when source records remain missing.
 
+Koito v0.3.2's JSON export can omit tracks when multiple listens share the
+timestamp at a 1,000-record page boundary. If the export count is below the
+uncached statistics count, check each reported missing timestamp through the
+authenticated `/apis/web/v1/listens?from=<unix>&to=<unix>&limit=500&check=<unique>`
+endpoint before importing it again. Preserve the complete API responses as:
+
+```json
+[{"unix": 1705452820, "data": {"items": [], "total_record_count": 0,
+  "has_next_page": false, "current_page": 1}}]
+```
+
+The `data` object must be the actual response, including every returned item.
+Pass this private file as `--listen-checks /tmp/koito-listen-checks.json` to the
+audit command. It replaces the checked timestamps with direct API evidence,
+rejects incomplete pages, and reports verified export omissions separately.
+The audit also recognizes featured artist credits split into their separate
+contributors by Koito, requiring every named contributor to be present.
+
 ### Recover an interrupted large import
 
 The original 47,003-scrobble import exceeded a 1 GiB container memory limit and

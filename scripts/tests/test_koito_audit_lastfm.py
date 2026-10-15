@@ -54,6 +54,38 @@ class LastfmAuditTests(unittest.TestCase):
         self.assertEqual(result["summary"]["missing_source_records"], 0)
         self.assertEqual(result["summary"]["unmatched_koito_records"], 1)
 
+    def test_featured_credit_matches_all_separate_contributors(self):
+        destination = listen(artist="Edward Maya")
+        destination["artists"] += [listen(artist=name)["artists"][0] for name in ["Jigulina", "Vika"]]
+        result = audit([source(artist="Edward Maya feat. Jigulina, Vika")], [destination])
+        self.assertEqual(result["summary"]["missing_source_records"], 0)
+
+    def test_featured_credit_requires_every_named_contributor(self):
+        result = audit([source(artist="Artist feat. Guest")], [listen()])
+        self.assertEqual(result["summary"]["missing_source_records"], 1)
+
+    def test_complete_direct_check_recovers_an_export_omission_without_duplicates(self):
+        original = {"listens": [listen("One")]}
+        checks = [{"unix": 100, "data": {
+            "has_next_page": False, "current_page": 1, "total_record_count": 2,
+            "items": [{"time": "1970-01-01T00:01:40Z", "track": {
+                "title": title, "artists": [{"name": "Artist"}]}} for title in ["One", "Two"]],
+        }}]
+        recovered = auditor.with_listen_checks(original, checks)
+        self.assertEqual(len(original["listens"]), 1)
+        result = auditor.audit_history([{"track": [source("One"), source("Two")]}], recovered)
+        self.assertEqual(result["summary"]["matched_source_records"], 2)
+        self.assertEqual(result["summary"]["koito_records"], 2)
+
+    def test_partial_or_wrong_timestamp_direct_checks_are_rejected(self):
+        base = {"has_next_page": False, "current_page": 1, "total_record_count": 0, "items": []}
+        invalid = [dict(base, has_next_page=True), dict(base, current_page=2),
+                   dict(base, total_record_count=1), dict(base, total_record_count=1, items=[{
+                       "time": "1970-01-01T00:01:41Z", "track": {"title": "Song", "artists": []}}])]
+        for response in invalid:
+            with self.subTest(response=response), self.assertRaises(ValueError):
+                auditor.with_listen_checks({"listens": []}, [{"unix": 100, "data": response}])
+
 
 if __name__ == "__main__":
     unittest.main()
