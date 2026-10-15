@@ -64,7 +64,11 @@ main
 
 ## Applications and exposure
 
-The primary workloads are Immich, Jellyfin and the media stack, Home Assistant, Vaultwarden, Homepage, Invoice Ninja, Gatus, Grimguzzler registration and the WotLK realm.
+The primary workloads are Immich, Jellyfin and the media stack, Home Assistant, Vaultwarden, Homepage, Invoice Ninja, Koito, Gatus, Grimguzzler registration and the WotLK realm.
+
+Koito at `koito.cooked.beer` uses local login and mirrors the `rovbot` Last.fm
+account through an internal Multi-Scrobbler bridge. Existing players continue
+scrobbling to Last.fm. See the [Koito setup and history import runbook](docs/runbooks/koito-lastfm.md).
 
 Eleven HTTP NodePorts are intentionally available on the trusted LAN for internal integrations. This includes the OCI edge's WireGuard path to Immich and Jellyfin, plus the stable Home Assistant frontend endpoint. They are an accepted risk, not an accidental public-ingress model: do not forward them from the WAN or expose them through UPnP. New NodePorts need a documented dependency and review. See [ADR 0001](docs/decisions/0001-lan-nodeport-access.md) for the list and constraints.
 

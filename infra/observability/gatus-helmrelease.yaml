@@ -76,6 +76,14 @@ spec:
             success-threshold: 2
             send-on-resolved: true
       endpoints:
+        - name: koito
+          group: internal
+          url: http://koito-web.koito.svc.cluster.local:80/apis/web/v1/health
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
         - name: cluster-health
           group: cluster
           url: http://pod-report.homepage.svc.cluster.local:80/health.json

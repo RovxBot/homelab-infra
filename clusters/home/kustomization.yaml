@@ -17,3 +17,4 @@ resources:
   - apps/memos-kustomization.yaml
   - apps/wger-kustomization.yaml
   - apps/home-assistant-kustomization.yaml
+  - apps/koito-kustomization.yaml
