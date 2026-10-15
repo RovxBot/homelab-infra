@@ -4,9 +4,9 @@ metadata:
   name: koito-lastfm-bridge
   namespace: koito
 spec:
-  # Enable after filling the Last.fm credentials and Koito token in SOPS.
+  # Last.fm credentials and the dedicated Koito token are stored in SOPS.
   # Authenticate Last.fm once through a localhost port-forward (see runbook).
-  replicas: 0
+  replicas: 1
   revisionHistoryLimit: 2
   strategy:
     type: Recreate
