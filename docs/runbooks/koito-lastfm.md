@@ -184,6 +184,22 @@ use a unique query parameter such as `check=<unix-time>` on the authenticated
 Compare actual exported timestamps as well as totals; a healthy Pod does not
 prove that the full history has been imported.
 
+For a full reconciliation, download a fresh Last.fm export and use Koito's
+Settings export (or authenticated `/apis/web/v1/export`):
+
+```bash
+python3 scripts/koito-audit-lastfm.py \
+  /tmp/rovbot-recenttracks.json /tmp/koito_export.json \
+  --report /tmp/koito-history-audit.json
+```
+
+The audit matches timestamps plus recording IDs or title/artist aliases, with
+one-to-one matching when several plays share a timestamp. It separately reports
+missing source records, additional Koito activity, and same-timestamp entries
+that Koito collapses because they share a recording ID. The report contains
+personal listening metadata, so keep it outside Git. The command exits nonzero
+when source records remain missing.
+
 ### Recover an interrupted large import
 
 The original 47,003-scrobble import exceeded a 1 GiB container memory limit and
