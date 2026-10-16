@@ -7,7 +7,7 @@ with the assigned Entra account. Homepage also links to the service.
 
 Only `sam@cooked.beer` and `rachael@cooked.beer` are assigned access. Sam is
 the native Stirling administrator and workspace owner; Rachael is a standard
-user. Two users fit within Stirling's free five-user allowance. Native login
+user. Both have Editor and Processor access. Two users fit within Stirling's free five-user allowance. Native login
 provides individual accounts and private document libraries. Paid features
 remain subject to upstream licensing.
 
@@ -39,13 +39,12 @@ Stirling API keys authenticate API requests directly and should be treated
 as account credentials. Scanner and signature links retain upstream access
 semantics; avoid distributing document links beyond their intended recipients.
 
-Account creation is temporarily enabled during migration, while Entra
-assignment limits admission to these two people. Once both accounts exist,
-set `SECURITY_OAUTH2_AUTOCREATEUSER=false` and
-`SECURITY_OAUTH2_BLOCKREGISTRATION=true`. To add a future user, create their SSO
-account in Stirling and add them to the assigned Entra group, checking the
-five-user allowance first. Set roles in Stirling; Entra membership alone
-does not grant administrator privileges.
+Automatic registration is disabled (`SECURITY_OAUTH2_AUTOCREATEUSER=false`,
+`SECURITY_OAUTH2_BLOCKREGISTRATION=true`). Both native SSO accounts are
+provisioned. To add a future user, create their SSO account in Stirling and
+add them to the assigned Entra group, checking the five-user allowance first.
+Set roles in Stirling; Entra membership alone does not grant administrator
+privileges.
 
 ## PDF tools and limits
 
@@ -106,7 +105,9 @@ native user: temporarily set it to that user's exact username and restart.
 It promotes the selected user and transfers ownership at startup. Verify the
 new owner, then remove the variable immediately and restart through GitOps.
 Do not leave ownership recovery enabled during normal operation. Remove the
-unused bootstrap `admin` account after ownership has been transferred.
+unused bootstrap `admin` account after ownership has been transferred. The
+initial migration completed this transfer and removed that bootstrap account;
+no ownership recovery variable remains in normal configuration.
 
 Verify fresh Entra sign-in, Sam's administrator/owner status, Rachael's standard
 SSO account, rejection of unauthenticated document APIs, healthy monitoring,
@@ -117,6 +118,15 @@ For failures, revert the affected Git change while retaining the namespace,
 PVC, encrypted Secret, and identity resources. Never disable authentication
 to work around an OIDC problem. A schema-changing upgrade may require the
 matching database snapshot as well as an image rollback.
+
+## Verification record (16 October 2026)
+
+Sam completed native Entra sign-in and the admin UI confirmed Organisation
+Owner. Rachael was pre-provisioned as an enabled SSO Member with Editor and
+Processor capabilities; her personal browser login has not been exercised.
+Authenticated merge, split, image-to-PDF, PDF-to-image, LibreOffice DOCX-to-PDF,
+HTML-to-PDF, and OCR tests passed, including page counts and extracted text.
+The API credential used for verification was retired afterward.
 
 ## Secret rotation
 
