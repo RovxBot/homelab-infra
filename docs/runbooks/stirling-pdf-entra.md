@@ -106,7 +106,8 @@ Gatus checks gateway readiness and requires unauthenticated `/oauth2/auth` to
 return 401. The Service has endpoints only while both containers are ready.
 Application probes run on loopback; there is no unauthenticated public PDF
 health/API exception. Gateway access logging is disabled to avoid recording
-document names, query strings, and authorization callback codes.
+document names, query strings, and authorization callback codes. Jetty accepts
+up to 32 KiB of request headers to accommodate encrypted Entra session cookies.
 
 ## Rollout and rollback
 
