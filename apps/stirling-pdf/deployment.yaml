@@ -1,0 +1,179 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stirling-pdf
+  namespace: stirling-pdf
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: stirling-pdf
+  template:
+    metadata:
+      labels:
+        app: stirling-pdf
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # The upstream entrypoint creates diagnostic links in /usr/local/bin.
+        # Preserve its existing tools in a writable volume while keeping the
+        # container filesystem read-only and every process unprivileged.
+        - name: prepare-runtime
+          image: ghcr.io/stirling-tools/stirling-pdf:3.2.0-fat@sha256:b77d4fd0bb067bc03f0ca133ae551febaada9f1d0a1db915970dc0e35558dff3
+          command:
+            - /bin/sh
+            - -ec
+            - cp -a /usr/local/bin/. /runtime-bin/
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          volumeMounts:
+            - name: runtime-bin
+              mountPath: /runtime-bin
+      containers:
+        - name: stirling-pdf
+          image: ghcr.io/stirling-tools/stirling-pdf:3.2.0-fat@sha256:b77d4fd0bb067bc03f0ca133ae551febaada9f1d0a1db915970dc0e35558dff3
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: stirling-pdf-config
+          startupProbe:
+            exec:
+              command: [curl, -fsS, --max-time, "4", "http://127.0.0.1:8080/api/v1/info/status"]
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            exec:
+              command: [curl, -fsS, --max-time, "4", "http://127.0.0.1:8080/api/v1/info/status"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: [curl, -fsS, --max-time, "4", "http://127.0.0.1:8080/api/v1/info/status"]
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "3"
+              memory: 4Gi
+              ephemeral-storage: 6Gi
+          volumeMounts:
+            - name: data
+              mountPath: /configs
+              subPath: configs
+            - name: data
+              mountPath: /storage
+              subPath: storage
+            - name: data
+              mountPath: /customFiles
+              subPath: customFiles
+            - name: data
+              mountPath: /pipeline
+              subPath: pipeline
+            - name: data
+              mountPath: /logs
+              subPath: logs
+            - name: tmp
+              mountPath: /tmp
+            - name: user-home
+              mountPath: /home/stirlingpdfuser
+            - name: runtime-bin
+              mountPath: /usr/local/bin
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config=/etc/oauth2-proxy/oauth2-proxy.cfg
+          ports:
+            - name: gateway
+              containerPort: 4180
+          envFrom:
+            - secretRef:
+                name: stirling-pdf-oidc
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: gateway
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: gateway
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: gateway
+            periodSeconds: 30
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: gateway-config
+              mountPath: /etc/oauth2-proxy
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: stirling-pdf-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 4Gi
+        - name: user-home
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: runtime-bin
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: gateway-config
+          configMap:
+            name: stirling-pdf-gateway

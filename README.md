@@ -74,6 +74,11 @@ Eleven HTTP NodePorts are intentionally available on the trusted LAN for interna
 
 Immich and Jellyfin remain public through the OCI edge by design and rely on their application login. Administrative routes should use Cloudflare Access with Entra where compatible; do not add a proxy login in front of public media clients without testing those clients first.
 
+Stirling PDF at `pdf.cooked.beer` uses Entra OIDC at a dedicated gateway and a
+shared browser workspace for cooked.beer member accounts. It includes the full
+PDF/OCR/conversion toolchain, with AI off. Saved files are shared between all
+authorized users. See the [Stirling PDF access and operations runbook](docs/runbooks/stirling-pdf-entra.md).
+
 ## Storage and backups
 
 All eight nodes contribute Longhorn disks. Do not remove a disk or taint/drain a node casually: first confirm every affected volume has three healthy replicas and perform one-node-at-a-time maintenance.
