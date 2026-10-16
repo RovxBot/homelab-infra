@@ -18,3 +18,4 @@ resources:
   - apps/wger-kustomization.yaml
   - apps/home-assistant-kustomization.yaml
   - apps/koito-kustomization.yaml
+  - apps/stirling-pdf-kustomization.yaml

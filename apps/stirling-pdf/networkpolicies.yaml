@@ -1,0 +1,37 @@
+# Documentary while Cilium policyEnforcementMode is "never". The backend also
+# binds to pod loopback, so the gateway is mandatory independently of policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stirling-pdf-ingress
+  namespace: stirling-pdf
+spec:
+  podSelector:
+    matchLabels:
+      app: stirling-pdf
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+          podSelector:
+            matchLabels:
+              app: cloudflared
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: gatus
+              app.kubernetes.io/name: gatus
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: homepage
+          podSelector:
+            matchLabels:
+              app: homepage
+      ports:
+        - protocol: TCP
+          port: 4180

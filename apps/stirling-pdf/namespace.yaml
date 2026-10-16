@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stirling-pdf
+  annotations:
+    # Keep the namespace as well as the PVC when removing the Flux app.
+    kustomize.toolkit.fluxcd.io/prune: disabled
+  labels:
+    homelab.cooked.beer/owner: sam
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
