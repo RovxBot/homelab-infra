@@ -21,6 +21,3 @@ configMapGenerator:
   - name: stirling-pdf-config
     envs:
       - settings.env
-  - name: stirling-pdf-gateway
-    files:
-      - oauth2-proxy.cfg

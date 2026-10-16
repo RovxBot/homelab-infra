@@ -1,5 +1,5 @@
-# Documentary while Cilium policyEnforcementMode is "never". The backend also
-# binds to pod loopback, so the gateway is mandatory independently of policy.
+# Documentary while Cilium policyEnforcementMode is "never". Native Stirling
+# authentication requires an authenticated account for PDF operations.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -34,4 +34,4 @@ spec:
               app: homepage
       ports:
         - protocol: TCP
-          port: 4180
+          port: 8080

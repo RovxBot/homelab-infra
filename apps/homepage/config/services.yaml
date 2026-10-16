@@ -26,8 +26,8 @@
         target: _blank
     - Stirling PDF:
         href: https://stirling.cooked.beer
-        siteMonitor: http://stirling-pdf.stirling-pdf.svc.cluster.local:80/ready
-        description: PDF editing, OCR, and conversion (Entra SSO; shared workspace)
+        siteMonitor: http://stirling-pdf.stirling-pdf.svc.cluster.local:80/api/v1/info/status
+        description: PDF editing, OCR, and conversion (Entra SSO for Sam and Rachael)
         icon: stirling-pdf
         target: _blank
 
