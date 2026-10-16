@@ -1,6 +1,6 @@
 # Stirling PDF browser workspace
 
-Open **https://pdf.cooked.beer** from any desktop browser and sign in with an
+Open **https://stirling.cooked.beer** from any desktop browser and sign in with an
 enabled `@cooked.beer` Entra member account. The Homepage dashboard also links
 to Stirling PDF. No desktop installation is required.
 
@@ -32,7 +32,7 @@ The access boundary has three parts:
 | Application/client ID | `cd907a08-745a-4015-93c7-0a1bbd10db96` |
 | Access group | `Stirling PDF - cooked.beer users` |
 | Group ID | `502f5a1c-e46a-4105-9859-ab174615231e` |
-| Redirect URI (Web) | `https://pdf.cooked.beer/oauth2/callback` |
+| Redirect URI (Web) | `https://stirling.cooked.beer/oauth2/callback` |
 | Group claim | `ApplicationGroup` (only groups assigned to this app) |
 | Consented scopes | `openid profile email offline_access` |
 | Client secret expires | 16 October 2027, Adelaide time |
@@ -115,7 +115,7 @@ Kustomization, validate its schemas and Secret references, run the Kyverno
 baseline gate and a server-side dry run, then merge the reviewed PR after CI
 passes. Flux reconciles `main`. The first pull of the full image can be slow.
 
-The only Cloudflare DNS addition is a proxied CNAME for `pdf.cooked.beer` to
+The only Cloudflare DNS addition is a proxied CNAME for `stirling.cooked.beer` to
 `19dd24d6-5e63-4ba3-a23c-fbebc7312e3f.cfargotunnel.com`. The tunnel routes that
 hostname to the gateway Service. No other DNS or Access applications change.
 

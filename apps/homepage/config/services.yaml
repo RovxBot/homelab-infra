@@ -25,7 +25,7 @@
         icon: mdi-dumbbell
         target: _blank
     - Stirling PDF:
-        href: https://pdf.cooked.beer
+        href: https://stirling.cooked.beer
         siteMonitor: http://stirling-pdf.stirling-pdf.svc.cluster.local:80/ready
         description: PDF editing, OCR, and conversion (Entra SSO; shared workspace)
         icon: stirling-pdf
