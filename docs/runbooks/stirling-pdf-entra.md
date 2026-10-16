@@ -26,12 +26,14 @@ Entra membership change alone. Existing tenant sign-in policies govern MFA.
 | Access group | `Stirling PDF Users` |
 | Group ID | `4ae02281-2f44-4703-b531-87bb081fead6` |
 | Redirect URI (Web) | `https://stirling.cooked.beer/login/oauth2/code/entra` |
-| Username claim | `preferred_username` |
+| Username claim | `email` |
 | Requested scopes | `openid profile email` |
 | Client secret expires | 16 October 2027, Adelaide time |
 
 Native OAuth2 login is required on routes that handle documents; the backend
 enforces authentication even if Cilium policy enforcement is disabled.
+The email claim is available in Entra's UserInfo response; `preferred_username`
+is only present in the ID token and fails this upstream UserInfo lookup.
 Password sign-in is disabled. The shared OAuth2 Proxy is removed. Native
 Stirling API keys authenticate API requests directly and should be treated
 as account credentials. Scanner and signature links retain upstream access
