@@ -36,7 +36,7 @@ spec:
           command:
             - /bin/sh
             - -ec
-            - cp -a /usr/local/bin/. /runtime-bin/
+            - cp -R /usr/local/bin/. /runtime-bin/
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
