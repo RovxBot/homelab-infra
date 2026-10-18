@@ -53,13 +53,30 @@ title. The weekly rule overrides both templates to keep its usual batch title.
 After this correction reaches `main`, let the hosted App regenerate the
 Dashboard titles; that edit triggers application-release approval.
 
-Cluster-control components (Cilium, Flux bootstrap, Kyverno, Longhorn and GPU
-Operator) stay out of weekly maintenance. The Python images in
-`infra/kyverno/automation/github-issue-sync-cronjob.yaml` and
-`infra/longhorn/weekly-backup-retention.yaml` are narrow exceptions: only their
-patch and digest updates join the Monday batch without Dashboard approval.
-Minor and major Python runtime upgrades still need approval in their component
-groups. Terraform remains in its own group.
+Cluster-control components (Cilium, Flux bootstrap, Kyverno, Longhorn, GPU
+Operator and snapshot-controller) stay out of weekly maintenance. Python
+helper images in these four manifests are narrow exceptions:
+
+- `infra/kyverno/automation/github-issue-sync-cronjob.yaml`
+- `infra/longhorn/weekly-backup-retention.yaml`
+- `infra/observability/gatus-github-issue-sync-cronjob.yaml`
+- `ops/longhorn/reviewed-backup-retention-job.yaml`
+
+Their minor, patch, digest and pin updates join the Monday batch without
+Dashboard approval. Major Python upgrades still require approval. This exception
+does not cover CI language runtime inputs or application runtimes.
+
+Manifest validation runs the Longhorn retention and engine-guard tests plus
+issue-sync smoke checks in every distinct digest-pinned Python helper image
+from the PR's manifests. Containers use a read-only checkout, no network and
+no live credentials. Changes to the manual retention Job also select this check.
+These checks exercise runtime compatibility; they do not contact the cluster
+or validate a live backup deletion. All updates still need manual merge review.
+
+Snapshot-controller has its own group and Dashboard approval gate for every
+update type, including patches and digests. Review the upstream CRDs and RBAC
+alongside its image; the vendored YAML does not update with an image bump.
+Terraform remains in its own group.
 The existing disabled database majors, primary-CNI runbook and pipeline-owned
 WotLK image exclusions still apply. A digest update to a floating tag can change
 runtime behavior; review the complete weekly diff before merging.
@@ -154,6 +171,7 @@ The Dependency Dashboard must be explicitly approved before Renovate opens a
 PR for:
 
 - Kyverno, Longhorn and GPU Operator Helm chart changes.
+- Snapshot-controller image changes, including patches and digests.
 - WotLK MySQL minor updates and WotLK Ubuntu base-image line updates.
 
 Database major updates are disabled; they require a separate migration plan.

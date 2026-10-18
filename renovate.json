@@ -464,6 +464,20 @@
       "automerge": false
     },
     {
+      "description": "Keep snapshot-controller upgrades independently reviewable alongside their storage API, CRD and RBAC compatibility.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchFileNames": [
+        "infra/snapshot-controller/**"
+      ],
+      "groupName": "snapshot-controller",
+      "groupSlug": "snapshot-controller",
+      "groupSingleUpdates": true,
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
       "description": "Require a maintenance decision before cluster-control Helm upgrades.",
       "matchManagers": [
         "flux"
@@ -584,6 +598,7 @@
         "!infra/longhorn/**",
         "!infra/longhorn-node-disks/**",
         "!infra/gpu-operator/**",
+        "!infra/snapshot-controller/**",
         "!clusters/home/flux-system/**"
       ],
       "groupName": "weekly maintenance",
@@ -629,7 +644,7 @@
       "automerge": false
     },
     {
-      "description": "Include routine Python helper-image updates in weekly maintenance while retaining the Kyverno and Longhorn controller approval gates.",
+      "description": "Include Python helper-image minor, patch, digest and pin updates in weekly maintenance. CI checks the proposed images; controller and CI runtime approval gates remain separate.",
       "matchManagers": [
         "kubernetes"
       ],
@@ -641,11 +656,16 @@
       ],
       "matchFileNames": [
         "infra/kyverno/automation/github-issue-sync-cronjob.yaml",
-        "infra/longhorn/weekly-backup-retention.yaml"
+        "infra/longhorn/weekly-backup-retention.yaml",
+        "infra/observability/gatus-github-issue-sync-cronjob.yaml",
+        "ops/longhorn/reviewed-backup-retention-job.yaml"
       ],
       "matchUpdateTypes": [
+        "minor",
         "patch",
-        "digest"
+        "digest",
+        "pin",
+        "pinDigest"
       ],
       "groupName": "weekly maintenance",
       "groupSlug": "weekly-maintenance",

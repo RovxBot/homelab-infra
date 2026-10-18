@@ -125,6 +125,12 @@ jobs:
           python3 -m pip install --quiet pyyaml
           python3 scripts/ci/check_secret_refs.py .work/rendered.yaml
 
+      - name: Test Python helpers on their proposed images
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/check_python_helpers.py
+
       - name: Run Kyverno baseline gate
         shell: bash
         run: |

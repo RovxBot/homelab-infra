@@ -20,7 +20,13 @@ MANIFEST_CHECK_PATHS = {
     ".github/kyverno-baseline.yaml",
     "scripts/ci/check_flux_bootstrap_digests.py",
     "scripts/ci/check_secret_refs.py",
+    "scripts/ci/check_python_helpers.py",
     "scripts/ci/kyverno_gate.py",
+    "scripts/longhorn-retire-backup-history.py",
+    "scripts/longhorn-upgrade-engines.py",
+    "scripts/tests/test_longhorn_retire_backup_history.py",
+    "scripts/tests/test_longhorn_upgrade_engines.py",
+    "ops/longhorn/reviewed-backup-retention-job.yaml",
 }
 EDGE_ROOT = "terraform/oci-free-tier/ops/wireguard/"
 
