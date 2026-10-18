@@ -30,7 +30,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: multi-scrobbler
-          image: foxxmd/multi-scrobbler:0.19.2@sha256:449274cb8b5b855cc361056862aed6a11e5dcc0a72e2acb279ac78edf834a1c7
+          image: foxxmd/multi-scrobbler:0.20.0@sha256:2a11137663437b5d7c2e24f4d1bfc3ef72ccbeca9e1377e28c72928789236aab
           imagePullPolicy: IfNotPresent
           # Run the same Node entry point as upstream's s6 service, as UID 1000.
           # The image's default /init requires root to set up its services.
