@@ -16,7 +16,7 @@ configMapGenerator:
       - mod_ahbot.conf=config/mod_ahbot.conf
       - progression_system.conf=config/progression_system.conf
       - transmog.conf=config/transmog.conf
-      - mod-double-xp-weekend.conf=config/mod-double-xp-weekend.conf
+      - mod-weekend-bonus.conf=config/mod-weekend-bonus.conf
       - mod_customnpcs.conf=config/mod_customnpcs.conf
       - mod_grimtokendailies.conf=config/mod_grimtokendailies.conf
       - mod_guildfunds.conf=config/mod_guildfunds.conf

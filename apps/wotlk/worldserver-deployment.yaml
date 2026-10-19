@@ -29,7 +29,7 @@ spec:
         kubernetes.io/hostname: metal4
       initContainers:
         - name: db-import
-          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-9c7395453b194ef677e6e33fc7d0bf05d2b9f26d
+          image: ghcr.io/rovxbot/azerothcore-wotlk:db-import-test-staging-aeb023a06812115a534a526bebb6a9a92743ddf1
           imagePullPolicy: Always
           resources:
             requests:
@@ -134,7 +134,7 @@ spec:
               # SoloCollections intentionally retains the transmog.conf
               # filename for its collection and NPC settings.
               render_file /etc-tpl/transmog.conf /etc-out/modules/transmog.conf
-              render_file /etc-tpl/mod-double-xp-weekend.conf /etc-out/modules/mod-double-xp-weekend.conf
+              render_file /etc-tpl/mod-weekend-bonus.conf /etc-out/modules/mod-weekend-bonus.conf
               render_file /etc-tpl/mod_customnpcs.conf /etc-out/modules/mod_customnpcs.conf
               render_file /etc-tpl/mod_grimtokendailies.conf /etc-out/modules/mod_grimtokendailies.conf
               render_file /etc-tpl/mod_guildfunds.conf /etc-out/modules/mod_guildfunds.conf
@@ -179,7 +179,7 @@ spec:
             - name: etc
               mountPath: /etc-out
         - name: seed-module-config
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-9c7395453b194ef677e6e33fc7d0bf05d2b9f26d
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-aeb023a06812115a534a526bebb6a9a92743ddf1
           imagePullPolicy: Always
           resources:
             requests:
@@ -207,7 +207,7 @@ spec:
               mountPath: /azerothcore/env/dist/etc
       containers:
         - name: worldserver
-          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-9c7395453b194ef677e6e33fc7d0bf05d2b9f26d
+          image: ghcr.io/rovxbot/azerothcore-wotlk:worldserver-test-staging-aeb023a06812115a534a526bebb6a9a92743ddf1
           imagePullPolicy: Always
           command:
             - sh

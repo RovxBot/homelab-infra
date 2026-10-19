@@ -453,7 +453,7 @@ jobs:
           '
 
       - name: Smoke test module assets
-        if: ${{ inputs.build_scope == 'all' }}
+        if: ${{ inputs.build_scope == 'all' || inputs.build_scope == 'worldserver' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -468,7 +468,7 @@ jobs:
               MultiBotBridge.conf.dist \
               mod_ahbot.conf.dist \
               transmog.conf.dist \
-              mod-double-xp-weekend.conf.dist \
+              mod-weekend-bonus.conf.dist \
               mod_customnpcs.conf.dist \
               mod_grimtokendailies.conf.dist; do
               test -f "/azerothcore/env/ref/etc/modules/${conf}" || {
@@ -481,9 +481,28 @@ jobs:
               echo "SoloCollections.Backend missing from transmog.conf.dist" >&2
               exit 1
             }
+            grep -Fq "WeekendBonus.Enabled" \
+              /azerothcore/env/ref/etc/modules/mod-weekend-bonus.conf.dist || {
+              echo "WeekendBonus.Enabled missing from mod-weekend-bonus.conf.dist" >&2
+              exit 1
+            }
+            grep -aFq "WeekendBonus.Enabled" /azerothcore/env/dist/bin/worldserver || {
+              echo "mod-weekend-xp markers missing from worldserver" >&2
+              exit 1
+            }
             progression_sql=/azerothcore/modules/mod-progression-system/src/Bracket_70_2_2/sql/world/progression_70_2_2_disables.sql
             test -f "${progression_sql}" || {
               echo "missing progression SQL: ${progression_sql}" >&2
+              exit 1
+            }
+          '
+
+          db_image="ghcr.io/${OWNER_LC}/azerothcore-wotlk:db-import-${REF_TAG}-${IMAGE_SUFFIX}"
+          docker run --rm --entrypoint bash "${db_image}" -lc '
+            set -euo pipefail
+            weekend_sql=/azerothcore/modules/mod-weekend-xp/data/sql/db-world/mod-weekend-bonus.sql
+            test -s "${weekend_sql}" || {
+              echo "missing weekend bonus SQL: ${weekend_sql}" >&2
               exit 1
             }
           '
