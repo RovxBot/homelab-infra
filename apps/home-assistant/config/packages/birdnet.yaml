@@ -9,13 +9,11 @@ mqtt:
       state_topic: birdnet
       value_template: "{{ value_json.CommonName }}"
       json_attributes_topic: birdnet
-      json_attributes:
-        - ScientificName
-        - Confidence
-        - sourceName
-        - Date
-        - Time
-        - detectionId
+      json_attributes_template: >-
+        {{ dict(ScientificName=value_json.ScientificName,
+                Confidence=value_json.Confidence, sourceName=value_json.sourceName,
+                Date=value_json.Date, Time=value_json.Time,
+                detectionId=value_json.detectionId) | to_json }}
       availability_topic: birdnet/status
       payload_available: online
       payload_not_available: offline
