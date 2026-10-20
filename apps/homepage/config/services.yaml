@@ -1,5 +1,10 @@
 ---
 - Core Ops:
+    - BirdNET-Go:
+        href: https://birdnet.cooked.beer
+        description: Birds heard by the Shed and Shed front cameras
+        icon: mdi-bird
+        target: _blank
     - Homepage:
         href: https://homepage.cooked.beer
         siteMonitor: http://homepage.homepage.svc.cluster.local:3000

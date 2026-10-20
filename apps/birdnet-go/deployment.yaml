@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: birdnet-go
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: birdnet-go
+  template:
+    metadata:
+      labels:
+        app: birdnet-go
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: install-config
+          image: ghcr.io/tphakala/birdnet-go:20261014@sha256:4dec04b29548de6c27d1559e8ad0e7e20e2727655ef8a712571e6929e329290a
+          command: [/bin/sh, -ec]
+          args:
+            # The encrypted Git configuration is authoritative on each start.
+            # The writable copy lets upstream migrations/settings saves work.
+            - |
+              umask 077
+              cp /seed/config.yaml /config/.config.yaml.new
+              mv /config/.config.yaml.new /config/config.yaml
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: seed
+              mountPath: /seed
+              readOnly: true
+      containers:
+        - name: birdnet-go
+          image: ghcr.io/tphakala/birdnet-go:20261014@sha256:4dec04b29548de6c27d1559e8ad0e7e20e2727655ef8a712571e6929e329290a
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: Australia/Adelaide
+            - name: HOME
+              value: /config
+            - name: GOMEMLIMIT
+              value: 1GiB
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: birdnet-go-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: birdnet-go-data
+        - name: seed
+          secret:
+            secretName: birdnet-go
+            defaultMode: 0440
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi

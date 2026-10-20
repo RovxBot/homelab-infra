@@ -1,0 +1,85 @@
+# BirdNET-Go's native discovery adds separate devices for both cameras. This
+# stable aggregate sensor powers the dashboard without depending on generated
+# discovery entity IDs. Listen to the shared topic only, avoiding double alerts
+# from the additional per-source discovery topics.
+mqtt:
+  sensor:
+    - name: BirdNET latest detection
+      unique_id: cooked_birdnet_latest_detection
+      state_topic: birdnet
+      value_template: "{{ value_json.CommonName }}"
+      json_attributes_topic: birdnet
+      json_attributes:
+        - ScientificName
+        - Confidence
+        - sourceName
+        - Date
+        - Time
+        - detectionId
+      availability_topic: birdnet/status
+      payload_available: online
+      payload_not_available: offline
+      icon: mdi:bird
+
+input_boolean:
+  birdnet_phone_alerts:
+    name: Bird detection phone alerts
+    icon: mdi:bell
+
+input_number:
+  birdnet_alert_confidence:
+    name: Bird alert minimum confidence
+    min: 80
+    max: 100
+    step: 1
+    initial: 90
+    unit_of_measurement: "%"
+    icon: mdi:percent
+  birdnet_alert_cooldown:
+    name: Bird alert cooldown
+    min: 1
+    max: 120
+    step: 1
+    initial: 30
+    unit_of_measurement: min
+    icon: mdi:timer-outline
+
+automation:
+  - id: birdnet_phone_alerts
+    alias: Notify household about bird detections
+    description: High confidence detections from either camera, with a shared cooldown.
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: mqtt
+        topic: birdnet
+    conditions:
+      - condition: state
+        entity_id: input_boolean.birdnet_phone_alerts
+        state: "on"
+      - condition: template
+        value_template: >-
+          {{ trigger.payload_json is defined
+             and trigger.payload_json is mapping
+             and trigger.payload_json.get('sourceName') in ['Shed front', 'Shed']
+             and trigger.payload_json.get('CommonName', '') | length > 0
+             and trigger.payload_json.get('Confidence', 0) | float(0) * 100
+                 >= states('input_number.birdnet_alert_confidence') | float(90) }}
+      - condition: template
+        value_template: >-
+          {{ (as_timestamp(now()) - as_timestamp(this.attributes.last_triggered, 0))
+             >= states('input_number.birdnet_alert_cooldown') | float(30) * 60 }}
+    actions:
+      - action: notify.send_message
+        target:
+          entity_id:
+            - notify.pixel_6a
+            - notify.pixel_8a
+        data:
+          title: "Bird detected: {{ trigger.payload_json.CommonName }}"
+          message: >-
+            {{ trigger.payload_json.sourceName }} heard
+            {{ trigger.payload_json.CommonName }}
+            ({{ (trigger.payload_json.Confidence | float(0) * 100) | round(0) }}%
+            confidence) at {{ trigger.payload_json.Time }}.
+            Listen: https://birdnet.cooked.beer

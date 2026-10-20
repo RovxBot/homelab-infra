@@ -1,0 +1,11 @@
+user birdnet
+topic write birdnet
+topic write birdnet/#
+topic write homeassistant/#
+topic read homeassistant/status
+
+user homeassistant
+topic read birdnet
+topic read birdnet/#
+topic read homeassistant/#
+topic write homeassistant/status

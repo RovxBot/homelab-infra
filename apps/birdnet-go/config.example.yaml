@@ -1,0 +1,103 @@
+# Reference for secrets/birdnet-go.enc.yaml's config.yaml key. Replace the
+# placeholders in a private temporary file, then encrypt with SOPS.
+main:
+  name: Cooked Birds
+  timeas24h: true
+birdnet:
+  threshold: 0.8
+  sensitivity: 1.0
+  overlap: 1.5
+  threads: 2
+  locale: en-us
+  latitude: REPLACE_WITH_HOME_ASSISTANT_LATITUDE
+  longitude: REPLACE_WITH_HOME_ASSISTANT_LONGITUDE
+  locationconfigured: true
+  usexnnpack: true
+models:
+  enabled: [birdnet]
+realtime:
+  interval: 15
+  audio:
+    # Network audio only; no ALSA device or host networking required.
+    sources: []
+    soundlevel:
+      enabled: true
+      interval: 10
+    export:
+      enabled: true
+      path: /data/clips
+      type: flac
+      retention:
+        policy: usage
+        maxusage: 75%
+        minclips: 0
+        keepspectrograms: false
+        checkinterval: 15
+  rtsp:
+    streams:
+      - name: Shed front
+        url: REPLACE_WITH_SHED_FRONT_RTSPS_URL
+        type: rtsp
+        transport: tcp
+        enabled: true
+      - name: Shed
+        url: REPLACE_WITH_SHED_RTSPS_URL
+        type: rtsp
+        transport: tcp
+        enabled: true
+  mqtt:
+    enabled: true
+    broker: tcp://mosquitto.mqtt.svc.cluster.local:1883
+    topic: birdnet
+    username: birdnet
+    password: REPLACE_WITH_BIRDNET_MQTT_PASSWORD
+    # Events must not be replayed as fresh phone alerts after reconnecting.
+    retain: false
+    homeassistant:
+      enabled: true
+      discovery_prefix: homeassistant
+      device_name: Cooked Birds
+  privacyfilter:
+    enabled: true
+    confidence: 0.05
+    vad:
+      enabled: true
+      threshold: 0.35
+  birdweather:
+    enabled: false
+  weather:
+    provider: none
+webserver:
+  enabled: true
+  port: "8080"
+  allowembedding: false
+security:
+  host: birdnet.cooked.beer
+  baseurl: https://birdnet.cooked.beer
+  autoTls: false
+  privatemode: true
+  publicaccess:
+    liveaudio: false
+  allowsubnetbypass:
+    enabled: false
+  basicauth:
+    enabled: false
+  sessionduration: 24h
+  sessionsecret: REPLACE_WITH_RANDOM_SESSION_SECRET
+  oauthProviders:
+    - provider: oidc
+      enabled: true
+      issuerUrl: https://login.microsoftonline.com/345cd18b-5bee-4ac4-b729-a3f7059a28f3/v2.0
+      clientId: REPLACE_WITH_ENTRA_APP_ID
+      clientSecret: REPLACE_WITH_ENTRA_APP_SECRET
+      redirectUri: https://birdnet.cooked.beer/auth/openid-connect/callback
+      scopes: [openid, profile, email]
+      userId: sam@cooked.beer,rachael@cooked.beer
+output:
+  sqlite:
+    enabled: true
+    path: /data/birdnet.db
+  mysql:
+    enabled: false
+sentry:
+  enabled: false

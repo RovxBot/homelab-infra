@@ -64,6 +64,11 @@ main
 
 ## Applications and exposure
 
+BirdNET-Go at `birdnet.cooked.beer` analyzes the Shed and Shed front UniFi
+camera microphones locally, publishes to Home Assistant through the internal
+Mosquitto broker, and uses native Entra OIDC for Sam and Rachael. See the
+[BirdNET-Go setup and operations runbook](docs/runbooks/birdnet-go.md).
+
 The primary workloads are Immich, Jellyfin and the media stack, Home Assistant, Vaultwarden, Homepage, Invoice Ninja, Koito, Gatus, Grimguzzler registration and the WotLK realm.
 
 Koito at `koito.cooked.beer` uses local login and mirrors the `rovbot` Last.fm

@@ -1,0 +1,53 @@
+title: Birds
+views:
+  - title: Birds
+    path: birds
+    icon: mdi:bird
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: Latest bird
+            content: >-
+              {% set bird = 'sensor.birdnet_latest_detection' %}
+              {% if states(bird) not in ['unknown', 'unavailable'] %}
+              ## {{ states(bird) }}
+
+              *{{ state_attr(bird, 'ScientificName') }}*
+
+              **{{ ((state_attr(bird, 'Confidence') | float(0)) * 100) | round(1) }}%** confidence
+
+              {{ state_attr(bird, 'sourceName') }} ·
+              {{ state_attr(bird, 'Date') }} {{ state_attr(bird, 'Time') }}
+              {% else %}
+              Waiting for BirdNET-Go and the next bird call.
+              {% endif %}
+
+              [Detections, recordings and statistics](https://birdnet.cooked.beer)
+          - type: history-graph
+            title: Recent detections
+            hours_to_show: 24
+            entities:
+              - entity: sensor.birdnet_latest_detection
+                name: Bird species
+      - type: grid
+        cards:
+          - type: entities
+            title: Phone alerts
+            show_header_toggle: false
+            entities:
+              - entity: input_boolean.birdnet_phone_alerts
+              - entity: input_number.birdnet_alert_confidence
+              - entity: input_number.birdnet_alert_cooldown
+          - type: markdown
+            title: Camera microphones
+            content: |
+              **Shed front** and **Shed** listen for bird calls continuously.
+
+              MQTT discovery adds each camera's latest species, confidence,
+              scientific name and sound level under **Settings → Devices & services → MQTT**.
+
+              Turn on phone alerts above to notify both household phones.
+              Alerts share one cooldown across both cameras.

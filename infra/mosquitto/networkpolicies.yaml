@@ -1,0 +1,25 @@
+# Documentary while Cilium policyEnforcementMode is "never". Broker password
+# authentication and topic ACLs are enforced regardless of policy mode.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mosquitto-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: mosquitto
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: birdnet-go
+          podSelector:
+            matchLabels:
+              app: birdnet-go
+        # Home Assistant uses hostNetwork; its source is the node's LAN IP.
+        - ipBlock:
+            cidr: 192.168.1.0/24
+      ports:
+        - protocol: TCP
+          port: 1883

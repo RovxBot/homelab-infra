@@ -21,6 +21,8 @@ configMapGenerator:
   - name: home-assistant-default-config
     files:
       - configuration.yaml=config/configuration.yaml
+      - birdnet.yaml=config/packages/birdnet.yaml
+      - birds-dashboard.yaml=config/dashboards/birds-dashboard.yaml
       - home-dashboard.yaml=config/dashboards/home-dashboard.yaml
       - weather-dashboard.yaml=config/dashboards/weather-dashboard.yaml
       - power-dashboard.yaml=config/dashboards/power-dashboard.yaml

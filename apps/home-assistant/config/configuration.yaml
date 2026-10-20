@@ -1,5 +1,9 @@
 default_config:
 
+homeassistant:
+  packages:
+    birdnet: !include packages/birdnet.yaml
+
 frontend:
   extra_module_url:
     - /local/ha-map-tile-replace/ha-map-tile-replace.js?v=2
@@ -13,6 +17,12 @@ lovelace:
     - url: /local/airtouch-timer-picker.js?v=6
       type: module
   dashboards:
+    homelab-birds:
+      mode: yaml
+      filename: dashboards/birds-dashboard.yaml
+      title: Birds
+      icon: mdi:bird
+      show_in_sidebar: true
     homelab-home:
       mode: yaml
       filename: dashboards/home-dashboard.yaml

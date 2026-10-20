@@ -19,3 +19,5 @@ resources:
   - apps/home-assistant-kustomization.yaml
   - apps/koito-kustomization.yaml
   - apps/stirling-pdf-kustomization.yaml
+  - infrastructure/mosquitto-kustomization.yaml
+  - apps/birdnet-go-kustomization.yaml
