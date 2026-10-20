@@ -12,6 +12,8 @@ spec:
       app: birdnet-go
   template:
     metadata:
+      annotations:
+        homelab.cooked.beer/config-revision: "20261020-birds"
       labels:
         app: birdnet-go
     spec:

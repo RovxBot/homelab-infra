@@ -80,4 +80,4 @@ automation:
             {{ trigger.payload_json.CommonName }}
             ({{ (trigger.payload_json.Confidence | float(0) * 100) | round(0) }}%
             confidence) at {{ trigger.payload_json.Time }}.
-            Listen: https://birdnet.cooked.beer
+            Listen: https://birds.cooked.beer

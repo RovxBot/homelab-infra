@@ -72,8 +72,8 @@ webserver:
   port: "8080"
   allowembedding: false
 security:
-  host: birdnet.cooked.beer
-  baseurl: https://birdnet.cooked.beer
+  host: birds.cooked.beer
+  baseurl: https://birds.cooked.beer
   autoTls: false
   privatemode: true
   publicaccess:
@@ -90,7 +90,7 @@ security:
       issuerUrl: https://login.microsoftonline.com/345cd18b-5bee-4ac4-b729-a3f7059a28f3/v2.0
       clientId: REPLACE_WITH_ENTRA_APP_ID
       clientSecret: REPLACE_WITH_ENTRA_APP_SECRET
-      redirectUri: https://birdnet.cooked.beer/auth/openid-connect/callback
+      redirectUri: https://birds.cooked.beer/auth/openid-connect/callback
       scopes: [openid, profile, email]
       userId: sam@cooked.beer,rachael@cooked.beer
 output:
