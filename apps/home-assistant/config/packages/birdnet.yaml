@@ -68,16 +68,36 @@ automation:
           {{ (as_timestamp(now()) - as_timestamp(this.attributes.last_triggered, 0))
              >= states('input_number.birdnet_alert_cooldown') | float(30) * 60 }}
     actions:
-      - action: notify.send_message
-        target:
-          entity_id:
-            - notify.pixel_6a
-            - notify.pixel_8a
-        data:
-          title: "Bird detected: {{ trigger.payload_json.CommonName }}"
-          message: >-
+      - variables:
+          alert_title: "Bird detected: {{ trigger.payload_json.CommonName }}"
+          alert_message: >-
             {{ trigger.payload_json.sourceName }} heard
             {{ trigger.payload_json.CommonName }}
             ({{ (trigger.payload_json.Confidence | float(0) * 100) | round(0) }}%
             confidence) at {{ trigger.payload_json.Time }}.
             Listen: https://birds.cooked.beer
+      # Keep the alert in HA even when a phone's local connection is asleep.
+      - action: persistent_notification.create
+        data:
+          notification_id: birdnet_latest_detection
+          title: "{{ alert_title }}"
+          message: "{{ alert_message }}"
+      - parallel:
+          - sequence:
+              # Sam has cloud push registered as well as a local connection.
+              - action: notify.mobile_app_pixel_6a
+                continue_on_error: true
+                data:
+                  title: "{{ alert_title }}"
+                  message: "{{ alert_message }}"
+                  data:
+                    clickAction: /homelab-birds/birds
+          - sequence:
+              # Preserve Rachael's requested local-only notification setting.
+              - action: notify.send_message
+                continue_on_error: true
+                target:
+                  entity_id: notify.pixel_8a
+                data:
+                  title: "{{ alert_title }}"
+                  message: "{{ alert_message }}"
