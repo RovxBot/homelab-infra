@@ -60,13 +60,59 @@ registered as well as local push. The alert toggle restores its last state; it s
 fresh installation. Turn it on when ready. Defaults are at least **90%**
 confidence and one alert every **30 minutes across both cameras**. Threshold
 and cooldown helpers can be adjusted on the dashboard. Results are still
-collected while alerts are off. The detection threshold is 80%; the alert
+collected while alerts are off. The detection threshold is 90%; the alert
 threshold is independent.
 
 Both discovery and the aggregate sensor receive results over MQTT. Automation
 subscribes only to `birdnet`, never `birdnet/#`, so the per-camera discovery
 topics do not produce duplicate alerts. Detection messages are not retained.
 Broker ACLs separate the BirdNET publisher and Home Assistant subscriber.
+
+## Detection accuracy at Hartley
+
+The station coordinates copied from Home Assistant already match the Hartley
+area. Exact coordinates remain encrypted. The range filter uses that location
+and the current week, rather than the language selected for bird names.
+
+The conservative starting settings are:
+
+- Detection confidence: **90%**, with sensitivity **1.0**.
+- Dynamic thresholds: **disabled**. Previously, repeated high scores could lower
+  the 80% gate as far as 20%, allowing weak identifications to reinforce an
+  earlier mistake. The saved minimum is now 90% if this is enabled again.
+- Geomodel v3 seasonal occurrence cutoff: **0.05**, increased from **0.01**.
+  This score is separate from acoustic confidence. Species absent from the
+  geomodel are not passed through.
+- False Positive Filter: **Balanced (level 3)**, with **2.4 seconds overlap**.
+  This asks for repeated matches instead of accepting an isolated prediction.
+  The application can reduce overlap to fit the measured inference budget;
+  confirm the actual confirmation counts in Settings > Analysis.
+
+The installed BirdNET and Perch models and their paths are preserved. Both
+camera streams currently target BirdNET only; loading Perch does not make these
+streams require agreement between two models. The encrypted configuration also
+preserves the UI settings present when these filters were applied.
+
+These settings favour precision over recall: faint, brief or locally unusual
+calls may be missed. The occurrence cutoff is not a property-specific species
+list. Review saved clips against audible calls and camera footage before
+accepting an identification. A high model score is not proof that the bird was
+present. Historical detections are not reclassified by a configuration change.
+
+European Greenfinch is an introduced species recorded in South Australia,
+including Mount Barker and Strathalbyn in the
+[Birds SA 2011–2015 report, page 35](https://resources.birdssa.au/images/saopdfs/Volume45/2020V45P023.pdf#page=13).
+Its name alone does not make it an impossible local identification. The reported
+camera detections remain unverified. If clip review confirms a recurring wrong
+identification, use a targeted exclusion or species threshold after review.
+In this release, a species-specific configuration also force-includes that
+species in the range list, so a threshold override can bypass the geographic
+gate; do not use it as a substitute for tightening the regional filter.
+
+The G3 streams are AAC at 11,025 Hz, limiting captured frequencies to about
+5.5 kHz. Resampling to 48 kHz or exporting FLAC cannot recover missing calls.
+Listen for clipping, wind, machinery and speech; camera gain should be adjusted
+only after comparing real clips. Preserve speech filtering when tuning audio.
 
 ## Configuration and storage
 
@@ -120,7 +166,9 @@ returning 401 both internally and through Cloudflare. The Entra authorization
 redirect uses the tenant-specific endpoint, the registered callback and PKCE
 S256. Browser Entra sign-in succeeded. A live European Greenfinch detection at
 94% confidence reached both the aggregate and Shed front sensors in Home
-Assistant. Phone alerts were enabled with a 90% threshold and 30-minute cooldown.
+Assistant. This verified event delivery, not the correctness of the species
+identification. Phone alerts were enabled with a 90% threshold and 30-minute
+cooldown.
 
 Protect reports an audio sample rate of 11,025 Hz for these G3 streams. BirdNET
 resamples it to 48 kHz, but this cannot restore frequencies above about 5.5 kHz;
@@ -150,6 +198,8 @@ backup before future version or schema upgrades.
 
 - [BirdNET-Go 20261014 release](https://github.com/tphakala/birdnet-go/releases/tag/20261014)
 - [Release configuration types, including native OIDC and private mode](https://github.com/tphakala/birdnet-go/blob/20261014/internal/conf/config.go)
+- [Release false-positive confirmation logic](https://github.com/tphakala/birdnet-go/blob/20261014/internal/analysis/processor/false_positive_filter.go)
+- [Release species overrides and range filtering](https://github.com/tphakala/birdnet-go/blob/20261014/internal/classifier/range_filter.go)
 - [Per-source MQTT topics and HA discovery](https://github.com/tphakala/birdnet-go/blob/20261014/internal/mqtt/topics.go)
 - [Home Assistant MQTT integration](https://www.home-assistant.io/integrations/mqtt/)
 - [Entra application assignment](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal)
