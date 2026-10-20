@@ -50,8 +50,13 @@ state changes; the complete detection history, audio clips and statistics live
 in BirdNET-Go. Recorded bird clips are FLAC; speech filtering and Privacy Guard
 are enabled. BirdWeather uploads and Sentry telemetry are disabled.
 
-The Birds dashboard controls phone alerts to `notify.pixel_6a` and
-`notify.pixel_8a`. The alert toggle restores its last state; it starts off on a
+The Birds dashboard controls phone alerts to Sam's `notify.mobile_app_pixel_6a`
+service and Rachael's local `notify.pixel_8a` entity. Each qualifying alert also
+creates or updates a persistent Home Assistant notification. Delivery to each
+phone runs independently, so an offline phone cannot interrupt the other.
+Rachael's local-only push setting is preserved by request: her app must have
+an active local connection to receive a phone alert. Sam has cloud push
+registered as well as local push. The alert toggle restores its last state; it starts off on a
 fresh installation. Turn it on when ready. Defaults are at least **90%**
 confidence and one alert every **30 minutes across both cameras**. Threshold
 and cooldown helpers can be adjusted on the dashboard. Results are still
@@ -113,7 +118,9 @@ BirdNET inference, MQTT discovery of both source devices and their changing
 sound levels, HTTPS health returning 200, and anonymous detection requests
 returning 401 both internally and through Cloudflare. The Entra authorization
 redirect uses the tenant-specific endpoint, the registered callback and PKCE
-S256. A complete browser sign-in is verified separately after deployment.
+S256. Browser Entra sign-in succeeded. A live European Greenfinch detection at
+94% confidence reached both the aggregate and Shed front sensors in Home
+Assistant. Phone alerts were enabled with a 90% threshold and 30-minute cooldown.
 
 Protect reports an audio sample rate of 11,025 Hz for these G3 streams. BirdNET
 resamples it to 48 kHz, but this cannot restore frequencies above about 5.5 kHz;
