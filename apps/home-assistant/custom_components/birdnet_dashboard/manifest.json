@@ -1,0 +1,10 @@
+{
+  "domain": "birdnet_dashboard",
+  "name": "BirdNET Dashboard",
+  "version": "1.0.0",
+  "documentation": "https://github.com/RovxBot/homelab-infra/blob/main/docs/runbooks/birdnet-go.md",
+  "dependencies": ["http"],
+  "codeowners": [],
+  "requirements": [],
+  "iot_class": "local_polling"
+}

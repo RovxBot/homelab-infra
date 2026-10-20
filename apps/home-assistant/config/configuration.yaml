@@ -16,6 +16,8 @@ lovelace:
   resources:
     - url: /local/airtouch-timer-picker.js?v=6
       type: module
+    - url: /local/birdnet-explorer.js?v=1
+      type: module
   dashboards:
     homelab-birds:
       mode: yaml

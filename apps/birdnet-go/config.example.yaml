@@ -4,8 +4,8 @@ main:
   name: Cooked Birds
   timeas24h: true
 birdnet:
-  # Fixed conservative confidence gate; dynamic lowering is disabled below.
-  threshold: 0.9
+  # Current operator selection; dynamic lowering remains disabled below.
+  threshold: 0.7
   sensitivity: 1.0
   overlap: 2.4
   threads: 2
@@ -26,7 +26,8 @@ models:
 perch:
   modelpath: /config/.config/birdnet-go/models/perch-v2/perch_v2_australia-east_no_dft.onnx
   labelpath: /config/.config/birdnet-go/models/perch-v2/perch_v2_australia-east_labels.txt
-  overridethreshold: false
+  overridethreshold: true
+  threshold: 0.9
 realtime:
   interval: 15
   dynamicthreshold:
@@ -36,6 +37,14 @@ realtime:
     validhours: 24
   falsepositivefilter:
     level: 3 # Balanced; repeat confirmations rather than a single prediction.
+  species:
+    include: []
+    exclude: [Passer montanus]
+    config:
+      european goldfinch:
+        threshold: 0.95
+        interval: 0
+        actions: []
   audio:
     # Network audio only; no ALSA device or host networking required.
     sources: []
@@ -59,13 +68,13 @@ realtime:
         type: rtsp
         transport: tcp
         enabled: true
-        models: [birdnet]
+        models: [birdnet, perch_v2]
       - name: Shed
         url: REPLACE_WITH_SHED_RTSPS_URL
         type: rtsp
         transport: tcp
         enabled: true
-        models: [birdnet]
+        models: [birdnet, perch_v2]
   mqtt:
     enabled: true
     broker: tcp://mosquitto.mqtt.svc.cluster.local:1883

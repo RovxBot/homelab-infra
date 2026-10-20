@@ -14,6 +14,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - ../../secrets/home-assistant-birdnet.enc.yaml
 
 # A hashed name updates the Deployment's volume reference, ensuring a
 # configuration change rolls Home Assistant and refreshes its subPath mount.
@@ -30,4 +31,7 @@ configMapGenerator:
       - security-dashboard.yaml=config/dashboards/security-dashboard.yaml
       - air-quality-dashboard.yaml=config/dashboards/air-quality-dashboard.yaml
       - airtouch-timer-picker.js=config/www/airtouch-timer-picker.js
+      - birdnet-explorer.js=config/www/birdnet-explorer.js
+      - birdnet-dashboard-init.py=custom_components/birdnet_dashboard/__init__.py
+      - birdnet-dashboard-manifest.json=custom_components/birdnet_dashboard/manifest.json
       - airtouch2plus-reliability.patch=patches/airtouch2plus-reliability.patch

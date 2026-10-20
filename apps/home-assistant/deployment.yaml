@@ -44,6 +44,17 @@ spec:
               cp /gitops-assets/airtouch-timer-picker.js /config/www/.airtouch-timer-picker.js.new
               chmod 0644 /config/www/.airtouch-timer-picker.js.new
               mv /config/www/.airtouch-timer-picker.js.new /config/www/airtouch-timer-picker.js
+              cp /gitops-assets/birdnet-explorer.js /config/www/.birdnet-explorer.js.new
+              chmod 0644 /config/www/.birdnet-explorer.js.new
+              mv /config/www/.birdnet-explorer.js.new /config/www/birdnet-explorer.js
+              # Install only this repo-owned component; other integrations remain intact.
+              component='/config/custom_components/birdnet_dashboard'
+              mkdir -p "$component"
+              cp /gitops-assets/birdnet-dashboard-init.py "$component/.__init__.py.new"
+              cp /gitops-assets/birdnet-dashboard-manifest.json "$component/.manifest.json.new"
+              chmod 0644 "$component/.__init__.py.new" "$component/.manifest.json.new"
+              mv "$component/.__init__.py.new" "$component/__init__.py"
+              mv "$component/.manifest.json.new" "$component/manifest.json"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -224,6 +235,9 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: birdnet-token
+              mountPath: /run/birdnet-dashboard
+              readOnly: true
             - name: default-config
               mountPath: /config/configuration.yaml
               subPath: configuration.yaml
@@ -254,6 +268,10 @@ spec:
               cpu: "2"
               memory: 4Gi
       volumes:
+        - name: birdnet-token
+          secret:
+            secretName: home-assistant-birdnet
+            defaultMode: 0400
         - name: config
           persistentVolumeClaim:
             claimName: home-assistant-config

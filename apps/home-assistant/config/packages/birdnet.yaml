@@ -2,6 +2,13 @@
 # stable aggregate sensor powers the dashboard without depending on generated
 # discovery entity IDs. Listen to the shared topic only, avoiding double alerts
 # from the additional per-source discovery topics.
+birdnet_dashboard:
+  url: http://birdnet-dashboard.birdnet-go.svc.cluster.local:8090
+  token_file: /run/birdnet-dashboard/token
+  allowed_user_ids:
+    - 2ec5e19e6b7448378613063329784344 # Sam
+    - bc995ffded09461b805ea9b86531abbe # Rachael
+
 mqtt:
   sensor:
     - name: BirdNET latest detection

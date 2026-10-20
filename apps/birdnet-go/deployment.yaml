@@ -14,6 +14,7 @@ spec:
     metadata:
       annotations:
         homelab.cooked.beer/config-revision: "20261020-hartley-filters"
+        kubectl.kubernetes.io/default-container: birdnet-go
       labels:
         app: birdnet-go
     spec:
@@ -58,6 +59,62 @@ spec:
               mountPath: /seed
               readOnly: true
       containers:
+        - name: dashboard-reader
+          image: python:3.15-alpine@sha256:2699b90f4d562a22e2dd076c82f964032f64814204bff36d271a54ba4cc2c7e2
+          command: [python, -B, /app/api.py]
+          env:
+            - name: DATABASE_PATH
+              value: /data/birdnet.db
+            - name: CLIPS_PATH
+              value: /data/clips
+            - name: MODELS_PATH
+              value: /models
+            - name: TOKEN_FILE
+              value: /run/dashboard/token
+          ports:
+            - name: dashboard
+              containerPort: 8090
+          startupProbe:
+            httpGet:
+              path: /health
+              port: dashboard
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: dashboard
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket:
+              port: dashboard
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
+            - name: config
+              mountPath: /models
+              subPath: models
+              readOnly: true
+            - name: dashboard-reader
+              mountPath: /app
+              readOnly: true
+            - name: dashboard-token
+              mountPath: /run/dashboard
+              readOnly: true
         - name: birdnet-go
           image: ghcr.io/tphakala/birdnet-go:20261014@sha256:4dec04b29548de6c27d1559e8ad0e7e20e2727655ef8a712571e6929e329290a
           imagePullPolicy: IfNotPresent
@@ -105,6 +162,13 @@ spec:
             - name: tmp
               mountPath: /tmp
       volumes:
+        - name: dashboard-reader
+          configMap:
+            name: birdnet-dashboard-reader
+        - name: dashboard-token
+          secret:
+            secretName: birdnet-dashboard
+            defaultMode: 0440
         - name: config
           persistentVolumeClaim:
             claimName: birdnet-go-config
