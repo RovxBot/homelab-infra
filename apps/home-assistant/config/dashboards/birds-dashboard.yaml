@@ -25,7 +25,7 @@ views:
               Waiting for BirdNET-Go and the next bird call.
               {% endif %}
 
-              [Detections, recordings and statistics](https://birdnet.cooked.beer)
+              [Detections, recordings and statistics](https://birds.cooked.beer)
           - type: history-graph
             title: Recent detections
             hours_to_show: 24

@@ -11,17 +11,17 @@ UniFi Protect ──RTSPS/TCP──► BirdNET-Go ──MQTT──► Mosquitto 
                                 ▲                              Birds dashboard
                       Cloudflare Tunnel                        phone alerts
                                 ▲
-                  birdnet.cooked.beer + Entra OIDC
+                  birds.cooked.beer + Entra OIDC
 ```
 
 ## Access
 
-- BirdNET: <https://birdnet.cooked.beer>
+- BirdNET: <https://birds.cooked.beer>
 - Home Assistant: <https://home.cooked.beer/homelab-birds/birds>
 - Entra registration: **BirdNET-Go OIDC**, application ID
   `7638d202-18e2-4d73-9b39-a10b3b5d8678`.
 - Tenant: `345cd18b-5bee-4ac4-b729-a3f7059a28f3`.
-- Web callback: `https://birdnet.cooked.beer/auth/openid-connect/callback`.
+- Web callback: `https://birds.cooked.beer/auth/openid-connect/callback`.
 - Single tenant, enterprise-app assignment required, assigned directly to
   Sam and Rachael. The native OIDC email allowlist also limits both accounts.
 - Only `openid`, `profile` and `email` delegated sign-in scopes are consented.
@@ -74,12 +74,15 @@ The init container copies that encrypted Git-managed configuration to the
 writable config PVC on **every pod start**. UI settings changes work immediately
 but must be copied back to the encrypted Git configuration to survive a restart.
 This includes model selections made in the model gallery. A Secret update alone
-does not restart the pod; reconcile Git, then roll the Deployment when changing
-credentials or startup settings. Keep the example in sync with nonsecret
+does not restart the pod; bump the Deployment's
+`homelab.cooked.beer/config-revision` annotation with credential or startup
+settings changes so Flux rolls the pod. Keep the example in sync with nonsecret
 configuration changes.
 
-The 1 GiB config PVC and 20 GiB data PVC use Longhorn. SQLite, exported clips
-and downloaded models live under `/data`. Clip cleanup starts at 75% usage of
+The 1 GiB config PVC and 20 GiB data PVC use Longhorn. SQLite and exported clips
+live under `/data`. The built-in BirdNET model is supplied by the image; the
+model gallery resolves its model directory under `/config`. Grow that PVC
+before installing large additional models. Clip cleanup starts at 75% usage of
 the data filesystem and can remove every clip; database and model growth still
 need monitoring. This is a capacity policy, not a fixed retention period. The
 namespace and PVCs disable Flux pruning. There is one replica with a Recreate
@@ -104,6 +107,17 @@ and an Entra sign-in from a fresh session. Signed-out requests to detection APIs
 must return 401 and live audio must require sign-in. A healthy TCP probe proves
 only that the web process is listening; source audio and inference health must
 also be checked in BirdNET's System Health view.
+
+Initial live validation confirmed both camera streams receiving audio, active
+BirdNET inference, MQTT discovery of both source devices and their changing
+sound levels, HTTPS health returning 200, and anonymous detection requests
+returning 401 both internally and through Cloudflare. The Entra authorization
+redirect uses the tenant-specific endpoint, the registered callback and PKCE
+S256. A complete browser sign-in is verified separately after deployment.
+
+Protect reports an audio sample rate of 11,025 Hz for these G3 streams. BirdNET
+resamples it to 48 kHz, but this cannot restore frequencies above about 5.5 kHz;
+detection of higher-pitched calls is limited by the camera microphones.
 
 If streams stop, first confirm the recorder address and enabled camera stream in
 UniFi Protect. Obtain a replacement URL through Home Assistant's existing
