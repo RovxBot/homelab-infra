@@ -4,10 +4,10 @@ main:
   name: Cooked Birds
   timeas24h: true
 birdnet:
-  # Fixed conservative confidence gate; dynamic lowering is disabled below.
-  threshold: 0.9
+  # Current operator selection; dynamic lowering remains disabled below.
+  threshold: 0.7
   sensitivity: 1.0
-  overlap: 2.4
+  overlap: 2.2
   threads: 2
   locale: en-us
   latitude: REPLACE_WITH_HOME_ASSISTANT_LATITUDE
@@ -35,7 +35,7 @@ realtime:
     min: 0.9
     validhours: 24
   falsepositivefilter:
-    level: 3 # Balanced; repeat confirmations rather than a single prediction.
+    level: 2 # Moderate; repeat confirmations rather than a single prediction.
   audio:
     # Network audio only; no ALSA device or host networking required.
     sources: []
@@ -59,13 +59,13 @@ realtime:
         type: rtsp
         transport: tcp
         enabled: true
-        models: [birdnet]
+        models: [birdnet, perch_v2]
       - name: Shed
         url: REPLACE_WITH_SHED_RTSPS_URL
         type: rtsp
         transport: tcp
         enabled: true
-        models: [birdnet]
+        models: [birdnet, perch_v2]
   mqtt:
     enabled: true
     broker: tcp://mosquitto.mqtt.svc.cluster.local:1883

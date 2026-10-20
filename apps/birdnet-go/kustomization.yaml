@@ -13,3 +13,8 @@ resources:
   - service.yaml
   - networkpolicies.yaml
   - ../../secrets/birdnet-go.enc.yaml
+  - ../../secrets/birdnet-dashboard.enc.yaml
+configMapGenerator:
+  - name: birdnet-dashboard-reader
+    files:
+      - api.py=dashboard/api.py

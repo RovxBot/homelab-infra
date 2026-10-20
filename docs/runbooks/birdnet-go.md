@@ -44,11 +44,14 @@ Keep discovery enabled with the default `homeassistant` prefix and default
 birth/will topic `homeassistant/status`.
 
 Native MQTT discovery supplies each camera's latest species, confidence,
-scientific name and sound level. The declarative Birds dashboard also has an
-aggregate latest detection and 24-hour history. That history shows species
-state changes; the complete detection history, audio clips and statistics live
-in BirdNET-Go. Recorded bird clips are FLAC; speech filtering and Privacy Guard
-are enabled. BirdWeather uploads and Sentry telemetry are disabled.
+scientific name and sound level. The Birds dashboard adds database-backed
+daily totals, hourly activity, species photographs and counts, date/camera/
+confidence/name filters, and a paginated detection journal with inline audio.
+Review status stays visible; rejected detections are hidden by default.
+The Review link opens BirdNET's species/day view, where a signed-in user can
+verify an identification. The HA dashboard never writes review data.
+Recorded bird clips are FLAC; speech filtering and Privacy Guard are enabled.
+BirdWeather uploads and Sentry telemetry are disabled.
 
 The Birds dashboard controls phone alerts to Sam's `notify.mobile_app_pixel_6a`
 service and Rachael's local `notify.pixel_8a` entity. Each qualifying alert also
@@ -60,13 +63,53 @@ registered as well as local push. The alert toggle restores its last state; it s
 fresh installation. Turn it on when ready. Defaults are at least **90%**
 confidence and one alert every **30 minutes across both cameras**. Threshold
 and cooldown helpers can be adjusted on the dashboard. Results are still
-collected while alerts are off. The detection threshold is 90%; the alert
-threshold is independent.
+collected while alerts are off. The current operator-selected detection
+threshold is 70%; the phone alert threshold is independent and remains 90%.
 
 Both discovery and the aggregate sensor receive results over MQTT. Automation
 subscribes only to `birdnet`, never `birdnet/#`, so the per-camera discovery
 topics do not produce duplicate alerts. Detection messages are not retained.
 Broker ACLs separate the BirdNET publisher and Home Assistant subscriber.
+
+### Dashboard data and access
+
+`dashboard-reader` runs beside BirdNET, using its existing data volume and only
+the `models` subdirectory of the config volume, both read-only. It opens SQLite
+with `mode=ro` and `query_only`; it has no write endpoint and cannot read the
+station's SSO config. The service selects only display metadata, not camera
+URLs or precise coordinates. Common names come from the installed geomodel
+label catalog. Counts are database records, not estimates of individual birds.
+Model-specific labels for the same scientific name are grouped as one species.
+
+The internal `birdnet-dashboard:8090` ClusterIP service requires a separate
+random bearer credential. It has no public tunnel route. Home Assistant's
+repo-owned `birdnet_dashboard` component proxies fixed read endpoints and
+permits only Sam and Rachael's configured HA user IDs. Anonymous requests are
+rejected by HA; other signed-in HA users receive 403. The credential is never
+sent to the browser. Clip playback uses short-lived HA signed paths and supports
+byte ranges for seeking. Missing/retained-away clips are reported unavailable.
+BirdNET's existing Entra/private-mode configuration is preserved.
+
+The shared credential is encrypted in `secrets/birdnet-dashboard.enc.yaml` and
+`secrets/home-assistant-birdnet.enc.yaml`. Rotate both Secret values together
+and roll both deployments. The HA token is mounted at `/run/birdnet-dashboard`
+and the reader token at `/run/dashboard`; neither is part of frontend assets.
+If HA user IDs change during a restore, update `allowed_user_ids` in
+`apps/home-assistant/config/packages/birdnet.yaml` after verifying both identities.
+
+The frontend module is installed as `/local/birdnet-explorer.js` by the existing
+HA asset init container and registered as a Lovelace YAML resource. Increment
+its resource query version when changing it after deployment. It refreshes
+every 20 seconds while visible and on new MQTT detections. Database reads do
+not depend on MQTT delivery, so history and totals survive HA outages.
+Calendar boundaries use HA's station timezone, including Adelaide DST days.
+Changing filters or refreshing does not replace the active audio player.
+
+The reader targets BirdNET-Go's v2 schema from release 20261014. Run its tests
+and live read compatibility check before changing the BirdNET release. Schema
+errors fail visibly as unavailable rather than serving guessed totals. The
+backend's standalone SQLite/auth/range tests are part of the HA regression
+suite; the frontend has separate Node tests.
 
 ## Detection accuracy at Hartley
 
@@ -74,7 +117,7 @@ The station coordinates copied from Home Assistant already match the Hartley
 area. Exact coordinates remain encrypted. The range filter uses that location
 and the current week, rather than the language selected for bird names.
 
-The conservative starting settings are:
+The conservative starting preset applied on 20 October used:
 
 - Detection confidence: **90%**, with sensitivity **1.0**.
 - Dynamic thresholds: **disabled**. Previously, repeated high scores could lower
@@ -88,10 +131,12 @@ The conservative starting settings are:
   The application can reduce overlap to fit the measured inference budget;
   confirm the actual confirmation counts in Settings > Analysis.
 
-The installed BirdNET and Perch models and their paths are preserved. Both
-camera streams currently target BirdNET only; loading Perch does not make these
-streams require agreement between two models. The encrypted configuration also
-preserves the UI settings present when these filters were applied.
+The operator subsequently selected **70% confidence**, **Moderate (level 2)**
+with **2.2 seconds overlap**, and both BirdNET and Perch on each stream. Those
+current UI settings were captured in encrypted Git configuration for the
+dashboard rollout. The range cutoff remains 0.05 and dynamic lowering remains
+disabled. Running both models does not require them to agree. The installed
+model files and current settings are preserved.
 
 These settings favour precision over recall: faint, brief or locally unusual
 calls may be missed. The occurrence cutoff is not a property-specific species

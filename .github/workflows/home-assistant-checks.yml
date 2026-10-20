@@ -57,5 +57,5 @@ jobs:
           PY
       - name: Test controller, timer automations and component installation
         run: python -m pytest -q apps/home-assistant/tests
-      - name: Test timer picker interactions
-        run: node --test apps/home-assistant/tests/timer-picker.test.cjs
+      - name: Test dashboard interactions
+        run: node --test apps/home-assistant/tests/*.test.cjs
