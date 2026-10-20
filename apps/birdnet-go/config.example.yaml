@@ -4,19 +4,38 @@ main:
   name: Cooked Birds
   timeas24h: true
 birdnet:
-  threshold: 0.8
+  # Fixed conservative confidence gate; dynamic lowering is disabled below.
+  threshold: 0.9
   sensitivity: 1.0
-  overlap: 1.5
+  overlap: 2.4
   threads: 2
   locale: en-us
   latitude: REPLACE_WITH_HOME_ASSISTANT_LATITUDE
   longitude: REPLACE_WITH_HOME_ASSISTANT_LONGITUDE
   locationconfigured: true
   usexnnpack: true
+  rangefilter:
+    model: v3
+    modelpath: /config/.config/birdnet-go/models/shared/geomodel_v3.0.2_fp16.onnx
+    labelspath: /config/.config/birdnet-go/models/shared/geomodel_v3.0.2_labels.txt
+    # Seasonal occurrence score, distinct from detection confidence.
+    threshold: 0.05
+    passunmappedspecies: false
 models:
-  enabled: [birdnet]
+  enabled: [birdnet, perch_v2]
+perch:
+  modelpath: /config/.config/birdnet-go/models/perch-v2/perch_v2_australia-east_no_dft.onnx
+  labelpath: /config/.config/birdnet-go/models/perch-v2/perch_v2_australia-east_labels.txt
+  overridethreshold: false
 realtime:
   interval: 15
+  dynamicthreshold:
+    enabled: false
+    trigger: 0.95
+    min: 0.9
+    validhours: 24
+  falsepositivefilter:
+    level: 3 # Balanced; repeat confirmations rather than a single prediction.
   audio:
     # Network audio only; no ALSA device or host networking required.
     sources: []
@@ -40,11 +59,13 @@ realtime:
         type: rtsp
         transport: tcp
         enabled: true
+        models: [birdnet]
       - name: Shed
         url: REPLACE_WITH_SHED_RTSPS_URL
         type: rtsp
         transport: tcp
         enabled: true
+        models: [birdnet]
   mqtt:
     enabled: true
     broker: tcp://mosquitto.mqtt.svc.cluster.local:1883
@@ -74,7 +95,7 @@ webserver:
 security:
   host: birds.cooked.beer
   baseurl: https://birds.cooked.beer
-  autoTls: false
+  tlsMode: ""
   privatemode: true
   publicaccess:
     liveaudio: false

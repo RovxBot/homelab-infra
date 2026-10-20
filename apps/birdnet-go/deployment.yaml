@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        homelab.cooked.beer/config-revision: "20261020-birds"
+        homelab.cooked.beer/config-revision: "20261020-hartley-filters"
       labels:
         app: birdnet-go
     spec:
