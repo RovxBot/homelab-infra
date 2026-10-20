@@ -131,9 +131,11 @@ The conservative starting preset applied on 20 October used:
   The application can reduce overlap to fit the measured inference budget;
   confirm the actual confirmation counts in Settings > Analysis.
 
-The operator subsequently selected **70% confidence**, **Moderate (level 2)**
-with **2.2 seconds overlap**, and both BirdNET and Perch on each stream. Those
-current UI settings were captured in encrypted Git configuration for the
+The operator's latest selection uses **70% BirdNET confidence**, **Balanced
+(level 3)** with **2.4 seconds overlap**, and both BirdNET and Perch on each
+stream. Perch uses its own **90%** threshold. European Goldfinch has a **95%**
+species threshold and Eurasian Tree Sparrow (`Passer montanus`) is excluded.
+These current UI settings were captured in encrypted Git configuration for the
 dashboard rollout. The range cutoff remains 0.05 and dynamic lowering remains
 disabled. Running both models does not require them to agree. The installed
 model files and current settings are preserved.
