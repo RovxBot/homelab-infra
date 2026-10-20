@@ -231,6 +231,10 @@ spec:
             - name: default-config
               mountPath: /config/dashboards
               readOnly: true
+            - name: default-config
+              mountPath: /config/packages/birdnet.yaml
+              subPath: birdnet.yaml
+              readOnly: true
           securityContext:
             # The upstream S6 init process currently runs as root. The
             # corresponding Kyverno exception is limited to this Deployment.

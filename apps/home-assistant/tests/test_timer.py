@@ -2,10 +2,10 @@
 
 import pytest
 import pytest_asyncio
-import yaml
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
+from homeassistant.util.yaml import load_yaml
 
 from conftest import APP
 
@@ -17,7 +17,7 @@ CLIMATE = 'climate.at2plus_ac_0'
 
 @pytest_asyncio.fixture
 async def timer_hass(hass):
-    config = yaml.safe_load((APP / 'config/configuration.yaml').read_text())
+    config = load_yaml(str(APP / 'config/configuration.yaml'))
     config['automation'] = [a for a in config['automation'] if a['id'].startswith('airtouch_')]
     await hass.config.async_set_time_zone('Australia/Adelaide')
     calls = []
