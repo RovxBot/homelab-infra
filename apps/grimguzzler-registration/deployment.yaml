@@ -22,7 +22,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: grimguzzler-registration
-          image: ghcr.io/rovxbot/grimguzzler-registration:master-ffe12ad1371e6395016a2bec175abd11680ca5c5@sha256:0fe39a0a845e95997f242143cc1ebad6d4aaf59eae66b11755d6bac0656bfdf4
+          image: ghcr.io/rovxbot/grimguzzler-registration:master-ffe12ad1371e6395016a2bec175abd11680ca5c5@sha256:f90ff9f150f4bd3bcda36c038c14eab7d3930d925e44a75f04fb142c9f55281c
           imagePullPolicy: Always
           startupProbe:
             httpGet:
