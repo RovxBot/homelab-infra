@@ -202,7 +202,7 @@ variable "matrix_synapse_image" {
   type        = string
 
   # renovate: datasource=docker depName=ghcr.io/element-hq/synapse
-  default = "ghcr.io/element-hq/synapse:latest@sha256:215db26ab61bd0013126eb2c1def78ed730d50697491ef07fd6853b61a68870a"
+  default = "ghcr.io/element-hq/synapse:latest@sha256:cdd975e207e76609f52578130197ffec69d4ca859b70295a66be8fe19488d448"
 
   validation {
     condition     = can(regex("^ghcr\\.io/element-hq/synapse:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_synapse_image))
