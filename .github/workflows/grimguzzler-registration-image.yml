@@ -67,6 +67,11 @@ jobs:
             set -eu
             test -f /var/www/html/index.php
             test -f /var/www/html/application/vendor/autoload.php
+            test ! -e /var/www/html/.git
+            php -r "if (PHP_VERSION_ID < 80512) { exit(1); }"
+            cd /var/www/html/application
+            composer check-platform-reqs --no-dev
+            composer audit --locked --no-interaction
             apache2ctl -t
             for ext in gd gmp mbstring pdo_mysql soap zip; do
               php -m | grep -qi "^${ext}$"
@@ -194,6 +199,11 @@ jobs:
             set -eu
             test -f /var/www/html/index.php
             test -f /var/www/html/application/vendor/autoload.php
+            test ! -e /var/www/html/.git
+            php -r "if (PHP_VERSION_ID < 80512) { exit(1); }"
+            cd /var/www/html/application
+            composer check-platform-reqs --no-dev
+            composer audit --locked --no-interaction
             apache2ctl -t
             for ext in gd gmp mbstring pdo_mysql soap zip; do
               php -m | grep -qi "^${ext}$"
