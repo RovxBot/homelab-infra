@@ -23,6 +23,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test registration image updates
+        run: python3 -m unittest discover -s ops/grimguzzler-registration/tests -v
+
       - name: Read upstream ref
         shell: bash
         run: |
@@ -93,10 +96,14 @@ jobs:
     outputs:
       ref_tag: ${{ steps.read_upstream_ref.outputs.ref_tag }}
       image_suffix: ${{ github.sha }}
+      image_digest: ${{ steps.build_image.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+
+      - name: Test registration image updates
+        run: python3 -m unittest discover -s ops/grimguzzler-registration/tests -v
 
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
@@ -158,6 +165,7 @@ jobs:
           echo "Registration app commit: ${source_sha}; default template: advance" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build and push image
+        id: build_image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .work/registration
@@ -182,6 +190,7 @@ jobs:
     env:
       REF_TAG: ${{ needs.build.outputs.ref_tag }}
       IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+      IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
     steps:
       - name: Lowercase image owner
         shell: bash
@@ -197,13 +206,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker pull "ghcr.io/${OWNER_LC}/grimguzzler-registration:${REF_TAG}-${IMAGE_SUFFIX}"
+          test -n "${IMAGE_DIGEST}"
+          docker pull "ghcr.io/${OWNER_LC}/grimguzzler-registration:${REF_TAG}-${IMAGE_SUFFIX}@${IMAGE_DIGEST}"
 
       - name: Smoke test image
         shell: bash
         run: |
           set -euo pipefail
-          image="ghcr.io/${OWNER_LC}/grimguzzler-registration:${REF_TAG}-${IMAGE_SUFFIX}"
+          image="ghcr.io/${OWNER_LC}/grimguzzler-registration:${REF_TAG}-${IMAGE_SUFFIX}@${IMAGE_DIGEST}"
           docker run --rm --entrypoint /bin/sh "${image}" -c '
             set -eu
             test -f /var/www/html/index.php
@@ -231,6 +241,7 @@ jobs:
     env:
       REF_TAG: ${{ needs.build.outputs.ref_tag }}
       IMAGE_SUFFIX: ${{ needs.build.outputs.image_suffix }}
+      IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
       GH_TOKEN: ${{ secrets.WORKFLOW_PR_TOKEN || secrets.GITHUB_TOKEN }}
     permissions:
       contents: write
@@ -241,12 +252,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Update deployment image tag
+      - name: Update deployment image tag and digest
         shell: bash
         run: |
           set -euo pipefail
-          image_tag="${REF_TAG}-${IMAGE_SUFFIX}"
-          sed -i -E "s#(ghcr\.io/.*/grimguzzler-registration:)[A-Za-z0-9._-]+#\\1${image_tag}#g" apps/grimguzzler-registration/deployment.yaml
+          python3 ops/grimguzzler-registration/update-image.py \
+            --manifest apps/grimguzzler-registration/deployment.yaml \
+            --tag "${REF_TAG}-${IMAGE_SUFFIX}" \
+            --digest "${IMAGE_DIGEST}"
 
       - name: Create pull request
         shell: bash
@@ -264,7 +277,7 @@ jobs:
           branch="ci/grimguzzler-registration-image-update-${REF_TAG}"
           short_sha="${IMAGE_SUFFIX::7}"
           title="Update Grim Guzzler registration image to ${REF_TAG}-${short_sha}"
-          body="Built and pushed a fresh Grim Guzzler registration image to GHCR, then updated the deployed manifest for review."
+          body="Built and smoke-tested a fresh Grim Guzzler registration image, then updated its deployment tag and digest together for review."
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
