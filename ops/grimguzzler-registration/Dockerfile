@@ -3,7 +3,8 @@
 FROM php:8.5.12-apache@sha256:e25ab14ef2cfec3bab9dd66c6cf871691146f428fbd72241b1a2c38fcacf92f5
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    COMPOSER_ALLOW_SUPERUSER=1
+    COMPOSER_ALLOW_SUPERUSER=1 \
+    TEMPLATE=advance
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -54,6 +55,19 @@ WORKDIR /var/www/html
 COPY . /var/www/html
 # Also defend against builders that do not honor the app's .dockerignore.
 RUN rm -rf /var/www/html/.git /var/www/html/.github /var/www/html/.agents /var/www/html/.codex /var/www/html/.aws
+
+# Fail before publishing if the cloned app source predates the Advance redesign.
+RUN set -eu; \
+    test -s template/advance/tpl/site.php; \
+    test -s application/include/realm-stats.php; \
+    test -s application/include/raid-catalog.php; \
+    for page in home status arena raids guilds pvp play register account support; do \
+        test -s "template/advance/tpl/pages/${page}.php"; \
+        php -l "template/advance/tpl/pages/${page}.php"; \
+    done; \
+    for asset in logo tavern play store; do \
+        test -s "template/advance/assets/img/grimguzzler/${asset}.webp"; \
+    done
 
 WORKDIR /var/www/html/application
 RUN --mount=type=cache,target=/root/.composer/cache \
