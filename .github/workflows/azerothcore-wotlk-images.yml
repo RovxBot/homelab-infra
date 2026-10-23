@@ -88,6 +88,11 @@ jobs:
           mkdir -p .work
           git clone --depth=1 --branch "${ACORE_REF}" "${ACORE_REPO}" .work/acore
 
+          # The website reads log_encounter for Classic, TBC, and Wrath.
+          # Fail the build if upstream changes make this patch incompatible.
+          git -C .work/acore apply --check "${GITHUB_WORKSPACE}/apps/wotlk/patches/raid-logging-all-expansions.patch"
+          git -C .work/acore apply "${GITHUB_WORKSPACE}/apps/wotlk/patches/raid-logging-all-expansions.patch"
+
           # Optional modules
           modules_file=""
           if [[ -f apps/wotlk/config/modules.txt ]]; then
