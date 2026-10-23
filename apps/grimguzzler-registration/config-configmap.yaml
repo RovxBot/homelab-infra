@@ -44,7 +44,7 @@ data:
     $config['allow_signup'] = $envBool('ALLOW_SIGNUP', true);
     $config['invite_code'] = $env('INVITE_CODE', '');
 
-    $config['template'] = $env('TEMPLATE', 'icecrown');
+    $config['template'] = $env('TEMPLATE', 'advance');
     $config['store_enabled'] = $envBool('STORE_ENABLED', false);
     $config['store_token_item_id'] = $envInt('STORE_TOKEN_ITEM_ID', 90000);
     $config['store_catalog_file'] = $env('STORE_CATALOG_FILE', base_path . 'application/config/store-services.php');

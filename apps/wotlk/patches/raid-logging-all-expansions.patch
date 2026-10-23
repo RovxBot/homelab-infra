@@ -1,0 +1,54 @@
+--- a/src/server/game/Maps/Map.cpp
++++ b/src/server/game/Maps/Map.cpp
+@@ -2847,6 +2847,10 @@
+     {
+         encounters = sObjectMgr->GetDungeonEncounterList(GetId(), !Is25ManRaid() ? RAID_DIFFICULTY_10MAN_NORMAL : RAID_DIFFICULTY_25MAN_NORMAL);
+     }
++    else if ((GetId() == 249 || GetId() == 533) && GetDifficulty() == RAID_DIFFICULTY_10MAN_HEROIC)
++    {
++        encounters = sObjectMgr->GetDungeonEncounterList(GetId(), RAID_DIFFICULTY_10MAN_NORMAL);
++    }
+     else
+     {
+         encounters = sObjectMgr->GetDungeonEncounterList(GetId(), difficulty_fixed);
+@@ -2882,7 +2886,8 @@
+         }
+     }
+ 
+-    // pussywizard:
++    // Record raid encounters, including Classic and TBC.
++    // Scripted/multi-creature encounters may also award non-catalog credits.
+     LogEncounterFinished(type, creditEntry);
+ 
+     sScriptMgr->OnAfterUpdateEncounterState(this, type, creditEntry, source, difficulty_fixed, encounters, dungeonId, updated);
+@@ -2905,11 +2910,20 @@
+ 
+ void Map::LogEncounterFinished(EncounterCreditType type, uint32 creditEntry)
+ {
+-    if (!IsRaid() || !GetEntry() || GetEntry()->Expansion() < 2) // only for wotlk raids, because logs take up tons of mysql memory
++    if (!IsRaid() || !GetEntry())
+         return;
+     InstanceMap* map = ToInstanceMap();
+     if (!map)
+         return;
++    // Progression-system restores Classic Onyxia on map 249 at normal
++    // difficulty. Reserve log mode 2 for its 40-player version so later
++    // Wrath kills on the same map do not share its website rankings.
++    uint32 loggedDifficulty = static_cast<uint32>(GetDifficulty());
++    if (GetId() == 249)
++        if (CreatureTemplate const* onyxia = sObjectMgr->GetCreatureTemplate(10184))
++            if (onyxia->minlevel < 80)
++                loggedDifficulty = 2;
++
+     std::string playersInfo;
+     char buffer[16384], buffer2[255];
+     Map::PlayerList const& pl = map->GetPlayers();
+@@ -2929,7 +2943,7 @@
+             playersInfo += buffer;
+         }
+     CleanStringForMysqlQuery(playersInfo);
+-    CharacterDatabase.Execute("INSERT INTO log_encounter VALUES(NOW(), {}, {}, {}, {}, '{}')", GetId(), (uint32)GetDifficulty(), type, creditEntry, playersInfo);
++    CharacterDatabase.Execute("INSERT INTO log_encounter VALUES(NOW(), {}, {}, {}, {}, '{}')", GetId(), loggedDifficulty, type, creditEntry, playersInfo);
+ }
+ 
+ bool Map::AllTransportsEmpty() const

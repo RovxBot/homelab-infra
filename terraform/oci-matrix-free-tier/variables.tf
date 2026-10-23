@@ -202,7 +202,7 @@ variable "matrix_synapse_image" {
   type        = string
 
   # renovate: datasource=docker depName=ghcr.io/element-hq/synapse
-  default = "ghcr.io/element-hq/synapse:latest@sha256:2c5e73b73d15564ccf8738f8b853dca8cd591d62f7fca1819c148d00810d8e17"
+  default = "ghcr.io/element-hq/synapse:latest@sha256:cdd975e207e76609f52578130197ffec69d4ca859b70295a66be8fe19488d448"
 
   validation {
     condition     = can(regex("^ghcr\\.io/element-hq/synapse:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_synapse_image))
@@ -215,7 +215,7 @@ variable "matrix_postgres_image" {
   type        = string
 
   # renovate: datasource=docker depName=postgres
-  default = "postgres:16-alpine@sha256:2c942175a1255a9abe0366e48c1b401d9f50f835b04dfea13f111609b5530df7"
+  default = "postgres:16-alpine@sha256:7a8050e52090c5f77effbe7e0cbed4a0587306776c3f26dc99933a63c619eaf1"
 
   validation {
     condition     = can(regex("^postgres:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_postgres_image))
