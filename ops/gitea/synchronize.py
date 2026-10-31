@@ -28,12 +28,12 @@ def api(method, path, data=None, conflict=False):
         raise RuntimeError('Mirror API failed: ' + path + ' HTTP ' + str(error.code)) from None
 
 
-def wait(repository_id):
+def wait(repository_id, previous):
     for _ in range(130):
         response = api('GET', '/api/repositories/' + repository_id)
         record = response.get('repository', response.get('data', response))
         status = record.get('status')
-        if status in {'mirrored', 'synced'}:
+        if status in {'mirrored', 'synced'} and record.get('lastMirrored') != previous:
             return
         if status in {'failed', 'awaiting_approval'}:
             raise RuntimeError('Protected synchronization needs review: ' + repository_id)
@@ -56,14 +56,15 @@ try:
         if not record.get('mirroredLocation'):
             api('POST', '/api/job/mirror-repo', {'repositoryIds': [repository_id]})
             time.sleep(3)
-            wait(repository_id)
+            wait(repository_id, record.get('lastMirrored'))
         ids.append(repository_id)
     # Sync performs the actual Git refresh and issues/PR/release metadata sync;
     # re-running the initial mirror API alone only repairs its database status.
     for repository_id in ids:
+        previous = api('GET', '/api/repositories/' + repository_id)['repository'].get('lastMirrored')
         api('POST', '/api/job/sync-repo', {'repositoryIds': [repository_id]})
         time.sleep(3)
-        wait(repository_id)
+        wait(repository_id, previous)
     temporary = root / 'metadata-sync-success.partial'
     temporary.write_text(str(int(time.time())))
     temporary.replace(root / 'metadata-sync-success.epoch')
