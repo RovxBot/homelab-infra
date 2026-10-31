@@ -1,0 +1,42 @@
+name: Gitea Linux toolchain
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, feat/gitea-disaster-recovery]
+    paths:
+      - ops/gitea/images/**
+      - .github/workflows/gitea-toolchain-image.yml
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: gitea-toolchain-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and publish the recovery toolchain
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+          REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER,,}/gitea-linux:ubuntu24.04-${REVISION}"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+          docker build --pull --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --tag "$image" --file ops/gitea/images/Dockerfile ops/gitea/images
+          docker run --rm "$image" bash -ec 'python3 --version; clang --version; cmake --version; ninja --version; git lfs version; node --version; xvfb-run -a glxinfo -B'
+          docker push "$image"
+          docker inspect "$image" --format '{{index .RepoDigests 0}}' | tee image-digest.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: gitea-toolchain-digest
+          path: image-digest.txt
