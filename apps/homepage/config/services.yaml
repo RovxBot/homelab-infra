@@ -1,5 +1,11 @@
 ---
 - Core Ops:
+    - OpenBrew:
+        href: https://openbrew.cooked.beer
+        siteMonitor: http://openbrew.openbrew.svc.cluster.local:80/ping
+        description: Brewing recipes and sessions (Entra SSO for Sam)
+        icon: mdi-beer
+        target: _blank
     - BirdNET-Go:
         href: https://birds.cooked.beer
         description: Birds heard by the Shed and Shed front cameras
