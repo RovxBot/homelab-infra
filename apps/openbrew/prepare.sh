@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
-cp -a /app/Openbrew.Web/. /runtime/
+# The volume root belongs to root with a writable fsGroup. Copy contents
+# without attempting to preserve that root's ownership or timestamps.
+cp -R /app/Openbrew.Web/. /runtime/
 mcs -target:library -r:System.Web -r:System.Data -r:System.Xml \
   -out:/runtime/bin/HomelabEntraSso.dll /adapter/EntraSso.cs
 mcs -r:System.Web -r:System.Data -r:System.Xml \

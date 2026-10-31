@@ -66,6 +66,9 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
+              # Microsoft's sqlservr executable carries this file capability.
+              # It cannot execute when the capability is outside the bounding set.
+              add: [NET_BIND_SERVICE]
           resources:
             requests:
               cpu: 250m

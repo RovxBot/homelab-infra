@@ -35,8 +35,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: openbrew-config
-            - secretRef:
-                name: openbrew
+          env:
+            - name: MSSQL_SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: openbrew
+                  key: MSSQL_SA_PASSWORD
+            - name: OPENBREW_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: openbrew
+                  key: OPENBREW_CONNECTION_STRING
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
