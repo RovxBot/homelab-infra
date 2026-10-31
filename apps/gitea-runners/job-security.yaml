@@ -23,13 +23,13 @@ spec:
           exclude:
             - controlName: Capabilities
               images:
-                - ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+                - ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
             - controlName: Running as Non-root
               images:
-                - ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+                - ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
             - controlName: Running as Non-root user
               images:
-                - ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+                - ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
     - name: bound-job-environment
       match:
         any:
@@ -46,7 +46,7 @@ spec:
             automountServiceAccountToken: false
             containers:
               - name: job
-                image: ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+                image: ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
                 resources:
                   requests:
                     cpu: "?*"

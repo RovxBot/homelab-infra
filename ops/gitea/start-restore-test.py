@@ -15,7 +15,7 @@ labels = {'homelab.cooked.beer/owner': 'sam', 'app': 'gitea-restore-test'}
 metadata = {'name': name, 'namespace': 'gitea', 'labels': labels}
 directory = pathlib.Path(__file__).resolve().parent
 backup_image = 'ghcr.io/rovxbot/gitea-backup@sha256:7386c7c4cf2040a6f8863d7f56ddccd13a7c268a350249d2023830b940569308'
-toolchain_image = 'ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b'
+toolchain_image = 'ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4'
 security = {'allowPrivilegeEscalation': False, 'readOnlyRootFilesystem': True,
             'capabilities': {'drop': ['ALL']}}
 mounts = [{'name': 'restore', 'mountPath': '/restore'},
