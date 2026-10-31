@@ -1,4 +1,4 @@
-FROM postgres:17-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 AS certificates
+FROM restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510 AS certificates
 FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
 COPY --from=certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
@@ -12,7 +12,7 @@ RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapsho
     && apt-get install -y --no-install-recommends \
        ca-certificates curl xz-utils bash coreutils tar git git-lfs openssh-client \
        python3 python3-venv build-essential clang-18 libclang-rt-18-dev \
-       cmake ninja-build pkg-config jq zip unzip \
+       cmake ninja-build pkg-config jq zip unzip file \
        libsdl2-dev libwayland-dev wayland-protocols libxkbcommon-dev libdecor-0-dev \
        libegl-dev libgles-dev libgbm-dev libx11-dev libxext-dev libxrandr-dev \
        libxcursor-dev libxfixes-dev libxi-dev libxss-dev libgl-dev \
