@@ -1,11 +1,13 @@
+FROM postgres:17-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 AS certificates
 FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
+COPY --from=certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 # Snapshot repositories keep rebuilds independent of GitHub and package churn.
 ARG UBUNTU_SNAPSHOT=20261030T000000Z
 ARG NODE_VERSION=24.21.0
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
-RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@http://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources \
+RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
        ca-certificates curl xz-utils bash coreutils tar git git-lfs openssh-client \
