@@ -295,6 +295,10 @@ def handler(state):
             try:
                 with urllib.request.urlopen(request, timeout=1800) as result:
                     response = result.read()
+                    # Gitea 28 returns an empty HTTP 200 for mirror-sync. The
+                    # metadata client's JSON helper requires a JSON document.
+                    if self.command == 'POST' and path.endswith('/mirror-sync') and result.status == 200 and not response:
+                        response = b'{}'
                     # The metadata application's collision check expects the
                     # original GitHub identity. Only its API view is rewritten;
                     # the actual Gitea pull URL remains the protected service.
