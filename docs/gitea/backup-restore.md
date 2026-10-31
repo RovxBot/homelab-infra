@@ -91,6 +91,9 @@ Gitea; its internal/LFS/JWT keys and mirror encryption secret must match the
 database and files. Validate Git, issues/comments, LFS if present and downloaded
 artifacts before changing Services or publishing a hostname. Re-register a
 runner from the recovered organization token if its registration PVC was lost.
+Restore application, guard and mirror files with UID/GID 1000 and initialize
+PostgreSQL with UID/GID 999. The isolated test restores files as UID 999 for
+verification; its PVC is evidence, not a ready-to-mount production replacement.
 Do not overwrite production PVCs in place or assume a Helm rollback reverses a
 database migration.
 

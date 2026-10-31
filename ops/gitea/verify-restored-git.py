@@ -7,10 +7,11 @@ import subprocess
 import zipfile
 
 root = pathlib.Path('/restore/restored')
+repository_root = root / 'gitea/git/gitea-repositories'
 status = json.loads((root / 'protection/status.json').read_text())
 results = {}
 for name, record in status.items():
-    repo = root / 'gitea/git/repositories/github-dr' / (name + '.git')
+    repo = repository_root / 'github-dr' / (name + '.git')
     guard = root / 'protection/git' / (name + '.git')
     subprocess.run(['git', '--git-dir=' + str(repo), 'fsck', '--full'], check=True)
     subprocess.run(['git', '--git-dir=' + str(guard), 'fsck', '--full'], check=True)
@@ -42,7 +43,7 @@ for name, record in status.items():
     results[name] = {'verified_protected_refs': len(record['refs']),
                      'verified_hosted_refs': len(hosted), 'hosted_lag_at_capture': lagging,
                      'required_commit': required}
-for repo in (root / 'gitea/git/repositories').glob('*/*.git'):
+for repo in repository_root.glob('*/*.git'):
     subprocess.run(['git', '--git-dir=' + str(repo), 'fsck', '--full'], check=True)
 bundles = list((root / 'protection/bundles').glob('*/*.bundle'))
 for bundle in bundles:
