@@ -145,10 +145,14 @@ spec:
         mirror:
           DISABLE_NEW_PULL: false
           MIN_INTERVAL: 30m
+        migrations:
+          ALLOW_LOCALNETWORKS: true
+          ALLOWED_DOMAINS: github.com,gitea-protection.gitea.svc.cluster.local,gitea-http.gitea.svc.cluster.local
         cron.update_mirrors:
           ENABLED: false
         actions:
           ENABLED: true
+          WORKFLOW_DIRS: .gitea/workflows
           DEFAULT_ACTIONS_URL: self
           ARTIFACT_RETENTION_DAYS: 14
         cache:
