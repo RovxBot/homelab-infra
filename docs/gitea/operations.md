@@ -1,9 +1,10 @@
 # Operations and acceptance
 
 Implementation date: **31 October 2026, Australia/Adelaide**. GitHub remains
-primary. New app resources were deployed through temporary Flux source
-`gitea-preview` on `feat/gitea-disaster-recovery`; shared infrastructure remains
-on reviewed main. This source is temporary and must be handed over after merge.
+primary. PR [#1625](https://github.com/RovxBot/homelab-infra/pull/1625) was approved and
+merged as `10bb51b5`. Both app Kustomizations now reconcile the normal
+`flux-system` source on main; the temporary `gitea-preview` source was removed.
+Shared Cloudflare ingress and Gatus monitoring are deployed and verified.
 
 ## Access and daily checks
 
@@ -37,15 +38,15 @@ remote notifications as an incident guarantee.
 
 | Requirement | Recorded result |
 | --- | --- |
-| Flux-managed Gitea/PostgreSQL | Verified through feature-source Flux; Gitea 28.2.0, PostgreSQL 17, retained volumes |
+| Flux-managed Gitea/PostgreSQL | Ready through normal main-source Flux; Gitea 28.2.0, PostgreSQL 17, retained volumes |
 | Persistence/reconciliation | Pods restarted and reconciled while repositories/metadata survived |
 | Recovery administrator | Local API and real browser sign-in verified; account remains separate from Entra |
-| Entra configuration | Single tenant, assignment required, operator-only admin role and encrypted secret configured; human login/account linking/denial tests pending public ingress |
-| Public HTTPS Git | DNS/TLS verified; shared tunnel ingress is awaiting reviewed main; clone/push/redirect acceptance remains pending |
+| Entra configuration | Real Entra browser sign-in provisioned `sam`; intended administrator role verified, recovery administrator remains local; unassigned-user and existing-account linking flows require separate test identities |
+| Public HTTPS Git | Both protected repositories cloned and fsck-verified over public HTTPS; scratch branch push passed; hostname-only HTTP 308 redirect preserves path/query/method |
 | Private Git | LAN HTTP clone/fetch and private SSH clone/branch push verified; SSH host key checked through Kubernetes |
 | Protected refs | 25 main-repository branches and one reference branch matched GitHub; no tags/LFS objects exposed; required reference SHA verified in local clone |
 | Destructive-update protection | Nine tests passed, including rewrites, deletions, changed tags, fetch failures, failed bundle verification, historical recovery and multi-branch authenticated HTTP transport |
-| Scheduled refresh | CronJob `gitea-selective-sync-29890530` completed after cold recovery; both Git/metadata sources preserved |
+| Scheduled refresh | Scheduled refreshes continue successfully after recovery; latest closeout Job is recorded in `validation-results.json` |
 | Issues and PR metadata | All 141 upstream numbers represented locally: 37 issues and 104 historical PR issues; provenance matched |
 | PR discussions/reviews | All 102 source comments and one review checked; seven missing snapshots appended, second import added zero; no inline-comment fixture available |
 | Releases/wiki/LFS | No production fixtures found; enabled release/LFS paths are not evidence of a real asset restore; wiki disabled |
@@ -62,6 +63,7 @@ remote notifications as an incident guarantee.
 | Offline bootstrap inputs | All seven app images cached on eight nodes; 11-image offline registry verified; B2 bootstrap snapshot restored with all file checksums and Git bundle verified |
 | Windows/macOS | Unavailable locally; native deployment instructions provided, no false runner labels |
 | Policy | Two positive and eleven negative cases passed both CLI evaluation and real server admission |
+| Monitoring and cleanup | All six Gatus checks healthy; all Flux reconciliations Ready; temporary source/build servers removed, temporary API tokens revoked, no job pods/Secrets remain |
 
 Machine-readable evidence is committed in `validation-results.json`. The first
 906 MiB cold snapshot took about twelve minutes, including the off-site upload;
@@ -75,13 +77,19 @@ completed jobs on the corrected toolchain and security profile.
 
 ## Merge and preview handover
 
-After PR checks/review, merge the infrastructure change. Root Flux will apply
-the normal `sourceRef: flux-system` on both app Kustomizations. Verify both show
-Ready on main, then remove only the temporary `gitea-preview` GitRepository.
-Do not delete an app Kustomization or namespace as a handover shortcut.
-Verify the shared Cloudflare/Gatus changes, public HTTPS Git and real Entra
-login before marking their ledger rows complete. Preserve the local recovery
-administrator throughout. GitHub remains the root Flux source.
+The approved deployment is merged and the handover is complete. Both app
+Kustomizations are Ready using `sourceRef: flux-system`; only the temporary
+GitRepository was removed. No app namespace or production PVC was deleted.
+Shared Cloudflare/Gatus changes, public HTTPS Git and real Entra sign-in passed.
+GitHub remains the root Flux source and the local recovery administrator remains
+independent of Entra.
+
+Cloudflare has a hostname-specific Single Redirect named **Gitea HTTP to HTTPS**:
+request pattern `http://git.cooked.beer/*`, target
+`https://git.cooked.beer/${1}`, status **308**, preserve query string enabled.
+This external zone rule is managed in Cloudflare, alongside the proxied CNAME.
+The read-only MCP example remains available; the temporary validation token was
+revoked. Generate an appropriately scoped operator token when installing it.
 
 ## Upgrades and rollback
 
