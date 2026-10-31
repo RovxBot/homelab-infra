@@ -9,8 +9,11 @@ import tempfile
 import yaml
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--kyverno', required=True)
+parser.add_argument('--kyverno')
+parser.add_argument('--server', action='store_true', help='Verify actual Kubernetes admission without creating pods')
 args = parser.parse_args()
+if not args.server and not args.kyverno:
+    parser.error('Specify --kyverno or --server')
 root = pathlib.Path(__file__).resolve().parents[2]
 config = yaml.safe_load((root / 'apps/gitea-runners/config.yaml').read_text())
 pod = copy.deepcopy(config['kubernetes']['pod_template'])
@@ -22,6 +25,7 @@ cases = [('restricted', pod, True)]
 sanitizer = copy.deepcopy(pod)
 sanitizer['metadata']['labels']['homelab.cooked.beer/sanitizer'] = 'true'
 sanitizer['spec']['containers'][0]['securityContext']['capabilities']['add'] = ['SYS_PTRACE']
+sanitizer['spec']['containers'][0]['securityContext'].update(runAsUser=0, runAsNonRoot=False)
 cases.append(('sanitizer', sanitizer, True))
 for name in ['privileged', 'root', 'host-pid', 'host-path', 'token', 'extra-capability',
              'unlabelled-ptrace', 'missing-drop-all', 'unconfined', 'sidecar', 'unapproved-image']:
@@ -29,7 +33,9 @@ for name in ['privileged', 'root', 'host-pid', 'host-path', 'token', 'extra-capa
     spec = candidate['spec']
     context = spec['containers'][0]['securityContext']
     if name == 'privileged': context['privileged'] = True
-    elif name == 'root': context['runAsUser'] = 0
+    elif name == 'root':
+        candidate = copy.deepcopy(pod)
+        candidate['spec']['containers'][0]['securityContext']['runAsUser'] = 0
     elif name == 'host-pid': spec['hostPID'] = True
     elif name == 'host-path': spec['volumes'].append({'name': 'host', 'hostPath': {'path': '/'}})
     elif name == 'token': spec['automountServiceAccountToken'] = True
@@ -42,21 +48,13 @@ for name in ['privileged', 'root', 'host-pid', 'host-path', 'token', 'extra-capa
     cases.append((name, candidate, False))
 with tempfile.TemporaryDirectory() as directory:
     path = pathlib.Path(directory) / 'pod.yaml'
-    # The repository's pinned Kyverno 1.15 CLI ignores namespaced Policy files.
-    # Evaluate the identical rules as a namespace-bound ClusterPolicy locally;
-    # deployment also verifies the original Policy through live admission.
-    policy = yaml.safe_load((root / 'apps/gitea-runners/job-security.yaml').read_text())
-    policy['kind'] = 'ClusterPolicy'
-    policy['metadata'].pop('namespace')
-    for rule in policy['spec']['rules']:
-        for match in rule['match']['any']:
-            match['resources']['namespaces'] = ['gitea-jobs']
-    policy_path = pathlib.Path(directory) / 'policy.yaml'
-    policy_path.write_text(yaml.safe_dump(policy))
+    policy_path = root / 'apps/gitea-runners/job-security.yaml'
     for name, candidate, allowed in cases:
         path.write_text(yaml.safe_dump(candidate))
-        result = subprocess.run([args.kyverno, 'apply', str(policy_path),
-                                 '--resource', str(path), '--warn-no-pass', '--warn-exit-code', '2'], capture_output=True, text=True)
+        command = ['kubectl', 'create', '--dry-run=server', '-f', str(path)] if args.server else [
+            args.kyverno, 'apply', str(policy_path), '--resource', str(path),
+            '--warn-no-pass', '--warn-exit-code', '2']
+        result = subprocess.run(command, capture_output=True, text=True)
         if (result.returncode == 0) != allowed:
             raise SystemExit(name + ' returned an unexpected policy result:\n' + result.stdout + result.stderr)
         print(name + ': ' + ('allowed' if allowed else 'denied'))

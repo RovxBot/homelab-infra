@@ -10,6 +10,7 @@ import subprocess
 import yaml
 
 UPLOAD = "http://gitea-http.gitea.svc.cluster.local:3000/actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
+DOWNLOAD = "http://gitea-http.gitea.svc.cluster.local:3000/actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093"
 CHECKOUT = r'''python3 - <<'PY'
 import base64, os, subprocess, pathlib
 base = 'http://gitea-http.gitea.svc.cluster.local:3000/'
@@ -106,6 +107,22 @@ def main():
             "concurrency": {"group": "local-linux-full", "cancel-in-progress": True}, "jobs": jobs}
     (output / "smoke.yaml").write_text(yaml.safe_dump(smoke, sort_keys=False))
     (output / "linux-full.yaml").write_text(yaml.safe_dump(full, sort_keys=False))
+    platform = {'name': 'Local artifact round trip', 'on': {'workflow_dispatch': {}},
+                'jobs': {'artifact': {'runs-on': ['ubuntu-24.04', 'dr-offline'], 'timeout-minutes': 5,
+                  'steps': [
+                    {'run': "printf 'Independent Gitea artifact recovery\\n' > proof.txt\nsha256sum proof.txt > expected.sha256"},
+                    {'uses': UPLOAD, 'with': {'name': 'dr-proof', 'path': 'proof.txt', 'retention-days': 14, 'if-no-files-found': 'error'}},
+                    {'run': 'rm proof.txt'},
+                    {'uses': DOWNLOAD, 'with': {'name': 'dr-proof', 'path': 'restored'}},
+                    {'run': 'cd restored\nsha256sum --check ../expected.sha256'}]}}}
+    controls = {'name': 'Runner lifecycle controls', 'on': {'workflow_dispatch': {'inputs': {
+        'exercise': {'type': 'choice', 'required': True, 'options': ['timeout', 'cancel']}}}},
+        'jobs': {name: {'if': "${{ inputs.exercise == '" + name + "' }}",
+            'runs-on': ['ubuntu-24.04', 'dr-offline'], 'timeout-minutes': minutes,
+            'steps': [{'run': "echo 'Lifecycle probe started'\ntrap 'echo lifecycle-probe-stopped; exit 143' TERM INT\nsleep 300 &\nwait $!"}]}
+            for name, minutes in [('timeout', 1), ('cancel', 10)]}}
+    (output / 'platform.yaml').write_text(yaml.safe_dump(platform, sort_keys=False))
+    (output / 'controls.yaml').write_text(yaml.safe_dump(controls, sort_keys=False))
     record = {"source_commit": subprocess.check_output(["git", "-C", str(args.source), "rev-parse", "HEAD"]).decode().strip(),
               "script_sha256": inventory, "workflows": report}
     (args.output / "compatibility.json").write_text(json.dumps(record, indent=2) + "\n")
