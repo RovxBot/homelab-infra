@@ -16,7 +16,7 @@ jobs:
     permissions:
       packages: write
     env:
-      SOURCE_IMAGE: mcr.microsoft.com/mssql/server:2022-CU25-ubuntu-22.04@sha256:e07b9699a2b749969f19d86563ceeea22bd3a69f7f1db85a8d1ac4bdaf0c6f56
+      SOURCE_IMAGE: mcr.microsoft.com/mssql/server@sha256:e07b9699a2b749969f19d86563ceeea22bd3a69f7f1db85a8d1ac4bdaf0c6f56
       TARGET_IMAGE: ghcr.io/rovxbot/openbrew-sqlserver:2022-CU25-ubuntu-22.04
     steps:
       - name: Install registry tooling
