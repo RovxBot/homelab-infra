@@ -1,7 +1,11 @@
 import importlib.util
 import pathlib
+import base64
+import http.server
+import os
 import subprocess
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -103,6 +107,27 @@ class ProtectionTests(unittest.TestCase):
         self.config["required_commit"] = "0" * 40
         with self.assertRaises(RuntimeError): self.sync()
         self.assertEqual(self.published(), {})
+
+    def test_authenticated_http_clone_preserves_all_branches(self):
+        for i in range(25): self.run_git("branch", "topic/branch-" + str(i))
+        expected = self.sync()["refs"]
+        config = {"repositories": [self.config], "owner": "owner"}
+        state = protect.Protection(self.destination, config)
+        with patch.dict(os.environ, {"GUARD_TOKEN": "test-token"}):
+            server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), protect.handler(state))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            self.addCleanup(server.server_close)
+            try:
+                header = "Authorization: Basic " + base64.b64encode(b"dr:test-token").decode()
+                copy = self.root / "http-clone.git"
+                result = subprocess.run(["git", "-c", "http.extraHeader=" + header,
+                                         "clone", "--mirror", "http://127.0.0.1:" + str(server.server_port) + "/git/example.git", str(copy)],
+                                        capture_output=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                self.assertEqual(protect.refs(copy, "refs/heads/"), expected)
+            finally:
+                server.shutdown()
 
 
 if __name__ == "__main__": unittest.main()

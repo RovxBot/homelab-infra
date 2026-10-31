@@ -8,6 +8,7 @@ publication. An API proxy prevents the metadata mirror bypassing that source.
 """
 import argparse
 import base64
+import datetime as dt
 import hashlib
 import hmac
 import http.server
@@ -167,6 +168,24 @@ def handler(state):
                 available = free.f_bavail * free.f_frsize
                 return self.reply(200 if age is not None and age < 172800 and available > 1073741824 else 503,
                                   {"age_seconds": age, "staging_bytes_available": available})
+            if path == "/mirrorz":
+                failures = []
+                for repo in state.config["repositories"]:
+                    try:
+                        base = os.environ["GITEA_URL"] + "/api/v1/repos/" + state.config["owner"] + "/" + repo["name"]
+                        headers = {"Authorization": "token " + os.environ["GITEA_TOKEN"]}
+                        with urllib.request.urlopen(urllib.request.Request(base, headers=headers), timeout=10) as response:
+                            target = json.load(response)
+                        updated = dt.datetime.fromisoformat(target["mirror_updated"].replace("Z", "+00:00"))
+                        if not target["mirror"] or target["empty"] or time.time() - updated.timestamp() > 4500:
+                            raise RuntimeError("mirror refresh is stale or incomplete")
+                        with urllib.request.urlopen(urllib.request.Request(base + "/branches/" + urllib.parse.quote(repo["default_branch"], safe=""), headers=headers), timeout=10) as response:
+                            tip = json.load(response)["commit"]["id"]
+                        accepted = state.status[repo["name"]]["refs"]["refs/heads/" + repo["default_branch"]]
+                        if tip != accepted: raise RuntimeError("mirror has not reached the accepted source")
+                    except Exception:
+                        failures.append(repo["name"])
+                return self.reply(503 if failures else 200, {"unhealthy_mirrors": failures})
             if path.startswith("/git/"):
                 if not self.authenticated():
                     self.send_response(401)
@@ -188,6 +207,8 @@ def handler(state):
                            GIT_HTTP_EXPORT_ALL="1", REQUEST_METHOD=self.command,
                            PATH_INFO=path, QUERY_STRING=parsed.query,
                            CONTENT_TYPE=self.headers.get("Content-Type", ""),
+                           HTTP_CONTENT_ENCODING=self.headers.get("Content-Encoding", ""),
+                           HTTP_GIT_PROTOCOL=self.headers.get("Git-Protocol", ""),
                            CONTENT_LENGTH=str(length), REMOTE_USER="dr")
                 backend = subprocess.check_output(["git", "--exec-path"]).decode().strip() + "/git-http-backend"
                 result = subprocess.run([backend], input=data, capture_output=True, env=env, timeout=300)
