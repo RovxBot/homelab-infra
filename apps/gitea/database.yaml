@@ -47,10 +47,15 @@ spec:
             - name: POSTGRES_DB
               value: gitea
             - name: POSTGRES_USER
-              value: gitea
+              value: gitea_admin
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
             - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-credentials
+                  key: database-admin-password
+            - name: GITEA_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: gitea-credentials
@@ -91,6 +96,9 @@ spec:
               mountPath: /var/run/postgresql
             - name: tmp
               mountPath: /tmp
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -101,3 +109,6 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 256Mi
+        - name: init
+          configMap:
+            name: gitea-database-init

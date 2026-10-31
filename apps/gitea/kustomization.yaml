@@ -14,14 +14,22 @@ resources:
   - helmrelease.yaml
   - networkpolicies.yaml
   - mirroring.yaml
+  - backups.yaml
   - ../../secrets/gitea.enc.yaml
   - ../../secrets/gitea-admin.enc.yaml
   - ../../secrets/gitea-entra.enc.yaml
   - ../../secrets/gitea-mirror.enc.yaml
+  - ../../secrets/gitea-backup.enc.yaml
 configMapGenerator:
+  - name: gitea-database-init
+    files:
+      - 01-gitea.sh=../../ops/gitea/database-init.sh
   - name: gitea-protection
     files:
       - protect.py=../../ops/gitea/protect.py
       - protected-repositories.json=../../ops/gitea/protected-repositories.json
   - name: gitea-mirror-config
     envs: [mirror.env]
+  - name: gitea-backup-scripts
+    files:
+      - backup.sh=../../ops/gitea/backup.sh

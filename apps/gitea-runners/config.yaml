@@ -1,0 +1,93 @@
+runner:
+  file: /data/.runner
+  capacity: 1
+  timeout: 45m
+  shutdown_timeout: 30s
+  patch_actions: true
+  workdir_cleanup_age: 1h
+  idle_cleanup_interval: 5m
+  labels:
+    - ubuntu-24.04:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+    - dr-offline:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+  envs:
+    CMAKE_BUILD_PARALLEL_LEVEL: "2"
+    LIBGL_ALWAYS_SOFTWARE: "1"
+log:
+  level: info
+  job:
+    dir: /data/logs
+    retention: 336h
+    max_size: 100MB
+cache:
+  enabled: true
+  dir: /data/cache
+  host: 0.0.0.0
+  port: 8088
+  external_server: http://gitea-runner.gitea-runners.svc.cluster.local:8088
+  v2: true
+  size_limit: 512MB
+kubernetes:
+  namespace: gitea-jobs
+  pod_template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      hostUsers: false
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        kubernetes.io/os: linux
+      activeDeadlineSeconds: 3000
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: job
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+              ephemeral-storage: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 8Gi
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 6Gi
+        - name: act
+          emptyDir:
+            sizeLimit: 1Gi
+  pod_templates:
+    dr-offline:
+      spec:
+        hostAliases:
+          - ip: 127.0.0.2
+            hostnames:
+              - github.com
+              - api.github.com
+              - raw.githubusercontent.com
+              - codeload.github.com
+              - objects.githubusercontent.com
+              - ghcr.io
+              - pkg-containers.githubusercontent.com
+health_check:
+  enabled: true
+  min_free_disk_space_mb: 256
+metrics:
+  enabled: true
+  addr: ":9101"
+  readiness_grace: 30s

@@ -166,8 +166,10 @@ def handler(state):
                 age = time.time() - int(marker.read_text().strip()) if marker.exists() else None
                 free = os.statvfs(state.root)
                 available = free.f_bavail * free.f_frsize
-                return self.reply(200 if age is not None and age < 172800 and available > 1073741824 else 503,
-                                  {"age_seconds": age, "staging_bytes_available": available})
+                failed = (state.root / "backup-failure.epoch").exists()
+                return self.reply(200 if not failed and age is not None and age < 172800 and available > 1073741824 else 503,
+                                  {"age_seconds": age, "last_backup_failed": failed,
+                                   "staging_bytes_available": available})
             if path == "/mirrorz":
                 failures = []
                 for repo in state.config["repositories"]:
