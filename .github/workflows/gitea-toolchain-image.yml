@@ -36,6 +36,11 @@ jobs:
           docker run --rm "$image" bash -ec 'python3 --version; clang --version; cmake --version; ninja --version; git lfs version; node --version; xvfb-run -a glxinfo -B'
           docker push "$image"
           docker inspect "$image" --format '{{index .RepoDigests 0}}' | tee image-digest.txt
+          backup="ghcr.io/${OWNER,,}/gitea-backup:${REVISION}"
+          docker build --pull --tag "$backup" --file ops/gitea/images/backup.Dockerfile ops/gitea/images
+          docker run --rm "$backup" -ec 'pg_dump --version; restic version; kubectl version --client'
+          docker push "$backup"
+          docker inspect "$backup" --format '{{index .RepoDigests 0}}' | tee -a image-digest.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gitea-toolchain-digest
