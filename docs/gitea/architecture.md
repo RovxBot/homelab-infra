@@ -21,16 +21,18 @@ Inspection date: 31 October 2026 (Australia/Adelaide). Implementation branch:
   their extra disks, provide schedulable capacity. Approximate available raw
   disk capacity was 2.5 TiB; this is not usable replicated capacity. Initial
   requests require three replicas and must be verified after provisioning.
-- Allocatable resources: six nodes have about 4 CPUs, metal4 about 12;
+- Allocatable resources: seven nodes have about 4 CPUs, metal4 about 12;
   metal0/2/3/5/6 have about 7 GiB, metal7/8 about 15 GiB, metal4 about 31 GiB.
   Reserve build concurrency at one initially; requests are not a performance SLO.
 - Namespace bootstrap quotas are opt-in and are not enabled on current app
   namespaces. Workload ownership, resources, image pinning and runtime security
-  are enforced by Kyverno. New namespaces use restricted Pod Security.
+  are enforced by Kyverno. Application/controller namespaces use restricted Pod
+  Security. The job namespace uses a namespaced Kyverno policy for restricted
+  controls with an image-bound root/SYS_PTRACE exception for LeakSanitizer.
 - Cilium 1.19.6 uses Geneve, kube-proxy and **policyEnforcementMode: never**.
   NetworkPolicy resources are documentation, not an isolation boundary. No
   cluster-wide networking change is part of this installation. Jobs are trusted
-  local workloads, without Kubernetes tokens, host access or privileges.
+  local workloads, without Kubernetes tokens, host access or privileged mode.
 - Cloudflared has two connectors and file-based ingress, tunnel
   `19dd24d6-5e63-4ba3-a23c-fbebc7312e3f`. `git.cooked.beer` did not resolve
   at inspection. DNS creation must be verified separately from the ingress file.

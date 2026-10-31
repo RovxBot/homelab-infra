@@ -1,0 +1,8 @@
+# Add to your private ~/.codex/config.toml after installing the pinned binary.
+# Replace this checkout path when using another workstation.
+[mcp_servers.gitea_readonly]
+command = "python3"
+args = ["/home/Rov/Documents/Git/homelab-infra/ops/gitea/mcp-readonly.py"]
+env_vars = ["GITEA_HOST", "GITEA_ACCESS_TOKEN", "GITEA_MCP_BINARY"]
+startup_timeout_sec = 20
+tool_timeout_sec = 60
