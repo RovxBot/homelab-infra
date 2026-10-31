@@ -76,6 +76,55 @@ spec:
             success-threshold: 2
             send-on-resolved: true
       endpoints:
+        - name: gitea
+          group: internal
+          url: http://gitea-http.gitea.svc.cluster.local:3000/api/healthz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+            - "[BODY].status == pass"
+          alerts:
+            - type: github
+        - name: gitea-protected-sources
+          group: internal
+          url: http://gitea-protection.gitea.svc.cluster.local:8080/healthz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
+        - name: gitea-backup
+          group: internal
+          url: http://gitea-protection.gitea.svc.cluster.local:8080/backupz
+          interval: 5m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
+        - name: gitea-mirror-freshness
+          group: internal
+          url: http://gitea-protection.gitea.svc.cluster.local:8080/mirrorz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
+        - name: gitea-mirror
+          group: internal
+          url: http://gitea-mirror.gitea.svc.cluster.local:4321/api/health
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
+        - name: gitea-runner
+          group: internal
+          url: http://gitea-runner.gitea-runners.svc.cluster.local:9101/readyz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
         - name: openbrew
           group: internal
           url: http://openbrew.openbrew.svc.cluster.local:80/ready

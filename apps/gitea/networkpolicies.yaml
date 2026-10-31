@@ -1,0 +1,52 @@
+# Documentary while Cilium policyEnforcementMode is never. See architecture.md.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gitea-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: gitea
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gitea
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gitea-jobs
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gitea-runners
+        - ipBlock:
+            cidr: 192.168.1.0/24
+        - ipBlock:
+            cidr: 10.77.0.0/24
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 2222
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gitea-database
+spec:
+  podSelector:
+    matchLabels:
+      app: gitea-postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432

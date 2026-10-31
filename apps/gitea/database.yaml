@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea-postgres
+spec:
+  selector:
+    app: gitea-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-postgres
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea-postgres
+  template:
+    metadata:
+      labels:
+        app: gitea-postgres
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:17-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+          env:
+            - name: POSTGRES_DB
+              value: gitea
+            - name: POSTGRES_USER
+              value: gitea_admin
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-credentials
+                  key: database-admin-password
+            - name: GITEA_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-credentials
+                  key: database-password
+          ports:
+            - name: postgres
+              containerPort: 5432
+          startupProbe:
+            exec:
+              command: [pg_isready, -U, gitea, -d, gitea]
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, gitea, -d, gitea]
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: postgres
+            periodSeconds: 30
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gitea-postgres
+        - name: run
+          emptyDir:
+            sizeLimit: 16Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: init
+          configMap:
+            name: gitea-database-init

@@ -1,0 +1,112 @@
+runner:
+  file: /data/.runner
+  capacity: 1
+  timeout: 45m
+  shutdown_timeout: 30s
+  patch_actions: true
+  workdir_cleanup_age: 1h
+  idle_cleanup_interval: 5m
+  labels:
+    - ubuntu-24.04:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+    - dr-offline:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+    - dr-sanitizer:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+  envs:
+    CMAKE_BUILD_PARALLEL_LEVEL: "2"
+    LIBGL_ALWAYS_SOFTWARE: "1"
+log:
+  level: info
+  job:
+    dir: /data/logs
+    retention: 336h
+    max_size: 100MB
+cache:
+  enabled: true
+  dir: /data/cache
+  host: gitea-runner.gitea-runners.svc.cluster.local
+  port: 8088
+  v2: true
+  size_limit: 512MB
+kubernetes:
+  namespace: gitea-jobs
+  pod_template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      # Talos currently sets user.max_user_namespaces=0. Keep the existing
+      # node configuration; job isolation uses restricted, non-root pods.
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        kubernetes.io/os: linux
+      activeDeadlineSeconds: 3000
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: job
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+              ephemeral-storage: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 8Gi
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 6Gi
+        - name: act
+          emptyDir:
+            sizeLimit: 1Gi
+  pod_templates:
+    dr-sanitizer:
+      metadata:
+        labels:
+          homelab.cooked.beer/sanitizer: "true"
+      spec:
+        securityContext:
+          fsGroup: 0
+        containers:
+          - name: job
+            securityContext:
+              # Non-root exec drops effective capabilities on containerd.
+              # UID 0 retains only SYS_PTRACE inside the private PID namespace.
+              runAsUser: 0
+              runAsGroup: 0
+              runAsNonRoot: false
+              capabilities:
+                add: [SYS_PTRACE]
+                drop: [ALL]
+    dr-offline:
+      spec:
+        hostAliases:
+          - ip: 127.0.0.2
+            hostnames:
+              - github.com
+              - api.github.com
+              - raw.githubusercontent.com
+              - codeload.github.com
+              - objects.githubusercontent.com
+              - ghcr.io
+              - pkg-containers.githubusercontent.com
+health_check:
+  enabled: true
+  min_free_disk_space_mb: 256
+metrics:
+  enabled: true
+  addr: ":9101"
+  readiness_grace: 30s

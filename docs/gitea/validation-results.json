@@ -1,0 +1,409 @@
+{
+  "linux": {
+    "recorded_at": "2026-10-31T07:09:32.552187+00:00",
+    "repository": "ci/homelab-validation",
+    "run_id": 12,
+    "harness_commit": "f1b12cc7280b5772b6e0a197e43c7e7e978d87fe",
+    "jobs": [
+      {
+        "id": 93,
+        "name": "m0_audit_source_audit",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:21:01Z",
+        "completed_at": "2026-10-31T06:21:44Z"
+      },
+      {
+        "id": 94,
+        "name": "m1_core_core (linux-core, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:21:44Z",
+        "completed_at": "2026-10-31T06:22:08Z"
+      },
+      {
+        "id": 95,
+        "name": "m1_core_core (linux-core-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:22:08Z",
+        "completed_at": "2026-10-31T06:22:33Z"
+      },
+      {
+        "id": 96,
+        "name": "m2_assets_assets (linux-assets, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:22:33Z",
+        "completed_at": "2026-10-31T06:23:10Z"
+      },
+      {
+        "id": 97,
+        "name": "m2_assets_assets (linux-assets-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:23:10Z",
+        "completed_at": "2026-10-31T06:24:07Z"
+      },
+      {
+        "id": 98,
+        "name": "m2_async_async (linux-async, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:24:07Z",
+        "completed_at": "2026-10-31T06:24:48Z"
+      },
+      {
+        "id": 99,
+        "name": "m2_async_async (linux-async-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:24:48Z",
+        "completed_at": "2026-10-31T06:25:49Z"
+      },
+      {
+        "id": 100,
+        "name": "m2_files_files (linux-files, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:25:49Z",
+        "completed_at": "2026-10-31T06:26:14Z"
+      },
+      {
+        "id": 101,
+        "name": "m2_files_files (linux-files-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:26:14Z",
+        "completed_at": "2026-10-31T06:26:44Z"
+      },
+      {
+        "id": 102,
+        "name": "m2_shell_shell (linux-window, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:26:44Z",
+        "completed_at": "2026-10-31T06:28:33Z"
+      },
+      {
+        "id": 103,
+        "name": "m2_shell_shell (linux-window-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:28:33Z",
+        "completed_at": "2026-10-31T06:32:22Z"
+      },
+      {
+        "id": 104,
+        "name": "m2_shell_shell (linux-window-dynamic-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:32:23Z",
+        "completed_at": "2026-10-31T06:36:16Z"
+      },
+      {
+        "id": 105,
+        "name": "m3_framescript_framescript (linux-framescript, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:36:16Z",
+        "completed_at": "2026-10-31T06:37:06Z"
+      },
+      {
+        "id": 106,
+        "name": "m3_framescript_framescript (linux-framescript-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:37:06Z",
+        "completed_at": "2026-10-31T06:38:25Z"
+      },
+      {
+        "id": 107,
+        "name": "m3_gl_shell (linux-gl, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:38:25Z",
+        "completed_at": "2026-10-31T06:42:02Z"
+      },
+      {
+        "id": 108,
+        "name": "m3_gl_shell (linux-gl-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:42:02Z",
+        "completed_at": "2026-10-31T06:50:18Z"
+      },
+      {
+        "id": 109,
+        "name": "m3_layout_layout (linux-layout, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:50:18Z",
+        "completed_at": "2026-10-31T06:51:20Z"
+      },
+      {
+        "id": 110,
+        "name": "m3_layout_layout (linux-layout-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:51:20Z",
+        "completed_at": "2026-10-31T06:53:11Z"
+      },
+      {
+        "id": 111,
+        "name": "m3_lua_lua (linux-lua, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:53:11Z",
+        "completed_at": "2026-10-31T06:53:41Z"
+      },
+      {
+        "id": 112,
+        "name": "m3_lua_lua (linux-lua-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:53:41Z",
+        "completed_at": "2026-10-31T06:54:22Z"
+      },
+      {
+        "id": 113,
+        "name": "m3_packets_packets (linux-packets, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:54:22Z",
+        "completed_at": "2026-10-31T06:54:46Z"
+      },
+      {
+        "id": 114,
+        "name": "m3_packets_packets (linux-packets-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:54:46Z",
+        "completed_at": "2026-10-31T06:55:13Z"
+      },
+      {
+        "id": 115,
+        "name": "m3_xml_xml (linux-xml, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:55:13Z",
+        "completed_at": "2026-10-31T06:56:06Z"
+      },
+      {
+        "id": 116,
+        "name": "m3_xml_xml (linux-xml-asan, python3, ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:56:07Z",
+        "completed_at": "2026-10-31T06:57:42Z"
+      },
+      {
+        "id": 117,
+        "name": "native_client_startup (linux-client)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T06:57:42Z",
+        "completed_at": "2026-10-31T07:01:01Z"
+      },
+      {
+        "id": 118,
+        "name": "native_client_startup (linux-client-asan)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-31T07:01:01Z",
+        "completed_at": "2026-10-31T07:08:01Z"
+      }
+    ],
+    "product_commit": "12fcd350915713808c3c651fabe5f48fd035148e",
+    "reviewed_workflow_and_porting_files_unchanged": true
+  },
+  "runner_lifecycle": {
+    "timeout": {
+      "run_id": 14,
+      "job_id": 121,
+      "conclusion": "failure",
+      "duration_seconds": 61.0
+    },
+    "cancel": {
+      "run_id": 15,
+      "job_id": 124,
+      "conclusion": "cancelled",
+      "duration_seconds": 256.0
+    },
+    "remaining_job_resources": 0
+  },
+  "mcp": {
+    "server": {
+      "name": "Gitea MCP Server",
+      "version": "1.12.0"
+    },
+    "tools": [
+      "actions_run_read",
+      "branch_read",
+      "get_repository_tree",
+      "issue_read",
+      "list_issues",
+      "list_pull_requests",
+      "pull_request_read",
+      "repo_read"
+    ],
+    "read_calls": [
+      {
+        "tool": "repo_read",
+        "succeeded": true
+      },
+      {
+        "tool": "branch_read",
+        "succeeded": true
+      },
+      {
+        "tool": "actions_run_read",
+        "succeeded": true
+      }
+    ]
+  },
+  "offline_registry": [
+    {
+      "image": "postgres:17-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 15
+    },
+    {
+      "image": "docker.gitea.com/runner-images:ubuntu-24.04@sha256:de626cc4b34dbb1c694b08fd4ee2357a7d5f0cabd7729c49155808ab9895c16c",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 11
+    },
+    {
+      "image": "ghcr.io/raylabshq/gitea-mirror:v3.50.0@sha256:421a5ec419f8176c0205e76d505c9e3410a189cc79b189b1ee32df8ddf609fa5",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 22
+    },
+    {
+      "image": "ghcr.io/rovxbot/gitea-backup@sha256:7386c7c4cf2040a6f8863d7f56ddccd13a7c268a350249d2023830b940569308",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 18
+    },
+    {
+      "image": "docker.gitea.com/runner:5.2.4@sha256:e8b3c7a5ed435fec38d1faf730cb784606cdd1c02e8543b6b96525b53281e60a",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 5
+    },
+    {
+      "image": "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 6
+    },
+    {
+      "image": "docker.gitea.com/gitea:28.2.0-rootless@sha256:94807314454f6525994a3b76286ba12bc7e7f8cd14f61d9e67431767f8103306",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 9
+    },
+    {
+      "image": "ghcr.io/fluxcd/source-controller:v1.9.1@sha256:773a90fa26e014d4f23d5c6a48ca5875c4686bdc6aac2ea73951b9cd9fda48dd",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 4
+    },
+    {
+      "image": "ghcr.io/fluxcd/kustomize-controller:v1.9.1@sha256:ae1a90c0c76d518618c5e2a64b82b6476c8213aa7a2b17ec8b94828f0230a6b8",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 4
+    },
+    {
+      "image": "ghcr.io/fluxcd/helm-controller:v1.6.1@sha256:b113d67328a58ecaa04ce69aa41fb285a1ebd10f021e2371065598a1325042fd",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 4
+    },
+    {
+      "image": "ghcr.io/fluxcd/notification-controller:v1.9.1@sha256:d52626555d96dd5666a942ef8aad09650e1bdbf58ca67ddb835d9de27e9002be",
+      "manifest_digest_verified": true,
+      "offline_blobs_present": 4
+    }
+  ],
+  "failover": {
+    "scratch_repository": "ci/dr-test-20261031-062148",
+    "source_repository": "github-dr/wowdecomp",
+    "branch_commit": "844ff8f7e4c2d8fcacdfde4b6a945e0f615f2342",
+    "native_pr": 1,
+    "pr_merged": true,
+    "production_mirror_preserved": true,
+    "linux_actions": {
+      "run_id": 13,
+      "normal": "success",
+      "sanitizer": "success"
+    }
+  },
+  "limitations": [
+    "Native Windows/macOS hosts unavailable",
+    "Public HTTPS Git and real Entra sign-in await reviewed shared ingress merge",
+    "No production LFS/release/wiki or inline-review-comment fixtures",
+    "LAN SSH tested; separate WireGuard client path not tested",
+    "Cilium policy enforcement is disabled in the existing cluster; jobs run trusted code only"
+  ],
+  "cold_backup": {
+    "startTime": "2026-10-31T07:15:51Z",
+    "completionTime": "2026-10-31T07:28:24Z",
+    "succeeded": 1,
+    "job": "gitea-cold-validation-20261031-r2",
+    "snapshot": "203a48ba6e4b56dd4facb10eaf36031466505c2dc11bb945c872d49664622671",
+    "logical_bytes": 950052852,
+    "restic_check": "no errors",
+    "services_restored": true
+  },
+  "restore": {
+    "wowdecomp": {
+      "verified_protected_refs": 25,
+      "verified_hosted_refs": 25,
+      "hosted_lag_at_capture": [],
+      "required_commit": null
+    },
+    "wowdecomp15595": {
+      "verified_protected_refs": 1,
+      "verified_hosted_refs": 1,
+      "hosted_lag_at_capture": [],
+      "required_commit": "959b0b85c5f55c565328d7c3ca33027a65e41327"
+    },
+    "bundles_verified": 28,
+    "database": {
+      "repositories": 10,
+      "issues": 142,
+      "comments": 661,
+      "artifacts": 53,
+      "app_is_superuser": false
+    },
+    "artifact_archives_verified": 53,
+    "known_artifact_payload_restored": true,
+    "job": "gitea-restore-test-20261031072825"
+  },
+  "backup_reconciliation": {
+    "replicas_after_forced_flux_reconcile": {
+      "gitea-protection": 0,
+      "gitea-mirror": 0
+    },
+    "backup_can_patch_deployments": false,
+    "backup_can_scale_allowed_deployments": true
+  },
+  "mirrors": [
+    {
+      "name": "wowdecomp",
+      "mirror": true,
+      "empty": false,
+      "branches": 25,
+      "tags": 0,
+      "all_refs_match_github": true,
+      "lfs_objects": 0,
+      "required_commit_verified": null,
+      "mirror_updated": "2026-10-31T07:30:04Z"
+    },
+    {
+      "name": "wowdecomp15595",
+      "mirror": true,
+      "empty": false,
+      "branches": 1,
+      "tags": 0,
+      "all_refs_match_github": true,
+      "lfs_objects": 0,
+      "required_commit_verified": "959b0b85c5f55c565328d7c3ca33027a65e41327",
+      "mirror_updated": "2026-10-31T07:30:45Z"
+    }
+  ]
+}

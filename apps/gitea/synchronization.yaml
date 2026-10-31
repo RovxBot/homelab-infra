@@ -1,0 +1,88 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gitea-selective-sync
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 840
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: gitea-selective-sync
+        spec:
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          restartPolicy: Never
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: gitea
+                      app.kubernetes.io/instance: gitea
+                  topologyKey: kubernetes.io/hostname
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: sync
+              image: ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+              command: [python3, /scripts/synchronize.py]
+              env:
+                - name: MIRROR_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: gitea-mirror
+                      key: MIRROR_ADMIN_PASSWORD
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gitea-mirror
+                      key: GITHUB_TOKEN
+                - name: GITEA_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gitea-mirror
+                      key: GITEA_TOKEN
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: protection
+                  mountPath: /data
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: scripts
+              configMap:
+                name: gitea-synchronization
+            - name: protection
+              persistentVolumeClaim:
+                claimName: gitea-protection
+            - name: tmp
+              emptyDir:
+                sizeLimit: 32Mi

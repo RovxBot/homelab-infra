@@ -1,0 +1,165 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitea-backup
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitea-backup
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [gitea, gitea-protection, gitea-mirror]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    resourceNames: [gitea, gitea-protection, gitea-mirror]
+    verbs: [get, patch, update]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitea-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gitea-backup
+subjects:
+  - kind: ServiceAccount
+    name: gitea-backup
+    namespace: gitea
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gitea-cold-backup
+spec:
+  schedule: "15 2 * * *"
+  timeZone: Australia/Adelaide
+  # Dedicated repository initialization and isolated cold restore passed on
+  # 2026-10-31; see docs/gitea/operations.md and validation-results.json.
+  suspend: false
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1800
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: gitea-backup
+        spec:
+          serviceAccountName: gitea-backup
+          automountServiceAccountToken: true
+          enableServiceLinks: false
+          restartPolicy: Never
+          terminationGracePeriodSeconds: 90
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: gitea
+                      app.kubernetes.io/instance: gitea
+                  topologyKey: kubernetes.io/hostname
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              image: ghcr.io/rovxbot/gitea-backup@sha256:7386c7c4cf2040a6f8863d7f56ddccd13a7c268a350249d2023830b940569308
+              command: [/bin/bash, /scripts/backup.sh]
+              envFrom:
+                - secretRef:
+                    name: gitea-backup
+              env:
+                - name: DATABASE_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: gitea-credentials
+                      key: database-admin-password
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                  ephemeral-storage: 2Gi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+                  ephemeral-storage: 4Gi
+              volumeMounts:
+                - name: data
+                  mountPath: /gitea
+                  readOnly: true
+                - name: protection
+                  mountPath: /protection
+                - name: mirror
+                  mountPath: /mirror
+                  readOnly: true
+                - name: secrets
+                  mountPath: /recovery
+                  readOnly: true
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: work
+                  mountPath: /work
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: gitea-data
+            - name: protection
+              persistentVolumeClaim:
+                claimName: gitea-protection
+            - name: mirror
+              persistentVolumeClaim:
+                claimName: gitea-mirror
+            - name: secrets
+              projected:
+                defaultMode: 0440
+                sources:
+                  - secret:
+                      name: gitea-credentials
+                  - secret:
+                      name: gitea-entra
+                      items:
+                        - key: secret
+                          path: entra-secret
+                        - key: key
+                          path: entra-client-id
+                  - secret:
+                      name: gitea-admin
+                      items:
+                        - key: password
+                          path: recovery-password
+                  - secret:
+                      name: gitea-mirror
+            - name: scripts
+              configMap:
+                name: gitea-backup-scripts
+            - name: work
+              emptyDir:
+                sizeLimit: 3Gi
+            - name: tmp
+              emptyDir:
+                sizeLimit: 128Mi

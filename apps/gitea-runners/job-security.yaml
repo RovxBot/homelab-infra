@@ -1,0 +1,182 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: gitea-job-security
+  namespace: gitea-jobs
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+spec:
+  background: true
+  webhookConfiguration:
+    failurePolicy: Fail
+  rules:
+    - name: restricted-with-sanitizer-capability
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        podSecurity:
+          level: restricted
+          version: latest
+          exclude:
+            - controlName: Capabilities
+              images:
+                - ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+            - controlName: Running as Non-root
+              images:
+                - ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+            - controlName: Running as Non-root user
+              images:
+                - ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+    - name: bound-job-environment
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Jobs require the pinned toolchain, no API token, no extra containers, and explicit resources.
+        pattern:
+          metadata:
+            labels:
+              homelab.cooked.beer/owner: sam
+          spec:
+            automountServiceAccountToken: false
+            containers:
+              - name: job
+                image: ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4
+                resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+    - name: one-job-container
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Only the job container is allowed; no init or ephemeral containers.
+        deny:
+          conditions:
+            any:
+              - key: "{{ length(request.object.spec.containers) }}"
+                operator: NotEquals
+                value: 1
+              - key: "{{ length(request.object.spec.initContainers || `[]`) }}"
+                operator: GreaterThan
+                value: 0
+              - key: "{{ length(request.object.spec.ephemeralContainers || `[]`) }}"
+                operator: GreaterThan
+                value: 0
+    - name: drop-all-and-only-allow-ptrace
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Drop ALL capabilities; only SYS_PTRACE can be added for LeakSanitizer.
+        foreach:
+          - list: request.object.spec.containers[]
+            deny:
+              conditions:
+                any:
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.capabilities.add || `[]` }}"
+                    operator: AnyNotIn
+                    value: [SYS_PTRACE]
+    - name: ptrace-only-in-sanitizer-jobs
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      preconditions:
+        all:
+          - key: "{{ request.object.metadata.labels.\"homelab.cooked.beer/sanitizer\" || '' }}"
+            operator: NotEquals
+            value: "true"
+      validate:
+        failureAction: Enforce
+        message: SYS_PTRACE requires the explicit sanitizer job label.
+        foreach:
+          - list: request.object.spec.containers[]
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.capabilities.add || `[]` }}"
+                    operator: AnyIn
+                    value: [SYS_PTRACE]
+    - name: ordinary-job-identity
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      preconditions:
+        all:
+          - key: "{{ request.object.metadata.labels.\"homelab.cooked.beer/sanitizer\" || '' }}"
+            operator: NotEquals
+            value: "true"
+      validate:
+        failureAction: Enforce
+        message: Ordinary jobs must run as the unprivileged build user.
+        pattern:
+          spec:
+            securityContext:
+              runAsUser: 1000
+              runAsNonRoot: true
+            containers:
+              - name: job
+                securityContext:
+                  runAsNonRoot: true
+                  =(runAsUser): 1000
+    - name: bounded-sanitizer-identity
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      preconditions:
+        all:
+          - key: "{{ request.object.metadata.labels.\"homelab.cooked.beer/sanitizer\" || '' }}"
+            operator: Equals
+            value: "true"
+      validate:
+        failureAction: Enforce
+        message: Sanitizer jobs use UID 0 solely to retain SYS_PTRACE; no other capabilities or host access.
+        pattern:
+          spec:
+            containers:
+              - name: job
+                securityContext:
+                  runAsUser: 0
+                  runAsGroup: 0
+                  runAsNonRoot: false
+                  capabilities:
+                    add: [SYS_PTRACE]
+                    drop: [ALL]
+    - name: no-extra-job-credentials
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Jobs may mount only bounded emptyDir volumes and runner-created Secrets.
+        foreach:
+          - list: request.object.spec.volumes[]
+            deny:
+              conditions:
+                all:
+                  - key: "{{ contains(keys(element), 'emptyDir') }}"
+                    operator: Equals
+                    value: false
+                  - key: "{{ contains(keys(element), 'secret') }}"
+                    operator: Equals
+                    value: false

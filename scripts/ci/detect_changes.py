@@ -35,13 +35,13 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
     full = full or any(path in FULL_CHECK_PATHS for path in paths)
     flags = {
         "manifests": full or any(
-            path.startswith(("apps/", "infra/", "clusters/", "secrets/"))
+            path.startswith(("apps/", "infra/", "clusters/", "secrets/", "ops/gitea/"))
             or path in MANIFEST_CHECK_PATHS
             for path in paths
         ),
         "public_edge": full or f"{EDGE_ROOT}Caddyfile" in paths,
         "shell": full or any(
-            path.endswith(".sh") and path.startswith(("scripts/", EDGE_ROOT))
+            path.endswith(".sh") and path.startswith(("scripts/", "ops/gitea/", EDGE_ROOT))
             for path in paths
         ),
         "workflows": full or any(

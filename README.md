@@ -14,7 +14,7 @@ This is a personal, opinionated homelab—not a turnkey production template. It 
 | Cluster | Eight-node Talos Linux Kubernetes cluster, reconciled by Flux |
 | Identity | Entra OIDC for normal `kubectl` administration; offline certificate break-glass access |
 | Storage | Longhorn on every node disk; general volumes use three replicas |
-| Backups | Longhorn and Immich/Restic backups go to Backblaze B2 |
+| Backups | Longhorn, Immich and independent Gitea/Restic backups go to Backblaze B2 |
 | Health | Gatus for in-cluster and edge checks; [homelab-uptime](https://github.com/RovxBot/homelab-uptime) publishes external status |
 | Networking | Cilium is the primary Geneve CNI; kube-proxy remains enabled and policy enforcement is intentionally `never` |
 | Edge | Cloudflare Tunnel for managed public routes; OCI WireGuard edge for intended Immich and Jellyfin public paths |
@@ -73,13 +73,19 @@ camera microphones locally, publishes to Home Assistant through the internal
 Mosquitto broker, and uses native Entra OIDC for Sam and Rachael. See the
 [BirdNET-Go setup and operations runbook](docs/runbooks/birdnet-go.md).
 
-The primary workloads are Immich, Jellyfin and the media stack, Home Assistant, Vaultwarden, Homepage, Invoice Ninja, Koito, Gatus, Grimguzzler registration and the WotLK realm.
+Gitea provides selective GitHub disaster recovery, local Git/Actions and Entra
+sign-in at `git.cooked.beer`, with private LAN/WireGuard recovery access.
+See the [Gitea architecture](docs/gitea/architecture.md),
+[acceptance ledger](docs/gitea/operations.md) and
+[backup/failover procedures](docs/gitea/github-failover.md).
+
+The primary workloads are Immich, Jellyfin and the media stack, Home Assistant, Vaultwarden, Homepage, Invoice Ninja, Koito, Gatus, Gitea, Grimguzzler registration and the WotLK realm.
 
 Koito at `koito.cooked.beer` uses local login and mirrors the `rovbot` Last.fm
 account through an internal Multi-Scrobbler bridge. Existing players continue
 scrobbling to Last.fm. See the [Koito setup and history import runbook](docs/runbooks/koito-lastfm.md).
 
-Eleven HTTP NodePorts are intentionally available on the trusted LAN for internal integrations. This includes the OCI edge's WireGuard path to Immich and Jellyfin, plus the stable Home Assistant frontend endpoint. They are an accepted risk, not an accidental public-ingress model: do not forward them from the WAN or expose them through UPnP. New NodePorts need a documented dependency and review. See [ADR 0001](docs/decisions/0001-lan-nodeport-access.md) for the list and constraints.
+The HTTP NodePorts listed in ADR 0001 are intentionally available on the trusted LAN for internal integrations. These include the OCI edge's WireGuard path to Immich and Jellyfin, the stable Home Assistant frontend endpoint, and Gitea recovery HTTP/private SSH access. They are an accepted risk, not an accidental public-ingress model: do not forward them from the WAN or expose them through UPnP. New NodePorts need a documented dependency and review. See [ADR 0001](docs/decisions/0001-lan-nodeport-access.md) for the list and constraints.
 
 Immich and Jellyfin remain public through the OCI edge by design and rely on their application login. Administrative routes should use Cloudflare Access with Entra where compatible; do not add a proxy login in front of public media clients without testing those clients first.
 

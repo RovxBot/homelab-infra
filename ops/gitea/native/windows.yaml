@@ -1,0 +1,18 @@
+runner:
+  file: C:/GiteaRunner/.runner
+  capacity: 1
+  timeout: 45m
+  labels: ["windows-2022:host"]
+  patch_actions: true
+  workdir_cleanup_age: 1h
+  idle_cleanup_interval: 5m
+log:
+  job:
+    dir: C:/GiteaRunner/logs
+    retention: 336h
+cache:
+  enabled: true
+  host: 127.0.0.1
+  port: 8088
+  v2: true
+  size_limit: 512MB

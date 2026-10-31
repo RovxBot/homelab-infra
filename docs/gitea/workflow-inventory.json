@@ -1,0 +1,573 @@
+{
+  "source_commit": "82b1681172b44cecff75cf579c79b63c90961e14",
+  "workflow_sha256": {
+    "m0-audit.yml": "558c64797a4817ba23d9a361c2906a875deccf2f9fc83dc3f3d536f8253d4a87",
+    "m1-core.yml": "472317d3286d5e413c3e4e98a321cd695b81ee3c6f758eef2fb8e07191e0ee80",
+    "m2-assets.yml": "8594237cf09302e474c09713037f874e276a33a1233298d7fdf0937dbe88378e",
+    "m2-async.yml": "12d95fdc26b2b18fadf546aa1b458bda4990e19f51964976790941e4c695eeb8",
+    "m2-files.yml": "94c4f5ec8b8e8f1daca1e17c303fb8d741925a0af8a38972a12ddd5777498537",
+    "m2-shell.yml": "cdfe0f84dc20adea3acb8f621e56cc84c06731d994e1f86087d57ae711cb5bfd",
+    "m3-framescript.yml": "d7e2c45785f03c1ce8b2434385a805ae962fdfa36545e753f75d182ae033ca7c",
+    "m3-gl.yml": "30c8ec07997469dedc9f4336f3727d7139395e7019fb681de658568a1c467747",
+    "m3-layout.yml": "0d450416b327c2699cca64adbfa2b6581254583a97b1d80f78b560e37f9160fb",
+    "m3-lua.yml": "11cd711063e0da010043ed22d09827d35c2a979452bf8aebcef29ccc17a085d3",
+    "m3-packets.yml": "23dafbb2eb1f575d53a4f498e82d0086e68abb53ff271217c4e96321b6521886",
+    "m3-xml.yml": "1d80426abe9c1887354b3b18b8820e0ac975b2677ea91b5e6e10f054fec2ffd1",
+    "native-client.yml": "4896dc6cc1a6eb683d96a60ab317dc16ae57caced18427c1dcd9bf2df0f5b1e4",
+    "windows-baseline.yml": "a3e8adeb3917b1db2da05ea728cb99c36d218e234177fe7d6b6fc7c793ac77c9"
+  },
+  "cmake_presets_sha256": "554ad5fa4fe8fc58df216577c255de98cb3595aae6e4d2f578a2efe35905f4de",
+  "script_sha256": {
+    "Tools/Porting/Build-WindowsBaseline.ps1": "4239a9b08e5496b68b027b533dfa6817c777285bd12cbe57ead130cea42abcfb",
+    "Tools/Porting/audit_build_graph.py": "81bf961412ea86050ccdf18cfd786814111807850306d50ed30f4c00d3dac37c",
+    "Tools/Porting/audit_sources.py": "d8d26555c60ee638a1671d8da22c2b35939c79afb32dd171585e32fe73b25640",
+    "Tools/Porting/build_native_client.py": "c30fe35d7275b86dbdd4cb05c71d5041fba51b01e572227cedc6698bb7d1c19a",
+    "Tools/Porting/run_asset_inspection.py": "860bfe203ba8304869e3cb0746b0ddf0c945f81259ea382a2b4da8583dd2e323",
+    "Tools/Porting/run_core_checks.py": "b98f6edcb8999ae3b7c769e38030918880a03988126380dca951e3d19181c29a",
+    "Tools/Porting/run_framescript_checks.py": "49c13e86d7cdd24b00d136ffc383ed7e4add1381bdde156bbec43dab32f3460c",
+    "Tools/Porting/run_layout_checks.py": "2a0f23000330e3eb553598aa17d06836d6bc21170cd51f8cfb23ad2b9f378622",
+    "Tools/Porting/run_lua_checks.py": "c3c22f57a214ca63e1cca2dd721f1b85130906c4904d89422ab0a594634e1456",
+    "Tools/Porting/run_native_client.py": "cb27adc9c8cca285dbfa25ea5ee5047108acd09df96c1af5de4b9e99b6c5c649",
+    "Tools/Porting/run_native_gl.py": "3d4152e4e4ab16550905e43a003d40936799b6accc2f6914b60f5ead1c223144",
+    "Tools/Porting/run_native_shell.py": "b629a22a212591bf5d20c21c92d30cc3abbf527273b44d806584a7773a9dadc9",
+    "Tools/Porting/run_packet_checks.py": "c7ffe319a842e8ff33719c308b98854c89ed0789beb61699b76b8ea3ac8732a2",
+    "Tools/Porting/run_xml_checks.py": "1b364290741f7a0f8df1ad57769449881e1dd802753ec5342a7226d18dafbb00",
+    "Tools/Porting/test_audit_sources.py": "e235969fb39519860f06edd85e23c2fa1d3ae12fd3b484ba4a1a6f3bbf849599",
+    "Tools/Porting/test_build_graph.py": "41e57f67cf70195c160f7f124c56f58215900556d5d3992aced127abe9cc969a",
+    "Tools/Porting/test_native_assets.py": "dd5543bc557511e3980f9c70824d3f6d4d0f9820fcfe7dd93b09c9e1b4d9681b",
+    "Tools/Porting/test_native_client.py": "8a58da6a869b00d823bf50dc02fe70cfcf4820059044ef9582a1852d18754f96",
+    "Tools/Porting/test_native_framescript.py": "3b5b51c35ecf56617a61a31f3fbf881b42d93f9dcaa4cf22bf99f59957c8db7e",
+    "Tools/Porting/test_native_gl.py": "7829c2bad5428ce0367d34708348184efef62f30bb0972cd90ea2c9ecec8ecbf",
+    "Tools/Porting/test_native_layout.py": "a9105c290577d22c623685b1df21b19f70aa18c9604beb4999754141ee11450a",
+    "Tools/Porting/test_native_lua.py": "a88b38f582f96aaa5a6428e270e13feaa6e9041d0a0be30bdcdc74c772b16c08",
+    "Tools/Porting/test_native_packets.py": "0d3287a795f99f333e7ecb1482861c3f8228124d4919e06cbe4f6731ccd18f71",
+    "Tools/Porting/test_native_xml.py": "6e2a445c5684459ee048661d5bd2bfe89aed4c18efe38614b41ef85aa2725e9b"
+  },
+  "workflows": [
+    {
+      "workflow": "m0-audit.yml",
+      "jobs": [
+        {
+          "name": "source-audit",
+          "platforms": [
+            "ubuntu-24.04"
+          ],
+          "matrix": {},
+          "timeout": 10,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "not configured in source workflow",
+            "macos": "not configured in source workflow"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m1-core.yml",
+      "jobs": [
+        {
+          "name": "core",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-core",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-core-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-core",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-core",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m2-assets.yml",
+      "jobs": [
+        {
+          "name": "assets",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-assets",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-assets-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-assets",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-assets",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m2-async.yml",
+      "jobs": [
+        {
+          "name": "async",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-async",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-async-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-async",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-async",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m2-files.yml",
+      "jobs": [
+        {
+          "name": "files",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-files",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-files-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-files",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-files",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m2-shell.yml",
+      "jobs": [
+        {
+          "name": "shell",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-window",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-window-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-window-dynamic-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-window",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-window",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 25,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m3-framescript.yml",
+      "jobs": [
+        {
+          "name": "framescript",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-framescript",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-framescript-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-framescript",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-framescript",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m3-gl.yml",
+      "jobs": [
+        {
+          "name": "shell",
+          "platforms": [
+            "ubuntu-24.04"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-gl",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-gl-asan",
+                "python": "python3"
+              }
+            ]
+          },
+          "timeout": 25,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "not configured in source workflow",
+            "macos": "not configured in source workflow"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m3-layout.yml",
+      "jobs": [
+        {
+          "name": "layout",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-layout",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-layout-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-layout",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-layout",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m3-lua.yml",
+      "jobs": [
+        {
+          "name": "lua",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-lua",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-lua-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-lua",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-lua",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m3-packets.yml",
+      "jobs": [
+        {
+          "name": "packets",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-packets",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-packets-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-packets",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-packets",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "m3-xml.yml",
+      "jobs": [
+        {
+          "name": "xml",
+          "platforms": [
+            "macos-14",
+            "ubuntu-24.04",
+            "windows-2022"
+          ],
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-xml",
+                "python": "python3"
+              },
+              {
+                "runner": "ubuntu-24.04",
+                "preset": "linux-xml-asan",
+                "python": "python3"
+              },
+              {
+                "runner": "macos-14",
+                "preset": "macos-arm64-xml",
+                "python": "python3"
+              },
+              {
+                "runner": "windows-2022",
+                "preset": "windows-xml",
+                "python": "python"
+              }
+            ]
+          },
+          "timeout": 15,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "native-client.yml",
+      "jobs": [
+        {
+          "name": "startup",
+          "platforms": [
+            "ubuntu-24.04"
+          ],
+          "matrix": {
+            "preset": [
+              "linux-client",
+              "linux-client-asan"
+            ]
+          },
+          "timeout": 25,
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "not configured in source workflow",
+            "macos": "not configured in source workflow"
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "windows-baseline.yml",
+      "jobs": [
+        {
+          "name": "windows-x64",
+          "platforms": [
+            "windows-2022"
+          ],
+          "matrix": {},
+          "timeout": 45,
+          "verified_execution": {
+            "linux": "not configured in source workflow",
+            "windows": "unavailable: no native host",
+            "macos": "not configured in source workflow"
+          }
+        }
+      ]
+    }
+  ]
+}

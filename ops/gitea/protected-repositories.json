@@ -1,0 +1,8 @@
+{
+  "owner": "github-dr",
+  "interval_seconds": 1800,
+  "repositories": [
+    {"source": "RovxBot/wowdecomp", "name": "wowdecomp", "default_branch": "main"},
+    {"source": "RovxBot/wowdecomp15595", "name": "wowdecomp15595", "default_branch": "w15595", "required_commit": "959b0b85c5f55c565328d7c3ca33027a65e41327"}
+  ]
+}

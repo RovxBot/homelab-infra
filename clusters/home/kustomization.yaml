@@ -22,3 +22,5 @@ resources:
   - infrastructure/mosquitto-kustomization.yaml
   - apps/birdnet-go-kustomization.yaml
   - apps/openbrew-kustomization.yaml
+  - apps/gitea-kustomization.yaml
+  - apps/gitea-runners-kustomization.yaml
