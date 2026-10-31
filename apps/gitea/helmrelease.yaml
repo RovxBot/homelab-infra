@@ -1,0 +1,193 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gitea
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  interval: 30m
+  timeout: 15m
+  releaseName: gitea
+  maxHistory: 3
+  chart:
+    spec:
+      chart: gitea
+      version: 12.7.0
+      sourceRef:
+        kind: HelmRepository
+        name: gitea
+        namespace: gitea
+      interval: 12h
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  values:
+    replicaCount: 1
+    strategy:
+      type: Recreate
+    image:
+      registry: docker.gitea.com
+      repository: gitea
+      tag: 28.2.0
+      digest: sha256:94807314454f6525994a3b76286ba12bc7e7f8cd14f61d9e67431767f8103306
+      rootless: true
+    deployment:
+      labels:
+        homelab.cooked.beer/owner: sam
+      terminationGracePeriodSeconds: 120
+    serviceAccount:
+      create: true
+      automountServiceAccountToken: false
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      fsGroupChangePolicy: OnRootMismatch
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+    initContainers:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: "1"
+          memory: 512Mi
+    persistence:
+      enabled: true
+      create: false
+      claimName: gitea-data
+    service:
+      http:
+        type: NodePort
+        port: 3000
+        nodePort: 30300
+      ssh:
+        type: NodePort
+        port: 2222
+        nodePort: 30222
+    postgresql:
+      enabled: false
+    postgresql-ha:
+      enabled: false
+    valkey:
+      enabled: false
+    valkey-cluster:
+      enabled: false
+    test:
+      enabled: false
+    gitea:
+      admin:
+        existingSecret: gitea-admin
+        passwordMode: initialOnlyNoReset
+      config:
+        APP_NAME: Cooked Git
+        RUN_MODE: prod
+        server:
+          DOMAIN: git.cooked.beer
+          ROOT_URL: https://git.cooked.beer/
+          HTTP_PORT: 3000
+          SSH_DOMAIN: 192.168.1.190
+          SSH_PORT: 30222
+          SSH_LISTEN_PORT: 2222
+          START_SSH_SERVER: true
+          LFS_START_SERVER: true
+        database:
+          DB_TYPE: postgres
+          HOST: gitea-postgres.gitea.svc.cluster.local:5432
+          NAME: gitea
+          USER: gitea
+          SSL_MODE: disable
+        security:
+          INSTALL_LOCK: true
+          REVERSE_PROXY_TRUSTED_PROXIES: 10.245.0.0/16
+        service:
+          DISABLE_REGISTRATION: true
+          ALLOW_ONLY_EXTERNAL_REGISTRATION: true
+          REQUIRE_SIGNIN_VIEW: true
+          DEFAULT_KEEP_EMAIL_PRIVATE: true
+          DEFAULT_ALLOW_CREATE_ORGANIZATION: false
+        oauth2_client:
+          ENABLE_AUTO_REGISTRATION: true
+          ACCOUNT_LINKING: login
+          USERNAME: nickname
+        repository:
+          DEFAULT_PRIVATE: private
+          DISABLE_HTTP_GIT: false
+        mirror:
+          DISABLE_NEW_PULL: false
+          MIN_INTERVAL: 30m
+        actions:
+          ENABLED: true
+          DEFAULT_ACTIONS_URL: self
+          ARTIFACT_RETENTION_DAYS: 14
+        cache:
+          ADAPTER: memory
+        session:
+          PROVIDER: file
+          COOKIE_SECURE: true
+        queue:
+          TYPE: level
+        log:
+          MODE: console
+          LEVEL: Info
+      additionalConfigFromEnvs:
+        - name: GITEA__database__PASSWD
+          valueFrom:
+            secretKeyRef:
+              name: gitea-credentials
+              key: database-password
+        - name: GITEA__security__SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gitea-credentials
+              key: secret-key
+        - name: GITEA__security__INTERNAL_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: gitea-credentials
+              key: internal-token
+        - name: GITEA__server__LFS_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gitea-credentials
+              key: lfs-jwt-secret
+        - name: GITEA__oauth2__JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gitea-credentials
+              key: oauth-jwt-secret
+      readinessProbe:
+        enabled: true
+        tcpSocket: null
+        httpGet:
+          path: /api/healthz
+          port: http
+        initialDelaySeconds: 5
+        timeoutSeconds: 5
+      startupProbe:
+        enabled: true
+        tcpSocket:
+          port: http
+        periodSeconds: 5
+        failureThreshold: 120
