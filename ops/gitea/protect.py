@@ -160,6 +160,13 @@ def handler(state):
                               time.time() - state.status.get(r["name"], {}).get("last_success", 0) < 4500
                               for r in state.config["repositories"])
                 return self.reply(200 if healthy else 503, state.status)
+            if path == "/backupz":
+                marker = state.root / "backup-success.epoch"
+                age = time.time() - int(marker.read_text().strip()) if marker.exists() else None
+                free = os.statvfs(state.root)
+                available = free.f_bavail * free.f_frsize
+                return self.reply(200 if age is not None and age < 172800 and available > 1073741824 else 503,
+                                  {"age_seconds": age, "staging_bytes_available": available})
             if path.startswith("/git/"):
                 if not self.authenticated():
                     self.send_response(401)
@@ -264,6 +271,8 @@ def handler(state):
                     return self.reply(result.status, result.read(), result.headers.get("Content-Type", "application/json"))
             except urllib.error.HTTPError as error:
                 return self.reply(error.code, error.read())
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                return self.reply(503, {"error": "Gitea unavailable; existing data preserved"})
 
         def do_GET(self): self.dispatch()
         def do_HEAD(self): self.dispatch()
