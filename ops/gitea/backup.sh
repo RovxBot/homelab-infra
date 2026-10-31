@@ -4,6 +4,7 @@ set -euo pipefail
 umask 077
 export RESTIC_CACHE_DIR=/work/cache
 export PGPASSWORD="$DATABASE_ADMIN_PASSWORD"
+export PGHOST=gitea-postgres PGUSER=gitea_admin PGDATABASE=gitea
 mkdir -p /work/export
 
 if [[ "${1:-}" == init ]]; then
@@ -48,10 +49,9 @@ for selector in 'app=gitea-mirror' 'app=gitea-protection' 'app.kubernetes.io/nam
   fi
 done
 
-pg_dump --host=gitea-postgres --username=gitea_admin --dbname=gitea \
-  --format=custom --file=/work/export/gitea.pgdump
+pg_dump --format=custom --file=/work/export/gitea.pgdump
 pg_restore --list /work/export/gitea.pgdump > /work/export/database-contents.txt
-pg_dumpall --host=gitea-postgres --username=gitea_admin --globals-only --no-role-passwords > /work/export/globals.sql
+pg_dumpall --globals-only --no-role-passwords > /work/export/globals.sql
 sha256sum /work/export/gitea.pgdump > /work/export/SHA256SUMS
 date -u +%FT%TZ > /work/export/captured-at
 

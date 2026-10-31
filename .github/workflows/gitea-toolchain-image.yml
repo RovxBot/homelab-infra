@@ -2,7 +2,7 @@ name: Gitea Linux toolchain
 on:
   workflow_dispatch:
   push:
-    branches: [main, feat/gitea-disaster-recovery]
+    branches: [main]
     paths:
       - ops/gitea/images/**
       - .github/workflows/gitea-toolchain-image.yml

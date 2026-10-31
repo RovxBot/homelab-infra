@@ -87,7 +87,7 @@ def sync_repo(root, config, source_url=None, fetch_lfs=True):
     if fetch_lfs:
         git(repo, "lfs", "fetch", "--all", "origin", env=env)
         git(repo, "lfs", "fsck", "--objects", new[branch], env=env)
-    if old:
+    if old and old != new:
         directory = root / "bundles" / config["name"]
         directory.mkdir(parents=True, exist_ok=True)
         stamp = str(time.time_ns())

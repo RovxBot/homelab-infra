@@ -29,6 +29,8 @@ own retained PVC. It publishes branches/tags only after checking:
 - LFS fetch/fsck succeeds, and a complete bundle of the previous accepted refs
   is created, verified and checksummed before publication.
 
+Unchanged refs refresh source health without creating duplicate full bundles.
+
 Publication uses a Git ref transaction. Fetch failures, HTTP 403/404, missing
 refs, rewrites, LFS failures and failed bundle verification leave accepted refs
 available. Candidate refs are hidden from clones. Bundles never expire
