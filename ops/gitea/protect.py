@@ -172,6 +172,9 @@ def handler(state):
                                    "staging_bytes_available": available})
             if path == "/mirrorz":
                 failures = []
+                marker = state.root / 'metadata-sync-success.epoch'
+                if (state.root / 'metadata-sync-failed').exists() or not marker.exists() or time.time() - int(marker.read_text()) > 4500:
+                    failures.append('metadata-sync')
                 for repo in state.config["repositories"]:
                     try:
                         base = os.environ["GITEA_URL"] + "/api/v1/repos/" + state.config["owner"] + "/" + repo["name"]

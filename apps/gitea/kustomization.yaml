@@ -15,12 +15,17 @@ resources:
   - networkpolicies.yaml
   - mirroring.yaml
   - backups.yaml
+  - synchronization.yaml
   - ../../secrets/gitea.enc.yaml
   - ../../secrets/gitea-admin.enc.yaml
   - ../../secrets/gitea-entra.enc.yaml
   - ../../secrets/gitea-mirror.enc.yaml
   - ../../secrets/gitea-backup.enc.yaml
 configMapGenerator:
+  - name: gitea-synchronization
+    files:
+      - synchronize.py=../../ops/gitea/synchronize.py
+      - protected-repositories.json=../../ops/gitea/protected-repositories.json
   - name: gitea-database-init
     files:
       - 01-gitea.sh=../../ops/gitea/database-init.sh
