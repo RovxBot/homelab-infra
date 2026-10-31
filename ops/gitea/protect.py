@@ -289,7 +289,16 @@ def handler(state):
                                              headers=headers, method=self.command)
             try:
                 with urllib.request.urlopen(request, timeout=1800) as result:
-                    return self.reply(result.status, result.read(), result.headers.get("Content-Type", "application/json"))
+                    response = result.read()
+                    # The metadata application's collision check expects the
+                    # original GitHub identity. Only its API view is rewritten;
+                    # the actual Gitea pull URL remains the protected service.
+                    match = re.fullmatch(r"/api/v1/repos/([^/]+)/([^/]+)", path)
+                    if self.command == "GET" and match and match[1] == state.config["owner"] and match[2] in allowed and result.status == 200:
+                        record = json.loads(response)
+                        record["original_url"] = "https://github.com/" + allowed[match[2]]["source"] + ".git"
+                        response = json.dumps(record).encode()
+                    return self.reply(result.status, response, result.headers.get("Content-Type", "application/json"))
             except urllib.error.HTTPError as error:
                 return self.reply(error.code, error.read())
             except (urllib.error.URLError, TimeoutError, ConnectionError):
