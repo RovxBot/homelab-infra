@@ -13,6 +13,15 @@ resources:
   - helmrepository.yaml
   - helmrelease.yaml
   - networkpolicies.yaml
+  - mirroring.yaml
   - ../../secrets/gitea.enc.yaml
   - ../../secrets/gitea-admin.enc.yaml
   - ../../secrets/gitea-entra.enc.yaml
+  - ../../secrets/gitea-mirror.enc.yaml
+configMapGenerator:
+  - name: gitea-protection
+    files:
+      - protect.py=../../ops/gitea/protect.py
+      - protected-repositories.json=../../ops/gitea/protected-repositories.json
+  - name: gitea-mirror-config
+    envs: [mirror.env]

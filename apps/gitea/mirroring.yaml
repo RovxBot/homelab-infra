@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-protection
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-gitea-retain
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-mirror
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-gitea-retain
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea-protection
+spec:
+  selector:
+    app: gitea-protection
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea-mirror
+spec:
+  selector:
+    app: gitea-mirror
+  ports:
+    - name: http
+      port: 4321
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-protection
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea-protection
+  template:
+    metadata:
+      labels:
+        app: gitea-protection
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: protection
+          image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:de626cc4b34dbb1c694b08fd4ee2357a7d5f0cabd7729c49155808ab9895c16c
+          command: [python3, /scripts/protect.py]
+          env:
+            - name: HOME
+              value: /tmp
+            - name: GUARD_URL
+              value: http://gitea-protection.gitea.svc.cluster.local:8080
+            - name: GITEA_URL
+              value: http://gitea-http.gitea.svc.cluster.local:3000
+            - name: GUARD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-mirror
+                  key: GUARD_TOKEN
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gitea-protection
+        - name: scripts
+          configMap:
+            name: gitea-protection
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-mirror
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea-mirror
+  template:
+    metadata:
+      labels:
+        app: gitea-mirror
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mirror
+          image: ghcr.io/raylabshq/gitea-mirror:v3.50.0@sha256:421a5ec419f8176c0205e76d505c9e3410a189cc79b189b1ee32df8ddf609fa5
+          envFrom:
+            - configMapRef:
+                name: gitea-mirror-config
+            - secretRef:
+                name: gitea-mirror
+          ports:
+            - name: http
+              containerPort: 4321
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gitea-mirror
