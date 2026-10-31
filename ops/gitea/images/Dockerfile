@@ -5,7 +5,7 @@ ARG UBUNTU_SNAPSHOT=20261030T000000Z
 ARG NODE_VERSION=24.21.0
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
-RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources \
+RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@http://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
        ca-certificates curl xz-utils bash coreutils tar git git-lfs openssh-client \
