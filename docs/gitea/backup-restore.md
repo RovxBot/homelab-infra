@@ -30,6 +30,10 @@ the cold backup Job. Mirror and backup use the same supplementary volume group.
 The backup account can scale only these three deployments and inspect pods;
 it cannot read arbitrary Secrets or alter other workloads. Recovery Secrets
 are explicitly projected into the encrypted backup.
+The guard and mirror manifests omit `spec.replicas` so periodic Flux
+reconciliation respects the backup's scale operations. Helm drift correction
+is not enabled for Gitea. Do not change that setting without coordinating the
+cold-backup maintenance window.
 
 Every capture verifies the dump's table of contents, records its SHA-256, runs
 Restic backup and repository integrity checking, then applies **14 daily,

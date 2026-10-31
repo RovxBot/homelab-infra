@@ -10,7 +10,11 @@ metadata:
   name: gitea-backup
 rules:
   - apiGroups: [apps]
-    resources: [deployments, deployments/scale]
+    resources: [deployments]
+    resourceNames: [gitea, gitea-protection, gitea-mirror]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments/scale]
     resourceNames: [gitea, gitea-protection, gitea-mirror]
     verbs: [get, patch, update]
   - apiGroups: [""]

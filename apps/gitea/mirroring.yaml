@@ -55,7 +55,8 @@ kind: Deployment
 metadata:
   name: gitea-protection
 spec:
-  replicas: 1
+  # The backup Job controls replicas during cold captures. Omit this field so
+  # Flux reconciliation cannot restart writers while their files are copied.
   revisionHistoryLimit: 2
   strategy:
     type: Recreate
@@ -161,7 +162,7 @@ kind: Deployment
 metadata:
   name: gitea-mirror
 spec:
-  replicas: 1
+  # Omit replicas for the same cold-backup ownership rule as the guard above.
   revisionHistoryLimit: 2
   strategy:
     type: Recreate

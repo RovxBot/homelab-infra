@@ -56,8 +56,15 @@ results['bundles_verified'] = len(bundles)
 results['database'] = json.loads(pathlib.Path('/restore/database-evidence.json').read_text())
 artifacts = []
 proof_restored = False
-for path in (root / 'gitea/gitea/actions_artifacts').rglob('*'):
-    if path.is_file() and zipfile.is_zipfile(path):
+artifact_root = root / 'gitea/actions_artifacts'
+confirmed = json.loads(pathlib.Path('/restore/artifact-evidence.json').read_text())
+for record in confirmed:
+    path = artifact_root / record['path']
+    if not path.is_relative_to(artifact_root) or '..' in path.parts:
+        raise RuntimeError('Unsafe artifact storage path')
+    if not path.is_file() or path.stat().st_size != record['size']:
+        raise RuntimeError('Restored artifact is missing or truncated')
+    if zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as archive:
             if archive.testzip() is not None:
                 raise RuntimeError('Corrupt restored Actions artifact')

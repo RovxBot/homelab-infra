@@ -23,4 +23,7 @@ pg_restore --dbname=gitea --exit-on-error "$dump"
 psql --dbname=gitea --set=ON_ERROR_STOP=1 --tuples-only --no-align \
   --command="SELECT json_build_object('repositories', (SELECT count(*) FROM repository), 'issues', (SELECT count(*) FROM issue), 'comments', (SELECT count(*) FROM comment), 'artifacts', (SELECT count(*) FROM action_artifact), 'app_is_superuser', (SELECT rolsuper FROM pg_roles WHERE rolname='gitea'));" \
   > /restore/database-evidence.json
+psql --dbname=gitea --set=ON_ERROR_STOP=1 --tuples-only --no-align \
+  --command="SELECT COALESCE(json_agg(json_build_object('id', id, 'path', storage_path, 'size', file_compressed_size)), '[]'::json) FROM action_artifact WHERE status = 2;" \
+  > /restore/artifact-evidence.json
 touch /restore/database-restored
