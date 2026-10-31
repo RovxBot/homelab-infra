@@ -33,7 +33,7 @@ jobs:
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
           docker build --pull --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --tag "$image" --file ops/gitea/images/Dockerfile ops/gitea/images
-          docker run --rm "$image" bash -ec 'python3 --version; clang --version; cmake --version; ninja --version; git lfs version; node --version; xvfb-run -a glxinfo -B'
+          timeout 90s docker run --rm --init --shm-size=256m "$image" bash -ec 'python3 --version; clang --version; cmake --version; ninja --version; git lfs version; node --version; xvfb-run -a -e /dev/stderr glxinfo -B'
           docker push "$image"
           docker inspect "$image" --format '{{index .RepoDigests 0}}' | tee image-digest.txt
           backup="ghcr.io/${OWNER,,}/gitea-backup:${REVISION}"
