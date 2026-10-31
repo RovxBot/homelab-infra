@@ -12,5 +12,7 @@ resources:
   - database.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  - networkpolicies.yaml
   - ../../secrets/gitea.enc.yaml
   - ../../secrets/gitea-admin.enc.yaml
+  - ../../secrets/gitea-entra.enc.yaml

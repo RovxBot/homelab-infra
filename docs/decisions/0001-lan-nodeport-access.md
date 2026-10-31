@@ -26,8 +26,16 @@ The currently intentional NodePorts are:
 | Sonarr | 30989 |
 | Vaultwarden | 32080 |
 | Home Assistant | 31234 |
+| Gitea HTTP recovery path | 30301 |
+| Gitea SSH | 30222 |
 
 Cloudflare Tunnel routes use cluster-internal Services, not these NodePorts.
+
+Gitea's HTTP and SSH NodePorts support LAN/WireGuard development and recovery
+when Cloudflare is unavailable. Git SSH uses public-key authentication. HTTP
+remains authenticated but is plaintext on the trusted network; use SSH for Git
+and a localhost `kubectl port-forward` for recovery administration. There is no
+WAN forwarding rule for either Gitea port. See `docs/gitea/operations.md`.
 
 ## Decision
 

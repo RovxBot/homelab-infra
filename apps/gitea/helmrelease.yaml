@@ -81,7 +81,7 @@ spec:
       http:
         type: NodePort
         port: 3000
-        nodePort: 30300
+        nodePort: 30301
       ssh:
         type: NodePort
         port: 2222
@@ -97,6 +97,14 @@ spec:
     test:
       enabled: false
     gitea:
+      oauth:
+        - name: entra
+          provider: openidConnect
+          existingSecret: gitea-entra
+          autoDiscoverUrl: https://login.microsoftonline.com/345cd18b-5bee-4ac4-b729-a3f7059a28f3/v2.0/.well-known/openid-configuration
+          scopes: openid,profile,email
+          groupClaimName: roles
+          adminGroup: Gitea.Admin
       admin:
         existingSecret: gitea-admin
         passwordMode: initialOnlyNoReset
@@ -137,6 +145,8 @@ spec:
         mirror:
           DISABLE_NEW_PULL: false
           MIN_INTERVAL: 30m
+        cron.update_mirrors:
+          ENABLED: false
         actions:
           ENABLED: true
           DEFAULT_ACTIONS_URL: self

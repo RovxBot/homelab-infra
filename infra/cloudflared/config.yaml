@@ -2,6 +2,8 @@ tunnel: 19dd24d6-5e63-4ba3-a23c-fbebc7312e3f
 credentials-file: /etc/cloudflared/credentials.json
 metrics: 0.0.0.0:2000
 ingress:
+  - hostname: git.cooked.beer
+    service: http://gitea-http.gitea.svc.cluster.local:3000
   - hostname: openbrew.cooked.beer
     service: http://openbrew.openbrew.svc.cluster.local:80
   - hostname: birds.cooked.beer
