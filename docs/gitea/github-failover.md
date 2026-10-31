@@ -89,7 +89,11 @@ off-host OCI input set is required as well.
    inspect its recorded revision. Keep the public GitHub source unchanged while
    bringing up the recovery platform.
 4. If registries are unavailable and node caches were lost, use the archived
-   `talosctl image cache-serve` input set from an independent LAN workstation.
+   image cache from an independent LAN workstation. The default OCI export is
+   a cache artifact: run `python3 ops/gitea/unpack-image-cache.py image-cache
+   cache-flat` first, then point `talosctl image cache-serve` at `cache-flat`.
+   Future exports can use `cache-create --layout=flat` directly. Serving the
+   outer OCI artifact as a registry returns 404 and is not a recovery method.
    `talosctl image cache-cert-gen` supplies the TLS certificate/CA patch. Review
    and apply its registry-mirror patch only as an incident maintenance action,
    one node at a time; include docker.io, docker.gitea.com and ghcr.io. Keep TLS
