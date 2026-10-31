@@ -78,12 +78,15 @@ kubernetes:
         labels:
           homelab.cooked.beer/sanitizer: "true"
       spec:
+        securityContext:
+          fsGroup: 0
         containers:
           - name: job
             securityContext:
               # Non-root exec drops effective capabilities on containerd.
               # UID 0 retains only SYS_PTRACE inside the private PID namespace.
               runAsUser: 0
+              runAsGroup: 0
               runAsNonRoot: false
               capabilities:
                 add: [SYS_PTRACE]

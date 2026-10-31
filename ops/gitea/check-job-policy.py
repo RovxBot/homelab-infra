@@ -25,7 +25,8 @@ cases = [('restricted', pod, True)]
 sanitizer = copy.deepcopy(pod)
 sanitizer['metadata']['labels']['homelab.cooked.beer/sanitizer'] = 'true'
 sanitizer['spec']['containers'][0]['securityContext']['capabilities']['add'] = ['SYS_PTRACE']
-sanitizer['spec']['containers'][0]['securityContext'].update(runAsUser=0, runAsNonRoot=False)
+sanitizer['spec']['securityContext']['fsGroup'] = 0
+sanitizer['spec']['containers'][0]['securityContext'].update(runAsUser=0, runAsGroup=0, runAsNonRoot=False)
 cases.append(('sanitizer', sanitizer, True))
 for name in ['privileged', 'root', 'host-pid', 'host-path', 'token', 'extra-capability',
              'unlabelled-ptrace', 'missing-drop-all', 'unconfined', 'sidecar', 'unapproved-image']:
