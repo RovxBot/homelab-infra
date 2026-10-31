@@ -34,7 +34,8 @@ kubernetes:
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
-      hostUsers: false
+      # Talos currently sets user.max_user_namespaces=0. Keep the existing
+      # node configuration; job isolation uses restricted, non-root pods.
       nodeSelector:
         kubernetes.io/arch: amd64
         kubernetes.io/os: linux
