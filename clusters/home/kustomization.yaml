@@ -21,3 +21,4 @@ resources:
   - apps/stirling-pdf-kustomization.yaml
   - infrastructure/mosquitto-kustomization.yaml
   - apps/birdnet-go-kustomization.yaml
+  - apps/openbrew-kustomization.yaml

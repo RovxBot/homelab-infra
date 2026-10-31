@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbrew
+spec:
+  selector:
+    app: openbrew
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbrew-db
+spec:
+  selector:
+    app: openbrew-db
+  ports:
+    - name: sql
+      port: 1433
+      targetPort: sql

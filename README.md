@@ -64,6 +64,10 @@ main
 
 ## Applications and exposure
 
+OpenBrew at `openbrew.cooked.beer` manages brewing recipes and brew sessions.
+Entra sign-in is limited to Sam and opens the native `sam` account without
+a second login. See the [OpenBrew access and operations runbook](docs/runbooks/openbrew-entra.md).
+
 BirdNET-Go at `birds.cooked.beer` analyzes the Shed and Shed front UniFi
 camera microphones locally, publishes to Home Assistant through the internal
 Mosquitto broker, and uses native Entra OIDC for Sam and Rachael. See the
