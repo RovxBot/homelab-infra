@@ -45,7 +45,10 @@ the upstream image. Upstream source:
 <https://github.com/aderbique/openbrew/tree/024137b34f88eb1a5d24fb34b247dfb6408d4cf7>.
 
 OAuth sessions expire after at most eight hours and may prompt earlier when
-Entra tokens expire. Removing the Entra assignment prevents future sign-ins;
+Entra tokens expire. The proxy trusts forwarded headers only from the Cilium
+pod CIDR (`10.245.0.0/16`); Cloudflared is its direct peer. The session cookie
+retains identity and expiry while omitting upstream OAuth tokens, since the
+application does not consume them. Removing the Entra assignment prevents future sign-ins;
 to revoke existing proxy sessions immediately, rotate the cookie secret in
 the SOPS Secret and roll out the web deployment. Logout clears the proxy
 cookie and opens the tenant's logout endpoint.
