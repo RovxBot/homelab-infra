@@ -39,7 +39,7 @@ remote notifications as an incident guarantee.
 | --- | --- |
 | Flux-managed Gitea/PostgreSQL | Verified through feature-source Flux; Gitea 28.2.0, PostgreSQL 17, retained volumes |
 | Persistence/reconciliation | Pods restarted and reconciled while repositories/metadata survived |
-| Recovery administrator | Local API authentication verified; account remains separate from Entra |
+| Recovery administrator | Local API and real browser sign-in verified; account remains separate from Entra |
 | Entra configuration | Single tenant, assignment required, operator-only admin role and encrypted secret configured; human login/account linking/denial tests pending public ingress |
 | Public HTTPS Git | DNS/TLS verified; shared tunnel ingress is awaiting reviewed main; clone/push/redirect acceptance remains pending |
 | Private Git | LAN HTTP clone/fetch and private SSH clone/branch push verified; SSH host key checked through Kubernetes |
@@ -47,19 +47,19 @@ remote notifications as an incident guarantee.
 | Destructive-update protection | Nine tests passed, including rewrites, deletions, changed tags, fetch failures, failed bundle verification, historical recovery and multi-branch authenticated HTTP transport |
 | Scheduled refresh | CronJob `gitea-selective-sync-29890440` completed 06:00:43 UTC; both Git/metadata sources preserved |
 | Issues and PR metadata | All 141 upstream numbers represented locally: 37 issues and 104 historical PR issues; provenance matched |
-| PR discussions/reviews | Supplementary append-only importer implemented; final verification pending |
+| PR discussions/reviews | All 102 source comments and one review checked; seven missing snapshots appended, second import added zero; no inline-comment fixture available |
 | Releases/wiki/LFS | No production fixtures found; enabled release/LFS paths are not evidence of a real asset restore; wiki disabled |
 | Linux runner | Registered to ci; Kubernetes job execution, source checkout and cleanup verified |
 | Project smoke | Run 11 passed normal core and ASan/UBSan with leak checking and GitHub blocked |
-| Full Linux matrix | Run 12 executing 26 jobs; final results pending |
+| Full Linux matrix | Run 12 passed all 26 jobs, including Mesa/Xvfb, native client and ASan/UBSan; GitHub hosts blocked in every job |
 | Cross-repository checkout | Required reference audit passed with internal source URLs and GitHub blocked |
 | Artifacts | Run 10 uploaded, deleted, downloaded and SHA-256-checked the known fixture through local pinned v4 actions |
-| Cancellation/timeout | Initial cancellation and pod cleanup verified; dedicated lifecycle probes pending |
-| Native failover | `ci/dr-test-20261031-062148`: writable copy, development push and native PR #1 merge verified; source stayed a mirror; scratch CI pending |
+| Cancellation/timeout | Run 14 timed out at 61 seconds; running probe in run 15 cancelled; no job pods or temporary Secrets remained |
+| Native failover | `ci/dr-test-20261031-062148`: writable copy, development push and native PR #1 merge verified; source stayed a mirror; scratch run 13 passed both normal and sanitizer jobs |
 | Codex/MCP | Local agent edited/pushed the scratch clone; pinned MCP exposed eight read tools and read repository/reference branch/CI using a dedicated viewer token |
 | Independent credentials | AES256 archive decrypted/verified; uploaded, downloaded and checksum-verified outside Restic in B2 |
 | Application backup/restore | Dedicated Restic initialized and checked; cold capture/isolated restore pending; nightly schedule remains suspended |
-| Offline bootstrap inputs | Node caches and OCI export created; final off-host archive verification pending |
+| Offline bootstrap inputs | All seven app images cached on eight nodes; 11-image offline registry verified; B2 bootstrap snapshot restored with all file checksums and Git bundle verified |
 | Windows/macOS | Unavailable locally; native deployment instructions provided, no false runner labels |
 | Policy | Two positive and eleven negative cases passed both CLI evaluation and real server admission |
 

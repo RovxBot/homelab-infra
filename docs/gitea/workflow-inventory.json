@@ -54,7 +54,11 @@
           ],
           "matrix": {},
           "timeout": 10,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "not configured in source workflow",
+            "macos": "not configured in source workflow"
+          }
         }
       ]
     },
@@ -93,7 +97,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -132,7 +140,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -171,7 +183,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -210,7 +226,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -254,7 +274,11 @@
             ]
           },
           "timeout": 25,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -293,7 +317,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -320,7 +348,11 @@
             ]
           },
           "timeout": 25,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "not configured in source workflow",
+            "macos": "not configured in source workflow"
+          }
         }
       ]
     },
@@ -359,7 +391,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -398,7 +434,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -437,7 +477,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -476,7 +520,11 @@
             ]
           },
           "timeout": 15,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "unavailable: no native host",
+            "macos": "unavailable: no native host"
+          }
         }
       ]
     },
@@ -495,7 +543,11 @@
             ]
           },
           "timeout": 25,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "passed: ci/homelab-validation run 12",
+            "windows": "not configured in source workflow",
+            "macos": "not configured in source workflow"
+          }
         }
       ]
     },
@@ -509,7 +561,11 @@
           ],
           "matrix": {},
           "timeout": 45,
-          "verified_execution": "pending"
+          "verified_execution": {
+            "linux": "not configured in source workflow",
+            "windows": "unavailable: no native host",
+            "macos": "not configured in source workflow"
+          }
         }
       ]
     }
