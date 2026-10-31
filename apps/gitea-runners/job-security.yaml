@@ -1,0 +1,129 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: gitea-job-security
+  namespace: gitea-jobs
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+spec:
+  background: true
+  webhookConfiguration:
+    failurePolicy: Fail
+  rules:
+    - name: restricted-with-sanitizer-capability
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        podSecurity:
+          level: restricted
+          version: v1.32
+          exclude:
+            - controlName: Capabilities
+              images:
+                - ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+    - name: bound-job-environment
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Jobs require the pinned toolchain, no API token, no extra containers, and explicit resources.
+        pattern:
+          metadata:
+            labels:
+              homelab.cooked.beer/owner: sam
+          spec:
+            automountServiceAccountToken: false
+            containers:
+              - name: job
+                image: ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+                resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+    - name: one-job-container
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Only the job container is allowed; no init or ephemeral containers.
+        deny:
+          conditions:
+            any:
+              - key: "{{ length(request.object.spec.containers) }}"
+                operator: NotEquals
+                value: 1
+              - key: "{{ length(request.object.spec.initContainers || `[]`) }}"
+                operator: GreaterThan
+                value: 0
+              - key: "{{ length(request.object.spec.ephemeralContainers || `[]`) }}"
+                operator: GreaterThan
+                value: 0
+    - name: drop-all-and-only-allow-ptrace
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Drop ALL capabilities; only SYS_PTRACE can be added for LeakSanitizer.
+        foreach:
+          - list: request.object.spec.containers[]
+            deny:
+              conditions:
+                any:
+                  - key: "{{ contains(element.securityContext.capabilities.drop || `[]`, 'ALL') }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ element.securityContext.capabilities.add || `[]` }}"
+                    operator: AnyNotIn
+                    value: [SYS_PTRACE]
+    - name: ptrace-only-in-sanitizer-jobs
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      preconditions:
+        all:
+          - key: "{{ request.object.metadata.labels.\"homelab.cooked.beer/sanitizer\" || '' }}"
+            operator: NotEquals
+            value: "true"
+      validate:
+        failureAction: Enforce
+        message: SYS_PTRACE requires the explicit sanitizer job label.
+        foreach:
+          - list: request.object.spec.containers[]
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.capabilities.add || `[]` }}"
+                    operator: AnyIn
+                    value: [SYS_PTRACE]
+    - name: no-extra-job-credentials
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Enforce
+        message: Jobs may mount only bounded emptyDir volumes and runner-created Secrets.
+        foreach:
+          - list: request.object.spec.volumes[]
+            deny:
+              conditions:
+                all:
+                  - key: "{{ contains(keys(element), 'emptyDir') }}"
+                    operator: Equals
+                    value: false
+                  - key: "{{ contains(keys(element), 'secret') }}"
+                    operator: Equals
+                    value: false

@@ -8,6 +8,7 @@ labels:
 resources:
   - namespaces.yaml
   - rbac.yaml
+  - job-security.yaml
   - runner.yaml
   - ../../secrets/gitea-runner.enc.yaml
 configMapGenerator:
