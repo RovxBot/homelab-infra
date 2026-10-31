@@ -11,7 +11,7 @@ import yaml
 
 UPLOAD = "http://gitea-http.gitea.svc.cluster.local:3000/actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
 CHECKOUT = r'''python3 - <<'PY'
-import base64, os, subprocess
+import base64, os, subprocess, pathlib
 base = 'http://gitea-http.gitea.svc.cluster.local:3000/'
 env = dict(os.environ, GIT_TERMINAL_PROMPT='0', GIT_CONFIG_COUNT='1',
            GIT_CONFIG_KEY_0='http.' + base + '.extraHeader',
@@ -20,12 +20,19 @@ env = dict(os.environ, GIT_TERMINAL_PROMPT='0', GIT_CONFIG_COUNT='1',
 for name, ref, destination in SOURCES:
     subprocess.run(['git', 'clone', '--no-checkout', base + 'github-dr/' + name + '.git', destination], env=env, check=True)
     subprocess.run(['git', '-C', destination, 'checkout', '--detach', ref], env=env, check=True)
+# LOCAL_TOOLCHAIN
 PY'''
 
 
 def checkout(sources):
     script = CHECKOUT.replace("for name, ref, destination in SOURCES:",
                               "for name, ref, destination in " + repr(sources) + ":")
+    toolchain = (pathlib.Path(__file__).parent / 'images/recovery-toolchain.cmake').read_text()
+    script = script.replace('# LOCAL_TOOLCHAIN',
+        "toolchain = pathlib.Path.cwd() / 'recovery-toolchain.cmake'\n"
+        "toolchain.write_text(" + repr(toolchain) + ")\n"
+        "with open(os.environ['GITHUB_ENV'], 'a') as stream:\n"
+        "    stream.write('CMAKE_TOOLCHAIN_FILE=' + str(toolchain) + '\\n')")
     return {"name": "Fetch verified local sources", "env": {
         "SOURCE_TOKEN": "${{ secrets.SOURCE_TOKEN }}"}, "run": script}
 
@@ -58,7 +65,9 @@ def main():
                 if not linux: continue
                 job["strategy"]["matrix"]["include"] = linux
             elif job["runs-on"] != "ubuntu-24.04": continue
-            job["runs-on"] = "ubuntu-24.04"
+            job["runs-on"] = ["ubuntu-24.04", "dr-offline"]
+            if 'asan' in json.dumps(matrix):
+                job['runs-on'].append("${{ contains(matrix.preset, 'asan') && 'dr-sanitizer' || 'dr-offline' }}")
             job["env"] = job.get("env", {}) | {
                 "GITHUB_ACTIONS": "true", "CMAKE_BUILD_PARALLEL_LEVEL": "2",
                 "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
@@ -68,7 +77,9 @@ def main():
             is_audit = path.name == "m0-audit.yml"
             if is_audit:
                 sources.append(("wowdecomp15595", "959b0b85c5f55c565328d7c3ca33027a65e41327", "reference-15595"))
-            steps = [checkout(sources)]
+            steps = [{"name": "Prove GitHub is unavailable in this job", "run":
+                      "python3 -c \"import socket; assert socket.gethostbyname('github.com') == '127.0.0.2'\"\n"
+                      "if curl --connect-timeout 2 --max-time 4 -fsS https://github.com/; then exit 1; fi\n"}, checkout(sources)]
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith("actions/checkout@"): continue

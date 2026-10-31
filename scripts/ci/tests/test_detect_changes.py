@@ -45,6 +45,12 @@ class CheckSelectionTests(unittest.TestCase):
     def test_caddyfile_does_not_render_the_cluster(self):
         self.assertEqual(self.selected([detect.EDGE_ROOT + "Caddyfile"]), {"public_edge"})
 
+    def test_gitea_mounted_sources_select_manifest_and_guard_validation(self):
+        for path in ["ops/gitea/protect.py", "ops/gitea/protected-repositories.json", "ops/gitea/tests/test_protect.py"]:
+            with self.subTest(path=path):
+                self.assertEqual(self.selected([path]), {"manifests"})
+        self.assertEqual(self.selected(["ops/gitea/backup.sh"]), {"manifests", "shell"})
+
     def test_shell_changes_only_run_shell_validation(self):
         self.assertEqual(self.selected(["scripts/cilium-primary-health.sh"]), {"shell"})
         self.assertEqual(self.selected([detect.EDGE_ROOT + "refresh-public-ports.sh"]), {"shell"})

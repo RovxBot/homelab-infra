@@ -19,7 +19,7 @@ spec:
         failureAction: Enforce
         podSecurity:
           level: restricted
-          version: v1.32
+          version: latest
           exclude:
             - controlName: Capabilities
               images:

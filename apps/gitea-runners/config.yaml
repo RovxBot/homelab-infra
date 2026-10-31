@@ -9,6 +9,7 @@ runner:
   labels:
     - ubuntu-24.04:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
     - dr-offline:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
+    - dr-sanitizer:kubernetes://ghcr.io/rovxbot/gitea-linux@sha256:19eac8b2b2bb63bb2dd50578ab4267725e8935d42e9a9ccca5ff0214e2a1329b
   envs:
     CMAKE_BUILD_PARALLEL_LEVEL: "2"
     LIBGL_ALWAYS_SOFTWARE: "1"
@@ -72,6 +73,17 @@ kubernetes:
           emptyDir:
             sizeLimit: 1Gi
   pod_templates:
+    dr-sanitizer:
+      metadata:
+        labels:
+          homelab.cooked.beer/sanitizer: "true"
+      spec:
+        containers:
+          - name: job
+            securityContext:
+              capabilities:
+                add: [SYS_PTRACE]
+                drop: [ALL]
     dr-offline:
       spec:
         hostAliases:

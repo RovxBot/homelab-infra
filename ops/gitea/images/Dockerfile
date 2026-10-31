@@ -31,13 +31,13 @@ RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapsho
     && curl -fsSL "$SDL_URL" -o /opt/dependencies/sdl3.tar.gz \
     && echo '7a8347c770b90b33daac2352858ca03f9c9a2ccc8ce711054870361d1a6b32e5  /opt/dependencies/sdl3.tar.gz' | sha256sum -c - \
     && tar -xzf /opt/dependencies/sdl3.tar.gz -C /opt/dependencies/sdl3 --strip-components=1 \
-    && printf '%s\n' 'set(FETCHCONTENT_SOURCE_DIR_SDL3 "/opt/dependencies/sdl3" CACHE PATH "")' 'set(FETCHCONTENT_FULLY_DISCONNECTED ON CACHE BOOL "")' > /opt/recovery-toolchain.cmake \
     && rm -rf /var/lib/apt/lists/* /tmp/node* \
     && mkdir -p /workspace /home/ubuntu \
     && chown -R 1000:1000 /workspace /home/ubuntu
 
 # Builds have no sudo, service account token, Docker socket or host mounts.
 USER 1000:1000
+COPY recovery-toolchain.cmake /opt/recovery-toolchain.cmake
 ENV HOME=/home/ubuntu LIBGL_ALWAYS_SOFTWARE=1 CMAKE_TOOLCHAIN_FILE=/opt/recovery-toolchain.cmake
 WORKDIR /workspace
 CMD ["bash"]

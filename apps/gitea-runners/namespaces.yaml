@@ -17,9 +17,13 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: gitea-jobs
+  annotations:
+    # Namespaced Kyverno policy enforces restricted PSS with one image-bound
+    # SYS_PTRACE allowance for LeakSanitizer. No host namespace or privileged pods.
+    homelab.cooked.beer/security-policy: gitea-job-security
   labels:
     homelab.cooked.beer/owner: sam
-    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: latest
