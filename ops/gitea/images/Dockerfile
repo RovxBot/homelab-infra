@@ -5,6 +5,7 @@ COPY --from=certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-ce
 # Snapshot repositories keep rebuilds independent of GitHub and package churn.
 ARG UBUNTU_SNAPSHOT=20261030T000000Z
 ARG NODE_VERSION=24.21.0
+ARG SDL_URL=https://codeload.github.com/libsdl-org/SDL/tar.gz/7f3ae3d57459e59943a4ecfefc8f6277ec6bf540
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources \
@@ -26,12 +27,17 @@ RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapsho
     && echo "$expected  /tmp/node.tar.xz" | sha256sum -c - \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && dpkg-query -W > /usr/local/share/toolchain-packages.txt \
+    && mkdir -p /opt/dependencies/sdl3 \
+    && curl -fsSL "$SDL_URL" -o /opt/dependencies/sdl3.tar.gz \
+    && echo '7a8347c770b90b33daac2352858ca03f9c9a2ccc8ce711054870361d1a6b32e5  /opt/dependencies/sdl3.tar.gz' | sha256sum -c - \
+    && tar -xzf /opt/dependencies/sdl3.tar.gz -C /opt/dependencies/sdl3 --strip-components=1 \
+    && printf '%s\n' 'set(FETCHCONTENT_SOURCE_DIR_SDL3 "/opt/dependencies/sdl3" CACHE PATH "")' 'set(FETCHCONTENT_FULLY_DISCONNECTED ON CACHE BOOL "")' > /opt/recovery-toolchain.cmake \
     && rm -rf /var/lib/apt/lists/* /tmp/node* \
     && mkdir -p /workspace /home/ubuntu \
     && chown -R 1000:1000 /workspace /home/ubuntu
 
 # Builds have no sudo, service account token, Docker socket or host mounts.
 USER 1000:1000
-ENV HOME=/home/ubuntu LIBGL_ALWAYS_SOFTWARE=1
+ENV HOME=/home/ubuntu LIBGL_ALWAYS_SOFTWARE=1 CMAKE_TOOLCHAIN_FILE=/opt/recovery-toolchain.cmake
 WORKDIR /workspace
 CMD ["bash"]
