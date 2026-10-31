@@ -11,15 +11,37 @@ status = json.loads((root / 'protection/status.json').read_text())
 results = {}
 for name, record in status.items():
     repo = root / 'gitea/git/repositories/github-dr' / (name + '.git')
+    guard = root / 'protection/git' / (name + '.git')
     subprocess.run(['git', '--git-dir=' + str(repo), 'fsck', '--full'], check=True)
+    subprocess.run(['git', '--git-dir=' + str(guard), 'fsck', '--full'], check=True)
+    rows = subprocess.check_output(['git', '--git-dir=' + str(repo), 'for-each-ref',
+        '--format=%(refname) %(objectname)', 'refs/heads/', 'refs/tags/']).decode().splitlines()
+    hosted = dict(row.split(' ', 1) for row in rows)
+    lagging = []
     for ref, sha in record['refs'].items():
-        actual = subprocess.check_output(['git', '--git-dir=' + str(repo), 'rev-parse', ref]).decode().strip()
+        actual = subprocess.check_output(['git', '--git-dir=' + str(guard), 'rev-parse', ref]).decode().strip()
         if actual != sha:
-            raise RuntimeError('Restored Gitea ref differs from accepted source: ' + name + ':' + ref)
+            raise RuntimeError('Restored protected source differs from accepted state: ' + name + ':' + ref)
+        if hosted.get(ref) != sha:
+            # A snapshot may legitimately fall between the source check and
+            # destination schedule. The complete accepted state is preserved in
+            # the independent guard repository; report destination lag honestly.
+            lagging.append(ref)
+    for ref, sha in hosted.items():
+        accepted = record['refs'].get(ref)
+        if accepted is None:
+            raise RuntimeError('Hosted ref has no accepted provenance')
+        if sha != accepted:
+            if ref.startswith('refs/tags/'):
+                raise RuntimeError('Hosted tag differs from the protected source')
+            subprocess.run(['git', '--git-dir=' + str(guard), 'merge-base',
+                            '--is-ancestor', sha, accepted], check=True)
     required = '959b0b85c5f55c565328d7c3ca33027a65e41327' if name == 'wowdecomp15595' else None
     if required:
         subprocess.run(['git', '--git-dir=' + str(repo), 'cat-file', '-e', required + '^{commit}'], check=True)
-    results[name] = {'verified_refs': len(record['refs']), 'required_commit': required}
+    results[name] = {'verified_protected_refs': len(record['refs']),
+                     'verified_hosted_refs': len(hosted), 'hosted_lag_at_capture': lagging,
+                     'required_commit': required}
 for repo in (root / 'gitea/git/repositories').glob('*/*.git'):
     subprocess.run(['git', '--git-dir=' + str(repo), 'fsck', '--full'], check=True)
 bundles = list((root / 'protection/bundles').glob('*/*.bundle'))

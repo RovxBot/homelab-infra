@@ -67,9 +67,16 @@ The tool creates a **new** retained 10 GiB PVC and a Job, with no production
 volume mounts or Kubernetes token. It restores and verifies the latest tagged
 Restic snapshot, checks the SQL checksum, initializes an isolated PostgreSQL 17
 server listening only on loopback, restores globals/database and records table
-counts. A second container fscks every hosted Git repository, compares all
-protected refs with the saved accepted state, checks the reference SHA and
+counts. A second container fscks every hosted/protected Git repository, compares
+all guard refs with the saved accepted state, checks hosted ref provenance and
+the reference SHA, and
 verifies every historical bundle/checksum. Evidence remains on the test PVC.
+
+The source and destination schedules can be out of phase. A backup preserves
+both repositories; the verifier reports any hosted ref lag at capture and
+requires its old branch tip to be an ancestor of the restored accepted tip.
+Changed tags, unexpected hosted refs or missing/corrupt accepted refs fail.
+This distinguishes a faithful restore of a lagging mirror from lost history.
 Save the logs and evidence before explicit test-resource cleanup. Retain means
 deleting a PVC does not reclaim its underlying volume automatically.
 

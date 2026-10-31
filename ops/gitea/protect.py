@@ -172,6 +172,7 @@ def handler(state):
                                    "staging_bytes_available": available})
             if path == "/mirrorz":
                 failures = []
+                lagging = []
                 marker = state.root / 'metadata-sync-success.epoch'
                 if (state.root / 'metadata-sync-failed').exists() or not marker.exists() or time.time() - int(marker.read_text()) > 4500:
                     failures.append('metadata-sync')
@@ -187,10 +188,16 @@ def handler(state):
                         with urllib.request.urlopen(urllib.request.Request(base + "/branches/" + urllib.parse.quote(repo["default_branch"], safe=""), headers=headers), timeout=10) as response:
                             tip = json.load(response)["commit"]["id"]
                         accepted = state.status[repo["name"]]["refs"]["refs/heads/" + repo["default_branch"]]
-                        if tip != accepted: raise RuntimeError("mirror has not reached the accepted source")
+                        if tip != accepted:
+                            lagging.append(repo['name'])
+                            # Source checks and destination jobs are independent
+                            # 30-minute schedules. Allow one interval plus 7.5
+                            # minutes before treating a new accepted tip as stale.
+                            if time.time() - updated.timestamp() > 2250:
+                                raise RuntimeError("mirror has not reached the accepted source")
                     except Exception:
                         failures.append(repo["name"])
-                return self.reply(503 if failures else 200, {"unhealthy_mirrors": failures})
+                return self.reply(503 if failures else 200, {"unhealthy_mirrors": failures, 'lagging_mirrors': lagging})
             if path.startswith("/git/"):
                 if not self.authenticated():
                     self.send_response(401)
