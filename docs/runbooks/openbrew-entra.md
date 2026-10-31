@@ -77,8 +77,10 @@ that restricted login. Secret values are committed only as SOPS ciphertext.
 
 The web application and database each use one replica with Recreate because
 their volumes are RWO. Upgrades briefly interrupt availability. Containers
-run without root, capabilities, or a service-account token and use read-only
-root filesystems with explicit writable volumes.
+run without root or a service-account token and use read-only root filesystems
+with explicit writable volumes. All capabilities are dropped; SQL Server adds
+only `NET_BIND_SERVICE`, which Microsoft's executable declares as a required
+file capability. This is permitted by the restricted Pod Security Standard.
 
 SMTP and Google credentials are intentionally unconfigured. Personal recipe
 and brew-session workflows use Entra; email-based contact/newsletter/reset
