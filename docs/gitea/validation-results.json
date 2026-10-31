@@ -338,5 +338,72 @@
     "No production LFS/release/wiki or inline-review-comment fixtures",
     "LAN SSH tested; separate WireGuard client path not tested",
     "Cilium policy enforcement is disabled in the existing cluster; jobs run trusted code only"
+  ],
+  "cold_backup": {
+    "startTime": "2026-10-31T07:15:51Z",
+    "completionTime": "2026-10-31T07:28:24Z",
+    "succeeded": 1,
+    "job": "gitea-cold-validation-20261031-r2",
+    "snapshot": "203a48ba6e4b56dd4facb10eaf36031466505c2dc11bb945c872d49664622671",
+    "logical_bytes": 950052852,
+    "restic_check": "no errors",
+    "services_restored": true
+  },
+  "restore": {
+    "wowdecomp": {
+      "verified_protected_refs": 25,
+      "verified_hosted_refs": 25,
+      "hosted_lag_at_capture": [],
+      "required_commit": null
+    },
+    "wowdecomp15595": {
+      "verified_protected_refs": 1,
+      "verified_hosted_refs": 1,
+      "hosted_lag_at_capture": [],
+      "required_commit": "959b0b85c5f55c565328d7c3ca33027a65e41327"
+    },
+    "bundles_verified": 28,
+    "database": {
+      "repositories": 10,
+      "issues": 142,
+      "comments": 661,
+      "artifacts": 53,
+      "app_is_superuser": false
+    },
+    "artifact_archives_verified": 53,
+    "known_artifact_payload_restored": true,
+    "job": "gitea-restore-test-20261031072825"
+  },
+  "backup_reconciliation": {
+    "replicas_after_forced_flux_reconcile": {
+      "gitea-protection": 0,
+      "gitea-mirror": 0
+    },
+    "backup_can_patch_deployments": false,
+    "backup_can_scale_allowed_deployments": true
+  },
+  "mirrors": [
+    {
+      "name": "wowdecomp",
+      "mirror": true,
+      "empty": false,
+      "branches": 25,
+      "tags": 0,
+      "all_refs_match_github": true,
+      "lfs_objects": 0,
+      "required_commit_verified": null,
+      "mirror_updated": "2026-10-31T07:30:04Z"
+    },
+    {
+      "name": "wowdecomp15595",
+      "mirror": true,
+      "empty": false,
+      "branches": 1,
+      "tags": 0,
+      "all_refs_match_github": true,
+      "lfs_objects": 0,
+      "required_commit_verified": "959b0b85c5f55c565328d7c3ca33027a65e41327",
+      "mirror_updated": "2026-10-31T07:30:45Z"
+    }
   ]
 }

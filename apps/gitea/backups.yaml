@@ -41,9 +41,9 @@ metadata:
 spec:
   schedule: "15 2 * * *"
   timeZone: Australia/Adelaide
-  # Enable only after the dedicated Restic repository has been initialized and
-  # a cold backup/restore has passed. This is an explicit deployment gate.
-  suspend: true
+  # Dedicated repository initialization and isolated cold restore passed on
+  # 2026-10-31; see docs/gitea/operations.md and validation-results.json.
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 1800
   successfulJobsHistoryLimit: 2

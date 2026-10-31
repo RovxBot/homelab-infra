@@ -45,7 +45,7 @@ remote notifications as an incident guarantee.
 | Private Git | LAN HTTP clone/fetch and private SSH clone/branch push verified; SSH host key checked through Kubernetes |
 | Protected refs | 25 main-repository branches and one reference branch matched GitHub; no tags/LFS objects exposed; required reference SHA verified in local clone |
 | Destructive-update protection | Nine tests passed, including rewrites, deletions, changed tags, fetch failures, failed bundle verification, historical recovery and multi-branch authenticated HTTP transport |
-| Scheduled refresh | CronJob `gitea-selective-sync-29890440` completed 06:00:43 UTC; both Git/metadata sources preserved |
+| Scheduled refresh | CronJob `gitea-selective-sync-29890530` completed after cold recovery; both Git/metadata sources preserved |
 | Issues and PR metadata | All 141 upstream numbers represented locally: 37 issues and 104 historical PR issues; provenance matched |
 | PR discussions/reviews | All 102 source comments and one review checked; seven missing snapshots appended, second import added zero; no inline-comment fixture available |
 | Releases/wiki/LFS | No production fixtures found; enabled release/LFS paths are not evidence of a real asset restore; wiki disabled |
@@ -58,10 +58,16 @@ remote notifications as an incident guarantee.
 | Native failover | `ci/dr-test-20261031-062148`: writable copy, development push and native PR #1 merge verified; source stayed a mirror; scratch run 13 passed both normal and sanitizer jobs |
 | Codex/MCP | Local agent edited/pushed the scratch clone; pinned MCP exposed eight read tools and read repository/reference branch/CI using a dedicated viewer token |
 | Independent credentials | AES256 archive decrypted/verified; uploaded, downloaded and checksum-verified outside Restic in B2 |
-| Application backup/restore | Dedicated Restic initialized and checked; cold capture/isolated restore pending; nightly schedule remains suspended |
+| Application backup/restore | Snapshot `203a48ba` captured and integrity-checked; isolated PostgreSQL/Git restore passed with 28 bundles and 53 artifact ZIPs including the known payload; nightly 02:15 Adelaide schedule enabled |
 | Offline bootstrap inputs | All seven app images cached on eight nodes; 11-image offline registry verified; B2 bootstrap snapshot restored with all file checksums and Git bundle verified |
 | Windows/macOS | Unavailable locally; native deployment instructions provided, no false runner labels |
 | Policy | Two positive and eleven negative cases passed both CLI evaluation and real server admission |
+
+Machine-readable evidence is committed in `validation-results.json`. The first
+906 MiB cold snapshot took about twelve minutes, including the off-site upload;
+the isolated restore test completed in four minutes. The retained test PVC
+`gitea-restore-test-20261031072825` holds recovery evidence and is not production
+application storage.
 
 Earlier failed/cancelled CI attempts are retained. They exposed real platform
 constraints rather than being reported as passing. Final acceptance must use

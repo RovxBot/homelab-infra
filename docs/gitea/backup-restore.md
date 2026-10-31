@@ -12,7 +12,9 @@ off-cluster backups.
 CronJob `gitea-cold-backup` runs at **02:15 Australia/Adelaide** after the initial
 restore gate has passed. Its script verifies repository access and staging
 space before stopping Gitea, the source guard and the metadata console. This
-causes a short planned Gitea outage. PostgreSQL stays running; with all writers
+causes a planned Gitea outage, including the off-site upload. The initial
+906 MiB capture took about twelve minutes; size and upload speed determine
+future maintenance-window duration. PostgreSQL stays running; with all writers
 stopped, a custom-format `pg_dump` and role definitions correspond to the copied
 repositories, LFS, artifacts, Gitea configuration, guard refs/bundles and mirror
 SQLite database. Role definitions omit password hashes; recover passwords from
