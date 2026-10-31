@@ -4,6 +4,7 @@ import hashlib
 import json
 import pathlib
 import subprocess
+import zipfile
 
 root = pathlib.Path('/restore/restored')
 status = json.loads((root / 'protection/status.json').read_text())
@@ -31,5 +32,21 @@ for bundle in bundles:
     subprocess.run(['git', '--git-dir=' + str(repo), 'bundle', 'verify', str(bundle)], check=True)
 results['bundles_verified'] = len(bundles)
 results['database'] = json.loads(pathlib.Path('/restore/database-evidence.json').read_text())
+artifacts = []
+proof_restored = False
+for path in (root / 'gitea/gitea/actions_artifacts').rglob('*'):
+    if path.is_file() and zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            if archive.testzip() is not None:
+                raise RuntimeError('Corrupt restored Actions artifact')
+            if 'proof.txt' in archive.namelist():
+                proof_restored |= archive.read('proof.txt') == b'Independent Gitea artifact recovery\n'
+        artifacts.append(str(path.relative_to(root)))
+if results['database']['artifacts'] and not artifacts:
+    raise RuntimeError('Database references artifacts but no artifact archives were restored')
+if not proof_restored:
+    raise RuntimeError('The known artifact round-trip fixture was not restored')
+results['artifact_archives_verified'] = len(artifacts)
+results['known_artifact_payload_restored'] = proof_restored
 pathlib.Path('/restore/restore-evidence.json').write_text(json.dumps(results, indent=2) + '\n')
 print(json.dumps(results, indent=2))

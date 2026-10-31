@@ -46,6 +46,16 @@ spec:
                     secretKeyRef:
                       name: gitea-mirror
                       key: MIRROR_ADMIN_PASSWORD
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gitea-mirror
+                      key: GITHUB_TOKEN
+                - name: GITEA_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gitea-mirror
+                      key: GITEA_TOKEN
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true

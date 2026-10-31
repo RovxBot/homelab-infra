@@ -59,7 +59,7 @@ def main():
             include = matrix.get("include", [])
             platforms = sorted({r["runner"] for r in include}) if include else [job["runs-on"]]
             entry["jobs"].append({"name": key, "platforms": platforms,
-                                  "matrix": matrix, "timeout": job.get("timeout-minutes"),
+                                  "matrix": json.loads(json.dumps(matrix)), "timeout": job.get("timeout-minutes"),
                                   "verified_execution": "pending"})
             if include:
                 linux = [row for row in include if row["runner"] == "ubuntu-24.04"]
@@ -124,6 +124,9 @@ def main():
     (output / 'platform.yaml').write_text(yaml.safe_dump(platform, sort_keys=False))
     (output / 'controls.yaml').write_text(yaml.safe_dump(controls, sort_keys=False))
     record = {"source_commit": subprocess.check_output(["git", "-C", str(args.source), "rev-parse", "HEAD"]).decode().strip(),
+              "workflow_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                                  for p in sorted((args.source / '.github/workflows').glob('*.yml'))},
+              "cmake_presets_sha256": hashlib.sha256((args.source / 'CMakePresets.json').read_bytes()).hexdigest(),
               "script_sha256": inventory, "workflows": report}
     (args.output / "compatibility.json").write_text(json.dumps(record, indent=2) + "\n")
     print("Generated", len(jobs), "Linux workflow jobs; native Windows/macOS entries excluded")

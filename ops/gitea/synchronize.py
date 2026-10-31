@@ -8,6 +8,8 @@ import time
 import urllib.error
 import urllib.request
 
+from discussions import preserve_discussions
+
 base = os.environ.get('MIRROR_URL', 'http://gitea-mirror.gitea.svc.cluster.local:4321')
 origin = 'http://localhost:14321'
 root = pathlib.Path(os.environ.get('STATE_DIR', '/data'))
@@ -60,11 +62,12 @@ try:
         ids.append(repository_id)
     # Sync performs the actual Git refresh and issues/PR/release metadata sync;
     # re-running the initial mirror API alone only repairs its database status.
-    for repository_id in ids:
+    for repo, repository_id in zip(config['repositories'], ids):
         previous = api('GET', '/api/repositories/' + repository_id)['repository'].get('lastMirrored')
         api('POST', '/api/job/sync-repo', {'repositoryIds': [repository_id]})
         time.sleep(3)
         wait(repository_id, previous)
+        preserve_discussions(config, repo)
     temporary = root / 'metadata-sync-success.partial'
     temporary.write_text(str(int(time.time())))
     temporary.replace(root / 'metadata-sync-success.epoch')

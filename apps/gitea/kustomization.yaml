@@ -25,6 +25,7 @@ configMapGenerator:
   - name: gitea-synchronization
     files:
       - synchronize.py=../../ops/gitea/synchronize.py
+      - discussions.py=../../ops/gitea/discussions.py
       - protected-repositories.json=../../ops/gitea/protected-repositories.json
   - name: gitea-database-init
     files:
