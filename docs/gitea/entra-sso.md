@@ -43,6 +43,14 @@ updates the authentication source, then test a new browser login before
 removing the old Entra password credential by its key ID. Initial credential
 expiry is 31 October 2027; alert/rotate at least 30 days beforehand.
 
-Acceptance requires a real browser login as Sam, an unassigned-user denial,
-administrator role verification, account linking and local recovery login.
-A successful redirect/discovery request alone does not prove SSO works.
+Verified on 31 October 2026: the operator completed a real Entra browser
+sign-in, Gitea provisioned `sam` (Sam Cooke), and administrator authorization was
+confirmed through both the dashboard and API. Its authentication source is
+`entra` (ID 1). `recovery-admin` remains on local source ID 0 and its separate
+password authentication still works.
+
+An unassigned-user denial and existing-account linking were not exercised
+because separate test identities were unavailable. When available, confirm an
+unassigned identity is denied by Entra, then use a disposable existing Gitea
+account to confirm linking requires authenticating that account. Never use the
+recovery administrator for a linking test.

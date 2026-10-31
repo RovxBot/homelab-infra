@@ -334,10 +334,10 @@
   },
   "limitations": [
     "Native Windows/macOS hosts unavailable",
-    "Public HTTPS Git and real Entra sign-in await reviewed shared ingress merge",
     "No production LFS/release/wiki or inline-review-comment fixtures",
     "LAN SSH tested; separate WireGuard client path not tested",
-    "Cilium policy enforcement is disabled in the existing cluster; jobs run trusted code only"
+    "Cilium policy enforcement is disabled in the existing cluster; jobs run trusted code only",
+    "Unassigned-user denial and existing-account linking require separate test identities; these flows remain unverified"
   ],
   "cold_backup": {
     "startTime": "2026-10-31T07:15:51Z",
@@ -392,7 +392,7 @@
       "all_refs_match_github": true,
       "lfs_objects": 0,
       "required_commit_verified": null,
-      "mirror_updated": "2026-10-31T07:30:04Z"
+      "mirror_updated": "2026-10-31T10:30:03Z"
     },
     {
       "name": "wowdecomp15595",
@@ -403,7 +403,111 @@
       "all_refs_match_github": true,
       "lfs_objects": 0,
       "required_commit_verified": "959b0b85c5f55c565328d7c3ca33027a65e41327",
-      "mirror_updated": "2026-10-31T07:30:45Z"
+      "mirror_updated": "2026-10-31T10:30:44Z"
     }
-  ]
+  ],
+  "public_git": {
+    "wowdecomp": {
+      "https_clone": true,
+      "fsck": true,
+      "refs": 25,
+      "production_mirror_preserved": true
+    },
+    "wowdecomp15595": {
+      "https_clone": true,
+      "fsck": true,
+      "refs": 1,
+      "production_mirror_preserved": true
+    },
+    "scratch": {
+      "repository": "ci/dr-test-20261031-062148",
+      "https_clone": true,
+      "https_branch_push": true,
+      "commit": "fcefa86f78b23b65b615b2cc97adead549e1f6ac"
+    },
+    "recorded_at": "2026-10-31T07:40:42.684371+00:00"
+  },
+  "entra": {
+    "provider": "entra",
+    "human_browser_login": "operator completed; dashboard inspected",
+    "provisioned_username": "sam",
+    "administrator_role_verified": true,
+    "authentication_source_id": 1,
+    "recovery_admin_local_source_id": 0,
+    "recovery_admin_authenticated": true
+  },
+  "deployment": {
+    "recorded_at": "2026-10-31T10:57:37.516425+00:00",
+    "app_reconciliations": [
+      {
+        "name": "apps-gitea",
+        "source": "flux-system",
+        "revision": "main@sha1:10bb51b55b96f8b0ddee26a6f71d00b52f9aa26f",
+        "ready": true
+      },
+      {
+        "name": "apps-gitea-runners",
+        "source": "flux-system",
+        "revision": "main@sha1:10bb51b55b96f8b0ddee26a6f71d00b52f9aa26f",
+        "ready": true
+      }
+    ],
+    "all_flux_reconciliations_ready": true,
+    "temporary_source_removed": true,
+    "gatus_checks": [
+      {
+        "name": "gitea",
+        "success": true,
+        "timestamp": "2026-10-31T10:57:33.074392538Z"
+      },
+      {
+        "name": "gitea-backup",
+        "success": true,
+        "timestamp": "2026-10-31T10:53:33.479493899Z"
+      },
+      {
+        "name": "gitea-mirror",
+        "success": true,
+        "timestamp": "2026-10-31T10:57:34.323690369Z"
+      },
+      {
+        "name": "gitea-mirror-freshness",
+        "success": true,
+        "timestamp": "2026-10-31T10:57:33.994004414Z"
+      },
+      {
+        "name": "gitea-protected-sources",
+        "success": true,
+        "timestamp": "2026-10-31T10:57:33.269363905Z"
+      },
+      {
+        "name": "gitea-runner",
+        "success": true,
+        "timestamp": "2026-10-31T10:57:34.145818034Z"
+      }
+    ],
+    "https_redirect": {
+      "status": 308,
+      "hostname": "git.cooked.beer",
+      "path_and_query_preserved": true,
+      "methods_preserved": true,
+      "rule_name": "Gitea HTTP to HTTPS",
+      "request_pattern": "http://git.cooked.beer/*",
+      "target_pattern": "https://git.cooked.beer/${1}"
+    },
+    "latest_scheduled_sync": {
+      "job": "gitea-selective-sync-29890710",
+      "completed_at": "2026-10-31T10:30:57Z"
+    },
+    "nightly_backup": {
+      "enabled": true,
+      "schedule": "15 2 * * *",
+      "time_zone": "Australia/Adelaide"
+    },
+    "temporary_tokens_revoked": [
+      "codex-readonly",
+      "ci-bot bootstrap"
+    ],
+    "ephemeral_job_resources_remaining": 0
+  }
 }
