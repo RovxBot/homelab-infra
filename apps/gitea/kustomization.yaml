@@ -30,7 +30,7 @@ configMapGenerator:
   - name: gitea-database-init
     files:
       - 01-gitea.sh=../../ops/gitea/database-init.sh
-  - name: gitea-protection
+  - name: gitea-protection-scripts
     files:
       - protect.py=../../ops/gitea/protect.py
       - protected-repositories.json=../../ops/gitea/protected-repositories.json
