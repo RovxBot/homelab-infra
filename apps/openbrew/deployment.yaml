@@ -140,6 +140,7 @@ spec:
             - --authenticated-emails-file=/sso/allowed-emails
             - --code-challenge-method=S256
             - --reverse-proxy=true
+            - --trusted-proxy-ip=10.245.0.0/16
             - --skip-provider-button=true
             - --pass-basic-auth=true
             - --pass-user-headers=true
@@ -149,6 +150,7 @@ spec:
             - --cookie-httponly=true
             - --cookie-samesite=lax
             - --cookie-expire=8h
+            - --session-cookie-minimal=true
             - --cookie-csrf-per-request=true
             - --cookie-csrf-expire=10m
             - --whitelist-domain=login.microsoftonline.com
