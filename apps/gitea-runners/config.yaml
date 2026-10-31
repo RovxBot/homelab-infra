@@ -21,9 +21,8 @@ log:
 cache:
   enabled: true
   dir: /data/cache
-  host: 0.0.0.0
+  host: gitea-runner.gitea-runners.svc.cluster.local
   port: 8088
-  external_server: http://gitea-runner.gitea-runners.svc.cluster.local:8088
   v2: true
   size_limit: 512MB
 kubernetes:

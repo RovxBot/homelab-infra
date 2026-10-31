@@ -100,6 +100,11 @@ spec:
             secretKeyRef:
               name: gitea-mirror
               key: GITEA_TOKEN
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: gitea-mirror
+              key: GITHUB_TOKEN
         ports:
         - name: http
           containerPort: 8080
@@ -167,6 +172,8 @@ spec:
     metadata:
       labels:
         app: gitea-mirror
+      annotations:
+        homelab.cooked.beer/credential-revision: "2026-10-31"
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
