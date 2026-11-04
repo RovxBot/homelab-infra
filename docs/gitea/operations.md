@@ -93,10 +93,13 @@ revoked. Generate an appropriately scoped operator token when installing it.
 
 ## Upgrades and rollback
 
-Take a verified cold snapshot first. Update one component at a time, pin images
-and charts, render/schema/policy-check, review, reconcile and inspect data and
-health. PostgreSQL major upgrades require a database migration plan. Application
-schema rollback requires restoring a matching database/files snapshot to new
+Take a verified cold snapshot first. Reviewed application, chart, runner and
+mirror minor updates may share the Monday Renovate maintenance PR. Inspect each
+component's release notes and the combined diff, pin images and charts,
+render/schema/policy-check, review, reconcile and inspect data and health.
+Keep major upgrades and toolchain OS/runtime changes separate. PostgreSQL major
+upgrades require a database migration plan. Application schema rollback requires
+restoring a matching database/files snapshot to new
 volumes; reversing an image pin alone may be insufficient. Keep retained PVCs
 and independent credentials even if an app manifest is removed accidentally.
 
