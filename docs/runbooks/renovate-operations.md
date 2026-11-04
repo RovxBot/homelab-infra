@@ -24,13 +24,26 @@ Dashboard approval and are held outside Monday, including updates to an
 already-open batch. One batch remains open until reviewed; this is not a new
 PR every week when an earlier batch is still pending.
 
-Minor updates to the digest-pinned `docker/dockerfile` frontend in
+Minor updates to the digest-pinned `docker/dockerfile` frontend and Composer in
 `ops/grimguzzler-registration/Dockerfile` also join weekly maintenance without
-Dashboard approval. This exception applies only to the build frontend; PHP
-runtime line upgrades still need approval. The registration workflow builds
-the image and runs its smoke tests on the weekly PR when that Dockerfile changes.
+Dashboard approval. PHP runtime line upgrades still need approval. The
+registration workflow builds the image and runs its smoke tests on the weekly
+PR when that Dockerfile changes.
 
-Minor and major releases retain their existing per-application groups and
+Gitea application, Helm chart, runner and mirror minor releases also join the
+Monday batch, alongside their routine patches and digest updates. Major
+component upgrades, PostgreSQL majors and toolchain OS/runtime upgrades remain
+outside this exception. Take a verified cold snapshot and review Gitea's
+migration/recovery notes before merging a batch containing Gitea changes.
+
+BirdNET's stable eight-digit `YYYYMMDD` image tags join weekly maintenance,
+including date changes Renovate's Docker versioning labels as major. This is
+an explicit exception for that release channel, not a compatibility claim.
+Floating, prerelease and semantic-version tags are excluded. Both the init
+container and main container must move together. Check the dashboard reader's
+schema compatibility as described in the [BirdNET runbook](birdnet-go.md).
+
+Other minor and major releases retain their existing per-application groups and
 Dashboard approval behavior. Renovate batches a supported application and its
 non-routine supporting-image changes into that application's release PR. The
 `renovate-release-app-batches` workflow approves a batch only when its
@@ -160,6 +173,13 @@ label. A manual rebase request bypasses the ordinary schedule. Wait for CI on
 that new commit and renew any dismissed code-owner approval before merging.
 Update and merge one PR at a time to avoid triggering checks on the whole queue.
 
+GitHub's **Update branch** button can add a human-authored merge commit and put
+a Renovate PR in **PR Edited (Blocked)**. Prefer Renovate's rebase/retry control.
+Before resetting an already blocked PR, inspect its commits and diff: the retry
+can discard manual commits, so preserve any intentional edits first. A PR in
+**PR Closed (Blocked)** instead needs its Dashboard recreate checkbox when the
+update is wanted again; it is not a package lookup error.
+
 The consolidated PR workflow retains all five required status-check names and
 only allocates expensive jobs for relevant changes. A scheduled/manual audit
 checks the full repository; the validation workflows no longer repeat on every
@@ -188,6 +208,35 @@ Regular helper images in `apps/wotlk` remain tracked and are grouped for
 review. This includes Alpine, Alpine Git and the digest-pinned Bitnami kubectl
 image. The Bitnami reference currently uses a rolling `latest` tag plus an
 immutable digest; never remove the digest merely to make the tag look pinned.
+
+## Gitea image and chart tracking
+
+The digest-only `ghcr.io/rovxbot/gitea-linux` and
+`ghcr.io/rovxbot/gitea-backup` references are pipeline outputs, not upstream
+release channels. Renovate is disabled only for these packages in
+`apps/gitea/**` and `apps/gitea-runners/**`. Their Dockerfile base images remain
+tracked. The Gitea Linux toolchain workflow builds and smoke-tests both images,
+publishes revision tags and records immutable digests in its
+`gitea-toolchain-digest` artifact. Promote those digests together across runner
+configuration, admission policy, backup/synchronization jobs and restore tools
+after checking recovery compatibility. There is no floating `latest` tag to
+follow; adding one just to silence a lookup warning would change this model.
+
+Gitea's Helm chart appends `-rootless` to `values.image.tag` and then appends
+the separate `values.image.digest`. The custom regex manager therefore looks
+up `docker.gitea.com/gitea:<version>-rootless` and updates the plain tag and
+digest fields together. The generic Flux Docker extraction is disabled only
+for this image in this HelmRelease; it otherwise ignores the rootless suffix
+and separate digest, producing an invalid rendered reference when it pins a
+digest inside the tag. Gitea Helm chart tracking remains enabled. Its source
+manifest declares namespace `gitea`, matching both the source reference and
+the namespace already applied by Kustomize, so Renovate can resolve the chart
+repository before rendering.
+
+After these rules reach `main`, request a rebase/retry of the open weekly PR
+so the old Gitea tag-only pin is replaced by the rootless tag/digest update.
+Its next ordinary refresh is on Monday; a manual rebase request can refresh it
+earlier. Review the generated diff and fresh CI before merging.
 
 ## Credentials and runner hygiene
 

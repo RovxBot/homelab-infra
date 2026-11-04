@@ -58,6 +58,20 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/^apps\\/gitea\\/helmrelease\\.yaml$/"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "docker.gitea.com/gitea",
+      "versioningTemplate": "docker",
+      "currentValueTemplate": "{{{tag}}}-rootless",
+      "matchStrings": [
+        "    image:\\n      registry: docker\\.gitea\\.com\\n      repository: gitea\\n      tag: (?<tag>\\d+\\.\\d+\\.\\d+)\\n      digest: (?<currentDigest>sha256:[a-f0-9]{64})\\n      rootless: true"
+      ],
+      "autoReplaceStringTemplate": "    image:\n      registry: docker.gitea.com\n      repository: gitea\n      tag: {{replace '-rootless' '' newValue}}\n      digest: {{{newDigest}}}\n      rootless: true"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
         "/^terraform\\/oci-matrix-free-tier\\/variables\\.tf$/"
       ],
       "datasourceTemplate": "docker",
@@ -67,6 +81,40 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "Promote immutable Gitea toolchain and backup images through the Gitea Linux toolchain workflow; keep their Dockerfile dependencies tracked separately.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/rovxbot/gitea-linux",
+        "ghcr.io/rovxbot/gitea-backup"
+      ],
+      "matchFileNames": [
+        "apps/gitea/**",
+        "apps/gitea-runners/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "The custom regex manager updates Gitea's rootless tag and separate digest together; Flux's generic Helm image extraction ignores both the rootless suffix and digest field.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.gitea.com/gitea"
+      ],
+      "matchFileNames": [
+        "apps/gitea/helmrelease.yaml"
+      ],
+      "enabled": false
+    },
     {
       "description": "Keep the generated Flux bootstrap manifest under an explicit, digest-pinned maintenance workflow.",
       "matchManagers": [
@@ -192,6 +240,9 @@
       "matchManagers": [
         "custom.regex",
         "terraform"
+      ],
+      "matchFileNames": [
+        "terraform/**"
       ],
       "groupName": "terraform",
       "groupSlug": "terraform",
@@ -616,12 +667,13 @@
       "automerge": false
     },
     {
-      "description": "Include registration Dockerfile frontend minor upgrades in weekly maintenance; the registration workflow validates the build and smoke tests the image.",
+      "description": "Include registration build-frontend and Composer minor upgrades in weekly maintenance; the registration workflow validates the build and smoke tests the image. PHP runtime line upgrades retain Dashboard approval.",
       "matchManagers": [
         "dockerfile"
       ],
       "matchPackageNames": [
-        "docker/dockerfile"
+        "docker/dockerfile",
+        "composer"
       ],
       "matchFileNames": [
         "ops/grimguzzler-registration/Dockerfile"
@@ -629,6 +681,78 @@
       "matchUpdateTypes": [
         "minor"
       ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "groupSingleUpdates": true,
+      "dependencyDashboardApproval": false,
+      "schedule": [
+        "* * * * 1"
+      ],
+      "updateNotScheduled": false,
+      "commitMessageTopic": "{{groupName}}",
+      "group": {
+        "commitMessageTopic": "{{groupName}}"
+      },
+      "automerge": false
+    },
+    {
+      "description": "Include Gitea application, chart, runner and mirror minor releases plus routine pins/digests in weekly maintenance. Major component upgrades and toolchain OS/runtime upgrades retain separate review.",
+      "matchManagers": [
+        "custom.regex",
+        "flux",
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker",
+        "helm"
+      ],
+      "matchPackageNames": [
+        "docker.gitea.com/gitea",
+        "docker.gitea.com/runner",
+        "ghcr.io/raylabshq/gitea-mirror",
+        "gitea"
+      ],
+      "matchFileNames": [
+        "apps/gitea/**",
+        "apps/gitea-runners/**"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "groupSingleUpdates": true,
+      "dependencyDashboardApproval": false,
+      "schedule": [
+        "* * * * 1"
+      ],
+      "updateNotScheduled": false,
+      "commitMessageTopic": "{{groupName}}",
+      "group": {
+        "commitMessageTopic": "{{groupName}}"
+      },
+      "automerge": false
+    },
+    {
+      "description": "Batch BirdNET's stable YYYYMMDD releases and digest changes weekly, including date changes that Docker versioning classifies as major. Do not switch to floating, prerelease or semantic-version tags.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/tphakala/birdnet-go"
+      ],
+      "matchFileNames": [
+        "apps/birdnet-go/deployment.yaml"
+      ],
+      "allowedVersions": "/^\\d{8}$/",
+      "separateMajorMinor": false,
       "groupName": "weekly maintenance",
       "groupSlug": "weekly-maintenance",
       "groupSingleUpdates": true,
