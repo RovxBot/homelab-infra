@@ -80,7 +80,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: protection
-        image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:de626cc4b34dbb1c694b08fd4ee2357a7d5f0cabd7729c49155808ab9895c16c
+        image: docker.gitea.com/runner-images:ubuntu-24.04@sha256:b96ba465021b1a4c6a1c9e79220c2b9bfad0f29b09dbb528bbfb35411443a3a4
         command:
         - python3
         - /scripts/protect.py
@@ -189,7 +189,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: mirror
-        image: ghcr.io/raylabshq/gitea-mirror:v3.50.0@sha256:421a5ec419f8176c0205e76d505c9e3410a189cc79b189b1ee32df8ddf609fa5
+        image: ghcr.io/raylabshq/gitea-mirror:v3.51.3@sha256:45ec76a21e0b7499a3993cb805f0888da0c75962be85a68ed4b5ac72f2114454
         envFrom:
         - configMapRef:
             name: gitea-mirror-config

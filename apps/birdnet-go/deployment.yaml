@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: install-config
-          image: ghcr.io/tphakala/birdnet-go:20261014@sha256:4dec04b29548de6c27d1559e8ad0e7e20e2727655ef8a712571e6929e329290a
+          image: ghcr.io/tphakala/birdnet-go:20261031@sha256:5eebc826c137a78aa7f91f0a4f3a02d9775f1a19d720f63b309ec5ae608b8698
           command: [/bin/sh, -ec]
           args:
             # The encrypted Git configuration is authoritative on each start.
@@ -60,7 +60,7 @@ spec:
               readOnly: true
       containers:
         - name: dashboard-reader
-          image: python:3.15-alpine@sha256:d44b1254cb92329418d164b22b20d86bbd3869d48e80e09e476531a409a728bb
+          image: python:3.15-alpine@sha256:a0f2e268f2ce8f3709611a90054ec6a8ae31f6251f5896b8648b9bb99835e30a
           command: [python, -B, /app/api.py]
           env:
             - name: DATABASE_PATH
@@ -116,7 +116,7 @@ spec:
               mountPath: /run/dashboard
               readOnly: true
         - name: birdnet-go
-          image: ghcr.io/tphakala/birdnet-go:20261014@sha256:4dec04b29548de6c27d1559e8ad0e7e20e2727655ef8a712571e6929e329290a
+          image: ghcr.io/tphakala/birdnet-go:20261031@sha256:5eebc826c137a78aa7f91f0a4f3a02d9775f1a19d720f63b309ec5ae608b8698
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
