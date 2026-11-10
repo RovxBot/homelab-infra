@@ -34,6 +34,31 @@ notification channel depends on GitHub: inspect its local dashboard/logs during
 an outage and add an independently delivered alert channel before treating
 remote notifications as an incident guarantee.
 
+### Deleted upstream branches and snapshot failures
+
+`wowdecomp` sets `retain_deleted_branches: true` in
+`ops/gitea/protected-repositories.json`. Branches removed from GitHub remain
+available in Gitea at their last accepted tips, including unmerged history.
+Existing branches still require fast-forward updates; recreated branches with
+incompatible history, changed/deleted tags and a missing default branch block
+publication. The default for repositories without this option remains to block
+on any removed ref. `/healthz` records the retained branch names and tips in
+`retained_deleted_branches`.
+
+The protection proxy also serves the allowlisted destination's Git
+`info/refs?service=git-upload-pack` and `git-upload-pack` requests for the mirror
+app's pre-sync backup. Gitea authenticates these requests; pushes and other
+repository paths are denied. These destination snapshots do not replace the
+guard's verified previous-ref bundles or the independent cold backups.
+
+On 10 November 2026, sync was found blocked since 8 November by 53 deleted
+`wowdecomp` branches and a 404 from the destination snapshot route. Retaining
+deleted branches preserves the unmerged `native-port/test-server-character-selection`
+tip as well as merged branches while permitting current fast-forward updates.
+If this behavior needs reverting, remove the retention option and revert the
+proxy change through Git; existing retained refs and backup bundles survive,
+and deleted upstream branches will block publication again.
+
 ## Acceptance ledger
 
 | Requirement | Recorded result |

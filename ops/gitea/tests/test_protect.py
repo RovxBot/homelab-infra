@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 import threading
 import unittest
+import urllib.error
+import urllib.request
 from unittest.mock import patch
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / "protect.py"
@@ -70,6 +72,55 @@ class ProtectionTests(unittest.TestCase):
             self.sync()
         self.assertEqual(self.published(), before)
 
+    def test_retained_deleted_branch_allows_fast_forward_and_recovery(self):
+        self.config["retain_deleted_branches"] = True
+        self.run_git("checkout", "-b", "retired")
+        retired_tip = self.commit("unmerged history")
+        self.run_git("checkout", "main")
+        before = self.sync()["refs"]
+        self.run_git("branch", "-D", "retired")
+        tip = self.commit("new main")
+        result = self.sync()
+        self.assertEqual(result["refs"]["refs/heads/main"], tip)
+        self.assertEqual(result["refs"]["refs/heads/retired"], retired_tip)
+        self.assertEqual(result["retained_deleted_branches"], {"refs/heads/retired": retired_tip})
+        bundle = next((self.destination / "bundles/example").glob("*.bundle"))
+        restored = self.root / "retained.git"
+        subprocess.run(["git", "clone", "--mirror", str(bundle), str(restored)], check=True, capture_output=True)
+        self.assertEqual(protect.refs(restored, "refs/heads/"), before)
+        self.assertEqual(self.sync()["refs"], result["refs"])
+
+    def test_retention_still_blocks_missing_default_branch(self):
+        self.config["retain_deleted_branches"] = True
+        before = self.sync()["refs"]
+        self.run_git("checkout", "-b", "replacement")
+        self.run_git("branch", "-D", "main")
+        with self.assertRaisesRegex(RuntimeError, "default branch"):
+            self.sync()
+        self.assertEqual(self.published(), before)
+
+    def test_retention_still_blocks_deleted_tag(self):
+        self.config["retain_deleted_branches"] = True
+        self.run_git("tag", "v1")
+        before = self.sync()["refs"]
+        self.run_git("tag", "-d", "v1")
+        with self.assertRaisesRegex(RuntimeError, "deleted refs/tags/v1"):
+            self.sync()
+        self.assertEqual(protect.refs(self.destination / "git/example.git", "refs/tags/"),
+                         {"refs/tags/v1": before["refs/tags/v1"]})
+
+    def test_retained_branch_recreated_with_rewritten_history_blocks(self):
+        self.config["retain_deleted_branches"] = True
+        self.run_git("branch", "retired")
+        before = self.sync()["refs"]
+        self.run_git("branch", "-D", "retired")
+        self.sync()
+        self.run_git("checkout", "--orphan", "retired")
+        self.commit("replacement history")
+        with self.assertRaisesRegex(RuntimeError, "rewritten"):
+            self.sync()
+        self.assertEqual(self.published(), before)
+
     def test_changed_tag_blocks(self):
         self.run_git("tag", "v1")
         self.sync()
@@ -128,6 +179,59 @@ class ProtectionTests(unittest.TestCase):
                 self.assertEqual(protect.refs(copy, "refs/heads/"), expected)
             finally:
                 server.shutdown()
+
+    def test_destination_snapshot_clone_authentication_and_read_only_scope(self):
+        expected = self.sync()["refs"]
+        state = protect.Protection(self.destination, {"repositories": [self.config], "owner": "owner"})
+        upstream_requests = []
+
+        class Destination(protect.handler(state)):
+            def authenticated(self):
+                return self.headers.get("Authorization") == "Basic " + base64.b64encode(b"oauth2:test-token").decode()
+
+            def dispatch(self):
+                upstream_requests.append(self.path)
+                self.path = self.path.replace("/owner/example.git/", "/git/example.git/", 1)
+                return super().dispatch()
+
+        upstream = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Destination)
+        proxy = http.server.ThreadingHTTPServer(("127.0.0.1", 0), protect.handler(state))
+        for server in (upstream, proxy):
+            self.addCleanup(server.server_close)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:" + str(proxy.server_port)
+        try:
+            with patch.dict(os.environ, {"GITEA_URL": "http://127.0.0.1:" + str(upstream.server_port)}):
+                with self.assertRaises(urllib.error.HTTPError) as unauthenticated:
+                    urllib.request.urlopen(base + "/owner/example.git/info/refs?service=git-upload-pack")
+                self.assertEqual(unauthenticated.exception.code, 401)
+                self.assertIn("Basic", unauthenticated.exception.headers["WWW-Authenticate"])
+                unauthenticated.exception.close()
+                copy = self.root / "snapshot.git"
+                clone_url = base.replace("http://", "http://oauth2:test-token@") + "/owner/example.git"
+                result = subprocess.run(["git", "clone", "--mirror", clone_url, str(copy)],
+                                        capture_output=True, timeout=20,
+                                        env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                self.assertEqual(protect.refs(copy, "refs/heads/"), expected)
+                count = len(upstream_requests)
+                for path, method, code in [
+                    ("/owner/other.git/info/refs?service=git-upload-pack", "GET", 404),
+                    ("/elsewhere/example.git/info/refs?service=git-upload-pack", "GET", 404),
+                    ("/owner/example.git/info/refs?service=git-receive-pack", "GET", 403),
+                    ("/owner/example.git/git-receive-pack", "POST", 403),
+                    ("/owner/example.git/info/refs?service=git-upload-pack", "DELETE", 403),
+                ]:
+                    with self.subTest(path=path, method=method):
+                        request = urllib.request.Request(base + path, method=method)
+                        with self.assertRaises(urllib.error.HTTPError) as blocked:
+                            urllib.request.urlopen(request)
+                        self.assertEqual(blocked.exception.code, code)
+                        blocked.exception.close()
+                self.assertEqual(len(upstream_requests), count)
+        finally:
+            proxy.shutdown()
+            upstream.shutdown()
 
 
 if __name__ == "__main__": unittest.main()

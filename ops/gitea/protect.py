@@ -2,9 +2,10 @@
 """Publish only verified, non-destructive Git refs to read-only pull mirrors.
 
 GitHub is fetched into a separate candidate ref namespace. Gitea pulls from this
-service, never GitHub directly. A network error, removed ref, changed tag,
-non-fast-forward branch, failed LFS fetch or failed bundle verification prevents
-publication. An API proxy prevents the metadata mirror bypassing that source.
+service, never GitHub directly. Removed branches can be retained explicitly;
+network errors, other removed refs, changed tags, non-fast-forward branches,
+failed LFS fetches and failed bundle verification prevent publication. An API
+proxy prevents the metadata mirror bypassing that source.
 """
 import argparse
 import base64
@@ -82,6 +83,14 @@ def sync_repo(root, config, source_url=None, fetch_lfs=True):
     if config.get("required_commit"):
         git(repo, "cat-file", "-e", config["required_commit"] + "^{commit}")
     old = refs(repo, "refs/heads/") | refs(repo, "refs/tags/")
+    # Retain upstream-deleted branches at their last accepted tips. This keeps
+    # recovery history reachable without stalling unrelated fast-forward updates.
+    # Missing default branches, deleted tags and recreated/re-written branches
+    # still fail the normal checks.
+    retained = {ref: sha for ref, sha in old.items()
+                if ref.startswith("refs/heads/") and ref not in new}
+    if config.get("retain_deleted_branches", False):
+        new = retained | new
     verify_changes(repo, old, new)
     # Fetch every reachable LFS object before publishing any new Git refs.
     if fetch_lfs:
@@ -106,7 +115,8 @@ def sync_repo(root, config, source_url=None, fetch_lfs=True):
     git(repo, "update-ref", "--stdin", data="\n".join(commands).encode())
     git(repo, "symbolic-ref", "HEAD", branch)
     git(repo, "fsck", "--full", "--no-dangling")
-    return {"last_success": int(time.time()), "refs": new, "error": None}
+    return {"last_success": int(time.time()), "refs": new, "error": None,
+            "retained_deleted_branches": retained if config.get("retain_deleted_branches", False) else {}}
 
 
 class Protection:
@@ -239,9 +249,46 @@ def handler(state):
                 if not self.authenticated(): return self.reply(401, {})
                 threading.Thread(target=state.sync, daemon=True).start()
                 return self.reply(202, {"status": "requested"})
+            match = re.fullmatch(r"/([^/]+)/([^/]+)\.git(/.*)?", path)
+            if match:
+                if match[1] != state.config["owner"] or match[2] not in {r["name"] for r in state.config["repositories"]}:
+                    return self.reply(404, {})
+                # The mirror app snapshots the current Gitea destination before
+                # syncing. Only Git reads may reach it through this proxy.
+                query = urllib.parse.parse_qs(parsed.query)
+                if not ((self.command in {"GET", "HEAD"} and match[3] == "/info/refs"
+                         and query == {"service": ["git-upload-pack"]})
+                        or (self.command == "POST" and match[3] == "/git-upload-pack" and not parsed.query)):
+                    return self.reply(403, {"error": "read-only snapshot transport"})
+                return self.destination_git()
             if path.startswith("/api/v1/"):
                 return self.proxy(path)
             return self.reply(404, {})
+
+        def destination_git(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            if length > 16 * 1024 * 1024:
+                return self.reply(413, {})
+            data = self.rfile.read(length)
+            headers = {k: v for k, v in self.headers.items()
+                       if k.lower() in {"authorization", "content-type", "accept", "git-protocol", "content-encoding"}}
+            request = urllib.request.Request(os.environ["GITEA_URL"] + self.path,
+                                             data=data if self.command == "POST" else None,
+                                             headers=headers, method=self.command)
+            try:
+                with urllib.request.urlopen(request, timeout=300) as result:
+                    return self.reply(result.status, result.read(), result.headers.get("Content-Type", "application/octet-stream"))
+            except urllib.error.HTTPError as error:
+                with error:
+                    if error.code == 401:
+                        self.send_response(401)
+                        self.send_header("WWW-Authenticate", error.headers.get("WWW-Authenticate", 'Basic realm="gitea-snapshot"'))
+                        self.send_header("Content-Length", "0")
+                        self.end_headers()
+                        return
+                    return self.reply(error.code, error.read())
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                return self.reply(503, {"error": "Gitea snapshot unavailable; existing data preserved"})
 
         def lfs(self, name, path):
             base = state.root / "git" / (name + ".git") / "lfs" / "objects"
