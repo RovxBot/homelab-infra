@@ -3,6 +3,8 @@ kind: CronJob
 metadata:
   name: gitea-selective-sync
 spec:
+  # Gitea is the working source; never import GitHub updates into local work.
+  suspend: true
   schedule: "*/30 * * * *"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 600
