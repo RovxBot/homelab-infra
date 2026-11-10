@@ -63,8 +63,13 @@ Inspection date: 31 October 2026 (Australia/Adelaide). Implementation branch:
 5. RayLabsHQ/gitea-mirror is evaluated from pinned source. Its detector catches
    errors and proceeds, so its setting alone cannot guarantee protection.
    Scheduled Git ref updates require an independent fail-closed guard and a
-   verified bundle of the previous refs. Native mirror timers must not bypass
-   that guard. Upstream errors never authorize deletion or ref replacement.
+   verified bundle of the previous refs. `wowdecomp` explicitly retains deleted
+   upstream branches at their last accepted tips so branch cleanup cannot stall
+   current development. Deleted tags, missing default branches and rewritten
+   branches still block publication. Native mirror timers must not bypass that
+   guard. Upstream errors never authorize deletion or ref replacement. The
+   proxy permits authenticated, read-only Git snapshot transport to the current
+   Gitea destination for the same repository allowlist.
 6. Gitea runner 5.x supports native Kubernetes job pods. Use that backend,
    separate controller/job namespaces, narrow namespace RBAC and a real Ubuntu
    24.04 toolchain. No Docker-in-Docker. Windows/macOS labels are never
