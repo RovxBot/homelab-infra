@@ -14,6 +14,9 @@ base = os.environ.get('MIRROR_URL', 'http://gitea-mirror.gitea.svc.cluster.local
 origin = 'http://localhost:14321'
 root = pathlib.Path(os.environ.get('STATE_DIR', '/data'))
 config = json.loads(pathlib.Path(os.environ.get('REPOSITORY_CONFIG', '/scripts/protected-repositories.json')).read_text())
+if not config.get('sync_enabled', True):
+    print('GitHub synchronization is disabled; existing Gitea repositories are authoritative')
+    raise SystemExit(0)
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
 

@@ -143,6 +143,7 @@ spec:
           DEFAULT_PRIVATE: private
           DISABLE_HTTP_GIT: false
         mirror:
+          ENABLED: false
           DISABLE_NEW_PULL: false
           MIN_INTERVAL: 30m
         migrations:

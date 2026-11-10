@@ -39,3 +39,4 @@ configMapGenerator:
   - name: gitea-backup-scripts
     files:
       - backup.sh=../../ops/gitea/backup.sh
+      - protected-repositories.json=../../ops/gitea/protected-repositories.json

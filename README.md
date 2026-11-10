@@ -73,8 +73,10 @@ camera microphones locally, publishes to Home Assistant through the internal
 Mosquitto broker, and uses native Entra OIDC for Sam and Rachael. See the
 [BirdNET-Go setup and operations runbook](docs/runbooks/birdnet-go.md).
 
-Gitea provides selective GitHub disaster recovery, local Git/Actions and Entra
-sign-in at `git.cooked.beer`, with private LAN/WireGuard recovery access.
+Gitea hosts the writable `github-dr/wowdecomp` working repository, its existing
+issues/releases, local Git/Actions and Entra sign-in at `git.cooked.beer`, with
+private LAN/WireGuard recovery access. GitHub imports are stopped; the retained
+`wowdecomp15595` copy and historical source bundles remain available locally.
 See the [Gitea architecture](docs/gitea/architecture.md),
 [acceptance ledger](docs/gitea/operations.md) and
 [backup/failover procedures](docs/gitea/github-failover.md).

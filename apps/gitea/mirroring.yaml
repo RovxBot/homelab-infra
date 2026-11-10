@@ -162,7 +162,8 @@ kind: Deployment
 metadata:
   name: gitea-mirror
 spec:
-  # Omit replicas for the same cold-backup ownership rule as the guard above.
+  # Retain its PVC and console history; GitHub imports are permanently stopped.
+  replicas: 0
   revisionHistoryLimit: 2
   strategy:
     type: Recreate

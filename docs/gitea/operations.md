@@ -1,12 +1,28 @@
 # Operations and acceptance
 
-Implementation date: **31 October 2026, Australia/Adelaide**. GitHub remains
-primary. PR [#1625](https://github.com/RovxBot/homelab-infra/pull/1625) was approved and
+Implementation date: **31 October 2026, Australia/Adelaide**. On **10 November
+2026**, `github-dr/wowdecomp` became the writable primary repository in place,
+preserving its repository identity, issues, comments, releases and assets.
+GitHub imports are permanently stopped. `wowdecomp15595` remains a frozen local
+reference mirror with its required commit. PR [#1625](https://github.com/RovxBot/homelab-infra/pull/1625) was approved and
 merged as `10bb51b5`. Both app Kustomizations now reconcile the normal
 `flux-system` source on main; the temporary `gitea-preview` source was removed.
 Shared Cloudflare ingress and Gatus monitoring are deployed and verified.
 
 ## Access and daily checks
+
+Development uses `https://git.cooked.beer/github-dr/wowdecomp`. The selective
+sync CronJob is suspended, the mirror console has zero replicas, Gitea's mirror
+function is disabled and the source guard's `sync_enabled` is false. Do not
+resume imports into the working repository. Its existing GitHub PR records are
+historical issues; new work uses native Gitea PRs.
+
+`/healthz` and `/mirrorz` now verify local repository availability, writable vs
+frozen roles and required reference commits. They do not require new GitHub
+metadata or compare current development branches to the archived source tips.
+`/backupz` still verifies independent backup freshness. Cold backups preserve
+the stopped mirror console and export repository roles for restore verification.
+Historical guard repositories, bundles and the mirror console PVC are retained.
 
 Public hostname: `https://git.cooked.beer`. LAN HTTP: `http://192.168.1.190:30301`;
 private SSH: `ssh://git@192.168.1.190:30222`. Every healthy node serves the

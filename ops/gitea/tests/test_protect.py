@@ -9,6 +9,7 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+import json
 from unittest.mock import patch
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / "protect.py"
@@ -229,6 +230,78 @@ class ProtectionTests(unittest.TestCase):
                         self.assertEqual(blocked.exception.code, code)
                         blocked.exception.close()
                 self.assertEqual(len(upstream_requests), count)
+        finally:
+            proxy.shutdown()
+            upstream.shutdown()
+
+    def test_disabled_sync_never_fetches_or_changes_saved_history(self):
+        before = self.sync()
+        config = {"repositories": [self.config], "owner": "owner", "sync_enabled": False}
+        state = protect.Protection(self.destination, config)
+        state.status = {"example": before}
+        with patch.object(protect, "sync_repo") as sync:
+            state.sync()
+        sync.assert_not_called()
+        self.assertEqual(state.status, {"example": before})
+        self.assertEqual(self.published(), before["refs"])
+
+    def test_disabled_metadata_job_needs_no_github_credentials(self):
+        config = self.root / "repositories.json"
+        config.write_text(json.dumps({"sync_enabled": False}))
+        result = subprocess.run(["python3", str(MODULE_PATH.with_name("synchronize.py"))],
+                                env={"PATH": os.environ["PATH"], "REPOSITORY_CONFIG": str(config)},
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("synchronization is disabled", result.stdout)
+
+    def test_local_repository_health_and_disabled_write_paths(self):
+        config = {"repositories": [self.config | {"writable": True}],
+                  "owner": "owner", "sync_enabled": False}
+        state = protect.Protection(self.destination, config)
+        record = {"mirror": False, "empty": False, "mirror_updated": None}
+        requests = []
+
+        class Destination(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_): pass
+            def do_GET(self):
+                requests.append(self.path)
+                data = {"commit": {"id": "1" * 40}} if "/branches/" in self.path else record
+                body = json.dumps(data).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        upstream = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Destination)
+        proxy = http.server.ThreadingHTTPServer(("127.0.0.1", 0), protect.handler(state))
+        for server in (upstream, proxy):
+            self.addCleanup(server.server_close)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:" + str(proxy.server_port)
+        try:
+            with patch.dict(os.environ, {"GITEA_URL": "http://127.0.0.1:" + str(upstream.server_port),
+                                         "GITEA_TOKEN": "test", "GUARD_TOKEN": "test"}):
+                for endpoint in ("/healthz", "/mirrorz"):
+                    with urllib.request.urlopen(base + endpoint) as response:
+                        self.assertEqual(response.status, 200)
+                        self.assertFalse(json.load(response)["sync_enabled"])
+                record["mirror"] = True
+                with self.assertRaises(urllib.error.HTTPError) as wrong_role:
+                    urllib.request.urlopen(base + "/mirrorz")
+                self.assertEqual(wrong_role.exception.code, 503)
+                wrong_role.exception.close()
+                config["repositories"][0]["writable"] = False
+                with urllib.request.urlopen(base + "/mirrorz") as response:
+                    self.assertEqual(response.status, 200)
+                count = len(requests)
+                auth = "Basic " + base64.b64encode(b"dr:test").decode()
+                for path, code in (("/sync", 409), ("/api/v1/repos/owner/example/issues", 403)):
+                    request = urllib.request.Request(base + path, method="POST", headers={"Authorization": auth})
+                    with self.assertRaises(urllib.error.HTTPError) as disabled:
+                        urllib.request.urlopen(request)
+                    self.assertEqual(disabled.exception.code, code)
+                    disabled.exception.close()
+                self.assertEqual(len(requests), count)
         finally:
             proxy.shutdown()
             upstream.shutdown()

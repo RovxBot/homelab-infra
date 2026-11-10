@@ -9,6 +9,10 @@ import zipfile
 root = pathlib.Path('/restore/restored')
 repository_root = root / 'gitea/git/gitea-repositories'
 status = json.loads((root / 'protection/status.json').read_text())
+policy_path = root / 'work/export/protected-repositories.json'
+policy = json.loads(policy_path.read_text()) if policy_path.exists() else {}
+local_primary = {r['name'] for r in policy.get('repositories', [])
+                 if not policy.get('sync_enabled', True) and r.get('writable', False)}
 results = {}
 for name, record in status.items():
     repo = repository_root / 'github-dr' / (name + '.git')
@@ -23,12 +27,16 @@ for name, record in status.items():
         actual = subprocess.check_output(['git', '--git-dir=' + str(guard), 'rev-parse', ref]).decode().strip()
         if actual != sha:
             raise RuntimeError('Restored protected source differs from accepted state: ' + name + ':' + ref)
-        if hosted.get(ref) != sha:
+        if name not in local_primary and hosted.get(ref) != sha:
             # A snapshot may legitimately fall between the source check and
             # destination schedule. The complete accepted state is preserved in
             # the independent guard repository; report destination lag honestly.
             lagging.append(ref)
     for ref, sha in hosted.items():
+        # A promoted repository has its own development refs. The archived
+        # GitHub guard remains independently verified historical evidence.
+        if name in local_primary:
+            continue
         accepted = record['refs'].get(ref)
         if accepted is None:
             raise RuntimeError('Hosted ref has no accepted provenance')
@@ -42,6 +50,7 @@ for name, record in status.items():
         subprocess.run(['git', '--git-dir=' + str(repo), 'cat-file', '-e', required + '^{commit}'], check=True)
     results[name] = {'verified_protected_refs': len(record['refs']),
                      'verified_hosted_refs': len(hosted), 'hosted_lag_at_capture': lagging,
+                     'local_primary': name in local_primary,
                      'required_commit': required}
 for repo in repository_root.glob('*/*.git'):
     subprocess.run(['git', '--git-dir=' + str(repo), 'fsck', '--full'], check=True)

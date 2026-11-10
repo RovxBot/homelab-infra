@@ -127,6 +127,9 @@ class Protection:
         self.status = json.loads(self.status_path.read_text()) if self.status_path.exists() else {}
 
     def sync(self):
+        if not self.config.get("sync_enabled", True):
+            print(json.dumps({"sync_enabled": False, "status": "local Gitea repositories are authoritative"}), flush=True)
+            return
         if not self.lock.acquire(blocking=False):
             raise RuntimeError("Synchronization already running")
         try:
@@ -166,7 +169,8 @@ def handler(state):
         def dispatch(self):
             parsed = urllib.parse.urlsplit(self.path)
             path = parsed.path
-            if path == "/healthz":
+            sync_enabled = state.config.get("sync_enabled", True)
+            if path == "/healthz" and sync_enabled:
                 healthy = all(not state.status.get(r["name"], {}).get("error") and
                               time.time() - state.status.get(r["name"], {}).get("last_success", 0) < 4500
                               for r in state.config["repositories"])
@@ -180,11 +184,11 @@ def handler(state):
                 return self.reply(200 if not failed and age is not None and age < 172800 and available > 1073741824 else 503,
                                   {"age_seconds": age, "last_backup_failed": failed,
                                    "staging_bytes_available": available})
-            if path == "/mirrorz":
+            if path == "/mirrorz" or path == "/healthz" and not sync_enabled:
                 failures = []
                 lagging = []
                 marker = state.root / 'metadata-sync-success.epoch'
-                if (state.root / 'metadata-sync-failed').exists() or not marker.exists() or time.time() - int(marker.read_text()) > 4500:
+                if sync_enabled and ((state.root / 'metadata-sync-failed').exists() or not marker.exists() or time.time() - int(marker.read_text()) > 4500):
                     failures.append('metadata-sync')
                 for repo in state.config["repositories"]:
                     try:
@@ -192,11 +196,22 @@ def handler(state):
                         headers = {"Authorization": "token " + os.environ["GITEA_TOKEN"]}
                         with urllib.request.urlopen(urllib.request.Request(base, headers=headers), timeout=10) as response:
                             target = json.load(response)
-                        updated = dt.datetime.fromisoformat(target["mirror_updated"].replace("Z", "+00:00"))
-                        if not target["mirror"] or target["empty"] or time.time() - updated.timestamp() > 4500:
+                        if target["empty"]:
+                            raise RuntimeError("repository is empty")
+                        if not sync_enabled:
+                            if bool(target["mirror"]) == bool(repo.get("writable", False)):
+                                raise RuntimeError("repository has the wrong writable/mirror role")
+                        else:
+                            updated = dt.datetime.fromisoformat(target["mirror_updated"].replace("Z", "+00:00"))
+                        if sync_enabled and (not target["mirror"] or time.time() - updated.timestamp() > 4500):
                             raise RuntimeError("mirror refresh is stale or incomplete")
                         with urllib.request.urlopen(urllib.request.Request(base + "/branches/" + urllib.parse.quote(repo["default_branch"], safe=""), headers=headers), timeout=10) as response:
                             tip = json.load(response)["commit"]["id"]
+                        if not sync_enabled:
+                            if repo.get("required_commit"):
+                                with urllib.request.urlopen(urllib.request.Request(base + "/git/commits/" + repo["required_commit"], headers=headers), timeout=10) as response:
+                                    json.load(response)
+                            continue
                         accepted = state.status[repo["name"]]["refs"]["refs/heads/" + repo["default_branch"]]
                         if tip != accepted:
                             lagging.append(repo['name'])
@@ -207,7 +222,8 @@ def handler(state):
                                 raise RuntimeError("mirror has not reached the accepted source")
                     except Exception:
                         failures.append(repo["name"])
-                return self.reply(503 if failures else 200, {"unhealthy_mirrors": failures, 'lagging_mirrors': lagging})
+                return self.reply(503 if failures else 200, {"sync_enabled": sync_enabled,
+                                  "unhealthy_mirrors": failures, 'lagging_mirrors': lagging})
             if path.startswith("/git/"):
                 if not self.authenticated():
                     self.send_response(401)
@@ -247,6 +263,8 @@ def handler(state):
                 return self.wfile.write(body)
             if path == "/sync" and self.command == "POST":
                 if not self.authenticated(): return self.reply(401, {})
+                if not sync_enabled:
+                    return self.reply(409, {"error": "GitHub synchronization is disabled; Gitea is authoritative"})
                 threading.Thread(target=state.sync, daemon=True).start()
                 return self.reply(202, {"status": "requested"})
             match = re.fullmatch(r"/([^/]+)/([^/]+)\.git(/.*)?", path)
@@ -314,6 +332,8 @@ def handler(state):
 
         def proxy(self, path):
             allowed = {r["name"]: r for r in state.config["repositories"]}
+            if not state.config.get("sync_enabled", True) and self.command not in {"GET", "HEAD"}:
+                return self.reply(403, {"error": "GitHub metadata writes are disabled"})
             if self.command == "DELETE":
                 return self.reply(403, {"error": "Disaster recovery deletion is disabled"})
             data = self.rfile.read(int(self.headers.get("Content-Length", "0")))
