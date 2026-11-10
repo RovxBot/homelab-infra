@@ -1,6 +1,12 @@
 # GitHub failover
 
-GitHub remains primary until an operator declares an incident. A 403/404 can be
+`github-dr/wowdecomp` was deliberately promoted in place on 10 November 2026.
+Gitea is now its primary source; GitHub imports are stopped. Its existing
+issues/releases and the separate frozen reference repository are retained.
+The historical procedure below describes the recovery gates used for that
+cutover and remains useful for future recovery planning.
+
+Before that cutover, GitHub remained primary until an operator declared an incident. A 403/404 can be
 an authentication outage; it does not authorize repository deletion or mirror
 promotion. First preserve the last good state and review the source health.
 

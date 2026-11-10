@@ -38,6 +38,10 @@ available_kib=$(df -Pk /work | awk 'NR == 2 {print $4}')
 
 for deployment in gitea-mirror gitea-protection gitea; do
   replicas=$(kubectl -n gitea get "deployment/$deployment" -o jsonpath='{.spec.replicas}')
+  # A retired mirror console remains stopped across cold backups.
+  if [[ "$deployment" == gitea-mirror && "$replicas" == 0 ]]; then
+    continue
+  fi
   [[ "$replicas" == 1 ]] || { echo "Expected one replica of $deployment; maintenance may be in progress"; exit 1; }
   stopped+=("$deployment")
   kubectl -n gitea scale "deployment/$deployment" --current-replicas=1 --replicas=0
@@ -50,6 +54,7 @@ for selector in 'app=gitea-mirror' 'app=gitea-protection' 'app.kubernetes.io/nam
 done
 
 pg_dump --format=custom --file=/work/export/gitea.pgdump
+cp /scripts/protected-repositories.json /work/export/protected-repositories.json
 pg_restore --list /work/export/gitea.pgdump > /work/export/database-contents.txt
 pg_dumpall --globals-only --no-role-passwords > /work/export/globals.sql
 sha256sum /work/export/gitea.pgdump > /work/export/SHA256SUMS

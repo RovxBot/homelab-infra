@@ -64,11 +64,16 @@ spec:
           command: [/bin/bash, -ec]
           args:
             - |
+              umask 077
               cd /data
-              if ! test -s /data/.runner; then
+              if ! test -s /data/.runner || ! grep -qx github-dr /data/.runner-scope 2>/dev/null; then
+                if test -s /data/.runner && ! test -e /data/.runner.pre-primary; then
+                  cp -p /data/.runner /data/.runner.pre-primary
+                fi
                 gitea-runner --config /config/config.yaml register --no-interactive \
                   --instance http://gitea-http.gitea.svc.cluster.local:3000 \
                   --name cooked-linux --token "$REGISTRATION_TOKEN"
+                printf '%s\n' github-dr > /data/.runner-scope
               fi
               unset REGISTRATION_TOKEN
               exec gitea-runner --config /config/config.yaml daemon

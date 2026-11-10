@@ -85,7 +85,7 @@ spec:
             - "[BODY].status == pass"
           alerts:
             - type: github
-        - name: gitea-protected-sources
+        - name: gitea-local-repositories
           group: internal
           url: http://gitea-protection.gitea.svc.cluster.local:8080/healthz
           interval: 1m
@@ -101,17 +101,9 @@ spec:
             - "[STATUS] == 200"
           alerts:
             - type: github
-        - name: gitea-mirror-freshness
+        - name: gitea-repository-health
           group: internal
           url: http://gitea-protection.gitea.svc.cluster.local:8080/mirrorz
-          interval: 1m
-          conditions:
-            - "[STATUS] == 200"
-          alerts:
-            - type: github
-        - name: gitea-mirror
-          group: internal
-          url: http://gitea-mirror.gitea.svc.cluster.local:4321/api/health
           interval: 1m
           conditions:
             - "[STATUS] == 200"
