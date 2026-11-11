@@ -69,6 +69,7 @@ In ChatGPT's custom MCP server form:
 | Client ID / client secret | Leave empty; the MCP proxy registers the client |
 | Scope, if requested | `diagnostics.read` |
 | Token endpoint authentication, if requested | `none` (public PKCE client) |
+| OIDC enabled, if shown | Off / unchecked |
 | OIDC UserInfo Endpoint, if requested | Leave empty; this OAuth proxy does not expose an OIDC UserInfo service |
 
 Accept the MCP consent screen, then sign in to Entra as the assigned operator.
@@ -194,7 +195,7 @@ requires exact callback and issuer comparisons; never work around it with a
 wildcard, static operator token or disabled JWT validation.
 
 If ChatGPT rejects app settings before opening sign-in, verify public/dynamic
-client setup, `none` token endpoint authentication, the exact server URL and
+client setup, **OIDC enabled off**, `none` token endpoint authentication, the exact server URL and
 `diagnostics.read` scope. Do not use Entra's UserInfo endpoint with this proxy's
 tokens: they have a different issuer/audience. UserInfo is optional for ordinary
 MCP OAuth and is relevant to workspace email-domain restrictions, which this
