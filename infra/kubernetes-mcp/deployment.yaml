@@ -30,7 +30,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: mcp
-          image: ghcr.io/rovxbot/kubernetes-mcp@sha256:22e5b1c261e6de0b95a8f6fb8de6283372f08eb77680f37220934b8ea8e1ed9a
+          image: ghcr.io/rovxbot/kubernetes-mcp@sha256:9631a32c4154d0367b4c5195ba73326d8fb7229994eef4b542bb70ae06eda088
           env:
             - name: ALLOWED_NAMESPACES
               value: "*"
