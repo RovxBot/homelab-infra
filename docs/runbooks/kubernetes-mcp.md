@@ -40,6 +40,9 @@ and arbitrary client metadata URL fetching are disabled. Authentication is
 required before initialization, tool discovery and calls. Invalid credentials
 receive 401 with resource metadata; insufficient OAuth scopes receive 403.
 Namespace denials are MCP tool errors and do not execute API reads.
+Unauthenticated GET/HEAD connection probes also receive the OAuth 401 challenge.
+Authenticated GET/HEAD return 405 because the stateless server does not expose
+an SSE notification stream.
 
 The encrypted SOPS Secret contains the app credential, signing material and
 identity configuration. OAuth clients, transactions and upstream tokens use
@@ -65,6 +68,9 @@ In ChatGPT's custom MCP server form:
 | Client registration | Automatic / dynamic |
 | Client ID / client secret | Leave empty; the MCP proxy registers the client |
 | Scope, if requested | `diagnostics.read` |
+| Token endpoint authentication, if requested | `none` (public PKCE client) |
+| OIDC enabled, if shown | Off / unchecked |
+| OIDC UserInfo Endpoint, if requested | Leave empty; this OAuth proxy does not expose an OIDC UserInfo service |
 
 Accept the MCP consent screen, then sign in to Entra as the assigned operator.
 The separate Entra client secret stays in Kubernetes; do not put it in ChatGPT.
@@ -111,7 +117,9 @@ after 20 seconds including queueing. HTTP overload returns 429 with Retry-After;
 tool limits return a clear MCP error. Audit records include timestamp, identity,
 tool, validated-looking object target, result and duration, never log bodies,
 tokens or complete arguments. HTTP access logging is disabled to keep OAuth
-authorization codes out of logs.
+authorization codes out of logs. A separate HTTP audit records only a constant
+route name, method, status, authorization-header presence and duration. It never
+logs raw paths, query strings, header values, redirect targets or request bodies.
 
 ## Data and boundaries
 
@@ -186,6 +194,16 @@ an MCP tool's Kubernetes 403 means service-account RBAC. An OAuth callback error
 requires exact callback and issuer comparisons; never work around it with a
 wildcard, static operator token or disabled JWT validation.
 
+If ChatGPT rejects app settings before opening sign-in, verify public/dynamic
+client setup, **OIDC enabled off**, `none` token endpoint authentication, the exact server URL and
+`diagnostics.read` scope. Do not use Entra's UserInfo endpoint with this proxy's
+tokens: they have a different issuer/audience. UserInfo is optional for ordinary
+MCP OAuth and is relevant to workspace email-domain restrictions, which this
+adapter does not implement. Inspect the constant-route HTTP audit to distinguish
+failed MCP/resource discovery, DCR rejection and authorization errors. If no
+corresponding request reaches the pod, investigate client-side validation or the
+Cloudflare edge before changing the OAuth flow.
+
 For immediate revocation, remove the allowed user ID or rotate signing material
 through SOPS and GitOps, and replace the pod using a declarative template change.
 Removing Entra assignment blocks new authorization, but existing signed access
@@ -209,7 +227,7 @@ brief validated rollback window.
 | Evidence | Status |
 | --- | --- |
 | Render/schema/Secret-reference/Kyverno and secret-scanning CI | Verified |
-| Focused diagnostic/authentication suite | Verified, 67 tests |
+| Focused diagnostic/authentication suite | Verified, 71 tests |
 | Public anonymous initialize, tools/list and tools/call | Verified, all 401 with the distinct resource challenge |
 | Public DCR, exact callbacks, S256, cookie-bound consent and scoped Entra redirect | Verified |
 | Live adapter reads with service-account impersonation | Verified, complete pagination over 178 pods and eight nodes; metrics, events, services/endpoints, storage and Flux |

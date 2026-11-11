@@ -11,12 +11,12 @@ BASE = 'https://git.cooked.beer'
 MCP = BASE + '/kubernetes/mcp'
 
 
-def request(url, data=None, token=None):
+def request(url, data=None, token=None, method=None):
     headers = {'Accept': 'application/json, text/event-stream', 'Content-Type': 'application/json',
                'User-Agent': 'cooked-kubernetes-mcp-smoke/1.0'}
     if token:
         headers['Authorization'] = 'Bearer ' + token
-    req = urllib.request.Request(url, data=json.dumps(data).encode() if data else None, headers=headers)
+    req = urllib.request.Request(url, data=json.dumps(data).encode() if data else None, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
             return response.status, {key.lower(): value for key, value in response.headers.items()}, json.load(response)
@@ -29,6 +29,11 @@ def main():
     parser.add_argument('--token-file', type=pathlib.Path, help='Private file with a user OAuth access token; never pass token text')
     parser.add_argument('--rbac', action='store_true', help='Use current admin context to test service identity with impersonation')
     args = parser.parse_args()
+    for method in ['GET', 'HEAD']:
+        status, headers, _ = request(MCP, method=method)
+        assert status == 401, (method, status)
+        assert 'oauth-protected-resource/kubernetes/mcp' in headers.get('www-authenticate', '')
+        print(method + ' connection probe without credentials: verified 401')
     for method in ['initialize', 'tools/list', 'tools/call']:
         status, headers, _ = request(MCP, {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': {}})
         assert status == 401, (method, status)

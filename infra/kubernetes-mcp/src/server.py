@@ -18,11 +18,12 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.auth.providers.azure import AzureProvider
 from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.auth.middleware import RequireAuthMiddleware
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
-from pydantic import Field, ValidationError
+from pydantic import AnyHttpUrl, Field, ValidationError
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 
 from diagnostics import Diagnostics, LogQuery, Query, ReadError, Resource
@@ -30,6 +31,14 @@ from diagnostics import Diagnostics, LogQuery, Query, ReadError, Resource
 PUBLIC_BASE = 'https://git.cooked.beer/kubernetes'
 CHATGPT_CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect'
 AUDIT = logging.getLogger('diagnostics.audit')
+HTTP_ROUTES = frozenset({
+    '/kubernetes/mcp', '/kubernetes/register', '/kubernetes/authorize',
+    '/kubernetes/token', '/kubernetes/revoke', '/kubernetes/consent',
+    '/kubernetes/auth/callback',
+    '/.well-known/oauth-authorization-server/kubernetes',
+    '/.well-known/openid-configuration/kubernetes',
+    '/.well-known/oauth-protected-resource/kubernetes/mcp',
+})
 
 
 class StrictAzureJWTVerifier(JWTVerifier):
@@ -150,6 +159,27 @@ class HTTPControls:
     async def __call__(self, scope, receive, send):
         if scope['type'] != 'http' or scope['path'] == '/healthz':
             return await self.app(scope, receive, send)
+        started, status = time.monotonic(), None
+        async def audit_send(message):
+            nonlocal status
+            if message['type'] == 'http.response.start':
+                status = message['status']
+            await send(message)
+        try:
+            return await self._handle_http(scope, receive, audit_send)
+        finally:
+            # Only constant route names are logged. Raw paths, queries, headers,
+            # redirect targets and bodies can contain OAuth codes or secrets.
+            AUDIT.info(json.dumps({
+                'time': datetime.now(timezone.utc).isoformat(), 'kind': 'http',
+                'route': scope['path'] if scope['path'] in HTTP_ROUTES else '[unmatched]',
+                'method': scope['method'] if scope['method'] in {'GET', 'POST', 'DELETE', 'OPTIONS'} else '[other]',
+                'status': status,
+                'authorization_present': any(key.lower() == b'authorization' for key, _ in scope.get('headers', [])),
+                'duration_ms': round((time.monotonic() - started) * 1000),
+            }, separators=(',', ':')))
+
+    async def _handle_http(self, scope, receive, send):
         now = time.monotonic()
         while self.window and now - self.window[0] >= 60:
             self.window.popleft()
@@ -273,6 +303,17 @@ def make_app(auth=None, diagnostics=None):
     diagnostics = diagnostics or Diagnostics(allowed_namespaces=set(os.environ['ALLOWED_NAMESPACES'].split(',')))
     server = make_server(auth, diagnostics)
     transport = server.http_app(path='/mcp', stateless_http=True, json_response=True)
+
+    async def unsupported_stream(scope, receive, send):
+        await Response(status_code=405, headers={'Allow': 'POST, DELETE'})(scope, receive, send)
+
+    # Connection checks may probe with GET/HEAD before issuing initialize.
+    # Authenticate before reporting the unsupported SSE method, so probes
+    # discover the same resource/issuer as an unauthenticated POST.
+    metadata_url = AnyHttpUrl(PUBLIC_BASE.removesuffix('/kubernetes') +
+        '/.well-known/oauth-protected-resource/kubernetes/mcp')
+    transport.routes.insert(0, Route('/mcp', methods=['GET'], endpoint=RequireAuthMiddleware(
+        unsupported_stream, auth.required_scopes, metadata_url, auth.challenge_scopes)))
 
     @asynccontextmanager
     async def lifespan(app):
