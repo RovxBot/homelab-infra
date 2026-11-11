@@ -1,0 +1,60 @@
+name: Kubernetes MCP
+on:
+  pull_request:
+    paths:
+      - infra/kubernetes-mcp/**
+      - ops/kubernetes-mcp/**
+      - .github/workflows/kubernetes-mcp.yml
+  push:
+    branches: [main]
+    paths:
+      - infra/kubernetes-mcp/src/**
+      - infra/kubernetes-mcp/requirements*
+      - infra/kubernetes-mcp/Dockerfile
+      - .github/workflows/kubernetes-mcp.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kubernetes-mcp-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.14"
+      - name: Install locked runtime and test dependencies
+        run: |
+          python -m pip install --require-hashes -r infra/kubernetes-mcp/requirements.txt
+          python -m pip install pytest==9.2.0 pytest-asyncio==1.4.1.post1 pyyaml==6.0.3
+      - name: Test authentication and diagnostic boundaries
+        run: python -m pytest -q infra/kubernetes-mcp/tests
+      - name: Build tested image
+        env:
+          REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          docker build --tag "ghcr.io/rovxbot/kubernetes-mcp:${REVISION}" infra/kubernetes-mcp
+      - name: Publish same-repository build
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+          docker push "ghcr.io/rovxbot/kubernetes-mcp:${REVISION}"
+          docker inspect "ghcr.io/rovxbot/kubernetes-mcp:${REVISION}" --format '{{index .RepoDigests 0}}' > image-digest.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          name: kubernetes-mcp-image
+          path: image-digest.txt

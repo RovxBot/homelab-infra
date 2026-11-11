@@ -83,6 +83,13 @@ See the [Gitea architecture](docs/gitea/architecture.md),
 The [hosted Gitea MCP endpoint](docs/gitea/chatgpt-mcp.md) provides OAuth access
 for ChatGPT at `https://git.cooked.beer/mcp` without a workstation service.
 
+The separate [Kubernetes diagnostics MCP](docs/runbooks/kubernetes-mcp.md) at
+`https://git.cooked.beer/kubernetes/mcp` gives ChatGPT read-only access to all
+namespaces, current/previous container logs, events, Flux, Metrics Server and
+Longhorn health through Entra OAuth. It cannot execute commands or change the
+cluster. Logs are live kubelet evidence, subject to rotation and pod deletion;
+there is no retained historical log archive.
+
 The primary workloads are Immich, Jellyfin and the media stack, Home Assistant, Vaultwarden, Homepage, Invoice Ninja, Koito, Gatus, Gitea, Grimguzzler registration and the WotLK realm.
 
 Koito at `koito.cooked.beer` uses local login and mirrors the `rovbot` Last.fm

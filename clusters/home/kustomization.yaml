@@ -20,6 +20,7 @@ resources:
   - apps/koito-kustomization.yaml
   - apps/stirling-pdf-kustomization.yaml
   - infrastructure/mosquitto-kustomization.yaml
+  - infrastructure/kubernetes-mcp-kustomization.yaml
   - apps/birdnet-go-kustomization.yaml
   - apps/openbrew-kustomization.yaml
   - apps/gitea-kustomization.yaml
