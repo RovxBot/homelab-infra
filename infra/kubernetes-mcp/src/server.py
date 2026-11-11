@@ -20,8 +20,6 @@ from fastmcp.server.auth.providers.azure import AzureProvider
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
-from key_value.aio.stores.disk import DiskStore
-from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 from pydantic import Field, ValidationError
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
@@ -82,14 +80,13 @@ def make_auth():
     secret_dir = Path(os.environ.get('OAUTH_SECRET_DIR', '/var/run/oauth'))
     config = json.loads((secret_dir / 'config.json').read_text())
     signing_key = (secret_dir / 'signing-key').read_text().strip()
-    storage = FernetEncryptionWrapper(
-        DiskStore(directory=os.environ.get('OAUTH_STATE_DIR', '/state/oauth'), max_size=64 * 1024 * 1024),
-        source_material=signing_key, salt='cooked-kubernetes-mcp-storage-v1')
     return RestrictedAzureProvider(
         client_id=config['client_id'], client_secret=(secret_dir / 'client-secret').read_text().strip(),
         tenant_id=config['tenant_id'], allowed_user_ids=set(config['allowed_user_ids']),
         required_scopes=['diagnostics.read'], base_url=PUBLIC_BASE,
-        allowed_client_redirect_uris=[CHATGPT_CALLBACK], client_storage=storage,
+        # Use FastMCP's built-in encrypted JSON FileTreeStore under FASTMCP_HOME.
+        # It atomically persists state, culls expired records and isolates key rotations.
+        allowed_client_redirect_uris=[CHATGPT_CALLBACK],
         jwt_signing_key=signing_key, require_authorization_consent=True,
         additional_authorize_scopes=['openid', 'profile', 'offline_access'],
         fastmcp_access_token_expiry_seconds=900,
@@ -147,6 +144,7 @@ class HTTPControls:
     def __init__(self, app, *, per_minute=240, max_body=32768):
         self.app, self.per_minute, self.max_body = app, per_minute, max_body
         self.window = deque()
+        self.registrations = deque()
         self.inflight = 0
 
     async def __call__(self, scope, receive, send):
@@ -155,6 +153,12 @@ class HTTPControls:
         now = time.monotonic()
         while self.window and now - self.window[0] >= 60:
             self.window.popleft()
+        while self.registrations and now - self.registrations[0] >= 60:
+            self.registrations.popleft()
+        if scope['path'] == '/kubernetes/register' and scope['method'] == 'POST':
+            if len(self.registrations) >= 10:
+                return await JSONResponse({'error': 'registration_rate_limited'}, 429, headers={'Retry-After': '60'})(scope, receive, send)
+            self.registrations.append(now)
         if len(self.window) >= self.per_minute or self.inflight >= 16:
             return await JSONResponse({'error': 'rate_limited'}, 429, headers={'Retry-After': '60'})(scope, receive, send)
         self.window.append(now)

@@ -5,7 +5,7 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 2
-  # One SQLite writer and RWO volume; replacement briefly interrupts diagnostics.
+  # One state writer and RWO volume; replacement briefly interrupts diagnostics.
   strategy:
     type: Recreate
   selector:
@@ -35,7 +35,7 @@ spec:
             - name: ALLOWED_NAMESPACES
               value: "*"
             - name: FASTMCP_HOME
-              value: /tmp/fastmcp
+              value: /state/fastmcp
           ports:
             - name: http
               containerPort: 8080
