@@ -21,6 +21,7 @@ resources:
   - apps/stirling-pdf-kustomization.yaml
   - infrastructure/mosquitto-kustomization.yaml
   - infrastructure/kubernetes-mcp-kustomization.yaml
+  - infrastructure/kubernetes-mcp-validation-kustomization.yaml
   - apps/birdnet-go-kustomization.yaml
   - apps/openbrew-kustomization.yaml
   - apps/gitea-kustomization.yaml

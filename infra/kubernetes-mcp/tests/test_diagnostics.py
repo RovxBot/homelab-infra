@@ -66,6 +66,23 @@ def test_flux_failure_is_actionable_without_source_or_values():
     assert 'never-return' not in json.dumps(result)
 
 
+@pytest.mark.parametrize('resource,sparse', [
+    (Resource.endpointslices, {'endpoints': None}),
+    (Resource.pods, {'metadata': {'name': 'pending', 'ownerReferences': None},
+                     'spec': {'containers': [], 'initContainers': None, 'volumes': None},
+                     'status': {'containerStatuses': None}}),
+    (Resource.pvs, {'spec': {'claimRef': None}, 'status': None}),
+    (Resource.longhorn_nodes, {'status': {'diskStatus': None}}),
+    (Resource.pod_metrics, {'containers': None}),
+])
+def test_nullable_api_collections_are_empty_evidence(resource, sparse):
+    result = summarize(sparse, resource)
+    assert isinstance(result, dict)
+    assert result['conditions'] == []
+    if resource == Resource.endpointslices:
+        assert result['endpoints'] == []
+
+
 @pytest.mark.parametrize('value', [
     'password=sample-sensitive', 'token: sample-sensitive', '"client_secret": "sample-sensitive"',
     'Bearer sample-sensitive', 'https://sam:sample-sensitive@example.test',

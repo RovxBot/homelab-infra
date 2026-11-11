@@ -12,15 +12,16 @@ MCP = BASE + '/kubernetes/mcp'
 
 
 def request(url, data=None, token=None):
-    headers = {'Accept': 'application/json, text/event-stream', 'Content-Type': 'application/json'}
+    headers = {'Accept': 'application/json, text/event-stream', 'Content-Type': 'application/json',
+               'User-Agent': 'cooked-kubernetes-mcp-smoke/1.0'}
     if token:
         headers['Authorization'] = 'Bearer ' + token
     req = urllib.request.Request(url, data=json.dumps(data).encode() if data else None, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
-            return response.status, dict(response.headers), json.load(response)
+            return response.status, {key.lower(): value for key, value in response.headers.items()}, json.load(response)
     except urllib.error.HTTPError as error:
-        return error.code, dict(error.headers), {}
+        return error.code, {key.lower(): value for key, value in error.headers.items()}, {}
 
 
 def main():
@@ -31,7 +32,7 @@ def main():
     for method in ['initialize', 'tools/list', 'tools/call']:
         status, headers, _ = request(MCP, {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': {}})
         assert status == 401, (method, status)
-        assert 'oauth-protected-resource/kubernetes/mcp' in headers.get('WWW-Authenticate', headers.get('Www-Authenticate', ''))
+        assert 'oauth-protected-resource/kubernetes/mcp' in headers.get('www-authenticate', '')
         print(method + ' without credentials: verified 401')
     for path in ['/.well-known/oauth-protected-resource/kubernetes/mcp', '/.well-known/oauth-authorization-server/kubernetes']:
         status, _, metadata = request(BASE + path)
