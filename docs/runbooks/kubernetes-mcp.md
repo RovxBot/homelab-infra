@@ -40,6 +40,9 @@ and arbitrary client metadata URL fetching are disabled. Authentication is
 required before initialization, tool discovery and calls. Invalid credentials
 receive 401 with resource metadata; insufficient OAuth scopes receive 403.
 Namespace denials are MCP tool errors and do not execute API reads.
+Unauthenticated GET/HEAD connection probes also receive the OAuth 401 challenge.
+Authenticated GET/HEAD return 405 because the stateless server does not expose
+an SSE notification stream.
 
 The encrypted SOPS Secret contains the app credential, signing material and
 identity configuration. OAuth clients, transactions and upstream tokens use
@@ -223,7 +226,7 @@ brief validated rollback window.
 | Evidence | Status |
 | --- | --- |
 | Render/schema/Secret-reference/Kyverno and secret-scanning CI | Verified |
-| Focused diagnostic/authentication suite | Verified, 68 tests |
+| Focused diagnostic/authentication suite | Verified, 71 tests |
 | Public anonymous initialize, tools/list and tools/call | Verified, all 401 with the distinct resource challenge |
 | Public DCR, exact callbacks, S256, cookie-bound consent and scoped Entra redirect | Verified |
 | Live adapter reads with service-account impersonation | Verified, complete pagination over 178 pods and eight nodes; metrics, events, services/endpoints, storage and Flux |

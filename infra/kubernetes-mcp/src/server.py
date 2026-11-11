@@ -18,11 +18,12 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.auth.providers.azure import AzureProvider
 from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.auth.middleware import RequireAuthMiddleware
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
-from pydantic import Field, ValidationError
+from pydantic import AnyHttpUrl, Field, ValidationError
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 
 from diagnostics import Diagnostics, LogQuery, Query, ReadError, Resource
@@ -302,6 +303,17 @@ def make_app(auth=None, diagnostics=None):
     diagnostics = diagnostics or Diagnostics(allowed_namespaces=set(os.environ['ALLOWED_NAMESPACES'].split(',')))
     server = make_server(auth, diagnostics)
     transport = server.http_app(path='/mcp', stateless_http=True, json_response=True)
+
+    async def unsupported_stream(scope, receive, send):
+        await Response(status_code=405, headers={'Allow': 'POST, DELETE'})(scope, receive, send)
+
+    # Connection checks may probe with GET/HEAD before issuing initialize.
+    # Authenticate before reporting the unsupported SSE method, so probes
+    # discover the same resource/issuer as an unauthenticated POST.
+    metadata_url = AnyHttpUrl(PUBLIC_BASE.removesuffix('/kubernetes') +
+        '/.well-known/oauth-protected-resource/kubernetes/mcp')
+    transport.routes.insert(0, Route('/mcp', methods=['GET'], endpoint=RequireAuthMiddleware(
+        unsupported_stream, auth.required_scopes, metadata_url, auth.challenge_scopes)))
 
     @asynccontextmanager
     async def lifespan(app):

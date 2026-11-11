@@ -51,6 +51,26 @@ async def test_unauthenticated_operations_fail_before_protocol(app, method):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('method', ['GET', 'HEAD'])
+async def test_connection_probes_advertise_oauth_before_method_rejection(app, method):
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
+        for headers in [{}, {'Authorization': 'Bearer invalid'}]:
+            response = await client.request(method, '/kubernetes/mcp', headers=headers)
+            assert response.status_code == 401
+            assert '/.well-known/oauth-protected-resource/kubernetes/mcp' in response.headers['www-authenticate']
+
+
+@pytest.mark.asyncio
+async def test_authenticated_probes_do_not_open_stateless_sse(app):
+    with patch.object(AzureProvider, 'load_access_token', AsyncMock(return_value=access_token())):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
+            for method in ['GET', 'HEAD']:
+                response = await client.request(method, '/kubernetes/mcp', headers={'Authorization': 'Bearer local-test'})
+                assert response.status_code == 405
+                assert response.headers['allow'] == 'POST, DELETE'
+
+
+@pytest.mark.asyncio
 async def test_discovery_has_distinct_resource_issuer_pkce_and_stable_callback(app):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
         resource = (await client.get('/.well-known/oauth-protected-resource/kubernetes/mcp')).json()
