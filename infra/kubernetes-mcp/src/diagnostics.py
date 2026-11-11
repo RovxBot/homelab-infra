@@ -120,8 +120,8 @@ class LogQuery(BaseModel):
     timestamps: bool = True
 
 
-def pick(data: dict, *keys) -> dict:
-    return {k: data[k] for k in keys if k in data}
+def pick(data: dict | None, *keys) -> dict:
+    return {k: data[k] for k in keys if k in (data or {})}
 
 
 def conditions(data) -> list:
@@ -140,7 +140,7 @@ def container_status(c: dict) -> dict:
 def containers(spec: dict) -> list:
     out = []
     for category in ('initContainers', 'containers', 'ephemeralContainers'):
-        for c in spec.get(category, [])[:30]:
+        for c in (spec.get(category) or [])[:30]:
             # Never return env, args, commands, lifecycle commands, or HTTP headers.
             probes = {}
             for key in ('startupProbe', 'readinessProbe', 'livenessProbe'):
@@ -153,7 +153,7 @@ def containers(spec: dict) -> list:
 
 
 def summarize(obj: dict, resource: Resource) -> dict:
-    meta, spec, status = (obj.get(k, {}) for k in ('metadata', 'spec', 'status'))
+    meta, spec, status = (obj.get(k) or {} for k in ('metadata', 'spec', 'status'))
     out = {'kind': obj.get('kind', resource.value),
            **pick(meta, 'name', 'namespace', 'creationTimestamp', 'generation'),
            'conditions': conditions(status.get('conditions'))}
@@ -162,10 +162,10 @@ def summarize(obj: dict, resource: Resource) -> dict:
         out.update(pick(spec, 'nodeName', 'priorityClassName', 'restartPolicy', 'schedulerName'))
         out['containers'] = containers(spec)
         out['containerStatus'] = [container_status(c) for key in (
-            'initContainerStatuses', 'containerStatuses', 'ephemeralContainerStatuses') for c in status.get(key, [])[:30]]
-        out['owners'] = [pick(o, 'kind', 'name') for o in meta.get('ownerReferences', [])[:10]]
+            'initContainerStatuses', 'containerStatuses', 'ephemeralContainerStatuses') for c in (status.get(key) or [])[:30]]
+        out['owners'] = [pick(o, 'kind', 'name') for o in (meta.get('ownerReferences') or [])[:10]]
         out['volumes'] = [{'name': v.get('name'), 'claimName': v['persistentVolumeClaim'].get('claimName')}
-                          for v in spec.get('volumes', []) if 'persistentVolumeClaim' in v][:30]
+                          for v in (spec.get('volumes') or []) if 'persistentVolumeClaim' in v][:30]
     elif resource == Resource.nodes:
         out.update(pick(status, 'capacity', 'allocatable'))
         out['nodeInfo'] = pick(status.get('nodeInfo', {}), 'kubeletVersion', 'osImage', 'containerRuntimeVersion', 'architecture')
@@ -186,7 +186,7 @@ def summarize(obj: dict, resource: Resource) -> dict:
         out['service'] = meta.get('labels', {}).get('kubernetes.io/service-name')
         out['endpoints'] = [{**pick(e, 'addresses', 'conditions', 'nodeName'),
                              'target': pick(e.get('targetRef', {}), 'kind', 'name', 'namespace')}
-                            for e in obj.get('endpoints', [])[:100]]
+                            for e in (obj.get('endpoints') or [])[:100]]
     elif resource in (Resource.pvcs, Resource.pvs):
         out['spec'] = pick(spec, 'storageClassName', 'accessModes', 'volumeMode', 'volumeName', 'capacity', 'persistentVolumeReclaimPolicy', 'resources')
         out['claimRef'] = pick(spec.get('claimRef', {}), 'namespace', 'name')
@@ -206,10 +206,10 @@ def summarize(obj: dict, resource: Resource) -> dict:
         out['allowScheduling'] = spec.get('allowScheduling')
         out['disks'] = {name: {**pick(d, 'storageAvailable', 'storageMaximum', 'storageScheduled'),
                                'conditions': conditions(d.get('conditions'))}
-                        for name, d in list(status.get('diskStatus', {}).items())[:30]}
+                        for name, d in list((status.get('diskStatus') or {}).items())[:30]}
     elif resource in (Resource.node_metrics, Resource.pod_metrics):
         out.update(pick(obj, 'timestamp', 'window', 'usage'))
-        out['containers'] = [pick(c, 'name', 'usage') for c in obj.get('containers', [])[:30]]
+        out['containers'] = [pick(c, 'name', 'usage') for c in (obj.get('containers') or [])[:30]]
     elif resource == Resource.events:
         out.update(pick(obj, 'type', 'reason', 'message', 'count', 'firstTimestamp', 'lastTimestamp', 'eventTime'))
         out['source'] = pick(obj.get('source', {}), 'component', 'host')

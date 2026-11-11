@@ -11,6 +11,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastmcp.server.auth import AccessToken
 from fastmcp.server.auth.providers.azure import AzureProvider
+from fastmcp import settings
+from mcp.server.auth.provider import OAuthClientInformationFull
 from key_value.aio.stores.memory import MemoryStore
 
 from diagnostics import Diagnostics
@@ -172,6 +174,36 @@ async def test_http_body_and_global_rate_limits(app):
         assert response.status_code == 429
         assert response.headers['retry-after'] == '60'
         assert (await client.get('/healthz')).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_registration_has_independent_rate_limit(app):
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
+        metadata = {'redirect_uris': [CHATGPT_CALLBACK], 'token_endpoint_auth_method': 'none'}
+        for _ in range(10):
+            assert (await client.post('/kubernetes/register', json=metadata)).status_code == 201
+        assert (await client.post('/kubernetes/register', json=metadata)).status_code == 429
+        assert (await client.get('/.well-known/oauth-authorization-server/kubernetes')).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_encrypted_json_state_survives_provider_replacement(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, 'home', tmp_path)
+    config = dict(client_id='00000000-0000-0000-0000-000000000001', client_secret='local-test-only',
+        tenant_id='00000000-0000-0000-0000-000000000002', allowed_user_ids={'operator'},
+        required_scopes=['diagnostics.read'], base_url=PUBLIC_BASE,
+        allowed_client_redirect_uris=[CHATGPT_CALLBACK],
+        jwt_signing_key='local-test-signing-material-not-for-deployment', enable_cimd=False)
+    first = RestrictedAzureProvider(**config)
+    await first.register_client(OAuthClientInformationFull(client_id='persistent-client',
+        redirect_uris=[CHATGPT_CALLBACK], client_name='private-client-state-marker',
+        token_endpoint_auth_method='none'))
+    replacement = RestrictedAzureProvider(**config)
+    client = await replacement.get_client('persistent-client')
+    assert client and client.client_name == 'private-client-state-marker'
+    files = list(tmp_path.rglob('*.json'))
+    assert files
+    assert all(b'private-client-state-marker' not in f.read_bytes() for f in files)
 
 
 @pytest.mark.asyncio

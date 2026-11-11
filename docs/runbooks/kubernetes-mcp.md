@@ -43,8 +43,10 @@ Namespace denials are MCP tool errors and do not execute API reads.
 
 The encrypted SOPS Secret contains the app credential, signing material and
 identity configuration. OAuth clients, transactions and upstream tokens use
-encrypted storage on a 1 GiB Longhorn PVC, with a 64 MiB cache ceiling. One
-replica and Recreate updates avoid multiple SQLite writers and RWO rollout
+encrypted JSON files on a 1 GiB Longhorn PVC, using FastMCP's atomic FileTreeStore
+with periodic expiry cleanup and separate directories on key rotation. No
+pickle deserialization or DiskCache dependency is used. One replica and
+Recreate updates avoid concurrent state writers and RWO rollout
 deadlocks. Normal replacement preserves authorizations; loss of the PVC or
 rotation of signing material requires reconnecting. The PVC contains credentials
 and must remain private, including in storage backups.
@@ -102,7 +104,8 @@ cross-namespace aggregation when a restricted namespace set is configured.
 Cluster-scoped node/PV visibility remains an explicit deployment-level grant.
 
 Limits: 60 tool calls per identity per minute, four concurrent tool calls,
-240 HTTP requests per process per minute, 16 in-flight HTTP requests and 32 KiB
+240 HTTP requests per process per minute, ten client registrations per minute,
+16 in-flight HTTP requests and 32 KiB
 request bodies. Kubernetes requests time out after 12 seconds; tool execution
 after 20 seconds including queueing. HTTP overload returns 429 with Retry-After;
 tool limits return a clear MCP error. Audit records include timestamp, identity,
