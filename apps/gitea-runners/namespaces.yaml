@@ -37,10 +37,12 @@ metadata:
   namespace: gitea-jobs
 spec:
   hard:
-    pods: "3"
-    requests.cpu: "3"
-    limits.cpu: "6"
-    requests.memory: 6Gi
-    limits.memory: 12Gi
-    requests.ephemeral-storage: 12Gi
-    limits.ephemeral-storage: 24Gi
+    # Four copies of the job template's requests and limits; quota is a ceiling,
+    # not an idle resource reservation.
+    pods: "4"
+    requests.cpu: "4"
+    limits.cpu: "8"
+    requests.memory: 4Gi
+    limits.memory: 16Gi
+    requests.ephemeral-storage: 8Gi
+    limits.ephemeral-storage: 32Gi

@@ -1,20 +1,78 @@
 # Actions runners
 
-Gitea runner **5.2.4** has a native Kubernetes backend, verified against its
-release documentation and example manifests. Kubernetes 1.34.1 satisfies its
+The Linux controllers use Gitea runner **5.4.1** with its native Kubernetes
+backend, verified against its release documentation and example manifests. Kubernetes 1.34.1 satisfies its
 1.30 minimum. This deployment uses job pods; there is no host Docker daemon,
 Docker socket, privileged container or Docker-in-Docker service.
 
-The controller runs in `gitea-runners`, creates/executes/removes job pods and
-temporary Secrets only in `gitea-jobs`, and is registered to the **ci**
-organization. It cannot read existing Secrets or mutate deployments, nodes or
+The core controller runs in `gitea-runners`, creates/executes/removes job pods
+and temporary Secrets only in `gitea-jobs`, and is registered to the
+`github-dr` organization (originally `ci` for the recovery harness). It cannot read existing Secrets or mutate deployments, nodes or
 other namespaces. Ordinary jobs have no Kubernetes token, run as uid 1000 with
 dropped capabilities and RuntimeDefault seccomp. Talos currently has
 `user.max_user_namespaces=0`; requesting private user namespaces prevented pod
 sandbox creation. Jobs use normal Kubernetes user namespaces without changing
 that platform setting. The runner registration file and recent logs persist on
-a retained PVC. Initial concurrency is one, with a 45-minute ceiling, per-job
+a retained PVC. Concurrency is four, with a 45-minute ceiling, per-job
 CPU/memory/ephemeral-storage limits, namespace quotas and orphan cleanup.
+
+## On-demand Linux capacity
+
+`apps/gitea-runners` is the Flux source for both Linux pools, including the
+previously hand-applied full-client controller. Each controller remains at one
+replica with its own registration PVC; `runner.capacity: 4` allows it to launch
+up to four independent job pods. Do not increase controller replicas against a
+shared registration file. Gitea may still display one registered runner per
+pool; job capacity is the useful concurrency measure. This follows the native
+[Gitea job-pod backend](https://docs.gitea.com/runner/installation/kubernetes/).
+
+| Pool / workflow labels | Job namespace | Concurrent jobs | Per-job request | Per-job limit |
+| --- | --- | --- | --- | --- |
+| `cooked-linux`: `ubuntu-24.04`, `dr-offline`, `dr-sanitizer` | `gitea-jobs` | 4 | 1 CPU, 1 GiB RAM, 2 GiB ephemeral | 2 CPU, 4 GiB RAM, 8 GiB ephemeral |
+| `wowdecomp-linux` | `wowdecomp-ci-jobs` | 4 | 2 CPU, 2 GiB RAM, 4 GiB ephemeral | 3 CPU, 8 GiB RAM, 32 GiB ephemeral |
+
+Both pools can schedule on any eligible Linux amd64 node and prefer spreading
+jobs across node hostnames. Quotas allow four copies of each job template and
+reserve no resources while the namespaces are empty. Extra jobs wait in Gitea
+until a slot is free. Available node resources still govern scheduling.
+
+Build pods and their `emptyDir` workspaces/caches are created when needed and
+deleted after jobs finish. Idle build CPU/RAM reservations are zero. The two
+small polling controllers remain running: each requests 100m CPU/128 MiB RAM,
+and inspection on 11 November 2026 measured about 1m CPU and 9–13 MiB RAM each
+while idle. Registration, recent logs and action caches retain storage. Literal
+zero resource use for the entire system would require another running trigger
+service; this design needs no additional autoscaling controller.
+
+Full-client jobs now have a private 8 GiB `emptyDir` mounted at `/cache`. This
+removes the former `metal4` pin and shared `ReadWriteOnce` build-cache mount.
+APT/ccache data is cold for each new job, so package setup and builds can take
+longer. The original `wowdecomp-ci-jobs/linux-build-cache` PVC remains detached
+and outside Flux ownership for rollback; do not delete it during rollout.
+Infrastructure changes belong here; the older `Tools/CI/runner` manifests in
+the application repository describe the earlier manual deployment. Full-client
+jobs retain the existing pinned image and bounded package-installation/LSan
+capabilities; core jobs retain their separate stricter policy.
+
+For rollout, merge the reviewed infrastructure change and let
+`apps-gitea-runners` reconcile. Apply quotas and policies before restarting
+controllers, and wait until existing jobs finish before a config rollout: the
+current 30-second shutdown timeout cancels jobs still running after that grace.
+The generated ConfigMap names trigger the controller restarts. Verify
+`gitea_runner_capacity 4`, four simultaneous real Actions jobs and subsequent
+zero pods/zero quota usage in each job namespace. Validate policy admission with:
+
+```bash
+python3 ops/gitea/check-job-policy.py --server
+python3 ops/gitea/check-job-policy.py --pool wowdecomp --server
+```
+
+Rollback through Git after draining jobs. Restore the previous controller
+config and quota together; for the full-client pool, restore its `metal4` pin,
+named PVC mount and the previous policy's cache-volume allowance together.
+Preserve both runner-state PVCs and the detached cache throughout rollback.
+
+## Core job isolation
 
 Talos also sets `kernel.yama.ptrace_scope=2`. LeakSanitizer cannot inspect its
 threads under that restriction without SYS_PTRACE. Non-root containerd exec
