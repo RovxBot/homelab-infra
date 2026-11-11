@@ -68,9 +68,25 @@ exact URL in Gitea before signing in. Do not enable dynamic client registration
 or use a Gitea personal token as a client secret.
 
 The current public application is Gitea OAuth application 6, **ChatGPT Gitea
-MCP**, registered on 11 November 2026 for exactly
-`https://chatgpt.com/connector/oauth/rCoFiHpvW4B7`. Its client ID is public
-configuration, not a credential. No client secret is needed or stored in Git.
+MCP**, registered on 11 November 2026 with these exact callbacks:
+
+- `https://chatgpt.com/connector/oauth/rCoFiHpvW4B7`
+- `https://chatgpt.com/connector/oauth/VEy1ZWX4x6Et`
+
+The second callback was observed in ChatGPT's actual authorization request after
+the first URL had been supplied during setup. Its absence caused Gitea's
+**Unregistered Redirect URI** error. The allowlist was extended without changing
+the client ID or the public-client/consent settings. Both registered callbacks
+pass redirect validation at the token endpoint, and an unregistered callback is
+still rejected. These checks use a nonexistent authorization code; they do not
+prove that the user's browser consent and code exchange have completed.
+
+If this error recurs, inspect the failing authorization request's `redirect_uri`
+and `client_id`, then add only that exact trusted ChatGPT callback to the
+matching application's existing allowlist. Preserve existing callbacks and keep
+PKCE enabled. Retry Connect on the existing ChatGPT plugin after the update.
+The client ID is public configuration, not a credential. No client secret is
+needed or stored in Git.
 
 Install the resulting plugin, sign in to the intended Gitea account, and verify
 the identity using `get_me` and a repository read. Write tools use ChatGPT's
