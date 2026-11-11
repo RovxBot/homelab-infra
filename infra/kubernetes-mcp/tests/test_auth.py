@@ -77,6 +77,44 @@ async def test_dcr_rejects_unregistered_callbacks(app):
 
 
 @pytest.mark.asyncio
+async def test_oauth_requires_pkce_and_binds_consent(app):
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
+        registered = await client.post('/kubernetes/register', json={
+            'redirect_uris': [CHATGPT_CALLBACK], 'grant_types': ['authorization_code', 'refresh_token'],
+            'response_types': ['code'], 'token_endpoint_auth_method': 'none', 'scope': 'diagnostics.read'})
+        params = {'client_id': registered.json()['client_id'], 'redirect_uri': CHATGPT_CALLBACK,
+                  'response_type': 'code', 'scope': 'diagnostics.read', 'resource': PUBLIC_BASE + '/mcp', 'state': 'local-test-state'}
+        denied = await client.get('/kubernetes/authorize', params=params)
+        assert denied.status_code in (302, 303, 400)
+        assert 'error' in (denied.headers.get('location', '') + denied.text)
+        response = await client.get('/kubernetes/authorize', params={**params,
+            'code_challenge': 'a' * 43, 'code_challenge_method': 'S256'})
+        assert response.status_code in (302, 303), response.text
+        consent = await client.get(response.headers['location'])
+        assert consent.status_code == 200
+        assert 'consent' in consent.text.lower()
+        assert client.cookies, 'Consent must be bound to the initiating browser'
+
+
+@pytest.mark.asyncio
+async def test_invalid_token_never_reaches_initialize(app):
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
+        response = await client.post('/kubernetes/mcp', headers={'Authorization': 'Bearer invalid'},
+            json={'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}})
+        assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_missing_scope_returns_forbidden(app):
+    token = access_token().model_copy(update={'scopes': ['unrelated']})
+    with patch.object(AzureProvider, 'load_access_token', AsyncMock(return_value=token)):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
+            response = await client.post('/kubernetes/mcp', headers={'Authorization': 'Bearer local-test'},
+                json={'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list', 'params': {}})
+            assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('claims', [{'tid': 'another-tenant'}, {'oid': 'another-user'}, {'roles': []}])
 async def test_valid_signature_does_not_bypass_identity_authorization(auth, claims):
     with patch.object(AzureProvider, 'load_access_token', AsyncMock(return_value=access_token(**claims))):

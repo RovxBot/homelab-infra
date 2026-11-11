@@ -22,12 +22,12 @@ from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
 from key_value.aio.stores.disk import DiskStore
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
-from pydantic import Field
+from pydantic import Field, ValidationError
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
-from diagnostics import Diagnostics, LogQuery, Query, Resource
+from diagnostics import Diagnostics, LogQuery, Query, ReadError, Resource
 
 PUBLIC_BASE = 'https://git.cooked.beer/kubernetes'
 CHATGPT_CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect'
@@ -131,6 +131,12 @@ class DiagnosticControls(Middleware):
                     result = await call_next(context)
             record['result'] = 'ok'
             return result
+        except (ReadError, PermissionError) as error:
+            raise ToolError(str(error)) from None
+        except ValidationError:
+            raise ToolError('Invalid namespace, object name, selector or bounds') from None
+        except TimeoutError:
+            raise ToolError('Diagnostic deadline exceeded; narrow your query and retry') from None
         finally:
             record['duration_ms'] = round((time.monotonic() - start) * 1000)
             AUDIT.info(json.dumps(record, separators=(',', ':')))
@@ -153,6 +159,12 @@ class HTTPControls:
             return await JSONResponse({'error': 'rate_limited'}, 429, headers={'Retry-After': '60'})(scope, receive, send)
         self.window.append(now)
         self.inflight += 1
+        response_started = False
+        async def tracked_send(message):
+            nonlocal response_started
+            if message['type'] == 'http.response.start':
+                response_started = True
+            await send(message)
         try:
             body = bytearray()
             async with asyncio.timeout(15):
@@ -173,10 +185,10 @@ class HTTPControls:
                     return {'type': 'http.request', 'body': bytes(body), 'more_body': False}
                 return await receive()
             async with asyncio.timeout(35):
-                await self.app(scope, bounded_receive, send)
+                await self.app(scope, bounded_receive, tracked_send)
         except TimeoutError:
-            # Connections already streaming are closed by ASGI rather than leaking details.
-            return
+            if not response_started:
+                await JSONResponse({'error': 'request_timeout'}, 504)(scope, receive, send)
         finally:
             self.inflight -= 1
 

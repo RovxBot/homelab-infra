@@ -19,6 +19,10 @@ NAME = r'[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?'
 NAMESPACE = r'[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?'
 
 
+class ReadError(ValueError):
+    """A deliberately public, credential-free diagnostic failure."""
+
+
 class Resource(StrEnum):
     namespaces = 'namespaces'
     nodes = 'nodes'
@@ -233,18 +237,24 @@ class Diagnostics:
         prefix, plural, scoped = ROUTES[resource]
         self.authorize_namespace(query.namespace, scoped)
         if query.namespace and not scoped:
-            raise ValueError('This resource is cluster-scoped')
+            raise ReadError('This resource is cluster-scoped')
         path = prefix
         if scoped and query.namespace:
             path += '/namespaces/' + query.namespace
         path += '/' + plural
         if query.name:
             if scoped and not query.namespace:
-                raise ValueError('Named reads require a namespace')
+                raise ReadError('Named reads require a namespace')
             path += '/' + query.name
         return path
 
     async def get(self, path: str, params: dict, cap=MAX_BACKEND, text=False):
+        try:
+            return await self._get(path, params, cap=cap, text=text)
+        except (httpx.TimeoutException, httpx.NetworkError):
+            return {'available': False, 'message': 'Kubernetes API timed out or could not be reached; retry a focused query'}
+
+    async def _get(self, path: str, params: dict, cap=MAX_BACKEND, text=False):
         # Only private methods build paths. Callers cannot supply paths through MCP.
         headers = {'Authorization': 'Bearer ' + TOKEN.read_text().strip()}
         async with self.client.stream('GET', path, params=params, headers=headers) as response:
@@ -257,7 +267,7 @@ class Diagnostics:
             data = bytearray()
             async for chunk in response.aiter_bytes():
                 if len(data) + len(chunk) > cap:
-                    raise ValueError('Backend response exceeds cap; narrow namespace/labels or page size')
+                    raise ReadError('Backend response exceeds cap; narrow namespace/labels or page size')
                 data.extend(chunk)
             return data.decode('utf-8', errors='replace') if text else json.loads(data)
 
@@ -271,7 +281,7 @@ class Diagnostics:
             return raw
         objects = raw.get('items', [raw] if query.name else [])
         if len(objects) > 200:
-            raise ValueError('Backend ignored page limit; use a narrower query')
+            raise ReadError('Backend ignored page limit; use a narrower query')
         if resource == Resource.namespaces and '*' not in self.allowed_namespaces:
             objects = [o for o in objects if o.get('metadata', {}).get('name') in self.allowed_namespaces]
         items, size = [], 0
@@ -280,7 +290,7 @@ class Diagnostics:
             encoded_size = len(json.dumps(item, ensure_ascii=False).encode())
             if size + encoded_size > MAX_RESULT - 12288:
                 # Fail rather than discard objects behind a continuation token.
-                raise ValueError('Output cap reached; reduce limit or narrow selectors')
+                raise ReadError('Output cap reached; reduce limit or narrow selectors')
             items.append(item)
             size += encoded_size
         return {'source': 'kubernetes/' + resource.value, 'observed_at': datetime.now(timezone.utc).isoformat(),
@@ -308,7 +318,7 @@ class Diagnostics:
         if involved_name:
             Query(name=involved_name)
         if involved_kind and not re.fullmatch(r'[A-Za-z][A-Za-z0-9]{0,62}', involved_kind):
-            raise ValueError('Invalid involved kind')
+            raise ReadError('Invalid involved kind')
         selectors = []
         for key, value in [('type', 'Warning' if warning_only else None),
                            ('involvedObject.kind', involved_kind), ('involvedObject.name', involved_name)]:

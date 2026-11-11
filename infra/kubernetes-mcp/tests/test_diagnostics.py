@@ -156,6 +156,15 @@ async def test_api_outages_return_safe_unavailable_evidence(api, status):
 
 
 @pytest.mark.asyncio
+async def test_network_timeout_is_reported_without_exception_details(api):
+    def timeout(request):
+        raise httpx.ConnectTimeout('token=do-not-echo')
+    result = await api(timeout).resources(Resource.pods, Query(namespace='media'))
+    assert result['available'] is False
+    assert 'do-not-echo' not in json.dumps(result)
+
+
+@pytest.mark.asyncio
 async def test_token_rotation_read_on_every_call(api, tmp_path):
     seen = []
     client = api(lambda r: (seen.append(r.headers['Authorization']) or httpx.Response(200, json={'items': []})))
