@@ -80,6 +80,23 @@ are `https://git.cooked.beer/kubernetes/authorize` and
 `none`. The discovery document is
 `https://git.cooked.beer/.well-known/oauth-authorization-server/kubernetes`.
 
+If ChatGPT rejects creation with DCR, a public client is also pre-registered.
+Choose the registration option for your own/provided OAuth client and use:
+
+| Field | Value |
+| --- | --- |
+| Client ID | `bd56d726-6298-4e81-94b7-e9ed80e330a3` |
+| Client secret | Leave empty |
+| Token endpoint authentication | `none`, if shown |
+| Scope | `diagnostics.read` |
+| OIDC enabled / UserInfo | Off / empty |
+
+Keep the same server URL and OAuth endpoints. This client has the same exact
+ChatGPT callback, PKCE requirement and diagnostic permissions. It is persisted
+in the proxy's encrypted state. Its public authorization/consent flow has been
+verified through the redirect to Entra; successful creation and sign-in from
+ChatGPT remain a separate acceptance check.
+
 After connecting, ask: “List unhealthy pods across all namespaces. Correlate
 their current and previous logs with warning events, Flux conditions, available
 metrics and Longhorn volume health. Include object names and timestamps.”
