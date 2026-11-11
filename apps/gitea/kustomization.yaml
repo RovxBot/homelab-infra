@@ -12,6 +12,7 @@ resources:
   - database.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  - mcp.yaml
   - networkpolicies.yaml
   - mirroring.yaml
   - backups.yaml
