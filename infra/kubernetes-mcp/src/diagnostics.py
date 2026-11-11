@@ -305,6 +305,14 @@ class Diagnostics:
         body = await self.get(path, params, cap=query.byte_limit + 4, text=True)
         if isinstance(body, dict):
             return body
+        # Kubelet can send HTTP 200 with a retrieval error when containerd no
+        # longer has the referenced previous instance. Timestamped app logs
+        # start with their RFC3339 timestamp rather than this error prefix.
+        if query.timestamps and body.startswith('unable to retrieve container logs for '):
+            return {'available': False, 'source': 'kubernetes/pods/log',
+                    'namespace': query.namespace, 'pod': query.pod, 'container': query.container,
+                    'previous': query.previous,
+                    'message': 'Kubelet cannot retrieve this container instance; previous logs may no longer be retained'}
         safe = redact(body).encode()[:query.byte_limit].decode('utf-8', errors='ignore')
         return {'source': 'kubernetes/pods/log', 'namespace': query.namespace, 'pod': query.pod,
                 'container': query.container, 'previous': query.previous,

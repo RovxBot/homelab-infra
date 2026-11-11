@@ -13,6 +13,8 @@ spec:
       app: kubernetes-mcp
   template:
     metadata:
+      annotations:
+        homelab.cooked.beer/oauth-state-format: encrypted-json-v1
       labels:
         app: kubernetes-mcp
     spec:

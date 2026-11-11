@@ -204,6 +204,31 @@ Record its key ID and expiry privately. Rollback uses a reviewed Git revert;
 there is no workload data migration. Keep an old Entra credential only for the
 brief validated rollback window.
 
+## Deployment acceptance, 11 November 2026
+
+| Evidence | Status |
+| --- | --- |
+| Render/schema/Secret-reference/Kyverno and secret-scanning CI | Verified |
+| Focused diagnostic/authentication suite | Verified, 67 tests |
+| Public anonymous initialize, tools/list and tools/call | Verified, all 401 with the distinct resource challenge |
+| Public DCR, exact callbacks, S256, cookie-bound consent and scoped Entra redirect | Verified |
+| Live adapter reads with service-account impersonation | Verified, complete pagination over 178 pods and eight nodes; metrics, events, services/endpoints, storage and Flux |
+| Explicit RBAC denials | Verified, Secrets/ConfigMaps, exec/attach/port-forward/proxy, token creation, mutations and watch |
+| Finite fixture restarts, current-log redaction and Flux HealthCheckFailed | Verified using synthetic evidence only |
+| Fixture previous-container log content | Unavailable from the runtime; kubelet returned a retrieval error despite HTTP 200. The adapter reports unavailable evidence rather than application logs |
+| Encrypted client state after provider replacement | Verified by the persistence regression test |
+| In-cluster and public-authentication Gatus checks | Verified healthy |
+| Actual ChatGPT user sign-in/token exchange and signed-in ChatGPT diagnostic calls | Not run; connect the server and sign in using the setup above |
+
+The temporary `kubernetes-mcp-validation` Flux entry is removed after the test,
+allowing Flux to prune its failed Job. The independent two-minute log fixture
+was also removed. The finite Job source in `infra/kubernetes-mcp/validation`
+is retained as an opt-in drill, without a live reconciliation entry. Collect
+logs during its first restart: Kubernetes can delete the retrying Pod when the
+Job reaches its backoff limit. Neither the Job nor its log fixture mounts
+credentials or contacts another service. No private production evidence is
+included in this ledger.
+
 References: [OpenAI MCP OAuth](https://developers.openai.com/plugins/build/auth),
 [FastMCP Azure provider](https://gofastmcp.com/docs/integrations/azure),
 [FastMCP OAuth proxy](https://gofastmcp.com/docs/servers/auth/oauth-proxy),
