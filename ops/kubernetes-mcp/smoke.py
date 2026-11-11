@@ -47,7 +47,12 @@ def main():
                   ('get', 'nodes/proxy', False), ('create', 'serviceaccounts/token', False),
                   ('patch', 'deployments.apps', False), ('delete', 'pods', False), ('watch', 'pods', False)]
         for verb, resource, expected in checks:
-            response = subprocess.run(['kubectl', 'auth', 'can-i', verb, resource, '-n', 'diagnostics', identity],
+            # kubectl's RESOURCE/NAME syntax is not a subresource check.
+            parts = resource.split('/', 1)
+            command = ['kubectl', 'auth', 'can-i', verb, parts[0], '-n', 'diagnostics', identity]
+            if len(parts) == 2:
+                command += ['--subresource=' + parts[1]]
+            response = subprocess.run(command,
                                       text=True, capture_output=True, timeout=20)
             assert response.stdout.strip() == ('yes' if expected else 'no'), (verb, resource)
             print('RBAC', verb, resource, ': verified', 'allowed' if expected else 'denied')
