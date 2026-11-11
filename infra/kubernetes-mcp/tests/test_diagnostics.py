@@ -141,6 +141,15 @@ async def test_oversized_backend_is_rejected(api):
 
 
 @pytest.mark.asyncio
+async def test_kubelet_http_200_retrieval_error_is_unavailable_evidence(api):
+    result = await api(lambda r: httpx.Response(200, text='unable to retrieve container logs for containerd://gone')).logs(
+        LogQuery(namespace='media', pod='broken', container='app', previous=True))
+    assert result['available'] is False and result['previous'] is True
+    assert 'logs' not in result
+    assert 'containerd://gone' not in json.dumps(result)
+
+
+@pytest.mark.asyncio
 async def test_output_cap_never_silently_skips_page_members(api):
     pods = [{'metadata': {'name': 'pod-' + str(i)}, 'status': {'message': 'é' * 2048}}
             for i in range(100)]
