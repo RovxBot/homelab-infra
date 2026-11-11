@@ -2,6 +2,13 @@ tunnel: 19dd24d6-5e63-4ba3-a23c-fbebc7312e3f
 credentials-file: /etc/cloudflared/credentials.json
 metrics: 0.0.0.0:2000
 ingress:
+  # Independent Kubernetes MCP issuer/resource; never send these to Gitea.
+  - hostname: git.cooked.beer
+    path: ^/kubernetes(/.*)?$
+    service: http://kubernetes-mcp.diagnostics.svc.cluster.local:8080
+  - hostname: git.cooked.beer
+    path: ^/\.well-known/(oauth-protected-resource/kubernetes/mcp|oauth-authorization-server/kubernetes|openid-configuration/kubernetes)$
+    service: http://kubernetes-mcp.diagnostics.svc.cluster.local:8080
   # MCP and its OAuth resource discovery share Gitea's existing HTTPS hostname.
   # Keep these exact paths before the catch-all Gitea application route.
   - hostname: git.cooked.beer
