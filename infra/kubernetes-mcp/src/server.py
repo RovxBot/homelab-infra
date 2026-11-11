@@ -30,6 +30,14 @@ from diagnostics import Diagnostics, LogQuery, Query, ReadError, Resource
 PUBLIC_BASE = 'https://git.cooked.beer/kubernetes'
 CHATGPT_CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect'
 AUDIT = logging.getLogger('diagnostics.audit')
+HTTP_ROUTES = frozenset({
+    '/kubernetes/mcp', '/kubernetes/register', '/kubernetes/authorize',
+    '/kubernetes/token', '/kubernetes/revoke', '/kubernetes/consent',
+    '/kubernetes/auth/callback',
+    '/.well-known/oauth-authorization-server/kubernetes',
+    '/.well-known/openid-configuration/kubernetes',
+    '/.well-known/oauth-protected-resource/kubernetes/mcp',
+})
 
 
 class StrictAzureJWTVerifier(JWTVerifier):
@@ -150,6 +158,27 @@ class HTTPControls:
     async def __call__(self, scope, receive, send):
         if scope['type'] != 'http' or scope['path'] == '/healthz':
             return await self.app(scope, receive, send)
+        started, status = time.monotonic(), None
+        async def audit_send(message):
+            nonlocal status
+            if message['type'] == 'http.response.start':
+                status = message['status']
+            await send(message)
+        try:
+            return await self._handle_http(scope, receive, audit_send)
+        finally:
+            # Only constant route names are logged. Raw paths, queries, headers,
+            # redirect targets and bodies can contain OAuth codes or secrets.
+            AUDIT.info(json.dumps({
+                'time': datetime.now(timezone.utc).isoformat(), 'kind': 'http',
+                'route': scope['path'] if scope['path'] in HTTP_ROUTES else '[unmatched]',
+                'method': scope['method'] if scope['method'] in {'GET', 'POST', 'DELETE', 'OPTIONS'} else '[other]',
+                'status': status,
+                'authorization_present': any(key.lower() == b'authorization' for key, _ in scope.get('headers', [])),
+                'duration_ms': round((time.monotonic() - started) * 1000),
+            }, separators=(',', ':')))
+
+    async def _handle_http(self, scope, receive, send):
         now = time.monotonic()
         while self.window and now - self.window[0] >= 60:
             self.window.popleft()

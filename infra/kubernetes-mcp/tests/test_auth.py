@@ -177,6 +177,22 @@ async def test_http_body_and_global_rate_limits(app):
 
 
 @pytest.mark.asyncio
+async def test_http_audit_records_status_without_request_secrets(app, caplog):
+    with caplog.at_level('INFO', logger='diagnostics.audit'):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
+            response = await client.post('/kubernetes/mcp?code=private-query-marker',
+                headers={'Authorization': 'Bearer private-header-marker'}, content='private-body-marker')
+            assert response.status_code == 401
+            await client.get('/kubernetes/private-path-marker')
+    records = [json.loads(record.message) for record in caplog.records if record.name == 'diagnostics.audit']
+    assert records[0]['route'] == '/kubernetes/mcp'
+    assert records[0]['status'] == 401 and records[0]['authorization_present'] is True
+    assert records[1]['route'] == '[unmatched]'
+    assert all(marker not in caplog.text for marker in (
+        'private-query-marker', 'private-header-marker', 'private-body-marker', 'private-path-marker'))
+
+
+@pytest.mark.asyncio
 async def test_registration_has_independent_rate_limit(app):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='https://git.cooked.beer') as client:
         metadata = {'redirect_uris': [CHATGPT_CALLBACK], 'token_endpoint_auth_method': 'none'}
