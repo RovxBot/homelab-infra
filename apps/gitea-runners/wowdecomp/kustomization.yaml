@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - resources.yaml
   - job-security.yaml
+  - ../../../secrets/wowdecomp-toolchain-pull.enc.yaml
 configMapGenerator:
   - name: wowdecomp-linux-runner-config
     namespace: gitea-runners
