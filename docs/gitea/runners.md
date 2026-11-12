@@ -46,13 +46,13 @@ service; this design needs no additional autoscaling controller.
 
 Full-client jobs now have a private 8 GiB `emptyDir` mounted at `/cache`. This
 removes the former `metal4` pin and shared `ReadWriteOnce` build-cache mount.
-APT/ccache data is cold for each new job, so package setup and builds can take
-longer. The original `wowdecomp-ci-jobs/linux-build-cache` PVC remains detached
+ccache is cold for each new job; the immutable full-client image already
+contains the build and packaging dependencies. The original `wowdecomp-ci-jobs/linux-build-cache` PVC remains detached
 and outside Flux ownership for rollback; do not delete it during rollout.
 Infrastructure changes belong here; the older `Tools/CI/runner` manifests in
 the application repository describe the earlier manual deployment. Full-client
-jobs retain the existing pinned image and bounded package-installation/LSan
-capabilities; core jobs retain their separate stricter policy.
+jobs use the private digest-pinned toolchain and retain the existing bounded
+capabilities for LSan/coordinated rollback; core jobs retain their separate stricter policy.
 
 For rollout, merge the reviewed infrastructure change and let
 `apps-gitea-runners` reconcile. Apply quotas and policies before restarting
@@ -71,6 +71,46 @@ Rollback through Git after draining jobs. Restore the previous controller
 config and quota together; for the full-client pool, restore its `metal4` pin,
 named PVC mount and the previous policy's cache-volume allowance together.
 Preserve both runner-state PVCs and the detached cache throughout rollback.
+
+## Full-client toolchain image
+
+The authoritative recipe and complete version locks are in the private
+`github-dr/wowdecomp` repository at `Tools/CI/linux-toolchain/`. The image extends
+the previous Ubuntu 26.04 amd64 runner manifest using signed Ubuntu snapshot
+20261030T000000Z. Exact Debian versions include transitive dependencies; a second
+lock records inherited Git/LFS/Node and local compiler/library versions. APT runs
+only while assembling an intentionally updated image. Ordinary jobs verify
+packages/versions offline before the unchanged four-profile builds and AppImage
+packaging. There is no automatic rebuild for client source commits or schedules.
+
+Publication uses an operator-only rootless BuildKit builder, a private Unix
+socket, process sandboxing and a separate `write:package` credential. Ordinary CI
+gets no builder, Docker socket, privileged execution or publication token. The
+private Gitea image is promoted by digest in both `wowdecomp/config.yaml` and all
+`wowdecomp/job-security.yaml` pins. The package is linked to the private client
+repository. This is a pinned binary-package environment; no signed image
+attestation or vulnerability-free claim is implied.
+
+`secrets/wowdecomp-toolchain-pull.enc.yaml` holds the SOPS-encrypted
+`read:package` credential in `wowdecomp-ci-jobs`. The job template names it in
+`imagePullSecrets`. Kubelet can pull the image; the runner still cannot read
+existing Secrets, and admission rejects mounting this registry credential as a
+volume. No credential enters the image or client artifact. Rotate by promoting
+an encrypted replacement, testing a pull, then revoking the old token.
+
+Promotion sequence: publish and verify registry digest/amd64/private visibility;
+review the client lock/provenance change and the matching infrastructure PR;
+merge infrastructure after its required checks; drain jobs and let Flux update
+the generated ConfigMap/controller; verify admission and a cold pull; then run
+all four Linux profiles from the client PR. Pending CI is a handoff to the user,
+not permission to bypass required checks. Keep the source revision, package-lock
+hash, image digest, builder metadata and actual Actions checkout/run identities.
+
+Rollback through Git after draining: restore the previous image and every
+admission pin together, with matching client locks/provenance. Rolling back to
+the original bare runner image also requires restoring the matching APT installer
+and workflow from Git. Preserve registration/PVCs and the detached cache. Do not
+add a runtime package-download fallback or weaken sanitizer/admission checks.
 
 ## Core job isolation
 
