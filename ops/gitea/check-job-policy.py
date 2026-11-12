@@ -37,11 +37,17 @@ rejected = ['privileged', 'host-pid', 'host-path', 'token', 'extra-capability',
             'missing-drop-all', 'unconfined', 'sidecar', 'unapproved-image', 'persistent-cache']
 if args.pool == 'core':
     rejected += ['root', 'unlabelled-ptrace']
+else:
+    rejected += ['mounted-registry-credential', 'registry-env', 'registry-env-from', 'missing-pull-secret']
 for name in rejected:
     candidate = copy.deepcopy(sanitizer if args.pool == 'core' else pod)
     spec = candidate['spec']
     context = spec['containers'][0]['securityContext']
-    if name == 'privileged': context['privileged'] = True
+    if name == 'mounted-registry-credential': spec['volumes'].append({'name': 'registry', 'secret': {'secretName': 'wowdecomp-toolchain-pull'}})
+    elif name == 'registry-env': spec['containers'][0]['env'] = [{'name': 'LEAK', 'valueFrom': {'secretKeyRef': {'name': 'wowdecomp-toolchain-pull', 'key': '.dockerconfigjson'}}}]
+    elif name == 'registry-env-from': spec['containers'][0]['envFrom'] = [{'secretRef': {'name': 'wowdecomp-toolchain-pull'}}]
+    elif name == 'missing-pull-secret': spec.pop('imagePullSecrets')
+    elif name == 'privileged': context['privileged'] = True
     elif name == 'root':
         candidate = copy.deepcopy(pod)
         candidate['spec']['containers'][0]['securityContext']['runAsUser'] = 0

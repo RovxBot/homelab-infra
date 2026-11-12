@@ -24,13 +24,13 @@ spec:
         exclude:
         - controlName: Capabilities
           images:
-          - docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+          - git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812
         - controlName: Running as Non-root
           images:
-          - docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+          - git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812
         - controlName: Running as Non-root user
           images:
-          - docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+          - git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812
   - name: bound-job-environment
     match:
       any:
@@ -47,9 +47,11 @@ spec:
             homelab.cooked.beer/owner: sam
         spec:
           automountServiceAccountToken: false
+          imagePullSecrets:
+          - name: wowdecomp-toolchain-pull
           containers:
           - name: job
-            image: docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+            image: git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812
             resources:
               requests:
                 cpu: ?*
@@ -126,3 +128,42 @@ spec:
             - key: '{{ contains(keys(element), ''secret'') }}'
               operator: Equals
               value: false
+
+  - name: no-mounted-registry-credential
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      failureAction: Enforce
+      message: The registry credential is for kubelet image pulls only.
+      foreach:
+      - list: request.object.spec.volumes[]
+        deny:
+          conditions:
+            any:
+            - key: '{{ element.secret.secretName || `""` }}'
+              operator: Equals
+              value: wowdecomp-toolchain-pull
+
+  - name: no-registry-credential-in-environment
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      failureAction: Enforce
+      message: The registry credential cannot enter a job environment.
+      deny:
+        conditions:
+          any:
+          - key: '{{ request.object.spec.containers[].env[].valueFrom.secretKeyRef.name || `[]` }}'
+            operator: AnyIn
+            value:
+            - wowdecomp-toolchain-pull
+          - key: '{{ request.object.spec.containers[].envFrom[].secretRef.name || `[]` }}'
+            operator: AnyIn
+            value:
+            - wowdecomp-toolchain-pull
