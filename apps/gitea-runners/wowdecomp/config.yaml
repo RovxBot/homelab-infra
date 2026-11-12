@@ -8,8 +8,9 @@ runner:
   workdir_cleanup_age: 1h
   idle_cleanup_interval: 5m
   labels:
-  - wowdecomp-linux:kubernetes://docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+  - wowdecomp-linux:kubernetes://git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812
   envs:
+    WOWDECOMP_TOOLCHAIN_IMAGE: git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812
     CMAKE_BUILD_PARALLEL_LEVEL: '2'
     LIBGL_ALWAYS_SOFTWARE: '1'
 log:
@@ -34,6 +35,8 @@ kubernetes:
         wowdecomp.cooked.beer/toolchain: 'true'
         homelab.cooked.beer/runner-pool: wowdecomp-linux
     spec:
+      imagePullSecrets:
+      - name: wowdecomp-toolchain-pull
       automountServiceAccountToken: false
       enableServiceLinks: false
       nodeSelector:
