@@ -57,6 +57,11 @@ See [the IDE documentation](https://learn.chatgpt.com/docs/codex/ide) and
 
 ## Read-only Gitea MCP example
 
+For hosted Streamable HTTP and ChatGPT OAuth setup, see
+[Hosted Gitea MCP](chatgpt-mcp.md). That Deployment enforces the installed
+Codex configuration's 21-tool allowlist, including the intended write tools.
+The workstation example below is a separate, narrower read-only configuration.
+
 Use the maintained [Gitea MCP server](https://gitea.com/gitea/gitea-mcp), pinned
 to release **1.12.0**. Download its Linux x86_64 archive and checksum manifest
 from that release, verify the archive checksum, and install the binary as

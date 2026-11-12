@@ -146,7 +146,9 @@ jobs:
             --work-dir .work/kyverno-gate
 
       - name: Verify runner sandbox policy
-        run: python3 ops/gitea/check-job-policy.py --kyverno /usr/local/bin/kyverno
+        run: |
+          python3 ops/gitea/check-job-policy.py --kyverno /usr/local/bin/kyverno
+          python3 ops/gitea/check-job-policy.py --pool wowdecomp --kyverno /usr/local/bin/kyverno
 
       - name: Upload Kyverno gate artifacts
         if: failure()

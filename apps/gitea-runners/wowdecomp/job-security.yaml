@@ -1,0 +1,128 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: wowdecomp-linux-security
+  namespace: wowdecomp-ci-jobs
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+spec:
+  background: true
+  webhookConfiguration:
+    failurePolicy: Fail
+  rules:
+  - name: restricted-with-sanitizer-capability
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      failureAction: Enforce
+      podSecurity:
+        level: restricted
+        version: latest
+        exclude:
+        - controlName: Capabilities
+          images:
+          - docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+        - controlName: Running as Non-root
+          images:
+          - docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+        - controlName: Running as Non-root user
+          images:
+          - docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+  - name: bound-job-environment
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      failureAction: Enforce
+      message: Jobs require the pinned toolchain, no API token, no extra containers,
+        and explicit resources.
+      pattern:
+        metadata:
+          labels:
+            homelab.cooked.beer/owner: sam
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - name: job
+            image: docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+            resources:
+              requests:
+                cpu: ?*
+                memory: ?*
+              limits:
+                cpu: ?*
+                memory: ?*
+  - name: one-job-container
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      failureAction: Enforce
+      message: Only the job container is allowed; no init or ephemeral containers.
+      deny:
+        conditions:
+          any:
+          - key: '{{ length(request.object.spec.containers) }}'
+            operator: NotEquals
+            value: 1
+          - key: '{{ length(request.object.spec.initContainers || `[]`) }}'
+            operator: GreaterThan
+            value: 0
+          - key: '{{ length(request.object.spec.ephemeralContainers || `[]`) }}'
+            operator: GreaterThan
+            value: 0
+  - name: bounded-toolchain-capabilities
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      failureAction: Enforce
+      message: Only package installation and private-namespace LSan capabilities are
+        allowed.
+      foreach:
+      - list: request.object.spec.containers[]
+        deny:
+          conditions:
+            any:
+            - key: '{{ contains(element.securityContext.capabilities.drop || `[]`,
+                ''ALL'') }}'
+              operator: NotEquals
+              value: true
+            - key: '{{ element.securityContext.capabilities.add || `[]` }}'
+              operator: AnyNotIn
+              value:
+              - CHOWN
+              - DAC_OVERRIDE
+              - FOWNER
+              - SETUID
+              - SETGID
+              - SYS_PTRACE
+  - name: no-extra-job-credentials
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    validate:
+      failureAction: Enforce
+      message: Only ephemeral volumes and runner-created Secrets are permitted.
+      foreach:
+      - list: request.object.spec.volumes[]
+        deny:
+          conditions:
+            all:
+            - key: '{{ contains(keys(element), ''emptyDir'') }}'
+              operator: Equals
+              value: false
+            - key: '{{ contains(keys(element), ''secret'') }}'
+              operator: Equals
+              value: false

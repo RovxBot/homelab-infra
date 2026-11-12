@@ -93,6 +93,48 @@ spec:
             - "[STATUS] == 200"
           alerts:
             - type: github
+        - name: gitea-mcp
+          group: internal
+          url: http://gitea-mcp.gitea.svc.cluster.local:8080/healthz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
+        - name: gitea-mcp-authentication
+          group: edge-access
+          url: https://git.cooked.beer/mcp
+          method: POST
+          headers:
+            Content-Type: application/json
+            Accept: application/json, text/event-stream
+          body: '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"gatus","version":"1"}}}'
+          interval: 1m
+          conditions:
+            - "[STATUS] == 401"
+          alerts:
+            - type: github
+        - name: kubernetes-mcp
+          group: internal
+          url: http://kubernetes-mcp.diagnostics.svc.cluster.local:8080/healthz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: github
+        - name: kubernetes-mcp-authentication
+          group: edge-access
+          url: https://git.cooked.beer/kubernetes/mcp
+          method: POST
+          headers:
+            Content-Type: application/json
+            Accept: application/json, text/event-stream
+          body: '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"gatus","version":"1"}}}'
+          interval: 1m
+          conditions:
+            - "[STATUS] == 401"
+          alerts:
+            - type: github
         - name: gitea-backup
           group: internal
           url: http://gitea-protection.gitea.svc.cluster.local:8080/backupz

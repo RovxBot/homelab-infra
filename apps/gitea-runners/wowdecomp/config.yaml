@@ -1,0 +1,106 @@
+runner:
+  file: /data/.runner
+  # Slots create job pods only while work is queued.
+  capacity: 4
+  timeout: 90m
+  shutdown_timeout: 30s
+  patch_actions: true
+  workdir_cleanup_age: 1h
+  idle_cleanup_interval: 5m
+  labels:
+  - wowdecomp-linux:kubernetes://docker.gitea.com/runner-images@sha256:a1fbeeab26aaf29c41ebca4ab6924d5b5b4f438faca400630b663610116b30ce
+  envs:
+    CMAKE_BUILD_PARALLEL_LEVEL: '2'
+    LIBGL_ALWAYS_SOFTWARE: '1'
+log:
+  level: info
+  job:
+    dir: /data/logs
+    retention: 336h
+    max_size: 100MB
+cache:
+  enabled: true
+  dir: /data/cache
+  host: wowdecomp-linux-runner.gitea-runners.svc.cluster.local
+  port: 8088
+  v2: true
+  size_limit: 512MB
+kubernetes:
+  namespace: wowdecomp-ci-jobs
+  pod_template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+        wowdecomp.cooked.beer/toolchain: 'true'
+        homelab.cooked.beer/runner-pool: wowdecomp-linux
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        kubernetes.io/os: linux
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              homelab.cooked.beer/runner-pool: wowdecomp-linux
+      activeDeadlineSeconds: 6000
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 0
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: job
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsNonRoot: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - CHOWN
+            - DAC_OVERRIDE
+            - FOWNER
+            - SETUID
+            - SETGID
+            - SYS_PTRACE
+          runAsUser: 0
+          runAsGroup: 0
+        resources:
+          requests:
+            cpu: '2'
+            memory: 2Gi
+            ephemeral-storage: 4Gi
+          limits:
+            cpu: '3'
+            memory: 8Gi
+            # Workspace (16Gi), act (1Gi), cache (8Gi), plus writable layers/logs.
+            ephemeral-storage: 32Gi
+        volumeMounts:
+        - name: build-cache
+          mountPath: /cache
+      volumes:
+      - name: workspace
+        emptyDir:
+          sizeLimit: 16Gi
+      - name: act
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: build-cache
+        # A private cache removes the shared RWO volume's single-node constraint
+        # and disappears with the job. The former PVC is retained for rollback.
+        emptyDir:
+          sizeLimit: 8Gi
+health_check:
+  enabled: true
+  min_free_disk_space_mb: 256
+metrics:
+  enabled: true
+  addr: :9101
+  readiness_grace: 30s
