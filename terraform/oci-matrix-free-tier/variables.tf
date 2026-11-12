@@ -228,7 +228,7 @@ variable "matrix_element_image" {
   type        = string
 
   # renovate: datasource=docker depName=vectorim/element-web
-  default = "vectorim/element-web:latest@sha256:77aa7ef0c2f670cbfdbc1c228853f772c82773667b97fa980fe2ebb487e60150"
+  default = "vectorim/element-web:latest@sha256:40295f986fd91bd20abea686a23bb683e0e968c5635e8f1818b3b901db87e015"
 
   validation {
     condition     = can(regex("^vectorim/element-web:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_element_image))
