@@ -60,8 +60,9 @@ elif program == "restic":
     if os.environ.get("TEST_FAIL") == action:
         sys.exit(42)
     if action in ("check", "forget"):
-        # Integrity checks and retention must run after application recovery.
-        if state != {"gitea": 1, "gitea-protection": 1, "gitea-mirror": 0}:
+        # All remote work shares the cold timeout; the backup Pod must exit
+        # before an application on another node can acquire its RWO volumes.
+        if state != {"gitea": 0, "gitea-protection": 0, "gitea-mirror": 0}:
             sys.exit(43)
     print("[]" if action == "snapshots" else "{}")
 elif program == "pg_dump":
@@ -106,14 +107,14 @@ class BackupTests(unittest.TestCase):
         self.assertEqual((self.root / "protection/backup-failure.epoch").exists(), failed)
         self.assertEqual((self.root / "protection/backup-success.epoch").exists(), not failed)
 
-    def test_success_resumes_before_integrity_checks_and_keeps_mirror_retired(self):
+    def test_success_finishes_remote_work_before_resuming_and_keeps_mirror_retired(self):
         result = self.run_backup()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assert_recovered(failed=False)
         events = (self.root / "events").read_text()
         self.assertNotIn("scale gitea-mirror", events)
-        self.assertLess(events.index("scale gitea 1"), events.index("check started"))
-        self.assertLess(events.index("scale gitea-protection 1"), events.index("check started"))
+        self.assertLess(events.index("check started"), events.index("scale gitea 1"))
+        self.assertLess(events.index("forget started"), events.index("scale gitea-protection 1"))
 
     def test_preflight_failure_never_stops_services(self):
         result = self.run_backup(TEST_FAIL="snapshots")
@@ -152,6 +153,14 @@ class BackupTests(unittest.TestCase):
             if process.poll() is None:
                 process.kill()
                 process.communicate(timeout=5)
+
+    def test_integrity_check_shares_cold_timeout_and_does_not_hold_volumes_indefinitely(self):
+        result = self.run_backup(TEST_HANG="check", COLD_BACKUP_TIMEOUT="0.8s")
+        self.assertEqual(result.returncode, 124, result.stderr)
+        self.assert_recovered(failed=True)
+        events = (self.root / "events").read_text()
+        self.assertLess(events.index("check terminated"), events.index("scale gitea 1"))
+        self.assertNotIn("forget started", events)
 
     def test_integrity_failure_leaves_services_up_and_does_not_forget(self):
         result = self.run_backup(TEST_FAIL="check")

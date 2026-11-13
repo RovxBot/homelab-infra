@@ -50,8 +50,8 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      # Cold capture is separately bounded to 20 minutes. Remote integrity
-      # checking runs after services resume and may outlast the old 30m limit.
+      # Capture, integrity checking and retention share a 20-minute timeout.
+      # Allow scheduling, preflight, shutdown and cleanup outside that limit.
       activeDeadlineSeconds: 3600
       backoffLimit: 0
       ttlSecondsAfterFinished: 86400

@@ -19,6 +19,11 @@ if [[ "${1:-}" == capture ]]; then
   date -u +%FT%TZ > /work/export/captured-at
   restic backup /gitea /protection /mirror /recovery /work/export \
     --host cooked-gitea --tag gitea-cold --json > /work/backup-result.json
+  restic check
+  restic forget --host cooked-gitea --tag gitea-cold \
+    --keep-daily 14 --keep-weekly 8 --keep-monthly 12
+  # Pruning is an explicit maintenance operation. A failed capture or check
+  # never runs forget; this repository is separate from Longhorn and Immich.
   exit
 fi
 
@@ -97,17 +102,12 @@ for selector in 'app=gitea-mirror' 'app=gitea-protection' 'app.kubernetes.io/nam
   fi
 done
 
-echo 'Starting cold capture (maximum 20 minutes)'
+echo 'Starting cold capture and integrity verification (maximum 20 minutes)'
 run_command timeout --signal=TERM --kill-after=10s "${COLD_BACKUP_TIMEOUT:-20m}" "$BASH" "$0" capture
-# Checking the remote repository and applying retention do not need downtime.
+# This Pod holds the RWO volumes until it exits. Keep verification inside the
+# same timeout so rescheduled application Pods can acquire them promptly.
 resume_services
-echo 'Services resumed; checking backup integrity and retention'
-run_command timeout --kill-after=10s 15m restic check
-run_command timeout --kill-after=10s 2m restic forget --host cooked-gitea --tag gitea-cold \
-  --keep-daily 14 --keep-weekly 8 --keep-monthly 12
-# Pruning is an explicit maintenance operation; retention never touches the
-# Longhorn or Immich repositories. A failed backup never runs forget.
 date -u +%s > /protection/backup-success.partial
 mv /protection/backup-success.partial /protection/backup-success.epoch
 rm -f /protection/backup-failure.epoch
-echo 'Cold backup and repository metadata integrity check completed'
+echo 'Cold backup verified; application replicas restored and backup Pod exiting to release volumes'
