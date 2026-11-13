@@ -50,7 +50,9 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      activeDeadlineSeconds: 1800
+      # Cold capture is separately bounded to 20 minutes. Remote integrity
+      # checking runs after services resume and may outlast the old 30m limit.
+      activeDeadlineSeconds: 3600
       backoffLimit: 0
       ttlSecondsAfterFinished: 86400
       template:
