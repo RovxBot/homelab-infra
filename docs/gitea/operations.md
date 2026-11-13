@@ -61,8 +61,11 @@ Public application health, both repository checks and both runners recovered.
 
 The backup supervisor now waits asynchronously for a separate capture process
 group, so SIGTERM interrupts the wait and runs cleanup immediately. Cold capture
-has a 20-minute timeout and a ten-second forced termination limit. Services
-resume before remote integrity checks and retention; the overall Job deadline
+has a shared 20-minute timeout for capture, integrity checking and retention,
+and a ten-second forced termination limit. The backup Pod holds the RWO
+volumes until it exits, so checking remotely after restoring replica counts
+could still block application recovery on another node. All remote work
+finishes before replica restoration and Pod exit; the overall Job deadline
 is one hour. API requests during cleanup have a 15-second timeout. The retired
 mirror remains stopped, and any failure records `backup-failure.epoch`.
 
