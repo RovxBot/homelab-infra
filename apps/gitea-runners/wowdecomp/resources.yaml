@@ -141,7 +141,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: runner
-          image: docker.gitea.com/runner:5.4.1@sha256:a19f8dd10e66398e77429806e4fe10587cc7e9bade450f069cf5ad525d8a2b5d
+          image: docker.gitea.com/runner:6.0.0@sha256:f9a1f17484398b861c25a763b81febfb394b17b72e0522c25d8067d7b484f347
           command:
             - /bin/bash
             - -ec
