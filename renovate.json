@@ -13,11 +13,11 @@
   ],
   "rebaseWhen": "conflicted",
   "prCreation": "immediate",
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 3,
-  "branchConcurrentLimit": 3,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "branchConcurrentLimit": 0,
   "dependencyDashboardTitle": "Renovate Dependency Dashboard",
-  "dependencyDashboardApproval": true,
+  "dependencyDashboardApproval": false,
   "vulnerabilityAlerts": {
     "enabled": true,
     "dependencyDashboardApproval": false,
@@ -28,7 +28,12 @@
     "groupName": null,
     "schedule": [],
     "updateNotScheduled": true,
-    "rebaseWhen": "behind-base-branch"
+    "rebaseWhen": "behind-base-branch",
+    "automerge": false,
+    "groupSlug": null,
+    "minimumGroupSize": 1,
+    "commitMessageTopic": "{{{depName}}}",
+    "commitMessageExtra": "to {{newVersion}}"
   },
   "enabledManagers": [
     "dockerfile",
@@ -80,9 +85,266 @@
       ]
     }
   ],
+  "schedule": [
+    "* 6-17 * * 1"
+  ],
+  "updateNotScheduled": false,
+  "automerge": false,
+  "groupSingleUpdates": true,
+  "minimumGroupSize": 1,
+  "semanticCommits": "disabled",
   "packageRules": [
     {
-      "description": "Promote immutable Gitea toolchain and backup images through the Gitea Linux toolchain workflow; keep their Dockerfile dependencies tracked separately.",
+      "description": "Fallback application release groups keep related non-routine components together, including multiple deployments. Routine updates join weekly maintenance below.",
+      "matchFileNames": [
+        "apps/**"
+      ],
+      "groupName": "{{ lookup (split packageFile '/') 1 }} release",
+      "separateMajorMinor": false,
+      "groupSlug": "{{ lookup (split packageFile '/') 1 }}-release"
+    },
+    {
+      "description": "Routine patches, digests and pins share one Monday PR, including Docker references extracted from Terraform. Critical overrides follow this rule.",
+      "matchUpdateTypes": [
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "dependencyDashboardApproval": false,
+      "prPriority": 10,
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "{{groupName}}",
+      "commitMessageExtra": "",
+      "group": {
+        "commitMessageTopic": "{{groupName}}",
+        "commitMessageExtra": "",
+        "branchTopic": "{{{groupSlug}}}"
+      },
+      "rebaseWhen": "conflicted"
+    },
+    {
+      "description": "Explicitly approved minor releases; unlisted minors remain separately reviewable. Runtime, identity, provider and controller exceptions follow.",
+      "matchManagers": [
+        "dockerfile",
+        "custom.regex",
+        "flux",
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker",
+        "helm"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "matchPackageNames": [
+        "alpine",
+        "alpine/git",
+        "busybox",
+        "nginxinc/nginx-unprivileged",
+        "docker/dockerfile",
+        "composer",
+        "docker.gitea.com/gitea",
+        "docker.gitea.com/gitea-mcp-server",
+        "docker.gitea.com/runner",
+        "ghcr.io/raylabshq/gitea-mirror",
+        "gitea",
+        "ghcr.io/gethomepage/homepage",
+        "ghcr.io/immich-app/immich-server",
+        "ghcr.io/immich-app/immich-machine-learning",
+        "invoiceninja/invoiceninja",
+        "jellyfin/jellyfin",
+        "linuxserver/prowlarr",
+        "linuxserver/radarr",
+        "linuxserver/sabnzbd",
+        "linuxserver/sonarr",
+        "seerr/seerr",
+        "neosmemo/memos",
+        "ghcr.io/stirling-tools/stirling-pdf",
+        "wger/server",
+        "journeyapps/powersync-service",
+        "postgres",
+        "redis"
+      ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "dependencyDashboardApproval": false,
+      "prPriority": 10,
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "{{groupName}}",
+      "commitMessageExtra": "",
+      "group": {
+        "commitMessageTopic": "{{groupName}}",
+        "commitMessageExtra": "",
+        "branchTopic": "{{{groupSlug}}}"
+      },
+      "rebaseWhen": "conflicted"
+    },
+    {
+      "description": "BirdNET uses stable date tags, whose date changes Docker classifies as major. Both container occurrences share the weekly branch.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "apps/birdnet-go/deployment.yaml"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/tphakala/birdnet-go"
+      ],
+      "allowedVersions": "/^\\d{8}$/",
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": false,
+      "prPriority": 10,
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "{{groupName}}",
+      "commitMessageExtra": "",
+      "group": {
+        "commitMessageTopic": "{{groupName}}",
+        "commitMessageExtra": "",
+        "branchTopic": "{{{groupSlug}}}"
+      },
+      "rebaseWhen": "conflicted"
+    },
+    {
+      "description": "CI language runtime line upgrades are independent per language, including Python minors. Home Assistant retains its separate version constraint.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "uses-with"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "groupName": "CI {{depName}} runtime",
+      "groupSlug": "ci-{{depName}}-runtime",
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "Major Actions, reusable workflows and hosted-runner changes remain independent per dependency, across all workflows using that dependency.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "action",
+        "workflow",
+        "github-runner"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": null,
+      "groupSlug": null
+    },
+    {
+      "description": "Both Gitea runner deployments move together for a major upgrade, independently of the Gitea application.",
+      "matchPackageNames": [
+        "docker.gitea.com/runner"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "Gitea runners",
+      "groupSlug": "gitea-runners",
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "Terraform providers/modules/CLI are reviewed per dependency, never grouped just by directory. Custom Docker references are handled by image policies.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "groupName": null,
+      "groupSlug": null,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0,
+      "commitMessageTopic": "Terraform dependency {{depName}}"
+    },
+    {
+      "description": "Control-plane, storage and admission changes always require a maintenance decision. The Python-only automation exception is below.",
+      "matchFileNames": [
+        "infra/cilium/**",
+        "infra/kyverno/**",
+        "infra/kyverno-policies/**",
+        "infra/longhorn/**",
+        "infra/longhorn-node-disks/**",
+        "infra/gpu-operator/**",
+        "infra/snapshot-controller/**",
+        "clusters/home/flux-system/**"
+      ],
+      "groupName": "{{replace '-(node-disks|policies)$' '' (lookup (split packageFile '/') 1)}}",
+      "groupSlug": null,
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "Authentication and identity changes remain isolated even for patches and digests, including the Matrix images embedded in Terraform.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "vaultwarden/server",
+        "quay.io/oauth2-proxy/oauth2-proxy",
+        "ghcr.io/element-hq/synapse",
+        "vectorim/element-web"
+      ],
+      "groupName": "identity {{depNameSanitized}}",
+      "groupSlug": "identity-{{depNameSanitized}}",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "Keep Home Assistant release-line changes outside maintenance while AirTouch compatibility is repaired (#2021); supporting patches still batch normally.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/home-assistant/home-assistant"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "groupName": "Home Assistant release",
+      "groupSlug": "home-assistant",
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "OS, language and MySQL release-line changes need explicit compatibility review, including coordinated WotLK MySQL occurrences.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "php",
+        "python",
+        "node",
+        "ubuntu",
+        "mysql"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "groupName": "{{ lookup (split packageFile '/') 1 }} {{depName}} runtime",
+      "groupSlug": "{{ lookup (split packageFile '/') 1 }}-{{depName}}-runtime",
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "Only the tested Python automation images may bypass the controller maintenance gate. Major interpreter changes remain gated.",
       "matchManagers": [
         "kubernetes"
       ],
@@ -90,12 +352,145 @@
         "docker"
       ],
       "matchPackageNames": [
-        "ghcr.io/rovxbot/gitea-linux",
-        "ghcr.io/rovxbot/gitea-backup"
+        "python"
       ],
       "matchFileNames": [
-        "apps/gitea/**",
-        "apps/gitea-runners/**"
+        "infra/kyverno/automation/github-issue-sync-cronjob.yaml",
+        "infra/longhorn/weekly-backup-retention.yaml",
+        "infra/observability/gatus-github-issue-sync-cronjob.yaml",
+        "ops/longhorn/reviewed-backup-retention-job.yaml",
+        "apps/birdnet-go/deployment.yaml"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "weekly maintenance",
+      "groupSlug": "weekly-maintenance",
+      "dependencyDashboardApproval": false,
+      "prPriority": 10,
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "{{groupName}}",
+      "commitMessageExtra": "",
+      "group": {
+        "commitMessageTopic": "{{groupName}}",
+        "commitMessageExtra": "",
+        "branchTopic": "{{{groupSlug}}}"
+      },
+      "rebaseWhen": "conflicted"
+    },
+    {
+      "description": "Keep Home Assistant regression tests on Python 3.14, matching the deployed release. Review this constraint when Home Assistant changes its Python runtime.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "uses-with"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "matchFileNames": [
+        ".github/workflows/home-assistant-checks.yml"
+      ],
+      "allowedVersions": "/^3\\.14(?:\\.|$)/"
+    },
+    {
+      "description": "Use regex versioning for LinuxServer tags with -ls revisions.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "linuxserver/prowlarr",
+        "linuxserver/radarr",
+        "linuxserver/sabnzbd",
+        "linuxserver/sonarr"
+      ],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:\\.(?<build>\\d+))?-ls(?<revision>\\d+)$"
+    },
+    {
+      "description": "Jellyfin 12 uses a two-component stable Docker tag (12.0), while the 10.x tags use three components. Normalize the optional patch component so Renovate can detect the major upgrade.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "jellyfin/jellyfin"
+      ],
+      "matchFileNames": [
+        "apps/jellyfin/**"
+      ],
+      "versioning": "regex:^(?<major>\\d+)(?:\\.(?<minor>\\d+))?(?:\\.(?<patch>\\d+))?$"
+    },
+    {
+      "description": "Track the Wger 2.7 prerelease required by the mobile application; keep the exception limited to the Wger server image.",
+      "matchPackageNames": [
+        "wger/server"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "apps/wger/**"
+      ],
+      "ignoreUnstable": false,
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+))?(?:-(?:alpha|beta|rc)(?<prerelease>\\d+))?$"
+    },
+    {
+      "description": "Keep Kyverno on the last legacy-policy-compatible chart until the CEL policy and PolicyException migration is complete.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchPackageNames": [
+        "kyverno"
+      ],
+      "allowedVersions": "<3.10.0"
+    },
+    {
+      "description": "Only stable, coordinated Immich release tags are eligible; CI rejects mismatched server and machine-learning versions. Keep public Docker discovery enabled.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/immich-app/immich-server",
+        "ghcr.io/immich-app/immich-machine-learning"
+      ],
+      "allowedVersions": "/^v\\d+\\.\\d+\\.\\d+$/"
+    },
+    {
+      "description": "Database major upgrades need an explicit migration and rollback plan, including custom Terraform image extraction. Redis majors are also excluded.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/immich-app/postgres",
+        "mysql",
+        "mariadb",
+        "postgres",
+        "redis",
+        "mcr.microsoft.com/mssql/server"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Immutable pipeline outputs are promoted by their owning workflows, including references embedded in admission policies. Upstream Dockerfile bases remain tracked.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/rovxbot/gitea-linux",
+        "ghcr.io/rovxbot/gitea-backup",
+        "git.cooked.beer/github-dr/wowdecomp-linux-toolchain",
+        "ghcr.io/rovxbot/kubernetes-mcp",
+        "ghcr.io/rovxbot/azerothcore-wotlk",
+        "ghcr.io/rovxbot/skyfire-mop",
+        "ghcr.io/rovxbot/grimguzzler-registration",
+        "ghcr.io/rovxbot/openbrew-sqlserver"
       ],
       "enabled": false
     },
@@ -134,686 +529,6 @@
         "infra/cilium/ocirepository.yaml"
       ],
       "enabled": false
-    },
-    {
-      "description": "Require an explicit review for every infrastructure dependency update.",
-      "matchManagers": [
-        "dockerfile",
-        "custom.regex",
-        "flux",
-        "github-actions",
-        "kubernetes",
-        "terraform"
-      ],
-      "automerge": false
-    },
-    {
-      "description": "Group non-routine application releases and their supporting release changes per application. Include the triggering package in the Dashboard title for the release-batch workflow. Routine patch and digest changes are overridden by the weekly maintenance rule below.",
-      "matchFileNames": [
-        "apps/grimguzzler-registration/**",
-        "apps/home-assistant/**",
-        "apps/homepage/**",
-        "apps/immich/**",
-        "apps/invoiceninja/**",
-        "apps/jellyfin/**",
-        "apps/jellyseerr/**",
-        "apps/memos/**",
-        "apps/prowlarr/**",
-        "apps/radarr/**",
-        "apps/sabnzbd/**",
-        "apps/sonarr/**",
-        "apps/vaultwarden/**",
-        "apps/wger/**",
-        "apps/wotlk/**"
-      ],
-      "separateMajorMinor": false,
-      "groupSingleUpdates": true,
-      "commitMessageTopic": "{{groupName}} application dependency {{depName}}",
-      "group": {
-        "commitMessageTopic": "{{groupName}} application dependency {{depName}}"
-      },
-      "automerge": false
-    },
-    {
-      "description": "Group GitHub Action updates so workflow pins move together.",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "groupName": "github-actions",
-      "groupSlug": "github-actions",
-      "automerge": false
-    },
-    {
-      "description": "Open major GitHub Action and runner upgrades as a separate reviewable PR without Dashboard approval.",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchDepTypes": [
-        "action",
-        "workflow",
-        "github-runner"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "dependencyDashboardApproval": false,
-      "automerge": false
-    },
-    {
-      "description": "Keep CI language runtime line upgrades separate from Action and runner upgrades, with Dashboard approval before proposing them.",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchDepTypes": [
-        "uses-with"
-      ],
-      "matchFileNames": [
-        ".github/workflows/**",
-        "!.github/workflows/home-assistant-checks.yml"
-      ],
-      "groupName": "ci runtimes",
-      "groupSlug": "ci-runtimes",
-      "groupSingleUpdates": true,
-      "separateMajorMinor": false,
-      "dependencyDashboardApproval": true,
-      "automerge": false
-    },
-    {
-      "description": "Keep Home Assistant regression tests on Python 3.14, matching the deployed release. Review this constraint when Home Assistant changes its Python runtime.",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchDepTypes": [
-        "uses-with"
-      ],
-      "matchDepNames": [
-        "python"
-      ],
-      "matchFileNames": [
-        ".github/workflows/home-assistant-checks.yml"
-      ],
-      "allowedVersions": "/^3\\.14(?:\\.|$)/",
-      "automerge": false
-    },
-    {
-      "description": "Release every Terraform update, including major provider changes and both OCI roots, in one reviewable PR.",
-      "matchManagers": [
-        "custom.regex",
-        "terraform"
-      ],
-      "matchFileNames": [
-        "terraform/**"
-      ],
-      "groupName": "terraform",
-      "groupSlug": "terraform",
-      "separateMajorMinor": false,
-      "groupSingleUpdates": true,
-      "dependencyDashboardApproval": false,
-      "automerge": false
-    },
-    {
-      "description": "Keep the Grim Guzzler registration image build dependencies reviewable as one application change.",
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "matchFileNames": [
-        "ops/grimguzzler-registration/Dockerfile"
-      ],
-      "groupName": "grimguzzler-registration-image",
-      "groupSlug": "grimguzzler-registration-image",
-      "automerge": false
-    },
-    {
-      "description": "Require dashboard approval before a PHP runtime line upgrade is proposed.",
-      "matchFileNames": [
-        "ops/grimguzzler-registration/Dockerfile"
-      ],
-      "matchPackageNames": [
-        "php"
-      ],
-      "matchUpdateTypes": [
-        "major",
-        "minor"
-      ],
-      "dependencyDashboardApproval": true,
-      "labels": [
-        "dependencies",
-        "runtime-upgrade"
-      ],
-      "automerge": false
-    },
-    {
-      "description": "Kubernetes image updates (pin digests).",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "pinDigests": true
-    },
-    {
-      "description": "Use regex versioning for LinuxServer tags with -ls revisions.",
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "linuxserver/prowlarr",
-        "linuxserver/radarr",
-        "linuxserver/sabnzbd",
-        "linuxserver/sonarr"
-      ],
-      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:\\.(?<build>\\d+))?-ls(?<revision>\\d+)$"
-    },
-    {
-      "description": "Jellyfin 12 uses a two-component stable Docker tag (12.0), while the 10.x tags use three components. Normalize the optional patch component so Renovate can detect the major upgrade.",
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "jellyfin/jellyfin"
-      ],
-      "matchFileNames": [
-        "apps/jellyfin/**"
-      ],
-      "versioning": "regex:^(?<major>\\d+)(?:\\.(?<minor>\\d+))?(?:\\.(?<patch>\\d+))?$",
-      "automerge": false
-    },
-    {
-      "description": "Group Immich image updates together.",
-      "matchFileNames": [
-        "apps/immich/**"
-      ],
-      "groupName": "immich",
-      "groupSlug": "immich"
-    },
-    {
-      "description": "Keep Jellyfin dependencies in an independently testable update.",
-      "matchFileNames": [
-        "apps/jellyfin/**"
-      ],
-      "groupName": "jellyfin",
-      "groupSlug": "jellyfin"
-    },
-    {
-      "description": "Keep Jellyseerr dependencies in an independently testable update.",
-      "matchFileNames": [
-        "apps/jellyseerr/**"
-      ],
-      "groupName": "jellyseerr",
-      "groupSlug": "jellyseerr"
-    },
-    {
-      "description": "Keep Prowlarr dependencies in an independently testable update.",
-      "matchFileNames": [
-        "apps/prowlarr/**"
-      ],
-      "groupName": "prowlarr",
-      "groupSlug": "prowlarr"
-    },
-    {
-      "description": "Keep Radarr dependencies in an independently testable update.",
-      "matchFileNames": [
-        "apps/radarr/**"
-      ],
-      "groupName": "radarr",
-      "groupSlug": "radarr"
-    },
-    {
-      "description": "Keep SABnzbd dependencies in an independently testable update.",
-      "matchFileNames": [
-        "apps/sabnzbd/**"
-      ],
-      "groupName": "sabnzbd",
-      "groupSlug": "sabnzbd"
-    },
-    {
-      "description": "Keep Sonarr dependencies in an independently testable update.",
-      "matchFileNames": [
-        "apps/sonarr/**"
-      ],
-      "groupName": "sonarr",
-      "groupSlug": "sonarr"
-    },
-    {
-      "description": "Group InvoiceNinja stack updates together.",
-      "matchFileNames": [
-        "apps/invoiceninja/**"
-      ],
-      "groupName": "invoiceninja",
-      "groupSlug": "invoiceninja"
-    },
-    {
-      "description": "Keep Homepage dependencies separate from the cluster-health reporter.",
-      "matchFileNames": [
-        "apps/homepage/**"
-      ],
-      "groupName": "homepage",
-      "groupSlug": "homepage"
-    },
-    {
-      "description": "Keep the cluster-health reporter dependencies separate from Homepage.",
-      "matchFileNames": [
-        "infra/pod-report/**"
-      ],
-      "groupName": "cluster-health-reporter",
-      "groupSlug": "cluster-health-reporter"
-    },
-    {
-      "description": "Keep Cloudflare tunnel dependencies separate from VPN changes.",
-      "matchFileNames": [
-        "infra/cloudflared/**"
-      ],
-      "groupName": "cloudflared",
-      "groupSlug": "cloudflared"
-    },
-    {
-      "description": "Keep standalone WireGuard image updates separate from other infrastructure updates.",
-      "matchFileNames": [
-        "infra/wireguard/**"
-      ],
-      "groupName": "wireguard",
-      "groupSlug": "wireguard"
-    },
-    {
-      "description": "Group observability updates together.",
-      "matchFileNames": [
-        "infra/observability/**",
-        "infra/observability-config/**"
-      ],
-      "groupName": "observability",
-      "groupSlug": "observability",
-      "automerge": false
-    },
-    {
-      "description": "Group Grim Guzzler registration updates as one application update.",
-      "matchFileNames": [
-        "apps/grimguzzler-registration/**"
-      ],
-      "groupName": "grimguzzler-registration",
-      "groupSlug": "grimguzzler-registration",
-      "automerge": false
-    },
-    {
-      "description": "Group Home Assistant and its supporting images as one application update.",
-      "matchFileNames": [
-        "apps/home-assistant/**"
-      ],
-      "groupName": "home-assistant",
-      "groupSlug": "home-assistant",
-      "automerge": false
-    },
-    {
-      "description": "Group Memos updates as one application update.",
-      "matchFileNames": [
-        "apps/memos/**"
-      ],
-      "groupName": "memos",
-      "groupSlug": "memos",
-      "automerge": false
-    },
-    {
-      "description": "Group Vaultwarden updates as one application update.",
-      "matchFileNames": [
-        "apps/vaultwarden/**"
-      ],
-      "groupName": "vaultwarden",
-      "groupSlug": "vaultwarden",
-      "automerge": false
-    },
-    {
-      "description": "Group Wger and its supporting services as one application update.",
-      "matchFileNames": [
-        "apps/wger/**"
-      ],
-      "groupName": "wger",
-      "groupSlug": "wger",
-      "automerge": false
-    },
-    {
-      "description": "Track the Wger 2.7 prerelease required by the mobile application; keep the exception limited to the Wger server image.",
-      "matchPackageNames": [
-        "wger/server"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchFileNames": [
-        "apps/wger/**"
-      ],
-      "ignoreUnstable": false,
-      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+))?(?:-(?:alpha|beta|rc)(?<prerelease>\\d+))?$",
-      "automerge": false
-    },
-    {
-      "description": "Group Longhorn chart and node-disk changes as one storage update.",
-      "matchFileNames": [
-        "infra/longhorn/**",
-        "infra/longhorn-node-disks/**"
-      ],
-      "groupName": "longhorn",
-      "groupSlug": "longhorn",
-      "automerge": false
-    },
-    {
-      "description": "Group Kyverno engine and policy automation updates together.",
-      "matchFileNames": [
-        "infra/kyverno/**",
-        "infra/kyverno-policies/**"
-      ],
-      "groupName": "kyverno",
-      "groupSlug": "kyverno",
-      "automerge": false
-    },
-    {
-      "description": "Keep Kyverno on the last legacy-policy-compatible chart until the CEL policy and PolicyException migration is complete.",
-      "matchManagers": [
-        "flux"
-      ],
-      "matchPackageNames": [
-        "kyverno"
-      ],
-      "allowedVersions": "<3.10.0"
-    },
-    {
-      "description": "Keep the NVIDIA GPU Operator chart independently reviewable.",
-      "matchFileNames": [
-        "infra/gpu-operator/**"
-      ],
-      "groupName": "gpu-operator",
-      "groupSlug": "gpu-operator",
-      "automerge": false
-    },
-    {
-      "description": "Keep snapshot-controller upgrades independently reviewable alongside their storage API, CRD and RBAC compatibility.",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchFileNames": [
-        "infra/snapshot-controller/**"
-      ],
-      "groupName": "snapshot-controller",
-      "groupSlug": "snapshot-controller",
-      "groupSingleUpdates": true,
-      "dependencyDashboardApproval": true,
-      "automerge": false
-    },
-    {
-      "description": "Require a maintenance decision before cluster-control Helm upgrades.",
-      "matchManagers": [
-        "flux"
-      ],
-      "matchFileNames": [
-        "infra/kyverno/helmrelease.yaml",
-        "infra/longhorn/longhorn-helmrelease.yaml",
-        "infra/gpu-operator/helmrelease.yaml"
-      ],
-      "dependencyDashboardApproval": true,
-      "automerge": false
-    },
-    {
-      "description": "Disable major database image upgrades; handle these with explicit migration plans.",
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "ghcr.io/immich-app/postgres",
-        "mysql",
-        "postgres"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "enabled": false
-    },
-    {
-      "description": "Keep custom WotLK image promotion tags under the dedicated game-image pipeline.",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchFileNames": [
-        "apps/wotlk/**"
-      ],
-      "matchPackageNames": [
-        "ghcr.io/rovxbot/azerothcore-wotlk"
-      ],
-      "enabled": false
-    },
-    {
-      "description": "Group routine WotLK helper-image digest and patch updates without touching the pipeline-owned game images.",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchFileNames": [
-        "apps/wotlk/**"
-      ],
-      "matchPackageNames": [
-        "alpine",
-        "alpine/git",
-        "bitnami/kubectl"
-      ],
-      "groupName": "wotlk-helper-images",
-      "groupSlug": "wotlk-helper-images",
-      "automerge": false
-    },
-    {
-      "description": "Require dashboard approval before a WotLK MySQL minor update is proposed.",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchFileNames": [
-        "apps/wotlk/**"
-      ],
-      "matchPackageNames": [
-        "mysql"
-      ],
-      "matchUpdateTypes": [
-        "minor"
-      ],
-      "dependencyDashboardApproval": true,
-      "automerge": false
-    },
-    {
-      "description": "Require dashboard approval before a WotLK Ubuntu base-image line update is proposed.",
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "matchFileNames": [
-        "ops/wotlk-images/Dockerfile"
-      ],
-      "matchPackageNames": [
-        "ubuntu"
-      ],
-      "matchUpdateTypes": [
-        "major",
-        "minor"
-      ],
-      "dependencyDashboardApproval": true,
-      "automerge": false
-    },
-    {
-      "description": "Don't auto-merge major updates.",
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "automerge": false
-    },
-    {
-      "description": "Collect routine image, chart and Action patch/digest/pin updates in one Monday maintenance PR. Keep cluster-control components, Terraform and pipeline-owned game images outside this batch.",
-      "matchManagers": [
-        "dockerfile",
-        "flux",
-        "github-actions",
-        "kubernetes"
-      ],
-      "matchUpdateTypes": [
-        "patch",
-        "digest",
-        "pin",
-        "pinDigest"
-      ],
-      "matchFileNames": [
-        "!infra/cilium/**",
-        "!infra/kyverno/**",
-        "!infra/kyverno-policies/**",
-        "!infra/longhorn/**",
-        "!infra/longhorn-node-disks/**",
-        "!infra/gpu-operator/**",
-        "!infra/snapshot-controller/**",
-        "!clusters/home/flux-system/**"
-      ],
-      "groupName": "weekly maintenance",
-      "groupSlug": "weekly-maintenance",
-      "groupSingleUpdates": true,
-      "dependencyDashboardApproval": false,
-      "schedule": [
-        "* * * * 1"
-      ],
-      "updateNotScheduled": false,
-      "commitMessageTopic": "{{groupName}}",
-      "group": {
-        "commitMessageTopic": "{{groupName}}"
-      },
-      "automerge": false
-    },
-    {
-      "description": "Include registration build-frontend and Composer minor upgrades in weekly maintenance; the registration workflow validates the build and smoke tests the image. PHP runtime line upgrades retain Dashboard approval.",
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "matchPackageNames": [
-        "docker/dockerfile",
-        "composer"
-      ],
-      "matchFileNames": [
-        "ops/grimguzzler-registration/Dockerfile"
-      ],
-      "matchUpdateTypes": [
-        "minor"
-      ],
-      "groupName": "weekly maintenance",
-      "groupSlug": "weekly-maintenance",
-      "groupSingleUpdates": true,
-      "dependencyDashboardApproval": false,
-      "schedule": [
-        "* * * * 1"
-      ],
-      "updateNotScheduled": false,
-      "commitMessageTopic": "{{groupName}}",
-      "group": {
-        "commitMessageTopic": "{{groupName}}"
-      },
-      "automerge": false
-    },
-    {
-      "description": "Include Gitea application, chart, runner and mirror minor releases plus routine pins/digests in weekly maintenance. Major component upgrades and toolchain OS/runtime upgrades retain separate review.",
-      "matchManagers": [
-        "custom.regex",
-        "flux",
-        "kubernetes"
-      ],
-      "matchDatasources": [
-        "docker",
-        "helm"
-      ],
-      "matchPackageNames": [
-        "docker.gitea.com/gitea",
-        "docker.gitea.com/runner",
-        "ghcr.io/raylabshq/gitea-mirror",
-        "gitea"
-      ],
-      "matchFileNames": [
-        "apps/gitea/**",
-        "apps/gitea-runners/**"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "digest",
-        "pin",
-        "pinDigest"
-      ],
-      "groupName": "weekly maintenance",
-      "groupSlug": "weekly-maintenance",
-      "groupSingleUpdates": true,
-      "dependencyDashboardApproval": false,
-      "schedule": [
-        "* * * * 1"
-      ],
-      "updateNotScheduled": false,
-      "commitMessageTopic": "{{groupName}}",
-      "group": {
-        "commitMessageTopic": "{{groupName}}"
-      },
-      "automerge": false
-    },
-    {
-      "description": "Batch BirdNET's stable YYYYMMDD releases and digest changes weekly, including date changes that Docker versioning classifies as major. Do not switch to floating, prerelease or semantic-version tags.",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "ghcr.io/tphakala/birdnet-go"
-      ],
-      "matchFileNames": [
-        "apps/birdnet-go/deployment.yaml"
-      ],
-      "allowedVersions": "/^\\d{8}$/",
-      "separateMajorMinor": false,
-      "groupName": "weekly maintenance",
-      "groupSlug": "weekly-maintenance",
-      "groupSingleUpdates": true,
-      "dependencyDashboardApproval": false,
-      "schedule": [
-        "* * * * 1"
-      ],
-      "updateNotScheduled": false,
-      "commitMessageTopic": "{{groupName}}",
-      "group": {
-        "commitMessageTopic": "{{groupName}}"
-      },
-      "automerge": false
-    },
-    {
-      "description": "Include Python helper-image minor, patch, digest and pin updates in weekly maintenance. CI checks the proposed images; controller and CI runtime approval gates remain separate.",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "python"
-      ],
-      "matchFileNames": [
-        "infra/kyverno/automation/github-issue-sync-cronjob.yaml",
-        "infra/longhorn/weekly-backup-retention.yaml",
-        "infra/observability/gatus-github-issue-sync-cronjob.yaml",
-        "ops/longhorn/reviewed-backup-retention-job.yaml"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "digest",
-        "pin",
-        "pinDigest"
-      ],
-      "groupName": "weekly maintenance",
-      "groupSlug": "weekly-maintenance",
-      "groupSingleUpdates": true,
-      "dependencyDashboardApproval": false,
-      "schedule": [
-        "* * * * 1"
-      ],
-      "updateNotScheduled": false,
-      "commitMessageTopic": "{{groupName}}",
-      "group": {
-        "commitMessageTopic": "{{groupName}}"
-      },
-      "automerge": false
     }
   ]
 }

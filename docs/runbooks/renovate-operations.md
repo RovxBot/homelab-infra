@@ -1,250 +1,210 @@
-# Renovate operations
+# Renovate Monday patch day
 
-The hosted Renovate GitHub App is the sole dependency-update runner for this
-repository. It owns the Dependency Dashboard and creates reviewable PRs.
-There is intentionally no scheduled Renovate GitHub Actions workflow.
+The refactor reduces 52 package rules / 819 configuration lines to 24 rules /
+534 lines. It removes repeated application-directory and automerge rules,
+the global approval requirement and custom title-parsing approval workflow,
+and the broad Actions, mixed-language runtime and cross-root Terraform buckets.
+Critical exceptions follow the broad maintenance rules; disabled dependencies
+are terminal safeguards. The sole later approval exception names specific
+tested Python helpers and is covered by precedence tests.
 
-Renovate creates at most three open dependency branches/PRs and at most two
-new PRs per hour. This keeps the review queue aligned with the single-owner
-maintenance cadence. Security PRs can still bypass the normal concurrent limit.
-The limits do not close existing PRs; triage or close those explicitly from the
-Dashboard.
+The hosted Renovate GitHub App owns dependency discovery, the Dashboard and PRs.
+There is no scheduled Renovate Actions runner or Dashboard-editing approval bot.
+All updates require CI and a manual merge. Merging GitOps manifests to `main`
+allows Flux to reconcile them; creating the implementation PR deploys nothing.
 
-After merging this configuration, let the hosted App reconcile its Dashboard.
-Existing PRs are not merged into the weekly PR automatically; review the old
-queue and close superseded routine PRs if Renovate has not pruned them. Their
-replacement updates are eligible for the Monday batch. Existing non-routine
-PRs still occupy the three-PR limit, so the weekly PR may wait for a free slot.
+Normal maintenance uses **one `Update weekly maintenance` PR** on the persistent
+`renovate/weekly-maintenance` branch, Monday **06:00–18:00 Australia/Adelaide**
+(`* 6-17 * * 1`, including daylight saving). The hosted App must actually run
+inside that window; the schedule does not start a job. An unmerged batch stays
+open across weeks. It requires no Dependency Dashboard approval.
 
-Routine patch, digest and pin updates for application/infrastructure images,
-non-critical charts and GitHub Actions share one `weekly maintenance` PR.
-Renovate may create or refresh this batch on Mondays in `Australia/Adelaide`;
-the full-day window gives the hosted App time to run. These updates do not need
-Dashboard approval and are held outside Monday, including updates to an
-already-open batch. One batch remains open until reviewed; this is not a new
-PR every week when an earlier batch is still pending.
+Routine patches, digests, pins and digest pins share this branch across
+applications, helpers, Dockerfile bases, ordinary Helm charts and Actions.
+The Terraform regex manager's PostgreSQL image digests join it too. Minor
+updates join only for the named packages in the explicit allowlist in
+[`renovate.json`](../../renovate.json). That list includes the approved Gitea,
+Immich, Wger, Invoice Ninja, media and supporting-container release channels.
+Unlisted minors open independently, or in their application's release group.
+Action minors are not implicitly allowlisted. Calendar versions, floating-tag
+digest changes and upstream minor releases still need a careful diff review.
 
-Minor updates to the digest-pinned `docker/dockerfile` frontend and Composer in
-`ops/grimguzzler-registration/Dockerfile` also join weekly maintenance without
-Dashboard approval. PHP runtime line upgrades still need approval. The
-registration workflow builds the image and runs its smoke tests on the weekly
-PR when that Dockerfile changes.
+`prPriority: 10` prioritises maintenance. PR, branch and hourly creation limits
+are `0` (unlimited), so outstanding exceptional PRs cannot consume its capacity.
+Grouping and explicit approval gates control the queue instead of throttling it.
+`groupSingleUpdates: true` and `minimumGroupSize: 1` let even one eligible update
+create the maintenance PR. Its group branch template also overrides Docker's
+separate `digests-pin` template. Do not add a minimum batch size globally.
 
-Gitea application, Helm chart, runner and mirror minor releases also join the
-Monday batch, alongside their routine patches and digest updates. Major
-component upgrades, PostgreSQL majors and toolchain OS/runtime upgrades remain
-outside this exception. Take a verified cold snapshot and review Gitea's
-migration/recovery notes before merging a batch containing Gitea changes.
+`updateNotScheduled: false` and `rebaseWhen: conflicted` retain a stable PR
+outside Monday. They do not guarantee one immutable commit or one CI execution:
+new releases during Monday, conflicts, explicit Dashboard rebase/retry requests,
+security fixes and branch-protection requirements can create fresh commits.
+GitHub currently requires up-to-date branches on `main`, so merging another PR
+first may require rebasing maintenance and running CI again. Keep the existing
+five required checks (`repo-checks`, `actionlint`, `gitleaks`, `validate`,
+`yamllint`); irrelevant checks may report skipped through the existing selector.
+Code-owner review and dismissal of stale reviews also remain configured.
 
-BirdNET's stable eight-digit `YYYYMMDD` image tags join weekly maintenance,
-including date changes Renovate's Docker versioning labels as major. This is
-an explicit exception for that release channel, not a compatibility claim.
-Floating, prerelease and semantic-version tags are excluded. Both the init
-container and main container must move together. Check the dashboard reader's
-schema compatibility as described in the [BirdNET runbook](birdnet-go.md).
+For the usual single CI cycle, review and merge the current maintenance head
+before advancing `main` with exceptional upgrades. Request an individual
+Renovate rebase/retry only when necessary, then wait for fresh CI and renew any
+stale review. Avoid the Dashboard's rebase-all control. GitHub's Update branch
+button can add a human commit and leave a Renovate PR blocked as edited.
 
-Other minor and major releases retain their existing per-application groups and
-Dashboard approval behavior. Renovate batches a supported application and its
-non-routine supporting-image changes into that application's release PR. The
-`renovate-release-app-batches` workflow approves a batch only when its
-Dashboard entry includes a tracked primary application image. It reads the
-current Dashboard once per relevant event and exits successfully without
-writing when no application release needs approval. Later Dashboard edits
-trigger a fresh read when new application releases appear. Renovate creates one
-PR containing that release and the pending non-routine supporting-image changes
-in the same application group. Routine patches/digests go into weekly
-maintenance instead. A supporting-image-only release batch remains in the
-Dashboard for manual triage.
+## Upgrade exceptions
 
-Application release titles set both `commitMessageTopic` and
-`group.commitMessageTopic`. Renovate applies the group template even when
-`groupSingleUpdates` produces a one-package batch; without that override, a
-Jellyfin-only release appears as `update jellyfin` and the approval workflow
-cannot identify `jellyfin/jellyfin`. Multiple-package entries also list their
-packages, so the primary image remains detectable when a helper supplies the
-title. The weekly rule overrides both templates to keep its usual batch title.
-After this correction reaches `main`, let the hosted App regenerate the
-Dashboard titles; that edit triggers application-release approval.
+All ordinary exceptions use Monday's creation/refresh window, but may be
+reviewed and merged later. The Dashboard gates below approve PR creation;
+they never approve merging or deploying.
 
-Cluster-control components (Cilium, Flux bootstrap, Kyverno, Longhorn, GPU
-Operator and snapshot-controller) stay out of weekly maintenance. Python
-helper images in these four manifests are narrow exceptions:
+| Change | Result |
+| --- | --- |
+| Major application releases | One release group per application; related deployments and non-routine supporting releases share it. Unrelated applications stay separate. |
+| Gitea runner majors | One gated `gitea-runners` PR for both runner deployments, separate from the Gitea application. |
+| Action, reusable workflow and hosted runner majors | Separate per dependency, shared across workflows using that dependency. |
+| CI language release lines | Gated groups per language, separating Node from Python. Home Assistant's regression workflow remains restricted to Python 3.14. |
+| Terraform providers, modules and CLI | Gated per dependency across roots. No directory-wide infrastructure group; embedded Docker images follow image policies. |
+| Longhorn, Kyverno, GPU Operator, snapshot-controller, Flux control components | Gated by component, including patches and digests; review API, CRD, RBAC and maintenance compatibility. Kyverno remains `<3.10.0`; Longhorn still requires its supported upgrade sequence and engine procedure. |
+| Identity images (Vaultwarden, OAuth2 Proxy, Synapse, Element) | Isolated, gated per dependency, including patches and digests. |
+| OS/language/MySQL release lines | Gated by application or image-build context and package. Unrelated MySQL/Ubuntu environments do not share upgrade PRs. |
+| Home Assistant release lines | Gated `home-assistant` PR while #2021's AirTouch regression remains unresolved. Patches and compatible helper maintenance can batch. |
+| PostgreSQL, Immich PostgreSQL, MySQL, MariaDB, Redis and SQL Server majors | Disabled; explicit migration and rollback plans are required. Never include them merely because they share an application directory. |
 
-- `infra/kyverno/automation/github-issue-sync-cronjob.yaml`
-- `infra/longhorn/weekly-backup-retention.yaml`
-- `infra/observability/gatus-github-issue-sync-cronjob.yaml`
-- `ops/longhorn/reviewed-backup-retention-job.yaml`
+Only the named Python helper images in the four existing issue-sync/retention
+manifests and the BirdNET dashboard may bypass the controller/runtime minor gate.
+Their patches, digests and minors batch; interpreter majors require approval.
+Existing CI tests proposed issue-sync/retention images in isolated containers.
+BirdNET's stable eight-digit date tags remain a narrow weekly exception to
+Docker's major classification. Wger prerelease, LinuxServer `-ls` and Jellyfin's
+two/three-component versioning remain supported.
 
-Their minor, patch, digest and pin updates join the Monday batch without
-Dashboard approval. Major Python upgrades still require approval. This exception
-does not cover CI language runtime inputs or application runtimes.
+Native per-application grouping replaces the old title-parsing approval bot.
+`separateMajorMinor: false` on the application fallback allows the components
+of a release to share a branch; later routine rules move low-risk updates into
+maintenance. Grouping alone does not prove compatibility or select a matching
+helper release. Review migration notes and change compatibility constraints
+explicitly when required. Routine helper updates are not duplicated into a
+simultaneous risky release PR.
 
-Manifest validation runs the Longhorn retention and engine-guard tests plus
-issue-sync smoke checks in every distinct digest-pinned Python helper image
-from the PR's manifests. Containers use a read-only checkout, no network and
-no live credentials. Changes to the manual retention Job also select this check.
-These checks exercise runtime compatibility; they do not contact the cluster
-or validate a live backup deletion. All updates still need manual merge review.
+Immich server and machine-learning accept only stable `vX.Y.Z` tags and share
+maintenance or their application's release group. CI's
+`check_immich_versions.py` rejects unequal application tags and missing digests,
+so an asynchronous registry publication cannot produce a mergeable partial
+upgrade. Each image keeps its own digest. If one image's lookup lags, wait for
+both and refresh the PR; do not loosen the check. PostgreSQL is checked under
+the separate database policy.
 
-Snapshot-controller has its own group and Dashboard approval gate for every
-update type, including patches and digests. Review the upstream CRDs and RBAC
-alongside its image; the vendored YAML does not update with an image bump.
-Terraform remains in its own group.
-The existing disabled database majors, primary-CNI runbook and pipeline-owned
-WotLK image exclusions still apply. A digest update to a floating tag can change
-runtime behavior; review the complete weekly diff before merging.
+GitHub vulnerability-alert fixes are immediate, ungrouped, labelled `security`,
+without Dashboard approval, and bypass normal schedule and concurrency limits.
+They still cannot auto-merge. Their branches may rebase behind `main` for timely
+validation. This uses Renovate's supported GitHub alert integration, not a
+promise to discover every container CVE.
 
-The workflow does not run Renovate or create dependency branches itself. It has
-only `issues: write`, edits the existing Dashboard checkbox, and is limited to
-the primary images listed in the workflow. Add a primary image there when adding
-a new application batch rule. It also scans the existing Dashboard after a
-relevant change reaches `main`, so a pending application release is not left
-waiting for a later Dashboard edit. This preserves the hosted Renovate GitHub
-App as the sole dependency-update runner.
+## Immutable promotion and lookup findings
 
-Dashboard approval runs are serialized without canceling the active run.
-Repeated edits can replace a queued run; the next run reads the current
-Dashboard. There is no polling or waiting for an application release to appear.
+Docker digest pinning and Actions SHA pinning remain enabled. Terminal disabled
+rules protect pipeline output references across managers and paths, including
+hardcoded admission-policy references. The Gitea rootless regex manager alone
+updates its plain tag and separate digest atomically; duplicate Flux image
+extraction remains disabled. The Terraform image regex manager is unchanged.
+Cilium's OCI source remains disabled for its dedicated primary-CNI workflow,
+and generated Flux bootstrap components remain excluded and digest checked.
 
-Terraform updates bypass Dashboard approval and are grouped across every
-Terraform root and update type into one reviewable PR.
+Promote Gitea toolchain/backup digests together through the Linux-toolchain
+build, smoke tests and artifact review; update runner configuration, admission
+policy, backup jobs and restore tools together. The wowdecomp toolchain and
+Kubernetes MCP are also immutable pipeline outputs. MoP, WotLK, registration
+and OpenBrew database outputs remain under their respective image workflows.
+Renovate tracks upstream Dockerfile bases but does not retarget these outputs.
+Never add floating `latest` tags to silence a lookup failure.
 
-Major GitHub Actions updates, including runner-image upgrades detected by the
-GitHub Actions manager, bypass Dashboard approval and open separately in the
-`major-github-actions` group. They do not wait for Monday, and still require
-successful CI and manual merge review. Routine Action patch/digest/pin updates
-join weekly maintenance; minor Action updates retain Dashboard approval.
+Audit observations on 15 November 2026 (Adelaide):
 
-Language runtime inputs such as `python-version` and `node-version` are
-distinct from Action versions. Their minor and major upgrades in general CI
-form a separate `ci-runtimes` group and require Dashboard approval. Routine
-runtime patches retain the weekly maintenance schedule. Home Assistant's
-regression workflow is constrained to Python 3.14 to match the deployed release;
-review that constraint alongside a Home Assistant release that changes its
-Python runtime. Do not approve an old combined Python entry before the hosted
-App has reconciled these rules and excluded the Home Assistant workflow.
+- Both public Immich `v3.4.0` tags and pinned manifests returned HTTP 200 with
+  anonymous pull tokens. Native Renovate lookup found **both `v3.4.1` images**
+  and their distinct digests. No credential fix was needed locally. The hosted
+  Dashboard's earlier `no-result` cannot be attributed conclusively to auth,
+  missing tags or configuration; neither image is disabled by this refactor.
+- Kubernetes MCP permits anonymous pulls of its pinned digest and exposes
+  revision tags. `latest` returned **404 MANIFEST_UNKNOWN**. Digest-only
+  extraction caused Renovate to look for a default tag the publishing workflow
+  never creates. The pipeline-owned exclusion removes that inappropriate lookup.
+- The private wowdecomp registry returned an edge **403 / code 1010** to a
+  generic HTTP client. Native Renovate reached its registry challenge but the
+  anonymous token request returned **401** and reproduced
+  `No docker auth found - returning`. These are distinct responses, not evidence
+  that every failing package needs credentials. Its security-policy image must
+  be promoted with the owning pipeline, so it is excluded instead.
+- Renovate emits `Invalid registry response` when the auth probe gets neither
+  HTTP 200 nor a valid HTTP 401 authentication challenge. An edge-block response
+  can cause it, but the Dashboard omits the originating request. Its precise
+  historical cause remains unverified without the hosted Mend job log.
 
-The repository explicitly allows `ubuntu-26.04` in `.github/actionlint.yaml`
-because the pinned actionlint 1.7.8 does not recognise that GitHub-hosted label.
-Home Assistant CI has already passed on this runner. Remove the allowance when
-the pinned linter includes it. Changes to either supported actionlint config
-filename select workflow validation. After this fix reaches `main`, request a
-rebase of the outstanding major Actions PR and wait for checks on the new head;
-retrying its old head will still use the old linter configuration.
+After merging, let the hosted App reconcile and inspect its next log. If Immich
+still reports `no-result`, record the exact tag-list/pagination request, HTTP
+status and registry error, and request a fresh lookup/retry through Mend. Compare
+that response with the successful anonymous GHCR probe before adding credentials.
+A 401 requires checking the token challenge and package pull access; an edge 403
+requires correcting the proxy/WAF allowance for the hosted runner. No credentials
+are needed for excluded pipeline references. If intentionally restoring private
+upstream tracking later, configure a narrowly scoped `docker` host rule for
+`git.cooked.beer` in the hosted service with a package-read credential; never
+commit it or restore the retired Actions Renovate PAT/secrets.
 
-GitHub vulnerability alerts are the exception: Renovate opens their remediation
-PRs immediately, without Dashboard approval and without applying the normal
-branch, PR, hourly, or schedule limits. They carry the `security` label and may
-be reviewed independently of the application batch.
+## Existing queue and validation
 
-All Renovate automerge is disabled. A generated PR is a prompt for review, not
-permission to deploy it. Check the manifest or Terraform diff, CI status,
-release notes and any relevant maintenance boundary before merging.
+The audit found exactly five open Renovate PRs. None is edited, closed or merged
+by this implementation. After the hosted App reconciles the merged configuration:
 
-Jellyfin 12 uses a `12.0` Docker tag rather than the three-component `10.x`
-form. A narrowly scoped versioning rule normalizes those tags so Renovate can
-detect the major upgrade. Jellyfin 12 includes a database migration that cannot
-be rolled back without restoring a backup; take a verified `/config` backup and
-review the upstream migration notes before merging its PR.
+| Existing PR | Operator follow-up |
+| --- | --- |
+| #2090, runner 6 | Preserve the two-runner diff; the new gated runner group may supersede its branch. Review migration/security policy compatibility and keep only one reviewed proposal. |
+| #2089, Node + Python | Retire the combined proposal after separate gated language entries appear. Approve languages independently; do not rebase or merge the old combined branch blindly. |
+| #2087, Gitea MCP minor | Now eligible for weekly maintenance; close the old proposal only after confirming its replacement diff. |
+| #2058, PostgreSQL digest | Now maintenance, no broad Terraform upgrade label. Confirm the exact pinned PostgreSQL digest survives regrouping before retiring the old PR. |
+| #2021, Home Assistant | Keep isolated and unmerged. Job logs confirm `UnitOfTemperature` is imported from incompatible `homeassistant.components.climate`. Fix/test the integration separately and require passing `airtouch-regressions` before approving the release. |
 
-## Triage
+Renovate may prune or supersede old branches during reconciliation; old PRs are
+not automatically merged into maintenance. Preserve intentional manual commits
+before requesting regeneration. Do cleanup individually after verifying the
+replacement; never use rebase-all as a migration shortcut.
 
-1. Review the Monday `weekly maintenance` PR for routine patch/digest changes.
-   Application-release batches are approved automatically on the Dependency
-   Dashboard and open separately; approve a supporting-image-only release batch
-   manually only when it is worth a standalone maintenance change.
-2. Terraform changes open as one automatic PR. Require a maintenance plan for
-   Cilium, Talos, Kubernetes, Longhorn, GPU Operator, Kyverno, OCI edge and
-   database changes before merging.
-3. Close stale PRs rather than merging a change that no longer has a clear
-   source version or validation result. Renovate will recreate an eligible
-   update from the current base.
-4. After a merged GitOps change, verify Flux and the affected workload before
-   selecting the next update.
+Run the strict validator and native policy tests with the CI-pinned version:
 
-Renovate uses `rebaseWhen: conflicted`, so advancing `main` does not regenerate
-every open dependency PR. New dependency versions can still update a PR, and
-weekly maintenance only refreshes within its Monday window. Vulnerability-fix
-PRs remain immediately eligible and rebase when behind `main`.
+```sh
+npx --yes --package renovate@44.126.1 renovate-config-validator --strict renovate.json
+npx --yes --package renovate@44.126.1 -c 'node --test .github/tests/renovate-policy.test.cjs'
+python3 -m unittest discover -s scripts/ci/tests -v
+python3 scripts/ci/check_immich_versions.py
+```
 
-`main` still requires branches to be current before merge. When ready to merge
-an outdated PR, select Renovate's rebase/retry checkbox or add the `rebase`
-label. A manual rebase request bypasses the ordinary schedule. Wait for CI on
-that new commit and renew any dismissed code-owner approval before merging.
-Update and merge one PR at a time to avoid triggering checks on the whole queue.
+The policy tests resolve real presets and exercise Renovate's own package-rule
+matching, versioning, extraction and branch generator. They cover single pins,
+application coordination, critical precedence, disabled dependencies, safe minor
+allowlisting and summer/winter schedule boundaries. They do not approximate
+Renovate with a second rule evaluator. The CI selector runs them for config or
+policy-test edits; the manifest gate checks actual Immich tags.
 
-GitHub's **Update branch** button can add a human-authored merge commit and put
-a Renovate PR in **PR Edited (Blocked)**. Prefer Renovate's rebase/retry control.
-Before resetting an already blocked PR, inspect its commits and diff: the retry
-can discard manual commits, so preserve any intentional edits first. A PR in
-**PR Closed (Blocked)** instead needs its Dashboard recreate checkbox when the
-update is wanted again; it is not a package lookup error.
+A read-only `--platform=local --dry-run=lookup` with JSON debug logs can validate
+live discovery. Set `RENOVATE_LOOKUP_LOG` to that completed log when running the
+policy tests to recompute effective branches from real lookups. Raw lookup
+records include disabled candidates; count the resulting branches, not every
+raw `updates` entry. The optional test prints the branch/title/package evidence.
+Local lookup does not create PRs or exercise the hosted scheduler, Dashboard
+approval state, vulnerability-alert delivery or a future Monday merge.
 
-The consolidated PR workflow retains all five required status-check names and
-only allocates expensive jobs for relevant changes. A scheduled/manual audit
-checks the full repository; the validation workflows no longer repeat on every
-merge. Flux still reconciles reviewed changes from `main`.
+The implementation's live lookup classified 42 update occurrences across 19
+packages into `Update weekly maintenance`, including both Immich `v3.4.1`
+images, Gitea MCP `1.13.0` and the Terraform PostgreSQL digest. Seven exceptional
+branches remained: Gitea runners (two occurrences), Home Assistant, CI Node,
+CI Python, the MCP Python image/runtime pair, the Gitea toolchain Ubuntu line,
+and hosted Ubuntu runners. The native integration test excluded database majors
+and all pipeline-owned references from the effective branches. This is a
+registry snapshot, not a promise that future releases have the same count.
 
-## Required approval gates
-
-The Dependency Dashboard must be explicitly approved before Renovate opens a
-PR for:
-
-- Kyverno, Longhorn and GPU Operator Helm chart changes.
-- Snapshot-controller image changes, including patches and digests.
-- WotLK MySQL minor updates and WotLK Ubuntu base-image line updates.
-
-Database major updates are disabled; they require a separate migration plan.
-Cilium's OCI source is deliberately disabled in Renovate because the primary
-CNI runbook owns its upgrade procedure.
-
-## WotLK boundaries
-
-The custom `ghcr.io/rovxbot/azerothcore-wotlk` tags are build-pipeline output.
-Renovate must not propose them; promote those images through the dedicated
-image workflow instead.
-
-Regular helper images in `apps/wotlk` remain tracked and are grouped for
-review. This includes Alpine, Alpine Git and the digest-pinned Bitnami kubectl
-image. The Bitnami reference currently uses a rolling `latest` tag plus an
-immutable digest; never remove the digest merely to make the tag look pinned.
-
-## Gitea image and chart tracking
-
-The digest-only `ghcr.io/rovxbot/gitea-linux` and
-`ghcr.io/rovxbot/gitea-backup` references are pipeline outputs, not upstream
-release channels. Renovate is disabled only for these packages in
-`apps/gitea/**` and `apps/gitea-runners/**`. Their Dockerfile base images remain
-tracked. The Gitea Linux toolchain workflow builds and smoke-tests both images,
-publishes revision tags and records immutable digests in its
-`gitea-toolchain-digest` artifact. Promote those digests together across runner
-configuration, admission policy, backup/synchronization jobs and restore tools
-after checking recovery compatibility. There is no floating `latest` tag to
-follow; adding one just to silence a lookup warning would change this model.
-
-Gitea's Helm chart appends `-rootless` to `values.image.tag` and then appends
-the separate `values.image.digest`. The custom regex manager therefore looks
-up `docker.gitea.com/gitea:<version>-rootless` and updates the plain tag and
-digest fields together. The generic Flux Docker extraction is disabled only
-for this image in this HelmRelease; it otherwise ignores the rootless suffix
-and separate digest, producing an invalid rendered reference when it pins a
-digest inside the tag. Gitea Helm chart tracking remains enabled. Its source
-manifest declares namespace `gitea`, matching both the source reference and
-the namespace already applied by Kustomize, so Renovate can resolve the chart
-repository before rendering.
-
-After these rules reach `main`, request a rebase/retry of the open weekly PR
-so the old Gitea tag-only pin is replaced by the rootless tag/digest update.
-Its next ordinary refresh is on Monday; a manual rebase request can refresh it
-earlier. Review the generated diff and fresh CI before merging.
-
-## Credentials and runner hygiene
-
-The retired Actions runner used `RENOVATE_TOKEN`, `DOCKERHUB_USERNAME` and
-`DOCKERHUB_TOKEN`. Once those obsolete repository secrets and the old Renovate
-PAT have been removed, do not recreate them for routine Renovate operation.
-The hosted App is the supported integration.
-
-If Renovate reports a lookup failure, investigate the exact package and scope
-it narrowly in `renovate.json`; do not disable an entire application tree just
-to silence one dependency.
+Official semantics: [rule precedence and grouping](https://docs.renovatebot.com/configuration-options/#packagerules),
+[scheduling](https://docs.renovatebot.com/configuration-options/#schedule),
+[rebasing](https://docs.renovatebot.com/updating-rebasing/),
+[vulnerability alerts](https://docs.renovatebot.com/configuration-options/#vulnerabilityalerts),
+[read-only dry runs](https://docs.renovatebot.com/self-hosted-configuration/#dryrun).
