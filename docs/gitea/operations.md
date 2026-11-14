@@ -50,6 +50,40 @@ notification channel depends on GitHub: inspect its local dashboard/logs during
 an outage and add an independently delivered alert channel before treating
 remote notifications as an incident guarantee.
 
+### Cold backup timeout recovery
+
+On **14 November 2026**, the 02:15 Adelaide cold backup reached its old
+30-minute Job deadline. Gitea and the protection service remained at zero
+replicas after the backup Pod was terminated; both were restored to one replica
+at approximately 08:13. The database stayed available. The failed Pod and its
+logs were already unavailable, so the exact command that stalled is unknown.
+Public application health, both repository checks and both runners recovered.
+
+The backup supervisor now waits asynchronously for a separate capture process
+group, so SIGTERM interrupts the wait and runs cleanup immediately. Cold capture
+has a shared 20-minute timeout for capture, integrity checking and retention,
+and a ten-second forced termination limit. The backup Pod holds the RWO
+volumes until it exits, so checking remotely after restoring replica counts
+could still block application recovery on another node. All remote work
+finishes before replica restoration and Pod exit; the overall Job deadline
+is one hour. API requests during cleanup have a 15-second timeout. The retired
+mirror remains stopped, and any failure records `backup-failure.epoch`.
+
+If Gitea is stopped after a failed backup, first check that no backup Job or
+Pod is active, PostgreSQL is available, and the retained volumes and their
+replicas have no failures. Then restore `gitea` and `gitea-protection` to their
+configured one replica; leave `gitea-mirror` at zero. Verify `/api/healthz`,
+`/healthz`, `/mirrorz`, runner readiness and Longhorn volume health. SIGKILL or
+loss of the backup node can bypass shell cleanup and still requires this
+recovery procedure. Do not erase failure markers to silence an alert: a
+successful backup and integrity check clears them.
+
+The Kyverno chart 3.10 upgrade merged that morning was a separate incident:
+it blocked infrastructure reconciliation because legacy policies still exist.
+Keep chart 3.9.2 and the Renovate `<3.10.0` gate until all legacy policies and
+exceptions are migrated. See the upstream
+[CEL migration guide](https://kyverno.io/docs/guides/migration-to-cel/).
+
 ### Deleted upstream branches and snapshot failures
 
 `wowdecomp` sets `retain_deleted_branches: true` in

@@ -506,6 +506,16 @@
       "automerge": false
     },
     {
+      "description": "Keep Kyverno on the last legacy-policy-compatible chart until the CEL policy and PolicyException migration is complete.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchPackageNames": [
+        "kyverno"
+      ],
+      "allowedVersions": "<3.10.0"
+    },
+    {
       "description": "Keep the NVIDIA GPU Operator chart independently reviewable.",
       "matchFileNames": [
         "infra/gpu-operator/**"
