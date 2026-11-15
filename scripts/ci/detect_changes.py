@@ -19,6 +19,8 @@ FULL_CHECK_PATHS = {
 MANIFEST_CHECK_PATHS = {
     ".github/kyverno-baseline.yaml",
     "scripts/ci/check_flux_bootstrap_digests.py",
+    "scripts/ci/check_immich_versions.py",
+    "scripts/ci/tests/test_immich_versions.py",
     "scripts/ci/check_secret_refs.py",
     "scripts/ci/check_python_helpers.py",
     "scripts/ci/kyverno_gate.py",
@@ -49,7 +51,10 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
             or path in {".yamllint.yml", ".github/actionlint.yaml", ".github/actionlint.yml"}
             for path in paths
         ),
-        "renovate": full or "renovate.json" in paths,
+        "renovate": full or any(
+            path == "renovate.json" or path.startswith(".github/tests/renovate-")
+            for path in paths
+        ),
     }
     stacks = [
         stack for stack in TERRAFORM_STACKS

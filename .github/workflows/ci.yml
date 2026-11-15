@@ -68,6 +68,9 @@ jobs:
           python3 scripts/ci/check_flux_bootstrap_digests.py \
             clusters/home/flux-system/gotk-components.yaml
 
+      - name: Require matching Immich application releases
+        run: python3 scripts/ci/check_immich_versions.py
+
       - name: Install kustomize
         shell: bash
         run: |
@@ -234,9 +237,6 @@ jobs:
           set -euo pipefail
           actionlint
 
-      - name: Test Renovate Dashboard approval behavior
-        run: node .github/tests/renovate-release-app-batches.test.cjs
-
   yamllint:
     needs: changes
     if: needs.changes.outputs.workflows == 'true'
@@ -389,6 +389,9 @@ jobs:
 
       - name: Validate Renovate configuration
         run: npx --yes --package renovate@44.126.1 renovate-config-validator --strict renovate.json
+
+      - name: Test effective Renovate policy and branch grouping
+        run: npx --yes --package renovate@44.126.1 -c 'node --test .github/tests/renovate-policy.test.cjs'
 
   repo-checks:
     # Always report the existing required name. A failed detector or selected
