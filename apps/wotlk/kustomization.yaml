@@ -21,6 +21,7 @@ configMapGenerator:
       - mod_grimtokendailies.conf=config/mod_grimtokendailies.conf
       - mod_guildfunds.conf=config/mod_guildfunds.conf
       - mod-dungeon-clear.conf=config/mod_dungeon-clear.conf
+      - mod-playerbot-automony.conf=config/mod-playerbot-automony.conf
     options:
       disableNameSuffixHash: false
   - name: wotlk-modules-list
