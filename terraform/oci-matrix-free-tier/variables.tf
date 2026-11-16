@@ -215,7 +215,7 @@ variable "matrix_postgres_image" {
   type        = string
 
   # renovate: datasource=docker depName=postgres
-  default = "postgres:16-alpine@sha256:9f5be6795d4e9dfc0dca4c8a46eb858a9ddef631fc6b57953960f578d3fb1f9b"
+  default = "postgres:16-alpine@sha256:40e58641410e030f5769096bca8372f68f243e1859c8ecdf11f227da390d514d"
 
   validation {
     condition     = can(regex("^postgres:[^@[:space:]]+@sha256:[a-f0-9]{64}$", var.matrix_postgres_image))
