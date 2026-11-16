@@ -190,7 +190,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: mirror
-        image: ghcr.io/raylabshq/gitea-mirror:v3.51.3@sha256:45ec76a21e0b7499a3993cb805f0888da0c75962be85a68ed4b5ac72f2114454
+        image: ghcr.io/raylabshq/gitea-mirror:v3.53.0@sha256:4c6c9a1c379060385ed1d0bc5dfd44108b8d4683c58c3b35597649b2b79e180e
         envFrom:
         - configMapRef:
             name: gitea-mirror-config

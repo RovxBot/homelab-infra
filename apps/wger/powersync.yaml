@@ -198,7 +198,7 @@ spec:
               memory: 512Mi
       containers:
         - name: powersync
-          image: journeyapps/powersync-service:1.28.1@sha256:4955ebd8218d076f23296750f658c2973ce1dcd2ba49a6c7a7c3320acf97325c
+          image: journeyapps/powersync-service:1.28.3@sha256:effc8cfae91dcb2d4b5767b3b0a795d933701aa957a81af2bfce7fb15c2f47b4
           imagePullPolicy: IfNotPresent
           args:
             - start
