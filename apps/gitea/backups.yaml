@@ -17,6 +17,9 @@ rules:
     resources: [deployments/scale]
     resourceNames: [gitea, gitea-protection, gitea-mirror]
     verbs: [get, patch, update]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list]
   - apiGroups: [""]
     resources: [pods]
     verbs: [get, list, watch]
@@ -88,6 +91,10 @@ spec:
                 - secretRef:
                     name: gitea-backup
               env:
+                - name: BACKUP_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['batch.kubernetes.io/job-name']
                 - name: DATABASE_ADMIN_PASSWORD
                   valueFrom:
                     secretKeyRef:

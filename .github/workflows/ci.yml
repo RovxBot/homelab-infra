@@ -137,6 +137,17 @@ jobs:
           set -euo pipefail
           python3 scripts/ci/check_python_helpers.py
 
+      - name: Test workload resource budgets on the deployed Kyverno version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep the existing repository baseline CLI while testing the repair
+          # against the admission controller deployed by chart 3.9.2.
+          curl -fsSL https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_x86_64.tar.gz -o /tmp/kyverno-runtime.tgz
+          mkdir -p /tmp/kyverno-runtime
+          tar -xzf /tmp/kyverno-runtime.tgz -C /tmp/kyverno-runtime kyverno
+          python3 scripts/ci/test_platform_resources.py --kyverno /tmp/kyverno-runtime/kyverno
+
       - name: Run Kyverno baseline gate
         shell: bash
         run: |
