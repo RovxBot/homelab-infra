@@ -66,7 +66,7 @@ and a ten-second forced termination limit. The backup Pod holds the RWO
 volumes until it exits, so checking remotely after restoring replica counts
 could still block application recovery on another node. All remote work
 finishes before replica restoration and Pod exit; the overall Job deadline
-is one hour. API requests during cleanup have a 15-second timeout. The retired
+is one hour. API requests during cleanup have a ten-second timeout. The retired
 mirror remains stopped, and any failure records `backup-failure.epoch`.
 
 If Gitea is stopped after a failed backup, first check that no backup Job or
@@ -83,6 +83,22 @@ it blocked infrastructure reconciliation because legacy policies still exist.
 Keep chart 3.9.2 and the Renovate `<3.10.0` gate until all legacy policies and
 exceptions are migrated. See the upstream
 [CEL migration guide](https://kyverno.io/docs/guides/migration-to-cel/).
+
+### Backup API authentication repair (19 November 2026)
+
+The failed cold-backup Job reported kubectl connecting to localhost:8080.
+The mounted ServiceAccount alone was insufficient: service links are disabled
+and the script provided no explicit client configuration. The repaired script
+uses TLS-verified in-cluster kubeconfig/tokenFile references on the existing
+emptyDir, completes authorization/replica/storage/concurrency preflight before
+stopping any service, and retries bounded restoration after partial failure.
+There is no backup image change or credential rotation. The only RBAC addition
+is read access to namespace Jobs for maintenance detection.
+
+Do not run a production cold backup simply to test this change. After merge
+and separately authorized rollout, use the controlled procedure and acceptance
+checks in [cluster alert repairs](../runbooks/cluster-alert-repairs.md). Preserve
+failure markers and the retired mirror's zero replicas during recovery.
 
 ### Deleted upstream branches and snapshot failures
 

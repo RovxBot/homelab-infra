@@ -11,7 +11,8 @@ off-cluster backups.
 
 CronJob `gitea-cold-backup` runs at **02:15 Australia/Adelaide** after the initial
 restore gate has passed. Its script verifies repository access and staging
-space before stopping Gitea, the source guard and the metadata console. This
+space before stopping Gitea and the source guard. The retired metadata
+console must already be at zero replicas and stays stopped. This
 causes a planned Gitea outage, including the off-site upload. The initial
 906 MiB capture took about twelve minutes; size and upload speed determine
 future maintenance-window duration. PostgreSQL stays running; with all writers
@@ -29,7 +30,8 @@ migrate an existing volume. `database-init.sh` handles empty volumes only.
 
 Gitea, guard and mirror pods share a node to make their RWO volumes available to
 the cold backup Job. Mirror and backup use the same supplementary volume group.
-The backup account can scale only these three deployments and inspect pods;
+The backup account can scale only these three deployments, inspect pods and
+list namespace Jobs to detect overlapping maintenance;
 it cannot read arbitrary Secrets or alter other workloads. Recovery Secrets
 are explicitly projected into the encrypted backup.
 The guard and mirror manifests omit `spec.replicas` so periodic Flux
@@ -52,13 +54,52 @@ kubectl -n gitea create job --from=cronjob/gitea-cold-backup \
 kubectl -n gitea logs job/NAME
 ```
 
-A trap restores all three services on normal exit/failure/termination. A node
-loss or forced kill can prevent traps running. After a failed backup, inspect
-active Jobs before restoring the three desired replica counts to one and
-checking Flux, Gitea, guard and mirror health. Never run competing maintenance
-or chart changes during a cold capture. `/backupz` fails immediately after a
-recorded failure, after 48 hours without success, or below 1 GiB free protection
-space. Also inspect failed Jobs: a pod which never starts cannot write a marker.
+The supervisor writes a mode-0600 kubeconfig to the existing `/work` emptyDir.
+It uses `https://kubernetes.default.svc:443`, the mounted cluster CA and a
+`tokenFile` reference to the rotating ServiceAccount token. Discovery cache also
+stays under `/work`; no token is copied to argv, logs or a persistent volume.
+This works with disabled service links, UID 1000 and the read-only root filesystem.
+
+Before any scale-down, it reads all three deployments (expected replicas:
+Gitea=1, protection=1, mirror=0), checks scale/get/patch/update and pod list/watch
+permissions, lists active namespace Jobs, checks Restic connectivity and locks,
+and sizes the database export. Staging requires at least 1 GiB free and twice
+the current database size plus 128 MiB, within both node free space and the
+3 GiB emptyDir budget. Preflight failures leave application replicas untouched.
+The database-size query is a read-only PostgreSQL operation.
+
+`concurrencyPolicy: Forbid` covers scheduled runs. An atomic directory lock at
+`/protection/backup.lock` also excludes overlapping manual backup Jobs. Planned
+maintenance must first check for backup Jobs/Pods and this lock, then create
+`/protection/maintenance.lock` before starting; remove it on completion. Do not
+race a backup start or run competing storage/chart maintenance. Restic locks
+and other active namespace Jobs also stop preflight. A stale backup lock after
+SIGKILL/node loss fails safely: an operator must establish that no backup
+process/Job/Pod remains and no capture is writing before removing **only the
+empty lock directory**. Do not remove Restic locks without separately proving
+that their owning process is gone.
+
+Scale intent is tracked before each API call, including a response lost after
+the server accepted it. EXIT/TERM/INT cleanup stops capture before restoring
+`gitea` and `gitea-protection` to one replica; it never starts the mirror. Requests
+are bounded to ten seconds, with a twelve-second whole-command limit for
+scaling (two-second forced kill). Failed restoration gets two cleanup attempts.
+Any failed restoration attempt leaves a nonzero result and failure marker even
+if a retry recovers. Persistent API failure cannot guarantee recovery: the Job
+fails visibly and requires the manual procedure in `operations.md`. SIGKILL or
+node loss can bypass traps. The backup Pod must exit to release its RWO mounts;
+replica restoration acknowledges desired counts, not readiness. Verify actual
+availability after Pod exit.
+
+`/backupz` fails immediately after a recorded failure, after 48 hours without
+success, or below 1 GiB free protection space. Only a successful capture,
+Restic integrity check, retention and successful initial replica restoration
+advance the success marker and clear the failure marker. A later cleanup
+failure writes a new failure marker. Also inspect failed Jobs: a pod which
+never starts cannot write a marker. Deleting a failed Job does not clear the
+backup incident. Production verification, including the temporary outage,
+requires explicit authorization; see the coordinated
+[repair runbook](../runbooks/cluster-alert-repairs.md).
 
 ## Isolated verification
 
