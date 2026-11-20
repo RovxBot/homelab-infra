@@ -1,0 +1,95 @@
+{
+  "chart": {
+    "version": "1.42.0",
+    "url": "https://github.com/kubescape/helm-charts/releases/download/kubescape-operator-1.42.0/kubescape-operator-1.42.0.tgz",
+    "sha256": "be45f83398f28db8f2ff395e5d8ab411328041e9e2165a42e5fb92a4ba369079",
+    "kubernetes": "1.34.0"
+  },
+  "counts": {
+    "APIService": 1,
+    "ClusterRole": 4,
+    "ClusterRoleBinding": 7,
+    "ConfigMap": 9,
+    "CronJob": 1,
+    "CustomResourceDefinition": 5,
+    "Deployment": 3,
+    "PersistentVolumeClaim": 1,
+    "Role": 4,
+    "RoleBinding": 5,
+    "Secret": 1,
+    "Service": 3,
+    "ServiceAccount": 3
+  },
+  "resources": [
+    "APIService/-/v1beta1.spdx.softwarecomposition.kubescape.io",
+    "ClusterRole/-/kubescape",
+    "ClusterRole/-/operator",
+    "ClusterRole/-/storage",
+    "ClusterRole/-/storage-certgen-kubescape",
+    "ClusterRoleBinding/-/kubescape",
+    "ClusterRoleBinding/-/kubescape:system:auth-delegator",
+    "ClusterRoleBinding/-/operator",
+    "ClusterRoleBinding/-/operator:system:auth-delegator",
+    "ClusterRoleBinding/-/storage",
+    "ClusterRoleBinding/-/storage-certgen-kubescape",
+    "ClusterRoleBinding/-/storage:system:auth-delegator",
+    "ConfigMap/kubescape/cs-matching-rules",
+    "ConfigMap/kubescape/ks-capabilities",
+    "ConfigMap/kubescape/ks-cloud-config",
+    "ConfigMap/kubescape/kubescape-cronjob-template",
+    "ConfigMap/kubescape/kubescape-scheduler",
+    "ConfigMap/kubescape/kubevuln-cronjob-template",
+    "ConfigMap/kubescape/operator",
+    "ConfigMap/kubescape/registry-scan-cronjob-template",
+    "ConfigMap/kubescape/storage",
+    "CronJob/kubescape/kubescape-scheduler",
+    "CustomResourceDefinition/-/clustersecurityexceptions.kubescape.io",
+    "CustomResourceDefinition/-/operatorcommands.kubescape.io",
+    "CustomResourceDefinition/-/rules.kubescape.io",
+    "CustomResourceDefinition/-/securityexceptions.kubescape.io",
+    "CustomResourceDefinition/-/servicesscanresults.kubescape.io",
+    "Deployment/kubescape/kubescape",
+    "Deployment/kubescape/operator",
+    "Deployment/kubescape/storage",
+    "PersistentVolumeClaim/kubescape/kubescape-storage",
+    "Role/kubescape/kubescape",
+    "Role/kubescape/operator",
+    "Role/kubescape/operator-api-caller",
+    "Role/kubescape/storage-certgen",
+    "RoleBinding/kube-system/storage-auth-reader",
+    "RoleBinding/kubescape/kubescape",
+    "RoleBinding/kubescape/operator",
+    "RoleBinding/kubescape/operator-api-caller",
+    "RoleBinding/kubescape/storage-certgen",
+    "Secret/kubescape/cloud-secret",
+    "Service/kubescape/kubescape",
+    "Service/kubescape/operator",
+    "Service/kubescape/storage",
+    "ServiceAccount/kubescape/kubescape",
+    "ServiceAccount/kubescape/operator",
+    "ServiceAccount/kubescape/storage"
+  ],
+  "certificateInitBudgets": {
+    "certgen-create": {
+      "limits": {
+        "cpu": "100m",
+        "memory": "128Mi"
+      },
+      "requests": {
+        "cpu": "10m",
+        "memory": "32Mi"
+      }
+    },
+    "certgen-patch": {
+      "limits": {
+        "cpu": "100m",
+        "memory": "128Mi"
+      },
+      "requests": {
+        "cpu": "10m",
+        "memory": "32Mi"
+      }
+    }
+  },
+  "admissionBlockers": []
+}

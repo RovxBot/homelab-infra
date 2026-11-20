@@ -1,0 +1,68 @@
+name: Kubescape Staging Checks
+
+on:
+  pull_request:
+    paths:
+      - infra/kubescape/**
+      - clusters/home/kustomization.yaml
+      - clusters/home/infrastructure/kubescape-kustomization.yaml
+      - scripts/ci/check_kubescape.py
+      - scripts/ci/tests/test_kubescape.py
+      - .github/workflows/kubescape-checks.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  suspended-stage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pinned render and validation tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          tools_dir="${RUNNER_TEMP}/kubescape-tools"
+          mkdir -p "$tools_dir"
+          curl -fsSL https://get.helm.sh/helm-v3.20.2-linux-amd64.tar.gz -o "$tools_dir/helm.tgz"
+          tar -xzf "$tools_dir/helm.tgz" -C "$tools_dir"
+          mv "$tools_dir/linux-amd64/helm" "$tools_dir/helm"
+          curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz -o "$tools_dir/kustomize.tgz"
+          tar -xzf "$tools_dir/kustomize.tgz" -C "$tools_dir" kustomize
+          curl -fsSL https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_x86_64.tar.gz -o "$tools_dir/kyverno.tgz"
+          tar -xzf "$tools_dir/kyverno.tgz" -C "$tools_dir" kyverno
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz -o "$tools_dir/kubeconform.tgz"
+          tar -xzf "$tools_dir/kubeconform.tgz" -C "$tools_dir" kubeconform
+          echo "$tools_dir" >> "$GITHUB_PATH"
+          python3 -m pip install --quiet pyyaml
+
+      - name: Test staging and preflight guards
+        run: python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
+
+      - name: Verify strict preflight against the released chart
+        # Both modes require suspension and zero admission failures.
+        # Passing offline checks does not authorize activation.
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: python3 scripts/ci/check_kubescape.py --base-ref "$BASE_REF"
+
+      - name: Verify suspended staging against the released chart
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: python3 scripts/ci/check_kubescape.py --staged-review --base-ref "$BASE_REF"
+
+      - name: Validate rendered workloads and Flux integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          kustomize build infra/kubescape > .work/kubescape-preflight/source.yaml
+          kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
+          kustomize build --load-restrictor LoadRestrictionsNone clusters/home > .work/kubescape-preflight/entrypoint.yaml
+          kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.34.0 -summary \
+            .work/kubescape-preflight/rendered.yaml .work/kubescape-preflight/source.yaml
