@@ -36,6 +36,31 @@ spec:
               health="/work/health.json"
               health_tmp="/work/health.json.tmp"
 
+              # A request-timeout override bypasses kubectl's implicit in-cluster
+              # fallback. Configure the API explicitly; tokenFile follows rotation
+              # without copying the token into this file or process arguments.
+              export KUBECONFIG=/work/kubeconfig
+              cat > "$KUBECONFIG" <<EOF
+              apiVersion: v1
+              kind: Config
+              clusters:
+              - name: in-cluster
+                cluster:
+                  server: https://kubernetes.default.svc:443
+                  certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              users:
+              - name: pod-report
+                user:
+                  tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+              contexts:
+              - name: pod-report
+                context:
+                  cluster: in-cluster
+                  user: pod-report
+                  namespace: homepage
+              current-context: pod-report
+              EOF
+
               nodes_ok() {
                 node_statuses="$(kubectl --request-timeout=15s get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="DiskPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="MemoryPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="PIDPressure")]}{.status}{end}{"\n"}{end}')" || return 1
                 [ -n "$node_statuses" ] || return 1
