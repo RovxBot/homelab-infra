@@ -61,7 +61,7 @@ class IssueSyncSmokeTests(unittest.TestCase):
 
 loader = unittest.defaultTestLoader
 suite = loader.loadTestsFromTestCase(IssueSyncSmokeTests)
-for pattern in ("test_longhorn_retire_backup_history.py", "test_longhorn_upgrade_engines.py"):
+for pattern in ("test_longhorn_retire_backup_history.py", "test_longhorn_upgrade_engines.py", "test_gatus_issue_sync.py"):
     suite.addTests(loader.discover("scripts/tests", pattern=pattern))
 result = unittest.TextTestRunner(verbosity=2).run(suite)
 sys.exit(0 if result.wasSuccessful() else 1)
