@@ -12,23 +12,36 @@ while staged: a never-reconciled suspended HelmRelease has no Ready status and
 must not stall the shared infrastructure health checks. The activation PR must
 enable waiting on this child; existing infrastructure waiting is unchanged.
 
-## Stop condition
+## Certificate init budget correction
 
 The released chart's `templates/storage/deployment.yaml` renders
 `certgen-create` and `certgen-patch` init containers without `resources`.
-Both lack all four CPU/memory request/limit fields. The existing enforced
-`platform-pod-standards/require-requests-and-limits` rejects
-`Deployment/kubescape/storage`. Kyverno CLI **1.19.2**, matching chart 3.9.2's
-controller, confirms **26 passes, 1 failure, 0 errors** across the workload and
-namespace standards. The one failure represents both missing init budgets.
+Both originally lacked all four CPU/memory request/limit fields, causing the
+enforced `platform-pod-standards/require-requests-and-limits` failure. A
+[Flux Helm Kustomize post-renderer](https://fluxcd.io/flux/components/helm/helmreleases/#post-renderers)
+uses a strategic-merge patch targeting only
+`apps/v1 Deployment/kubescape/storage` and adds resources to the **named**
+`certgen-create` and `certgen-patch` init containers. Each requests **10m CPU /
+32Mi memory**, with limits of **100m CPU / 128Mi memory**, matching the existing
+ops-tool scheduler budget. These are conservative starting budgets for short
+certificate/bootstrap API operations, not runtime sizing evidence.
 
-Per the task's stop condition, no exception, admission relaxation, replacement
-certificate strategy, or budget patch was introduced to make this pass. The
-default preflight exits 1. Resolve the required component's budgets through a
-reviewed compatible chart/configuration before proposing activation. This is
-tracked in #2135; it is not a separate new issue. The unresolved Kyverno
-webhook investigation [#2133](https://github.com/RovxBot/homelab-infra/issues/2133)
-also remains an activation gate.
+The effective released-chart render now passes Kyverno CLI **1.19.2**, matching
+chart 3.9.2's controller: **27 passes, 0 failures, 0 errors, 0 skips** across
+the existing workload and namespace standards. No exception or policy relaxation
+is used. The TLS strategy, commands/arguments, images, mounts, security contexts,
+ServiceAccounts, RBAC and capabilities are preserved.
+
+Preflight compares every raw/effective resource and field, allowing only these
+two exact budgets and the existing scheduler suspension (plus Kustomize's
+omission of null annotations/affinity/tolerations). Missing, renamed or extra
+certificate init containers and unexpected chart-provided budgets fail closed.
+Regression tests also exercise real Kustomize merging with reordered init
+containers and same-name/namespace decoys. Both strict and suspended-staging
+preflights now pass; **both still reject an unsuspended HelmRelease** and any
+admission failure. This resolves only the certificate budget blocker in #2135.
+Activation still requires separate review and the unresolved
+[#2133](https://github.com/RovxBot/homelab-infra/issues/2133) admission/discovery gate.
 
 ## Verified artifacts and capabilities
 
@@ -48,11 +61,14 @@ in the release. Anonymous Quay manifest responses verified the digests for:
 | Operator | `v0.2.209` | `50m / 300m` | `100Mi / 300Mi` |
 | Storage | `v0.0.382` | `100m / 1500m` | `400Mi / 1500Mi` |
 | Scheduler (suspended) | ops-tool `0.2.0-r1` | `10m / 100m` | `32Mi / 128Mi` |
-| Storage certificate init containers | ops-tool `0.2.0-r1` | **missing** | **missing** |
+| Storage certificate init containers (each) | ops-tool `0.2.0-r1` | `10m / 100m` | `32Mi / 128Mi` |
 
 Three single-replica Deployments request `400m` CPU and `900Mi` memory in
-total, with limits of `2400m` CPU and `2824Mi` memory. These are initial chart
-budgets, not measured capacity evidence. No high scheduling priority or
+total, with limits of `2400m` CPU and `2824Mi` memory. The sequential certificate
+init budgets are below storage's application budgets, so they do not increase
+these effective Pod totals. These are initial budgets, not measured capacity
+evidence. Certificate generation time/peak memory must be checked during the
+later approved canary. No high scheduling priority or
 preemption is requested. `WORKERCONCURRENCY=1` bounds operator command workers
 (verified against the pinned operator's Viper configuration); submit only one
 manual canary scan. It does not prove all internal scanner processing is serial.
@@ -93,7 +109,8 @@ and [chart component gates](https://github.com/kubescape/helm-charts/blob/kubesc
 ## Actual rendered inventory
 
 [rendered-inventory.json](rendered-inventory.json) records all **47** chart
-resource identities and the exact two per-container budget findings. The
+resource identities, both exact certificate init budgets and an empty
+`admissionBlockers` list. The
 preflight regenerates and compares it after applying the exact Flux
 post-render configuration. The namespace, HelmRepository, HelmRelease and Flux
 child Kustomization are additional GitOps wrapper resources.
@@ -157,6 +174,8 @@ Use Helm **3.20.2**, Kustomize **5.5.0**, Kyverno CLI **1.19.2**, kubeconform
 ```sh
 python3 -m unittest discover -s scripts/ci/tests -v
 python3 -m unittest discover -s scripts/tests -v
+python3 scripts/ci/check_kubescape.py \
+  --base-ref b6a76abd2d75166abb39b32427dee1cca865568c
 python3 scripts/ci/check_kubescape.py --staged-review \
   --base-ref b6a76abd2d75166abb39b32427dee1cca865568c
 kustomize build infra/kubescape
@@ -166,16 +185,13 @@ kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.34.0 \
   -summary .work/kubescape-preflight/rendered.yaml
 ```
 
-`--staged-review` succeeds only while the release remains suspended and the
-actual inventory and admission findings exactly match this blocked stage.
+Both modes succeed only while the release remains suspended, the actual
+inventory and exact post-render edits match, every workload has complete
+budgets and Kyverno reports 27 passes with zero failures/errors/skips/warnings.
 Unexpected webhooks, workloads, privileges, host access, active scheduling or
-capabilities fail it. The dedicated CI workflow repeats this offline review.
+capabilities fail either mode. The preflight verifies the CLI version is 1.19.2.
+The dedicated CI workflow runs both modes and the real Kustomize regression.
 It is not a deployment approval or an admission exception.
-
-```sh
-# Activation preflight: intentionally exits 1 on the current chart.
-python3 scripts/ci/check_kubescape.py
-```
 
 The work directory contains raw Helm output, effective post-rendered output,
 extracted Pod templates, values, inventory and the actual Kyverno report.
@@ -193,21 +209,25 @@ The local Kyverno CLI's attempted standalone `podSecurity` fixture evaluated
 zero rules, so it is not counted as PSA validation. Do not infer a live pass
 from successful rendering. No Kyverno, PSA, Cilium or Gatus files were changed.
 
-Recorded local checks: 46 CI helper tests (15 Kubescape-focused), 174 script
+Recorded local checks: 53 CI helper tests (22 Kubescape-focused), 174 script
 tests, 38 Gitea guard tests and 123 deployed-version resource-budget cases
 passed. All 52 Kustomize source roots, the repository Kyverno baseline gate,
 Flux bootstrap image pins, Secret references, Immich version consistency,
 workflow actionlint, YAML lint and offline zizmor checks passed. Repeated Helm
-renders were identical. The suspended-stage check passed; the strict activation
-preflight **failed as required** on the storage init budgets. No live readiness,
-scan, PSA admission, Talos runtime or egress test was run. CI is not awaited.
+renders were identical. Both the strict and suspended-stage preflights passed:
+Kyverno CLI 1.19.2 reported **27 passes and zero admission failures**. Gitleaks
+found no secrets in the PR diff. The optional Python-image helper smoke check
+was **unavailable** because the local Docker daemon socket does not exist;
+the host Python unit suites passed. No live readiness, scan, PSA admission,
+Talos runtime or egress test was run. CI is not awaited.
 
 ## Separately reviewed canary deployment
 
 The platform owner must review and merge a **separate activation PR**. Before
-that PR changes `spec.suspend` to false, it must resolve the budget blocker,
-update the staging-only assertions/inventory deliberately, obtain a clean strict
-preflight and confirm #2133's admission/discovery gate. Retain the suspended
+that PR changes `spec.suspend` to false, it must deliberately update the
+suspension guards, obtain a clean strict preflight and confirm #2133's
+admission/discovery gate. The certificate budget correction here does not
+satisfy those live acceptance gates. Retain the suspended
 scheduler, offline configuration and disabled vulnerability/runtime features.
 Verify that `default` contains only the intended noncritical canary workload;
 otherwise choose a dedicated canary namespace in that PR. Empty scope is not

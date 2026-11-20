@@ -45,9 +45,14 @@ jobs:
       - name: Test staging and preflight guards
         run: python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
 
+      - name: Verify strict preflight against the released chart
+        # Both modes require suspension and zero admission failures.
+        # Passing offline checks does not authorize activation.
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: python3 scripts/ci/check_kubescape.py --base-ref "$BASE_REF"
+
       - name: Verify suspended staging against the released chart
-        # This verifies the known blocked stage, not deployment readiness.
-        # Default check_kubescape.py invocation must still fail before activation.
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
         run: python3 scripts/ci/check_kubescape.py --staged-review --base-ref "$BASE_REF"

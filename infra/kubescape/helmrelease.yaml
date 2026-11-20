@@ -4,8 +4,8 @@ metadata:
   name: kubescape
   namespace: kubescape
 spec:
-  # Staging only. See README.md: storage certgen init containers fail Kyverno.
-  # Activation requires a separate reviewed PR after all preflight failures close.
+  # Staging only. Offline preflight passes; live acceptance gates remain in README.md.
+  # Activation requires a separate reviewed PR.
   suspend: true
   interval: 30m
   releaseName: kubescape
@@ -42,6 +42,40 @@ spec:
               - op: add
                 path: /spec/suspend
                 value: true
+          # Chart 1.42.0 omits certgen budgets. Merge by name, preserving TLS
+          # bootstrap commands, images, security contexts and all other fields.
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: storage
+              namespace: kubescape
+            patch: |-
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: storage
+                namespace: kubescape
+              spec:
+                template:
+                  spec:
+                    initContainers:
+                      - name: certgen-create
+                        resources:
+                          requests:
+                            cpu: 10m
+                            memory: 32Mi
+                          limits:
+                            cpu: 100m
+                            memory: 128Mi
+                      - name: certgen-patch
+                        resources:
+                          requests:
+                            cpu: 10m
+                            memory: 32Mi
+                          limits:
+                            cpu: 100m
+                            memory: 128Mi
   values:
     clusterName: home
     ksNamespace: kubescape

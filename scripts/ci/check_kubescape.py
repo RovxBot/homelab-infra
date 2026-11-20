@@ -2,12 +2,13 @@
 """Render the suspended Kubescape release and fail closed before activation.
 
 Requires Helm 3, Kustomize, Kyverno CLI 1.19.2 and PyYAML. Never contacts a Kubernetes cluster.
---staged-review accepts only the two documented missing init-container budgets;
-the default preflight rejects those too. Neither mode may unsuspend anything.
+Both the default preflight and --staged-review require zero admission failures.
+Neither mode may unsuspend anything or allow policy exceptions.
 """
 
 import argparse
 from collections import Counter
+from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
@@ -28,10 +29,9 @@ vulnerabilityScan relevancy vexGeneration runtimeObservability networkPolicyServ
 networkEventsStreaming runtimeDetection malwareDetection nodeProfileService
 admissionController httpDetection seccompProfileService sandboxSeccomp manageWorkloads
 syncSBOM agentRuntimePosture riskAcceptance remediation autoUpgrading prometheusExporter""".split())
-KNOWN_BLOCKERS = [
-    "Deployment/storage initContainers/certgen-create: missing CPU/memory requests/limits",
-    "Deployment/storage initContainers/certgen-patch: missing CPU/memory requests/limits",
-]
+CERTGEN_NAMES = {"certgen-create", "certgen-patch"}
+CERTGEN_BUDGET = {"requests": {"cpu": "10m", "memory": "32Mi"},
+                  "limits": {"cpu": "100m", "memory": "128Mi"}}
 WORKLOADS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}
 
 
@@ -171,8 +171,41 @@ def inventory(resources):
         "counts": dict(sorted(Counter(r["kind"] for r in resources).items())),
         "resources": sorted(f"{r['kind']}/{r['metadata'].get('namespace', '-')}/{r['metadata']['name']}"
                             for r in resources),
+        "certificateInitBudgets": {
+            c["name"]: c.get("resources", {}) for r in resources
+            if (r["kind"], r["metadata"].get("namespace"), r["metadata"]["name"])
+            == ("Deployment", "kubescape", "storage")
+            for c in pod_template(r)["spec"].get("initContainers", [])},
         "admissionBlockers": findings(resources),
     }
+
+
+def check_post_render(raw, rendered):
+    """Allow exactly certgen budgets and the existing scheduler suspension."""
+    def indexed(resources):
+        result = {(r["apiVersion"], r["kind"], r["metadata"].get("namespace"), r["metadata"]["name"]): r
+                  for r in resources}
+        assert len(result) == len(resources), "duplicate rendered resource identity"
+        return result
+
+    expected = indexed(deepcopy(raw))
+    # Kustomize omits these null fields emitted by this chart. Non-null
+    # annotations, affinity and tolerations must still compare exactly.
+    for resource in expected.values():
+        if resource["metadata"].get("annotations") is None:
+            resource["metadata"].pop("annotations", None)
+    storage = expected[("apps/v1", "Deployment", "kubescape", "storage")]
+    for field in ("affinity", "tolerations"):
+        pod = pod_template(storage)["spec"]
+        if pod.get(field) is None:
+            pod.pop(field, None)
+    inits = pod_template(storage)["spec"]["initContainers"]
+    assert len(inits) == 2 and {c["name"] for c in inits} == CERTGEN_NAMES, "chart certgen names changed"
+    for container in inits:
+        assert not container.get("resources"), "chart now supplies certgen budgets; review the patch"
+        container["resources"] = deepcopy(CERTGEN_BUDGET)
+    expected[("batch/v1", "CronJob", "kubescape", "kubescape-scheduler")]["spec"]["suspend"] = True
+    assert indexed(rendered) == expected, "post-render changed fields outside certgen budgets/scheduler suspension"
 
 
 def check_scope(changed_paths):
@@ -188,6 +221,8 @@ def policy_report(text):
 
 
 def check_admission(args, work, resources):
+    version = subprocess.check_output([args.kyverno, "version"], text=True)
+    assert re.search(r"^Version: 1\.19\.2$", version, re.MULTILINE), "Kyverno CLI must be 1.19.2"
     namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
     admission_resources = work / "admission-resources.yaml"
     admission_resources.write_text(yaml.safe_dump_all([namespace, *resources]))
@@ -202,11 +237,10 @@ def check_admission(args, work, resources):
     failures = {(r["policy"], r["rule"], obj["kind"], obj["name"])
                 for r in report["results"] if r["result"] in {"fail", "error"}
                 for obj in r["resources"]}
-    expected_failures = ({("platform-pod-standards", "require-requests-and-limits", "Deployment", "storage")}
-                         if set(findings(resources)) & set(KNOWN_BLOCKERS) else set())
-    assert failures == expected_failures, failures
-    assert report["summary"]["error"] == 0 and report["summary"]["fail"] == len(expected_failures), report["summary"]
-    assert evaluated.returncode == int(bool(expected_failures)), "Kyverno exit code contradicts its report"
+    assert not failures, failures
+    assert report["summary"] == {"pass": 27, "fail": 0, "error": 0, "skip": 0, "warn": 0}, report["summary"]
+    assert len(report["results"]) == 27 and all(r["result"] == "pass" for r in report["results"]), report["summary"]
+    assert evaluated.returncode == 0, "Kyverno exit code contradicts its report"
     # Expose the exact Pod specs for subsequent PSA admission verification.
     # Static checks above are deliberately conservative; this is no live PSA claim.
     pods = work / "psa-pods.yaml"
@@ -214,7 +248,7 @@ def check_admission(args, work, resources):
         {"apiVersion": "v1", "kind": "Pod", "metadata": {
             **pod_template(r).get("metadata", {}), "name": r["metadata"]["name"], "namespace": "kubescape"},
          "spec": pod_template(r)["spec"]} for r in resources if r["kind"] in WORKLOADS]))
-    print("verified: real Kyverno matches static budget findings; restricted Pod fields checked statically")
+    print("verified: Kyverno CLI 1.19.2: 27 passes, 0 failures/errors/skips; restricted Pod fields checked statically")
 
 
 def run(args):
@@ -242,6 +276,7 @@ def run(args):
     rendered = subprocess.check_output([args.kustomize, "build", str(work)], text=True)
     (work / "rendered.yaml").write_text(rendered)
     resources = documents(rendered)
+    check_post_render(documents(raw), resources)
     check_effective_config(resources)
     result = inventory(resources)
     (work / "inventory.json").write_text(json.dumps(result, indent=2) + "\n")
@@ -252,10 +287,8 @@ def run(args):
     for error in errors:
         print(f"failed: {error}")
     print(f"verified: rendered {len(resources)} resources; inventory matches; optional components disabled")
-    if args.staged_review:
-        assert errors == KNOWN_BLOCKERS, "unexpected staging admission failure"
-        print("verified: suspended staging only; activation preflight remains FAILED")
-        return 0
+    if args.staged_review and not errors:
+        print("verified: suspended staging; zero admission failures; activation still requires separate review")
     return 1 if errors else 0
 
 
@@ -266,7 +299,7 @@ def main():
     parser.add_argument("--kyverno", default="kyverno")
     parser.add_argument("--work-dir", type=Path, default=ROOT / ".work/kubescape-preflight")
     parser.add_argument("--base-ref", help="also verify this task did not modify Kyverno, Gatus or Cilium")
-    parser.add_argument("--staged-review", action="store_true", help="verify only the documented suspended stage")
+    parser.add_argument("--staged-review", action="store_true", help="verify suspended staging with the same strict admission checks")
     args = parser.parse_args()
     try:
         return run(args)

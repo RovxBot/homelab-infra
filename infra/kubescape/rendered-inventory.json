@@ -69,8 +69,27 @@
     "ServiceAccount/kubescape/operator",
     "ServiceAccount/kubescape/storage"
   ],
-  "admissionBlockers": [
-    "Deployment/storage initContainers/certgen-create: missing CPU/memory requests/limits",
-    "Deployment/storage initContainers/certgen-patch: missing CPU/memory requests/limits"
-  ]
+  "certificateInitBudgets": {
+    "certgen-create": {
+      "limits": {
+        "cpu": "100m",
+        "memory": "128Mi"
+      },
+      "requests": {
+        "cpu": "10m",
+        "memory": "32Mi"
+      }
+    },
+    "certgen-patch": {
+      "limits": {
+        "cpu": "100m",
+        "memory": "128Mi"
+      },
+      "requests": {
+        "cpu": "10m",
+        "memory": "32Mi"
+      }
+    }
+  },
+  "admissionBlockers": []
 }
