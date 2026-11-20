@@ -3,6 +3,7 @@
 
 import argparse
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 import hashlib
 import json
 import os
@@ -25,6 +26,30 @@ IDENTIFIERS = {
     "request_id": ("requestID", "requestId", "request_id"),
     "audit_id": ("auditID", "auditId"),
 }
+# Kubernetes v1.34.1 admission/metrics/metrics.go; no suffix or substring matching.
+WEBHOOKS = {"validate-policy.kyverno.svc", "validate.kyverno.svc-fail"}
+HISTOGRAM = "apiserver_admission_webhook_admission_duration_seconds"
+REJECTIONS = "apiserver_admission_webhook_rejection_count"
+REQUESTS = "apiserver_admission_webhook_request_total"
+METRIC_LABELS = {
+    HISTOGRAM + "_bucket": {"name", "type", "operation", "rejected", "le"},
+    HISTOGRAM + "_count": {"name", "type", "operation", "rejected"},
+    REJECTIONS: {"name", "type", "operation", "error_type", "rejection_code"},
+    REQUESTS: {"name", "type", "operation", "code", "rejected"},
+}
+# These local configuration-controller metrics carry the serving API server ID.
+# Inspect only its hash; never retain configuration hashes, statuses or counters.
+IDENTITY_METRICS = {
+    f"apiserver_{controller}_config_controller_{suffix}"
+    for controller in ("authentication", "authorization", "encryption")
+    for suffix in ("automatic_reloads_total", "automatic_reload_last_timestamp_seconds", "last_config_info")
+}
+BUCKETS = {"0.005", "0.025", "0.1", "0.5", "1", "2.5", "10", "25", "+Inf"}
+METRICS_CAP = 2097152
+MAX_METRIC_ROWS = 2048
+PROM_NAME = re.compile(r"[a-zA-Z_:][a-zA-Z0-9_:]*")
+PROM_LABEL = re.compile(r'\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"((?:[^"\\\n]|\\[\\"n])*)"\s*')
+PROM_VALUE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\Z")
 
 
 def stamp(value):
@@ -199,6 +224,256 @@ class Unavailable(Exception):
     """Only fixed safe reason codes may cross the collection boundary."""
 
 
+def prometheus_sample(line):
+    """Parse one text-format sample, including only the three legal escapes.
+
+    Delimiters inside quoted labels are data, never additional labels. Reject
+    duplicates, exemplars, trailing garbage and partial parses rather than guess.
+    """
+    match = PROM_NAME.match(line)
+    if not match or len(line) > 16384:
+        raise ValueError()
+    metric, pos, labels = match[0], match.end(), {}
+    if line[pos:pos + 1] == "{":
+        pos += 1
+        while line[pos:pos + 1] != "}":
+            label = PROM_LABEL.match(line, pos)
+            if not label or label[1] in labels or len(labels) >= 16 or len(label[2]) > 512:
+                raise ValueError()
+            labels[label[1]] = re.sub(r'\\([\\"n])', lambda m: {"n": "\n", '"': '"', "\\": "\\"}[m[1]], label[2])
+            pos = label.end()
+            if line[pos:pos + 1] == ",":
+                pos += 1
+            elif line[pos:pos + 1] != "}":
+                raise ValueError()
+        pos += 1
+    tail = re.fullmatch(r"[ \t]+(\S+)(?:[ \t]+(-?\d+))?[ \t]*", line[pos:])
+    if not tail or not PROM_VALUE.fullmatch(tail[1]):
+        raise ValueError()
+    try:
+        value = Decimal(tail[1])
+    except InvalidOperation:
+        raise ValueError() from None
+    if not value.is_finite() or value < 0:
+        raise ValueError()
+    sample_at = None
+    if tail[2] is not None:
+        milliseconds = int(tail[2])
+        if not 0 <= milliseconds <= 4102444800000:
+            raise ValueError()
+        sample_at = iso(datetime.fromtimestamp(milliseconds / 1000, UTC))
+    return metric, labels, value, sample_at
+
+
+def admission_metrics(raw):
+    rows, seen, hashes, identity_metrics, process_starts = [], set(), set(), set(), []
+    exposed = set()
+    invalid, identity_invalid, overflow = 0, False, False
+    for line in raw.splitlines():
+        token = PROM_NAME.match(line)
+        metric = token[0] if token else None
+        is_identity = metric in IDENTITY_METRICS or metric == "process_start_time_seconds"
+        if metric not in METRIC_LABELS and not is_identity:
+            continue
+        if metric in METRIC_LABELS:
+            exposed.add(HISTOGRAM if metric.startswith(HISTOGRAM + "_") else metric)
+        try:
+            metric, labels, value, sample_at = prometheus_sample(line)
+            if is_identity:
+                if metric == "process_start_time_seconds":
+                    if labels or not 0 < value <= 4102444800:
+                        raise ValueError()
+                    process_starts.append(float(value))
+                else:
+                    expected = {"apiserver_id_hash", "hash"} if metric.endswith("last_config_info") else {"apiserver_id_hash", "status"}
+                    server_hash = labels.get("apiserver_id_hash", "")
+                    if set(labels) != expected or not re.fullmatch(r"sha256:[0-9a-f]{64}", server_hash):
+                        raise ValueError()
+                    hashes.add(server_hash)
+                    identity_metrics.add(metric)
+                continue
+            if labels.get("name") not in WEBHOOKS:
+                continue
+            if set(labels) != METRIC_LABELS[metric]:
+                raise ValueError()
+            if labels["operation"] not in {"CREATE", "UPDATE", "DELETE", "CONNECT"}:
+                raise ValueError()
+            if labels["type"] not in {"admit", "validate", "validating"}:
+                raise ValueError()
+            if "rejected" in labels and labels["rejected"] not in {"true", "false"}:
+                raise ValueError()
+            if "error_type" in labels and labels["error_type"] not in {"calling_webhook_error", "apiserver_internal_error", "no_error"}:
+                raise ValueError()
+            for key in ("code", "rejection_code"):
+                if key in labels and not re.fullmatch(r"0|[1-9]\d{0,2}", labels[key]):
+                    raise ValueError()
+                if key in labels and int(labels[key]) > 600:
+                    raise ValueError()
+            if "le" in labels and labels["le"] not in BUCKETS:
+                raise ValueError()
+            if value != value.to_integral_value() or value > 2 ** 53:
+                raise ValueError()
+            key = (metric, tuple(sorted(labels.items())))
+            if key in seen:
+                raise ValueError()
+            seen.add(key)
+            if len(rows) >= MAX_METRIC_ROWS:
+                overflow = True
+                continue
+            rows.append({"metric": metric, "labels": labels, "value": int(value), "sample_at": sample_at})
+        except (ValueError, OverflowError):
+            if is_identity:
+                identity_invalid = True
+            else:
+                invalid += 1
+    # A truncated or internally inconsistent histogram cannot support interval
+    # evidence. Bucket counters are cumulative across le as well as over time.
+    groups = {}
+    for row in rows:
+        if row["metric"] in (HISTOGRAM + "_count", HISTOGRAM + "_bucket"):
+            group = tuple(sorted((k, v) for k, v in row["labels"].items() if k != "le"))
+            groups.setdefault(group, {})[row["labels"].get("le", "count")] = row["value"]
+    invalid_groups = set()
+    for group, values in groups.items():
+        buckets = [values[k] for k in sorted(BUCKETS, key=float) if k in values]
+        if (set(values) != BUCKETS | {"count"} or buckets != sorted(buckets)
+                or values.get("+Inf") != values.get("count")):
+            invalid_groups.add(group)
+            invalid += 1
+    rows = [r for r in rows if r["metric"] not in (HISTOGRAM + "_count", HISTOGRAM + "_bucket")
+            or tuple(sorted((k, v) for k, v in r["labels"].items() if k != "le")) not in invalid_groups]
+    reason = ("invalid-source-identity" if identity_invalid else
+              "multiple-apiserver-identities" if len(hashes) > 1 else
+              "apiserver-identity-unavailable" if not hashes else None)
+    source = {"status": "unavailable" if reason else "verified", "reason": reason,
+              "instance": alias("apiserver", next(iter(hashes))) if not reason else None,
+              "identity_metric_names": sorted(identity_metrics),
+              "process_start_time_seconds": process_starts[0] if len(process_starts) == 1 else None}
+    if len(process_starts) > 1:
+        source.update(status="unavailable", reason="multiple-process-start-samples", instance=None)
+    families = {}
+    for family in (HISTOGRAM, REJECTIONS, REQUESTS):
+        count = sum(r["metric"] == family or r["metric"] in (family + "_bucket", family + "_count") for r in rows)
+        families[family] = {"status": "verified" if count else "unavailable", "matching_series": count,
+                            "family_samples_present": family in exposed,
+                            "reason": None if count else "no-matching-samples" if family in exposed else "family-not-exposed"}
+    priority = {REJECTIONS: 0, REQUESTS: 1, HISTOGRAM + "_count": 2, HISTOGRAM + "_bucket": 3}
+    return {"rows": sorted(rows, key=lambda r: (priority[r["metric"]], sorted(r["labels"].items()))),
+            "source_identity": source, "families": families,
+            "invalid_samples": invalid, "series_limit_exceeded": overflow,
+            "series_before_report_limits": len(rows), "values": "cumulative; not observation-window changes"}
+
+
+def metric_changes(observations):
+    result = {"status": "unavailable", "reason": "pair-unavailable", "rows": [],
+              "window_activity": "unknown", "series_before_report_limits": 0}
+
+    def reject(reason):
+        result["reason"] = reason
+        return result
+
+    if len(observations) != 2 or any(o["status"] != "verified" for o in observations):
+        return result
+    first, second = observations
+    sources = [o["source_identity"] for o in observations]
+    if any(s["status"] != "verified" for s in sources):
+        return reject("apiserver-identity-unavailable")
+    if sources[0]["instance"] != sources[1]["instance"]:
+        return reject("different-apiserver-instances")
+    if any(s["process_start_time_seconds"] is None for s in sources):
+        return reject("process-start-unavailable")
+    if sources[0]["process_start_time_seconds"] != sources[1]["process_start_time_seconds"]:
+        return reject("process-restarted")
+    if any(o["invalid_samples"] or o["series_limit_exceeded"] for o in observations):
+        return reject("incomplete-or-invalid-samples")
+    if stamp(second["started_at"]) <= stamp(first["finished_at"]):
+        return reject("non-increasing-observation-times")
+    by_key = [{(r["metric"], tuple(sorted(r["labels"].items()))): r for r in o["rows"]} for o in observations]
+    if not by_key[0] or by_key[0].keys() != by_key[1].keys():
+        return reject("missing-or-changed-series; absent-is-not-zero")
+    changes = []
+    for key, before in by_key[0].items():
+        after = by_key[1][key]
+        if after["value"] < before["value"]:
+            return reject("counter-reset-or-negative-delta")
+        times = (before["sample_at"], after["sample_at"])
+        if any(times) and (not all(times) or stamp(times[1]) <= stamp(times[0])):
+            return reject("non-increasing-or-missing-sample-timestamps")
+        if all(times) and any(not stamp(o["started_at"]) <= stamp(at) <= stamp(o["finished_at"])
+                              for o, at in zip(observations, times)):
+            return reject("sample-timestamp-outside-observation")
+        changes.append({"metric": before["metric"], "labels": before["labels"],
+                        "before": before["value"], "after": after["value"], "delta": after["value"] - before["value"]})
+    groups = {}
+    for row in changes:
+        if row["metric"] == HISTOGRAM + "_bucket":
+            group = tuple(sorted((k, v) for k, v in row["labels"].items() if k != "le"))
+            groups.setdefault(group, []).append((float(row["labels"]["le"]), row["delta"]))
+    if any([delta for _, delta in sorted(buckets)] != sorted(delta for _, delta in buckets)
+           for buckets in groups.values()):
+        return reject("inconsistent-histogram-deltas")
+    activity = [r for r in changes if r["metric"] in (REQUESTS, HISTOGRAM + "_count")]
+    result.update(status="verified", reason=None, rows=changes, series_before_report_limits=len(changes),
+                  window_activity=("matching-observations-increased" if any(r["delta"] for r in activity) else
+                                   "no-increase-in-observed-request-or-histogram-counts" if activity else "unknown"),
+                  from_observation=first["finished_at"], to_observation=second["finished_at"],
+                  instance=sources[0]["instance"])
+    return result
+
+
+def apiserver_evidence(reader, enabled=False, interval=None, max_items=20):
+    evidence = {"status": "not run", "reason": "not-requested", "observations": [],
+                "counter_changes": metric_changes([]), "requested_interval_seconds": interval,
+                "load_balancer_uncertainty": "The selected endpoint may route each GET to a different API server; context/URL and start time alone are not instance identity.",
+                "interpretation": "Aggregated API-server webhook metrics cannot identify a failed request or separate connection/TLS/network delay, API-server admission delay and Kyverno handler delay. calling_webhook_error includes multiple failure types; proximity is not causation."}
+    if not enabled:
+        return evidence
+
+    def observe(number):
+        key = f"apiserver-metrics:{number}"
+        began = iso(datetime.now(UTC))
+        raw = reader.read(key, ["get", "--raw", "/metrics"], cap=METRICS_CAP, json_data=False)
+        observation = {"started_at": began, "finished_at": iso(datetime.now(UTC)), **reader.sources[key]}
+        # Reader's 'at' is request start, not a server-provided sample timestamp.
+        if observation["status"] == "verified":
+            observation.update(admission_metrics(raw))
+        evidence["observations"].append(observation)
+        return observation
+
+    first = observe(1)
+    evidence.update(status=first["status"], reason=first.get("reason"))
+    if interval is not None:
+        reason = None
+        if first["status"] != "verified":
+            reason = "first-observation-unavailable"
+        elif first["source_identity"]["status"] != "verified":
+            reason = first["source_identity"]["reason"]
+        elif first["source_identity"]["process_start_time_seconds"] is None:
+            reason = "process-start-unavailable"
+        elif first["invalid_samples"] or first["series_limit_exceeded"] or not first["rows"]:
+            reason = "first-observation-incomplete-or-empty"
+        elif time.monotonic() + interval + reader.request_timeout + 2 >= reader.deadline:
+            reason = "insufficient-snapshot-budget-for-pair"
+        if reason:
+            reader.sources["apiserver-metrics:2"] = {"status": "unavailable", "reason": reason}
+            evidence["counter_changes"]["reason"] = reason
+        else:
+            time.sleep(interval)
+            observe(2)
+            evidence["counter_changes"] = metric_changes(evidence["observations"])
+        reader.sources["apiserver-metrics:changes"] = {k: evidence["counter_changes"][k] for k in ("status", "reason")}
+    for observation in evidence["observations"]:
+        if observation["status"] == "verified":
+            incomplete = observation["invalid_samples"] or observation["series_limit_exceeded"]
+            for state in observation["families"].values():
+                if state["status"] == "unavailable" or incomplete:
+                    evidence.update(status="unavailable", reason="missing-or-incomplete-metrics")
+            observation["rows"] = observation["rows"][:max_items]
+    evidence["counter_changes"]["rows"] = evidence["counter_changes"]["rows"][:max_items]
+    reader.sources["apiserver-metrics"] = {k: evidence[k] for k in ("status", "reason")}
+    return evidence
+
+
 class Reader:
     def __init__(self, context, budget=90, request_timeout=8):
         self.context = context
@@ -335,9 +610,11 @@ def metric_rows(items, pods):
     return result
 
 
-def collect(reader, since_minutes=30, namespace="kyverno", flux_namespace="flux-system", service="kyverno-svc", max_items=20):
+def collect(reader, since_minutes=30, namespace="kyverno", flux_namespace="flux-system", service="kyverno-svc", max_items=20,
+            apiserver_metrics=False, metrics_interval=None):
     began = datetime.now(UTC)
     start = began - timedelta(minutes=since_minutes)
+    api_metrics = apiserver_evidence(reader, apiserver_metrics, metrics_interval, max_items)
     selector = "app.kubernetes.io/component=admission-controller"
     pod_path = f"/api/v1/namespaces/{namespace}/pods"
     slice_path = f"/apis/discovery.k8s.io/v1/namespaces/{namespace}/endpointslices"
@@ -391,6 +668,8 @@ def collect(reader, since_minutes=30, namespace="kyverno", flux_namespace="flux-
         "No corresponding request in this sample does not prove that Kyverno did not receive it.",
         "Request identifiers require explicit UUID fields; generic uid and unlabelled latency are excluded.",
         "Node addresses and request identifiers are hashed; free text, raw logs, bodies and complete objects are omitted.",
+        api_metrics["interpretation"],
+        "API-server metric observations cover their own collection times, not the historical Flux event window; cumulative totals and histogram buckets are not per-request latency.",
     ]
     if not any(r["identifiers"] for r in logs + timeouts):
         limitations.append("Request identifiers unavailable in sampled safe fields.")
@@ -414,6 +693,14 @@ def collect(reader, since_minutes=30, namespace="kyverno", flux_namespace="flux-
                 != sorted(json.dumps(r, sort_keys=True) for r in endpoints_after)) if endpoints_known else None,
             "controller_evidence": logs[:max_items]},
         "possible_correlations": possible[:max_items],
+        "apiserver_metrics": api_metrics,
+        "evidence_classification": {
+            "api_server_observations": "apiserver_metrics.observations: cumulative allowlisted samples only",
+            "counter_changes": "apiserver_metrics.counter_changes: only verified same-instance, same-process pairs",
+            "historical_flux_events": "confirmed_observations.flux_timeouts: event last-observed or condition last-transition times",
+            "possible_correlations": "possible_correlations: overlap does not establish causation",
+            "per_request_evidence": "No API-server request trace or transport/handler timing is collected; failure boundary remains unverified.",
+        },
         "evidence_unavailable_or_limited": limitations,
         "sources": reader.sources,
         "counts_before_report_limits": {"flux_timeouts": len(timeouts), "controller_evidence": len(logs),
@@ -432,6 +719,10 @@ def encode_report(report):
             return encoded
         arrays = [v for v in report["confirmed_observations"].values() if isinstance(v, list)]
         arrays.append(report["possible_correlations"])
+        telemetry = report.get("apiserver_metrics", {})
+        arrays.extend(o["rows"] for o in telemetry.get("observations", []) if "rows" in o)
+        if "counter_changes" in telemetry:
+            arrays.append(telemetry["counter_changes"]["rows"])
         largest = max(arrays, key=len)
         if not largest:
             raise Unavailable("report-byte-limit-exceeded")
@@ -457,13 +748,19 @@ def main():
     parser.add_argument("--namespace", default="kyverno")
     parser.add_argument("--flux-namespace", default="flux-system")
     parser.add_argument("--service", default="kyverno-svc")
+    parser.add_argument("--apiserver-metrics", action="store_true", help="Opt in to one bounded /metrics GET")
+    parser.add_argument("--metrics-interval-seconds", type=bounded_int(1, 30), default=None,
+                        help="Request at most two /metrics observations, separated by 1–30 seconds; requires --apiserver-metrics")
     args = parser.parse_args()
+    if args.metrics_interval_seconds is not None and not args.apiserver_metrics:
+        parser.error("--metrics-interval-seconds requires --apiserver-metrics")
     for value in (args.namespace, args.flux_namespace, args.service):
         if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", value):
             parser.error("namespace and service must be DNS labels")
     reader = Reader(args.context, args.budget_seconds)
     try:
-        report = collect(reader, args.since_minutes, args.namespace, args.flux_namespace, args.service, args.max_items)
+        report = collect(reader, args.since_minutes, args.namespace, args.flux_namespace, args.service, args.max_items,
+                         args.apiserver_metrics, args.metrics_interval_seconds)
         sys.stdout.write(encode_report(report))
     except (BrokenPipeError, KeyboardInterrupt):
         return 130

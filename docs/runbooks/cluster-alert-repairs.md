@@ -180,6 +180,89 @@ that entered Kyverno and stalled, and can then identify a specific processing
 operation. Until that boundary is observed, root cause remains unresolved and
 [#2133](https://github.com/RovxBot/homelab-infra/issues/2133) stays open.
 
+For optional API-server admission telemetry, explicitly add `--apiserver-metrics`.
+Without it, `/metrics` is never requested. To request a bounded pair:
+
+```bash
+python3 scripts/kyverno-timeout-evidence.py \
+  --context <existing-context> --budget-seconds 60 \
+  --apiserver-metrics --metrics-interval-seconds 5 > /tmp/kyverno-evidence.json
+```
+
+This performs at most two read-only `kubectl get --raw /metrics` calls using the
+same explicit context, current credentials and existing request/response limits.
+The interval accepts 1–30 seconds and consumes the overall budget; insufficient
+remaining time skips the second observation. No additional RBAC is requested.
+Forbidden access, request failures, response overflow and missing metrics remain
+explicitly unavailable; they are never converted into zero counters.
+
+Only exact `name` labels `validate-policy.kyverno.svc` and
+`validate.kyverno.svc-fail` are retained, from these Kubernetes 1.34 families:
+
+| Family | Retained fields |
+| --- | --- |
+| `apiserver_admission_webhook_admission_duration_seconds` | `_bucket` and `_count`; `name`, `type`, `operation`, `rejected`, `le` on buckets |
+| `apiserver_admission_webhook_rejection_count` | Counter; `name`, `type`, `operation`, `error_type`, `rejection_code` |
+| `apiserver_admission_webhook_request_total` | Counter; `name`, `type`, `operation`, `rejected`, `code` |
+
+Buckets are allowlisted to 0.005, 0.025, 0.1, 0.5, 1, 2.5, 10, 25 seconds and
+`+Inf`. Histogram sums, arbitrary labels, unrelated webhooks, raw endpoint data,
+exemplars and request bodies are omitted. Label values must match fixed enums or
+bounded numeric codes. Malformed/duplicate samples and incomplete/inconsistent
+histograms cannot support changes. Counter parsing preserves integer precision;
+values above 2^53 are rejected. Family status distinguishes no exposed samples
+from exposed families without matching webhook samples.
+
+`apiserver_metrics.observations` contains **cumulative** values, client GET
+start/finish times, and explicit Prometheus sample timestamps only when provided
+(`sample_at` otherwise stays null). Client collection time is not an admission
+request timestamp. `counter_changes` is separate and emits **no rates**. It
+requires a single consistent `apiserver_id_hash` from local authentication,
+authorization or encryption configuration-controller metrics in each response,
+plus an unchanged `process_start_time_seconds`. Only a hash alias and the names
+of identity-bearing metrics are retained; configuration hashes, other labels
+and configuration-controller metric values are excluded. The recognized identity
+families are `apiserver_{authentication,authorization,encryption}_config_controller_`
+with `automatic_reloads_total`, `automatic_reload_last_timestamp_seconds`, or
+`last_config_info` suffixes.
+
+A context, endpoint URL, generic `instance` label, build version or process
+start time alone cannot establish API-server identity. Missing/ambiguous identity
+or process start in the first observation stops metrics sampling immediately.
+Different server hashes, process restarts, negative deltas, changing/missing
+series, invalid samples, inconsistent histogram deltas or stale/non-increasing
+explicit sample timestamps invalidate the pair. Absent series are never assumed
+zero. Two observations cannot exclude a counter reset that catches up between
+them. Even a verified pair describes only the responding instance, not every
+replica behind a load balancer; the script does not retry to obtain a matching
+server.
+
+Telemetry rows share `--max-items` and the existing 48 KiB report bound.
+Rejection/request counters are retained before histogram detail when rows are
+limited. Per-observation and change counts before row limits, all family/source
+statuses and final byte trimming remain visible. The existing v1 report fields
+are preserved; `apiserver_metrics` and `evidence_classification` are additive.
+An unavailable requested pair or metric family yields exit 2 with a partial
+report. The original pod, EndpointSlice, Flux event and controller-log evidence
+continues within the same overall budget.
+
+API-server histogram observations measure aggregate webhook invocation time;
+they are not the duration of a particular failed AdmissionReview.
+`calling_webhook_error` includes timeout and other invocation errors. These
+metrics cannot separate connection/TLS/network transport failure, API-server
+admission processing delay, and Kyverno handler processing delay. The report
+keeps API-server observations, safely measured counter changes, historical Flux
+records, possible correlations, and missing per-request evidence distinct.
+Unchanged counters during a short window do not explain or refute an earlier
+event. Use existing per-request API-server traces, matching controller timings
+and transport observations described above to locate the failure boundary before
+proposing a corrective configuration PR.
+
+Metric definitions and identity semantics were checked against the
+[Kubernetes 1.34 metrics reference](https://v1-34.docs.kubernetes.io/docs/reference/instrumentation/metrics/),
+[v1.34.1 admission implementation](https://github.com/kubernetes/kubernetes/blob/v1.34.1/staging/src/k8s.io/apiserver/pkg/admission/metrics/metrics.go),
+and [local configuration-controller identity implementation](https://github.com/kubernetes/kubernetes/blob/v1.34.1/staging/src/k8s.io/apiserver/pkg/server/options/authorizationconfig/metrics/metrics.go).
+
 Fixture checks (also included in the existing script test discovery):
 
 ```bash
@@ -201,6 +284,26 @@ identifiers or measured operation latency, so no controller correlation could
 be established. This does not prove the timed-out request was absent. Audit
 traces and Cilium flows were unavailable to the utility. The snapshot does not
 locate the failing boundary, prove connectivity or establish a distinct defect.
+
+The API-server extension received one explicitly bounded live attempt on
+**20 November 2026, 22:46:49.753690–22:46:50.287904 Adelaide time**
+(12:16:49.753690–12:16:50.287904 UTC), using the workstation's existing selected
+context (reported as `context-f7cfc78e4428`), a 60-second budget, a 120-minute
+historical window, `--max-items 40`, and a requested five-second pair interval.
+The first `/metrics` GET ran from **12:16:49.753865 to 12:16:49.944907 UTC** and
+returned the sanitized transport reason **`request-failed`**. This is not a
+verified Forbidden/RBAC error: stderr was intentionally suppressed and the
+failure boundary was not identified. The second metrics GET and interval wait
+were skipped. The existing pod, Service, Flux event/Kustomization,
+EndpointSlice and pod-metrics GETs also returned `request-failed`; no pod logs
+could be selected. Exit status was **2**, with a **6,585-byte** sanitized report,
+no list/report truncation, no API-server metric samples, no established serving
+instance, no deltas, and no new per-request or Flux evidence. No requests were
+retried, no admission probes were sent, and no permissions or resources changed.
+The previously supplied **12:03:03 UTC** Flux timeout is historical evidence,
+not an observation reverified by this attempt. The API-server/transport/handler
+boundary remains unresolved; a corrective cluster PR is not justified yet.
+Keep #2133 and #2150 open, and keep Kubescape suspended.
 
 Flag and endpoint semantics follow the Kubernetes references for
 [bounded pod logs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/),
