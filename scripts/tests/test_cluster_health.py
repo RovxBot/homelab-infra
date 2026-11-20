@@ -239,6 +239,86 @@ print(value)
                 self.assertEqual(health['collectionErrors'], {subcheck: 'empty_result'})
             self.data[key] = previous
 
+    def test_malformed_successful_query_rows_are_unknown(self):
+        cases = {
+            'nodes': ('node1\t\tFalse\tFalse\tFalse',
+                      'node1\tTrue\tFalse\tFalse', 'node1\tbogus\tFalse\tFalse\tFalse'),
+            'deployments': ('test/bad\tbogus\tjunk', 'test/bad\t1\tjunk',
+                            'test/bad\t\t0', 'test/bad\t0', 'test/bad\t0\t0\textra', '\t0\t0',
+                            'test/bad\t99999999999999999999\t0'),
+            'statefulsets': ('test/bad\tbogus\tjunk', 'test/bad\t-1\t0'),
+            'daemonsets': ('test/bad\tbogus\tjunk', 'test/bad\t1.5\t0'),
+            'persistentvolumeclaims': ('test/bad', 'test/bad\tbogus'),
+            FLUX_QUERY: ('flux-system/Kustomization/bad\t',
+                         'flux-system/Kustomization/bad\tbogus'),
+            'volumes.longhorn.io': ('bad\tattached', 'bad\tbogus\thealthy',
+                                    'bad\tattached\tbogus'),
+            'nodes.longhorn.io': ('bad\t', 'bad\tbogus'),
+            'jobs': ('test/bad', 'test/bad|0||True|extra',
+                     'test/bad|0||bogus', 'test/bad|bogus||True',
+                     'test/bad|0|bogus|True', 'test/bad|99999999999999999999||'),
+        }
+        for query, rows in cases.items():
+            previous = self.data[query]
+            for row in (*rows, 'bad identity'):
+                with self.subTest(query=query, row=row):
+                    self.data[query] = row
+                    health = self.health()
+                    category, subcheck = HEALTH_QUERIES[query]
+                    self.assertEqual(health['status'], 'unknown')
+                    self.assertEqual(health['checks'][category], 'unknown')
+                    self.assertEqual(health['collectionErrors'], {subcheck: 'invalid_data'})
+                    self.assertTrue(all(not failures for failures in health['failures'].values()))
+            self.data[query] = previous
+
+    def test_zero_replica_workloads_and_empty_lists_remain_healthy(self):
+        for counts in ('0\t', '0\t0', None):
+            with self.subTest(counts=counts):
+                for query in ('deployments', 'statefulsets', 'daemonsets'):
+                    self.data[query] = f'test/zero\t{counts}' if counts is not None else ''
+                health = self.health()
+                self.assertEqual(health['status'], 'healthy')
+                self.assertEqual(health['checks']['workloads'], 'ok')
+                self.assertEqual(health['collectionErrors'], {})
+
+    def test_confirmed_failure_survives_invalid_workload_subcheck(self):
+        self.data['deployments'] = 'test/bad\tbogus\tjunk'
+        self.data['statefulsets'] = 'test/unhealthy\t2\t'
+        health = self.health()
+        self.assertEqual(health['status'], 'unhealthy')
+        self.assertEqual(health['checks']['workloads'], 'failed')
+        self.assertEqual(health['collectionErrors'], {'deployments': 'invalid_data'})
+        self.assertEqual(health['failures']['workloads'], ['test/unhealthy desired=2 available=0'])
+
+    def test_confirmed_failure_rows_survive_other_invalid_rows(self):
+        rows = {
+            'nodes': 'node1\tFalse\tFalse\tFalse\tFalse',
+            'deployments': 'test/unhealthy\t2\t1',
+            'statefulsets': 'test/unhealthy\t2\t1',
+            'daemonsets': 'test/unhealthy\t2\t1',
+            'persistentvolumeclaims': 'test/unhealthy\tPending',
+            FLUX_QUERY: 'flux-system/Kustomization/unhealthy\tFalse',
+            'volumes.longhorn.io': 'unhealthy\tattached\tdegraded',
+            'nodes.longhorn.io': 'unhealthy\tFalse',
+            'jobs': f'test/unhealthy|1|{datetime.now(timezone.utc).isoformat()}|',
+        }
+        for query, row in rows.items():
+            previous = self.data[query]
+            for combined in (row + '\n' + API_ERROR_OUTPUT, API_ERROR_OUTPUT + '\n' + row):
+                with self.subTest(query=query, rows=combined):
+                    self.data[query] = combined
+                    health = self.health()
+                    category, subcheck = HEALTH_QUERIES[query]
+                    self.assertEqual(health['status'], 'unhealthy')
+                    self.assertEqual(health['checks'][category], 'failed')
+                    self.assertEqual(health['collectionErrors'], {subcheck: 'invalid_data'})
+                    if category in health['failures']:
+                        self.assertEqual(len(health['failures'][category]), 1)
+                        self.assertIn('unhealthy', health['failures'][category][0])
+                    self.assertNotIn('raw-api-error', (self.work / 'health.json').read_text())
+                    self.assertNotIn('fixture-secret-token', (self.work / 'health.json').read_text())
+            self.data[query] = previous
+
     def test_job_timestamp_error_retains_confirmed_failure_in_either_order(self):
         failed = f'test/failed|1|{datetime.now(timezone.utc).isoformat()}|'
         invalid = 'test/invalid|1|unparseable-time|'

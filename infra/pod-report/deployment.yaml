@@ -61,71 +61,126 @@ spec:
               current-context: pod-report
               EOF
 
+              valid_status_rows() {
+                # Keep independently valid rows, but flag any incomplete or
+                # malformed evidence before numeric coercion or health checks.
+                awk -v kind="$1" '
+                  BEGIN {
+                    FS = (kind == "jobs" ? "[|]" : "\t")
+                    name = "[a-z0-9][-a-z0-9.]*"
+                    namespaced = "^" name "/" name "$"
+                    timestamp = "^[0-9][0-9][0-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$"
+                  }
+                  function condition(value) { return value ~ /^(True|False|Unknown)$/ }
+                  function count(value, optional) {
+                    # Kubernetes replica and failed-Job counters are int32.
+                    return (optional && value == "") || (value ~ /^[0-9]+$/ && length(value) <= 10 && value + 0 <= 2147483647)
+                  }
+                  {
+                    valid = 0
+                    if (kind == "replicas")
+                      valid = NF == 3 && $1 ~ namespaced && count($2, 0) && count($3, 1)
+                    else if (kind == "nodes")
+                      valid = NF == 5 && $1 ~ ("^" name "$") && condition($2) && condition($3) && condition($4) && condition($5)
+                    else if (kind == "pvcs")
+                      valid = NF == 2 && $1 ~ namespaced && $2 ~ /^(Pending|Bound|Lost)$/
+                    else if (kind == "flux")
+                      valid = NF == 2 && $1 ~ ("^" name "/(Kustomization|HelmRelease)/" name "$") && condition($2)
+                    else if (kind == "longhornVolumes")
+                      valid = NF == 3 && $1 ~ ("^" name "$") && $2 ~ /^(creating|attached|detached|attaching|detaching|deleting)$/ && $3 ~ /^(healthy|degraded|faulted|unknown)$/
+                    else if (kind == "longhornNodes")
+                      valid = NF == 2 && $1 ~ ("^" name "$") && condition($2)
+                    else if (kind == "jobs")
+                      valid = NF == 4 && $1 ~ namespaced && count($2, 1) && ($3 == "" || $3 ~ timestamp) && ($4 == "" || condition($4))
+                    if (valid) print
+                    else invalid = 1
+                  }
+                  END { exit (invalid ? 2 : 0) }
+                '
+              }
+
               # Check return codes: 0 = ok, 1 = confirmed unhealthy, 2 = unknown.
               # Discard stdout from failed queries, including any partial results.
               nodes_ok() {
                 node_statuses="$(kubectl --request-timeout=15s get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="DiskPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="MemoryPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="PIDPressure")]}{.status}{end}{"\n"}{end}')" || { node_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -n "$node_statuses" ] || { collection_reason="empty_result"; return 2; }
-                printf '%s\n' "$node_statuses" | awk -F '\t' 'NF != 5 || $2 != "True" || $3 != "False" || $4 != "False" || $5 != "False" { bad = 1 } END { exit bad }'
+                node_statuses="$(printf '%s\n' "$node_statuses" | valid_status_rows nodes)" || collection_reason="invalid_data"
+                [ -z "$node_statuses" ] || printf '%s\n' "$node_statuses" | awk -F '\t' '$2 != "True" || $3 != "False" || $4 != "False" || $5 != "False" { bad = 1 } END { exit bad }' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               deployments_ok() {
                 deployment_statuses="$(kubectl --request-timeout=15s get deployments -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.availableReplicas}{"\n"}{end}')" || { deployment_statuses=""; collection_reason="query_failed"; return 2; }
-                [ -z "$deployment_statuses" ] || printf '%s\n' "$deployment_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
+                [ -z "$deployment_statuses" ] && return 0
+                deployment_statuses="$(printf '%s\n' "$deployment_statuses" | valid_status_rows replicas)" || collection_reason="invalid_data"
+                [ -z "$deployment_statuses" ] || printf '%s\n' "$deployment_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               statefulsets_ok() {
                 statefulset_statuses="$(kubectl --request-timeout=15s get statefulsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.readyReplicas}{"\n"}{end}')" || { statefulset_statuses=""; collection_reason="query_failed"; return 2; }
-                [ -z "$statefulset_statuses" ] || printf '%s\n' "$statefulset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
+                [ -z "$statefulset_statuses" ] && return 0
+                statefulset_statuses="$(printf '%s\n' "$statefulset_statuses" | valid_status_rows replicas)" || collection_reason="invalid_data"
+                [ -z "$statefulset_statuses" ] || printf '%s\n' "$statefulset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               daemonsets_ok() {
                 daemonset_statuses="$(kubectl --request-timeout=15s get daemonsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.desiredNumberScheduled}{"\t"}{.status.numberAvailable}{"\n"}{end}')" || { daemonset_statuses=""; collection_reason="query_failed"; return 2; }
-                [ -z "$daemonset_statuses" ] || printf '%s\n' "$daemonset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
+                [ -z "$daemonset_statuses" ] && return 0
+                daemonset_statuses="$(printf '%s\n' "$daemonset_statuses" | valid_status_rows replicas)" || collection_reason="invalid_data"
+                [ -z "$daemonset_statuses" ] || printf '%s\n' "$daemonset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               pvcs_ok() {
                 pvc_statuses="$(kubectl --request-timeout=15s get persistentvolumeclaims -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')" || { pvc_statuses=""; collection_reason="query_failed"; return 2; }
-                [ -z "$pvc_statuses" ] || printf '%s\n' "$pvc_statuses" | awk -F '\t' '$2 != "Bound" { bad = 1 } END { exit bad }'
+                [ -z "$pvc_statuses" ] && return 0
+                pvc_statuses="$(printf '%s\n' "$pvc_statuses" | valid_status_rows pvcs)" || collection_reason="invalid_data"
+                [ -z "$pvc_statuses" ] || printf '%s\n' "$pvc_statuses" | awk -F '\t' '$2 != "Bound" { bad = 1 } END { exit bad }' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               flux_ok() {
                 flux_statuses="$(kubectl --request-timeout=15s get kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.kind}{"/"}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}')" || { flux_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -n "$flux_statuses" ] || { collection_reason="empty_result"; return 2; }
-                printf '%s\n' "$flux_statuses" | awk -F '\t' 'NF != 2 || $2 != "True" { bad = 1 } END { exit bad }'
+                flux_statuses="$(printf '%s\n' "$flux_statuses" | valid_status_rows flux)" || collection_reason="invalid_data"
+                [ -z "$flux_statuses" ] || printf '%s\n' "$flux_statuses" | awk -F '\t' '$2 != "True" { bad = 1 } END { exit bad }' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               longhorn_volumes_ok() {
                 volume_statuses="$(kubectl --request-timeout=15s get volumes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.state}{"\t"}{.status.robustness}{"\n"}{end}')" || { volume_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -n "$volume_statuses" ] || { collection_reason="empty_result"; return 2; }
+                volume_statuses="$(printf '%s\n' "$volume_statuses" | valid_status_rows longhornVolumes)" || collection_reason="invalid_data"
                 # A detached Longhorn volume normally reports unknown robustness because
                 # it has no running engine to assess. Treat it as healthy only when it is
                 # scheduled; attached volumes must still have full replica health.
-                printf '%s\n' "$volume_statuses" | awk -F '\t' '\
-                  NF != 3 ||
+                [ -z "$volume_statuses" ] || printf '%s\n' "$volume_statuses" | awk -F '\t' '\
                   ($2 == "attached" && $3 != "healthy") ||
                   ($2 == "detached" && $3 != "unknown") ||
                   ($2 != "attached" && $2 != "detached") { bad = 1 }
                   END { exit bad }
-                '
+                ' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               longhorn_nodes_ok() {
                 node_statuses="$(kubectl --request-timeout=15s get nodes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Schedulable")]}{.status}{end}{"\n"}{end}')" || { node_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -n "$node_statuses" ] || { collection_reason="empty_result"; return 2; }
-                printf '%s\n' "$node_statuses" | awk -F '\t' 'NF != 2 || $2 != "True" { bad = 1 } END { exit bad }'
+                node_statuses="$(printf '%s\n' "$node_statuses" | valid_status_rows longhornNodes)" || collection_reason="invalid_data"
+                [ -z "$node_statuses" ] || printf '%s\n' "$node_statuses" | awk -F '\t' '$2 != "True" { bad = 1 } END { exit bad }' || return $?
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               recent_jobs_ok() {
                 job_statuses="$(kubectl --request-timeout=15s get jobs -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"|"}{.status.failed}{"|"}{.status.startTime}{"|"}{range .status.conditions[?(@.type=="Complete")]}{.status}{end}{"\n"}{end}')" || { job_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -z "$job_statuses" ] && return 0
+                job_statuses="$(printf '%s\n' "$job_statuses" | valid_status_rows jobs)" || collection_reason="invalid_data"
                 cutoff_epoch="$(date -u -d '6 hours ago' +%s)" || return 2
                 job_failures=""
                 while IFS='|' read -r job_name failed_count start_time complete; do
                   [ "$complete" != True ] || continue
-                  case "$failed_count" in
-                    *[!0-9]*) collection_reason="invalid_data"; continue ;;
-                  esac
                   [ "${failed_count:-0}" -gt 0 ] || continue
                   # Keep checking other Jobs if one timestamp cannot be evaluated.
                   [ -n "$start_time" ] || { collection_reason="invalid_data"; continue; }
@@ -135,7 +190,7 @@ spec:
               $job_statuses
               EOF
                 [ -z "$job_failures" ] || return 1
-                [ -z "$collection_reason" ] || return 2
+                [ -z "${collection_reason:-}" ] || return 2
               }
 
               check_health() {
