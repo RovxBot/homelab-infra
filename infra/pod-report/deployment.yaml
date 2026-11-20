@@ -72,6 +72,11 @@ spec:
                     timestamp = "^[0-9][0-9][0-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$"
                   }
                   function condition(value) { return value ~ /^(True|False|Unknown)$/ }
+                  function flux_identity(value, parts, label, subdomain) {
+                    label = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
+                    subdomain = label "([.]" label ")*"
+                    return split(value, parts, "/") == 3 && length(parts[1]) <= 63 && parts[1] ~ ("^" label "$") && parts[2] ~ /^(Kustomization|HelmRelease)$/ && length(parts[3]) <= 253 && parts[3] ~ ("^" subdomain "$")
+                  }
                   function count(value, optional) {
                     # Kubernetes replica and failed-Job counters are int32.
                     return (optional && value == "") || (value ~ /^[0-9]+$/ && length(value) <= 10 && value + 0 <= 2147483647)
@@ -84,15 +89,25 @@ spec:
                       valid = NF == 5 && $1 ~ ("^" name "$") && condition($2) && condition($3) && condition($4) && condition($5)
                     else if (kind == "pvcs")
                       valid = NF == 2 && $1 ~ namespaced && $2 ~ /^(Pending|Bound|Lost)$/
-                    else if (kind == "flux")
-                      valid = NF == 2 && $1 ~ ("^" name "/(Kustomization|HelmRelease)/" name "$") && condition($2)
+                    else if (kind == "flux") {
+                      valid = NF == 3 && flux_identity($1) && ($3 == "" || $3 ~ /^(true|false)$/)
+                      # Explicit allowlist: staged Kubescape has never reconciled.
+                      # Omit this neutral row; never synthesize Ready=True.
+                      if (valid && $1 == "kubescape/HelmRelease/kubescape" && $3 == "true" && $2 == "") next
+                      # The Ready= marker distinguishes an absent condition from
+                      # a present condition with a malformed or missing status.
+                      # A suspended resource cannot establish successful health
+                      # from a stale Ready=True; retain explicit failure conditions.
+                      valid = valid && $2 ~ /^Ready=(True|False|Unknown)$/ && ($3 != "true" || $2 != "Ready=True")
+                    }
                     else if (kind == "longhornVolumes")
                       valid = NF == 3 && $1 ~ ("^" name "$") && $2 ~ /^(creating|attached|detached|attaching|detaching|deleting)$/ && $3 ~ /^(healthy|degraded|faulted|unknown)$/
                     else if (kind == "longhornNodes")
                       valid = NF == 2 && $1 ~ ("^" name "$") && condition($2)
                     else if (kind == "jobs")
                       valid = NF == 4 && $1 ~ namespaced && count($2, 1) && ($3 == "" || $3 ~ timestamp) && ($4 == "" || condition($4))
-                    if (valid) print
+                    if (valid && kind == "flux") print $1 "\t" substr($2, 7) "\t" $3
+                    else if (valid) print
                     else invalid = 1
                   }
                   END { exit (invalid ? 2 : 0) }
@@ -142,7 +157,7 @@ spec:
               }
 
               flux_ok() {
-                flux_statuses="$(kubectl --request-timeout=15s get kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.kind}{"/"}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}')" || { flux_statuses=""; collection_reason="query_failed"; return 2; }
+                flux_statuses="$(kubectl --request-timeout=15s get kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.kind}{"/"}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.type}{"="}{.status}{end}{"\t"}{.spec.suspend}{"\n"}{end}')" || { flux_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -n "$flux_statuses" ] || { collection_reason="empty_result"; return 2; }
                 flux_statuses="$(printf '%s\n' "$flux_statuses" | valid_status_rows flux)" || collection_reason="invalid_data"
                 [ -z "$flux_statuses" ] || printf '%s\n' "$flux_statuses" | awk -F '\t' '$2 != "True" { bad = 1 } END { exit bad }' || return $?
