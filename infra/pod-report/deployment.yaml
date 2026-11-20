@@ -319,6 +319,24 @@ spec:
             readOnlyRootFilesystem: true
             seccompProfile:
               type: RuntimeDefault
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  report=/work/health.json
+                  [ -f "$report" ]
+                  [ -r "$report" ]
+                  [ -s "$report" ]
+                  modified="$(stat -c %Y "$report")"
+                  now="$(date +%s)"
+                  age=$((now - modified))
+                  # Allow five minutes between completed reports, including collection.
+                  [ "$age" -ge 0 ] && [ "$age" -le 300 ]
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 1
           resources:
             requests:
               cpu: 50m
