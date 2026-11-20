@@ -101,8 +101,39 @@ class GatusIssueTests(unittest.TestCase):
         self.assertEqual(self.calls,[])
 
     def test_verified_cluster_recovery_closes_original_issue(self):
-        self.invoke(endpoints=[self.cluster_endpoint(self.recovery_samples())], health=self.healthy_collector())
-        self.assertEqual(self.calls,[('github/issues/1','PATCH',{'state':'closed','state_reason':'completed'})])
+        for failures in ({}, {key: [] for key in self.helper['CHECKS']}):
+            with self.subTest(failures=failures):
+                health = self.healthy_collector()
+                health['failures'] = failures
+                self.invoke(endpoints=[self.cluster_endpoint(self.recovery_samples())], health=health)
+                self.assertEqual(self.calls,[('github/issues/1','PATCH',{'state':'closed','state_reason':'completed'})])
+                self.calls.clear()
+
+    def test_missing_diagnostic_fields_block_closure_despite_valid_recovery_history(self):
+        for missing in (('failures',), ('collectionErrors',), ('failures', 'collectionErrors')):
+            with self.subTest(missing=missing):
+                health = self.healthy_collector()
+                for field in missing:
+                    del health[field]
+                self.assertFalse(self.helper['cluster_is_healthy'](health))
+                self.invoke(endpoints=[self.cluster_endpoint(self.recovery_samples())], health=health)
+                self.assert_no_closure()
+                self.calls.clear()
+
+    def test_malformed_or_nonempty_diagnostic_fields_block_closure(self):
+        cases = [(field, value) for field in ('failures', 'collectionErrors')
+                 for value in (None, [], '', False, 0, 'invalid', ['invalid'])]
+        cases += [('failures', {'nodes': [], 'flux': value})
+                  for value in (None, {}, '', False, 0, 'invalid', ['infra/kyverno-policies Ready=False'])]
+        cases.append(('collectionErrors', {'flux': 'query_failed'}))
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                health = self.healthy_collector()
+                health[field] = value
+                self.assertFalse(self.helper['cluster_is_healthy'](health))
+                self.invoke(endpoints=[self.cluster_endpoint(self.recovery_samples())], health=health)
+                self.assert_no_closure()
+                self.calls.clear()
 
     def test_two_ten_and_nineteen_successes_keep_failure_diagnostics_and_user_text(self):
         self.issue['body'] = self.helper['diagnostic_body']('Original incident\n\nOperator note', self.health) + '\nUser follow-up\n'

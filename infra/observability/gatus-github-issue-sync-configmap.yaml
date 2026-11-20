@@ -202,9 +202,10 @@ data:
                 and is_recent(health.get("observedAt"), policy["CLUSTER_MAX_HEALTH_AGE_SECONDS"])
                 and isinstance(health.get("checks"), dict)
                 and all(health["checks"].get(key) == "ok" for key in CHECKS)
-                and isinstance(health.get("failures", {}), dict)
-                and all(isinstance(entries, list) and not entries for entries in health.get("failures", {}).values())
-                and health.get("collectionErrors", {}) == {})
+                and isinstance(health.get("failures"), dict)
+                and all(isinstance(entries, list) and not entries for entries in health["failures"].values())
+                and isinstance(health.get("collectionErrors"), dict)
+                and not health["collectionErrors"])
 
 
     def diagnostic_body(body, health):
