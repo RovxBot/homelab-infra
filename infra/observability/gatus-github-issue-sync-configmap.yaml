@@ -52,9 +52,62 @@ data:
             return None
 
 
-    def is_recent(timestamp):
+    def is_recent(timestamp, max_age=None):
         observed = result_time(timestamp)
-        return observed is not None and 0 <= (datetime.now(timezone.utc) - observed).total_seconds() <= MAX_RESULT_AGE_SECONDS
+        max_age = MAX_RESULT_AGE_SECONDS if max_age is None else max_age
+        return observed is not None and 0 <= (datetime.now(timezone.utc) - observed).total_seconds() <= max_age
+
+
+    def cluster_recovery_policy():
+        defaults = {
+            "CLUSTER_SUCCESS_THRESHOLD": 20,
+            "CLUSTER_RECOVERY_MIN_SECONDS": 1140,
+            "CLUSTER_MAX_SAMPLE_GAP_SECONDS": 90,
+            "CLUSTER_MAX_RESULT_AGE_SECONDS": 120,
+            "CLUSTER_MAX_HEALTH_AGE_SECONDS": 300,
+        }
+        try:
+            policy = {key: int(os.getenv(key, str(value))) for key, value in defaults.items()}
+        except ValueError:
+            return None
+        # Configuration may strengthen recovery, but must not weaken its floor
+        # or allow a missing one-minute sample. Impossible windows fail closed.
+        count = policy["CLUSTER_SUCCESS_THRESHOLD"]
+        duration = policy["CLUSTER_RECOVERY_MIN_SECONDS"]
+        gap = policy["CLUSTER_MAX_SAMPLE_GAP_SECONDS"]
+        if (count < 20 or duration < 1140 or not 60 <= gap < 120
+                or duration > (count - 1) * gap
+                or any(value <= 0 for value in policy.values())):
+            return None
+        return policy
+
+
+    def cluster_endpoint_is_stably_healthy(endpoint):
+        policy = cluster_recovery_policy()
+        results = endpoint.get("results")
+        if policy is None or not isinstance(results, list) or len(results) < policy["CLUSTER_SUCCESS_THRESHOLD"]:
+            return False
+        now = datetime.now(timezone.utc)
+        observations = []
+        for item in results:
+            if not isinstance(item, dict) or type(item.get("success")) is not bool:
+                return False
+            timestamp = result_time(item.get("timestamp"))
+            if timestamp is None or timestamp > now:
+                return False
+            observations.append((timestamp, item["success"]))
+        # SQLite and memory adapters can expose opposite orders. Accept either
+        # strict chronology, never reorder malformed/shuffled or duplicate data.
+        if observations[0][0] > observations[-1][0]:
+            observations.reverse()
+        if any(a[0] >= b[0] for a, b in zip(observations, observations[1:])):
+            return False
+        latest = observations[-policy["CLUSTER_SUCCESS_THRESHOLD"]:]
+        return (all(success for _, success in latest)
+                and 0 <= (now - latest[-1][0]).total_seconds() <= policy["CLUSTER_MAX_RESULT_AGE_SECONDS"]
+                and (latest[-1][0] - latest[0][0]).total_seconds() >= policy["CLUSTER_RECOVERY_MIN_SECONDS"]
+                and all((b[0] - a[0]).total_seconds() <= policy["CLUSTER_MAX_SAMPLE_GAP_SECONDS"]
+                        for a, b in zip(latest, latest[1:])))
 
 
     def endpoint_is_stably_healthy(endpoint):
@@ -77,13 +130,24 @@ data:
             raise RuntimeError("Gatus returned an unexpected endpoint-status response")
 
         titles = set()
+        cluster_seen = False
         for endpoint in endpoints:
             name = endpoint.get("name")
             group = endpoint.get("group")
             if not isinstance(name, str) or not isinstance(group, str):
                 continue
-            if endpoint_is_stably_healthy(endpoint):
-                titles.add(f"alert(gatus): {group}/{name}")
+            title = f"alert(gatus): {group}/{name}"
+            if title == CLUSTER_TITLE:
+                if cluster_seen:
+                    # Conflicting/duplicated endpoint records are not recovery.
+                    titles.discard(CLUSTER_TITLE)
+                    continue
+                cluster_seen = True
+                healthy = cluster_endpoint_is_stably_healthy(endpoint)
+            else:
+                healthy = endpoint_is_stably_healthy(endpoint)
+            if healthy:
+                titles.add(title)
         return titles
 
 
@@ -133,10 +197,15 @@ data:
 
 
     def cluster_is_healthy(health):
-        return (isinstance(health, dict) and health.get("status") == "healthy"
-                and is_recent(health.get("observedAt"))
+        policy = cluster_recovery_policy()
+        return (policy is not None and isinstance(health, dict) and health.get("status") == "healthy"
+                and is_recent(health.get("observedAt"), policy["CLUSTER_MAX_HEALTH_AGE_SECONDS"])
                 and isinstance(health.get("checks"), dict)
-                and all(health["checks"].get(key) == "ok" for key in CHECKS))
+                and all(health["checks"].get(key) == "ok" for key in CHECKS)
+                and isinstance(health.get("failures"), dict)
+                and all(isinstance(entries, list) and not entries for entries in health["failures"].values())
+                and isinstance(health.get("collectionErrors"), dict)
+                and not health["collectionErrors"])
 
 
     def diagnostic_body(body, health):
@@ -188,7 +257,8 @@ data:
                 if not DRY_RUN:
                     close_issue(issue)
                 closed.append({"number": issue.get("number"), "title": issue["title"]})
-            elif issue["title"] == CLUSTER_TITLE and health is not None:
+            elif issue["title"] == CLUSTER_TITLE and health is not None and not cluster_is_healthy(health):
+                # Retain the last failure diagnostics during pending recovery.
                 body = diagnostic_body(issue.get("body") or "", health)
                 if body != issue.get("body"):
                     if not DRY_RUN:

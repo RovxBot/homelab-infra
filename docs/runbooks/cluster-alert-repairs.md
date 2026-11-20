@@ -293,9 +293,13 @@ separately reviewed suspend change before merging; do not silently suspend it.
    cluster incident receives one managed body block; unchanged detail creates
    no additional update, and no duplicate issues are created. The sync never
    creates issues (Gatus owns creation). It preserves existing creator filtering
-   and only closes each exact title after the newest two Gatus samples succeed
-   recently. Cluster closure additionally requires a fresh direct health payload
-   with all six checks OK. Unavailable/stale health leaves that incident open.
+   and only closes each exact title using that endpoint's Gatus evidence.
+   Non-cluster endpoints still require two recent successes. Cluster closure
+   requires 20 consecutive successful samples spanning at least 19 minutes,
+   continuous one-minute sampling and a fresh direct health payload with all six
+   checks OK. Unavailable, stale, unknown or contradictory evidence leaves that
+   incident open. See [Gatus recovery policy](gatus-recovery.md) for exact gates,
+   configuration and the pinned-version validation procedure.
 6. Allow Gatus to close the original three incidents normally. Do not delete
    failed Jobs or close issues to manufacture acceptance. A failed backup
    marker survives until a successful verified capture even if a Job ages out.

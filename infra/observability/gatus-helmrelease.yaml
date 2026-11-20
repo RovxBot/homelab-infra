@@ -216,6 +216,10 @@ spec:
             - "[BODY].status == healthy"
           alerts:
             - type: github
+              # Endpoint alert fields override the GitHub provider defaults.
+              failure-threshold: 3
+              success-threshold: 20
+              send-on-resolved: true
         - name: cloudflared-metrics
           group: cluster
           url: http://cloudflared-metrics.cloudflared.svc.cluster.local:2000/metrics
