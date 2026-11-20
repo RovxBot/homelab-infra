@@ -39,7 +39,7 @@ spec:
               # A request-timeout override bypasses kubectl's implicit in-cluster
               # fallback. Configure the API explicitly; tokenFile follows rotation
               # without copying the token into this file or process arguments.
-              export KUBECONFIG=/work/kubeconfig
+              export KUBECONFIG=/var/run/pod-report/kubeconfig
               cat > "$KUBECONFIG" <<EOF
               apiVersion: v1
               kind: Config
@@ -216,6 +216,8 @@ spec:
           volumeMounts:
             - name: web
               mountPath: /work
+            - name: kubeconfig
+              mountPath: /var/run/pod-report
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -274,6 +276,8 @@ spec:
 
       volumes:
         - name: web
+          emptyDir: {}
+        - name: kubeconfig
           emptyDir: {}
         - name: nginx-tmp
           emptyDir: {}

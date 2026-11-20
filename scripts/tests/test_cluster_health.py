@@ -1,7 +1,7 @@
 """Run the deployed shell health functions against bounded kubectl fixtures."""
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shlex
 import shutil
 import ssl
@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -22,11 +24,42 @@ def generator_source():
     return '\n'.join(line[14:] for line in source.splitlines())
 
 
+class ClusterHealthVolumeTests(unittest.TestCase):
+    def test_kubeconfig_is_outside_nginx_served_volumes(self):
+        deployment = yaml.safe_load((ROOT / 'infra/pod-report/deployment.yaml').read_text())
+        pod = deployment['spec']['template']['spec']
+        generator = next(c for c in pod['containers'] if c['name'] == 'generator')
+        web = next(c for c in pod['containers'] if c['name'] == 'web')
+        config_line = next(line for line in generator['args'][0].splitlines()
+                           if line.startswith('export KUBECONFIG='))
+        config_path = PurePosixPath(config_line.split('=', 1)[1])
+        self.assertTrue(config_path.is_absolute())
+        config_mount = next(m for m in generator['volumeMounts']
+                            if config_path.is_relative_to(PurePosixPath(m['mountPath'])))
+        self.assertFalse(config_mount.get('readOnly', False))
+        volume = next(v for v in pod['volumes'] if v['name'] == config_mount['name'])
+        self.assertEqual(volume['emptyDir'], {})
+        for container in pod['containers']:
+            if container['name'] != 'generator':
+                self.assertNotIn(config_mount['name'],
+                                 {m['name'] for m in container.get('volumeMounts', [])})
+        published = next(m for m in generator['volumeMounts'] if m['mountPath'] == '/work')
+        served = next(m for m in web['volumeMounts']
+                      if m['mountPath'] == '/usr/share/nginx/html')
+        self.assertEqual(published['name'], served['name'])
+        self.assertTrue(served['readOnly'])
+        self.assertFalse(config_path.is_relative_to(PurePosixPath('/work')))
+
+
 class ClusterHealthTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        self.work = self.root / 'work'
+        self.work.mkdir()
+        self.config = self.root / 'config'
+        self.config.mkdir()
         self.data = {
             'nodes': 'node1\tTrue\tFalse\tFalse\tFalse',
             'deployments': 'koito/bridge\t1\t1\ngitea/gitea-mirror\t0\t',
@@ -46,7 +79,9 @@ if value == 'API_ERROR': sys.exit(1)
 print(value)
 ''')
         command.chmod(0o755)
-        self.script = generator_source().split('while true; do', 1)[0].replace('/work/', str(self.root) + '/')
+        self.script = (generator_source().split('while true; do', 1)[0]
+                       .replace('/work/', str(self.work) + '/')
+                       .replace('/var/run/pod-report/', str(self.config) + '/'))
 
     def health(self):
         fixture = self.root / 'data.json'
@@ -55,7 +90,7 @@ print(value)
                                 env=dict(os.environ, PATH=str(self.root)+':'+os.environ['PATH'], HEALTH_FIXTURE=str(fixture)),
                                 capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        return json.loads((self.root / 'health.json').read_text())
+        return json.loads((self.work / 'health.json').read_text())
 
     def test_healthy_detached_volumes_and_retired_deployment(self):
         self.assertEqual(self.health()['status'], 'healthy')
@@ -109,6 +144,10 @@ class ClusterHealthAPIConfigTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        self.work = self.root / 'work'
+        self.work.mkdir()
+        self.config = self.root / 'config'
+        self.config.mkdir()
         self.sa = self.root / 'serviceaccount'
         self.sa.mkdir()
         (self.sa / 'token').write_text('test-pod-report-token')
@@ -164,7 +203,8 @@ class ClusterHealthAPIConfigTests(unittest.TestCase):
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
         self.script = (generator_source().split('while true; do', 1)[0]
-                       .replace('/work/', str(self.root) + '/')
+                       .replace('/work/', str(self.work) + '/')
+                       .replace('/var/run/pod-report/', str(self.config) + '/')
                        .replace('/var/run/secrets/kubernetes.io/serviceaccount', str(self.sa))
                        .replace('https://kubernetes.default.svc:443',
                                 f'https://127.0.0.1:{self.server.server_port}'))
@@ -197,7 +237,8 @@ class ClusterHealthAPIConfigTests(unittest.TestCase):
                             for path, _ in self.requests))
         self.assertNotIn("Couldn't get current server API group list", result.stderr)
         self.assertNotIn('test-pod-report-token', result.stdout + result.stderr)
-        self.assertNotIn('test-pod-report-token', (self.root / 'kubeconfig').read_text())
+        self.assertNotIn('test-pod-report-token', (self.config / 'kubeconfig').read_text())
+        self.assertFalse((self.work / 'kubeconfig').exists())
 
     def test_api_errors_are_not_treated_as_success(self):
         for code in (401, 403, 404):
