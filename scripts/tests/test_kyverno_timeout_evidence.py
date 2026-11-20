@@ -9,6 +9,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+import tracemalloc
 import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
@@ -113,14 +114,15 @@ class ApiFixtureReader(FixtureReader):
         super().__init__()
         self.samples = list(samples or [api_metrics()])
 
-    def command(self, args, cap):
+    def _command(self, args, cap, metrics=None):
         if args == ["get", "--raw", "/metrics"]:
             self.calls.append(args)
             sample = self.samples.pop(0)
             if isinstance(sample, Exception):
                 raise sample
-            return sample
-        return super().command(args, cap)
+            metrics.feed(sample.encode())
+            return metrics.finish()
+        return super()._command(args, cap, metrics=metrics)
 
 
 class ApiMetricsTests(unittest.TestCase):
@@ -265,9 +267,11 @@ class ApiMetricsTests(unittest.TestCase):
             self.assertGreater(result["invalid_samples"], 0)
             self.assertFalse(any(r["metric"].startswith(E.HISTOGRAM) for r in result["rows"]))
         result, _ = self.pair(before=api_metrics() + api_metrics().splitlines()[-1] + "\n")
-        self.assertEqual(result["counter_changes"]["reason"], "first-observation-incomplete-or-empty")
+        self.assertEqual(result["counter_changes"]["reason"], "first-observation-unavailable")
+        self.assertEqual(result["observations"][0]["reason"], "invalid-or-incomplete-metrics")
         result, _ = self.pair(before=api_metrics().replace("sha256:" + "a" * 64, SECRET))
-        self.assertEqual(result["counter_changes"]["reason"], "invalid-source-identity")
+        self.assertEqual(result["observations"][0]["reason"], "invalid-source-identity")
+        self.assertEqual(result["observations"][0]["rows"], [])
         self.assertNotIn(SECRET, json.dumps(result))
 
     def test_bounded_wait_and_unavailable_second_observation(self):
@@ -282,17 +286,18 @@ class ApiMetricsTests(unittest.TestCase):
         self.assertEqual(result["observations"][1]["reason"], "request-time-budget-exhausted")
 
     def test_process_identity_and_invalid_histogram_changes(self):
-        result, _ = self.pair(before="\n".join(api_metrics().splitlines()[1:]))
+        result, _ = self.pair(before="\n".join(api_metrics().splitlines()[1:]) + "\n")
         self.assertEqual(result["counter_changes"]["reason"], "process-start-unavailable")
         result, _ = self.pair(before=api_metrics() + 'process_start_time_seconds 1700000000\n')
-        self.assertEqual(result["counter_changes"]["reason"], "multiple-process-start-samples")
+        self.assertEqual(result["observations"][0]["reason"], "multiple-process-start-samples")
         result, _ = self.pair(after=api_metrics() + 'process_start_time_seconds 1700000001\n')
-        self.assertEqual(result["counter_changes"]["reason"], "apiserver-identity-unavailable")
+        self.assertEqual(result["counter_changes"]["reason"], "pair-unavailable")
         result, _ = self.pair(before=api_metrics().replace('le="0.005"} 12', 'le="0.005"} 10'),
                               after=api_metrics(count=15).replace('le="0.005"} 15', 'le="0.005"} 14'))
         self.assertEqual(result["counter_changes"]["reason"], "inconsistent-histogram-deltas")
         result, _ = self.pair(after=api_metrics() + E.REQUESTS + '{name="unterminated} 1\n')
-        self.assertEqual(result["counter_changes"]["reason"], "incomplete-or-invalid-samples")
+        self.assertEqual(result["counter_changes"]["reason"], "pair-unavailable")
+        self.assertEqual(result["observations"][1]["rows"], [])
 
     def test_series_and_report_limits_preserve_source_contract_and_redaction(self):
         reader = ApiFixtureReader(api_metrics() + f'other_metric{{secret="{SECRET}"}} 1\n')
@@ -311,6 +316,116 @@ class ApiMetricsTests(unittest.TestCase):
         with patch.object(E, "MAX_METRIC_ROWS", 3):
             result = E.admission_metrics(api_metrics())
         self.assertTrue(result["series_limit_exceeded"])
+
+
+class MetricsStreamTests(unittest.TestCase):
+    def test_large_unrelated_volume_uses_bounded_memory_and_keeps_both_ends(self):
+        lines = api_metrics().encode().splitlines(keepends=True)
+        stream = E.MetricsStream()
+        stream.feed(lines[0])
+        # Generate over 3 MiB incrementally; never construct the full response.
+        chunk = (f'unrelated_total{{secret="{SECRET}"}} 1\n'.encode()) * 100
+        tracemalloc.start()
+        try:
+            for _ in range(600):
+                stream.feed(chunk)
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        self.assertGreater(stream.input_bytes, 2 * 1024 * 1024)
+        self.assertLess(peak, 256 * 1024)
+        self.assertEqual(stream.records, [lines[0].decode().rstrip("\n")])
+        stream.feed(b"".join(lines[1:]))
+        self.assertEqual(E.admission_metrics(stream.finish()), E.admission_metrics(api_metrics()))
+        self.assertNotIn(SECRET, json.dumps(stream.records))
+
+    def test_relevant_records_survive_single_byte_chunks(self):
+        stream = E.MetricsStream()
+        for value in api_metrics().encode():
+            stream.feed(bytes([value]))
+        self.assertEqual(E.admission_metrics(stream.finish()), E.admission_metrics(api_metrics()))
+
+    def test_exact_names_filter_prefixes_suffixes_comments_and_labels(self):
+        stream = E.MetricsStream()
+        for metric in [*E.METRIC_LABELS, *E.IDENTITY_METRICS, "process_start_time_seconds"]:
+            for line in (f'prefix_{metric} invalid\n', f'{metric}_suffix invalid\n',
+                         f'# HELP {metric} {SECRET}\n', f'other{{label="{metric}"}} invalid\n'):
+                stream.feed(line.encode())
+        self.assertEqual(stream.finish(), [])
+
+    def test_input_budget_counts_discarded_lines_and_accepts_exact_boundary(self):
+        chunk = b"unrelated 1\n" * 100
+        with patch.object(E, "METRICS_INPUT_CAP", len(chunk)):
+            stream = E.MetricsStream()
+            stream.feed(chunk)
+            self.assertEqual(stream.finish(), [])
+            with self.assertRaisesRegex(E.Unavailable, "^metrics-input-byte-limit-exceeded$"):
+                stream.feed(b"x")
+        self.assertEqual(stream.input_bytes, len(chunk) + 1)
+
+    def test_line_budget_applies_to_discarded_and_split_lines(self):
+        with patch.object(E, "MAX_METRIC_LINE_BYTES", 32):
+            for prefix in (b"# ", b"unrelated ", E.REQUESTS.encode()):
+                with self.subTest(prefix=prefix):
+                    stream = E.MetricsStream()
+                    stream.feed(prefix[:32])
+                    with self.assertRaisesRegex(E.Unavailable, "^metrics-line-byte-limit-exceeded$"):
+                        stream.feed(b"x" * 33 + b"\n")
+            stream = E.MetricsStream()
+            stream.feed(b"#" * 32 + b"\n")
+            self.assertEqual(stream.finish(), [])
+
+    def test_retained_byte_and_record_budgets_are_independent(self):
+        line = b"process_start_time_seconds 1\n"
+        for limit, value, reason in (("METRICS_CAP", len(line) - 1, "metrics-retained-byte-limit-exceeded"),
+                                     ("MAX_RETAINED_METRIC_RECORDS", 0, "metrics-record-limit-exceeded")):
+            with self.subTest(limit=limit), patch.object(E, limit, value):
+                stream = E.MetricsStream()
+                with self.assertRaisesRegex(E.Unavailable, "^" + reason + "$"):
+                    stream.feed(line)
+        with patch.object(E, "METRICS_CAP", len(line)), patch.object(E, "MAX_RETAINED_METRIC_RECORDS", 1):
+            stream = E.MetricsStream()
+            stream.feed(line)
+            self.assertEqual(len(stream.finish()), 1)
+
+    def test_unterminated_final_line_even_if_unrelated_is_rejected(self):
+        for tail in (b"unrelated 1", b"process_start_time_seconds 1", b"# last comment"):
+            stream = E.MetricsStream()
+            stream.feed(api_metrics().encode())
+            stream.feed(tail)
+            with self.assertRaisesRegex(E.Unavailable, "^metrics-truncated-final-line$"):
+                stream.finish()
+
+    def test_invalid_utf8_in_relevant_records_is_rejected(self):
+        stream = E.MetricsStream()
+        with self.assertRaisesRegex(E.Unavailable, "^invalid-metric-encoding$"):
+            stream.feed(E.REQUESTS.encode() + b'{name="\xff"} 1\n')
+
+    def test_bad_relevant_samples_discard_entire_observation(self):
+        cases = [api_metrics() + f'{E.REQUESTS}{{name="unterminated}} 1\n',
+                 api_metrics() + api_metrics().splitlines()[-1] + "\n",
+                 api_metrics().replace('le="0.1"', 'le="0.2"'),
+                 api_metrics().replace('le="0.1"', 'other="0.1"'),
+                 api_metrics().replace('code="200"', f'code="200",secret="{SECRET}"'),
+                 api_metrics() + api_metrics().splitlines()[1] + "\n"]
+        for raw in cases:
+            with self.subTest(raw=raw[:40]):
+                reader = ApiFixtureReader(raw)
+                result = E.apiserver_evidence(reader, True, 1)
+                observation = result["observations"][0]
+                self.assertEqual(observation["status"], "unavailable")
+                self.assertFalse(observation["collection_complete"])
+                self.assertEqual(observation["rows"], [])
+                self.assertEqual(result["counter_changes"]["rows"], [])
+                self.assertEqual(len(reader.calls), 1)
+                self.assertNotIn(SECRET, json.dumps(result))
+
+    def test_target_sample_limit_fails_closed(self):
+        with patch.object(E, "MAX_METRIC_ROWS", 3):
+            result = E.apiserver_evidence(ApiFixtureReader(), True)
+        self.assertEqual(result["status"], "unavailable")
+        self.assertEqual(result["observations"][0]["rows"], [])
+        self.assertTrue(result["observations"][0]["series_limit_exceeded"])
 
 
 class EvidenceTests(unittest.TestCase):
@@ -467,14 +582,126 @@ class EvidenceTests(unittest.TestCase):
 
 
 class TransportTests(unittest.TestCase):
+    def test_large_metrics_response_drains_to_eof_and_retains_late_samples(self):
+        lines = api_metrics().splitlines(keepends=True)
+        unrelated = f'other_total{{token="{SECRET}"}} 1\n'
+        source = ('import sys\n'
+                  'assert sys.argv[-3:] == ["get", "--raw", "/metrics"]\n'
+                  f'sys.stdout.write({lines[0]!r})\n'
+                  f'for _ in range(60000): sys.stdout.write({unrelated!r})\n'
+                  f'sys.stdout.write({"".join(lines[1:])!r})\n')
+        with self.fake_kubectl(source):
+            reader = E.Reader("fixture")
+            evidence = E.apiserver_evidence(reader, True, max_items=40)
+        observation = evidence["observations"][0]
+        self.assertEqual(evidence["status"], "verified")
+        self.assertTrue(observation["collection_complete"])
+        self.assertEqual(observation["input_bytes_processed"], len(api_metrics().encode()) + len(unrelated.encode()) * 60000)
+        self.assertGreater(observation["input_bytes_processed"], 2 * 1024 * 1024)
+        self.assertEqual(observation["retained_metric_records"], 14)
+        self.assertEqual(observation["rows"], E.admission_metrics(api_metrics())["rows"])
+        self.assertNotIn(SECRET, json.dumps(evidence))
+
+    def test_metrics_transport_accepts_exact_input_budget_then_rejects_one_extra_byte(self):
+        raw = api_metrics()
+        with patch.object(E, "METRICS_INPUT_CAP", len(raw.encode())):
+            for extra in ("", "x"):
+                with self.subTest(extra=extra), self.fake_kubectl(f'import sys\nsys.stdout.write({raw + extra!r})\n'):
+                    reader = E.Reader("fixture")
+                    result = E.apiserver_evidence(reader, True)
+                    observation = result["observations"][0]
+                    self.assertEqual(observation["collection_complete"], not extra)
+                    self.assertEqual(observation["input_bytes_processed"], len(raw.encode()) + len(extra))
+                    if extra:
+                        self.assertEqual(observation["reason"], "metrics-input-byte-limit-exceeded")
+                        self.assertNotIn("rows", observation)
+
+    def test_metrics_transport_never_releases_valid_prefix_after_failure(self):
+        source = f'import os, signal, sys, time\nsys.stdout.write({api_metrics()!r})\nsys.stdout.flush()\n'
+        cases = [("sys.exit(1)\n", "request-failed", 5),
+                 ("os.kill(os.getpid(), signal.SIGTERM)\n", "request-failed", 5),
+                 ("time.sleep(10)\n", "request-time-budget-exhausted", .3),
+                 ('sys.stdout.write("unrelated 1")\n', "metrics-truncated-final-line", 5),
+                 ('sys.stdout.write("x" * 16385 + "\\n")\n', "metrics-line-byte-limit-exceeded", 5)]
+        for suffix, reason, budget in cases:
+            with self.subTest(reason=reason), self.fake_kubectl(source + suffix):
+                reader = E.Reader("fixture", budget=budget)
+                with patch.object(E.time, "sleep") as sleep:
+                    result = E.apiserver_evidence(reader, True, 1)
+                observation = result["observations"][0]
+                self.assertEqual(observation["status"], "unavailable")
+                self.assertEqual(observation["reason"], reason)
+                self.assertFalse(observation["collection_complete"])
+                self.assertNotIn("rows", observation)
+                self.assertEqual(result["counter_changes"]["rows"], [])
+                self.assertEqual(len(result["observations"]), 1)
+                sleep.assert_not_called()
+
+    def test_stdout_eof_still_requires_exit_and_group_is_killed_and_reaped(self):
+        source = (f'import os, sys, time\nsys.stdout.write({api_metrics()!r})\nsys.stdout.flush()\n'
+                  'os.close(1)\nos.close(2)\ntime.sleep(10)\n')
+        popen, killpg = E.subprocess.Popen, E.os.killpg
+        processes = []
+
+        def start(*args, **kwargs):
+            process = popen(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        with self.fake_kubectl(source), patch.object(E.subprocess, "Popen", side_effect=start), patch.object(E.os, "killpg", wraps=killpg) as kill:
+            reader = E.Reader("fixture", budget=.3)
+            result = E.apiserver_evidence(reader, True)
+        process = processes[0]
+        self.assertEqual(result["observations"][0]["reason"], "request-time-budget-exhausted")
+        kill.assert_called_once_with(process.pid, E.signal.SIGKILL)
+        self.assertIsNotNone(process.returncode)
+        self.assertTrue(process.stdout.closed)
+        self.assertTrue(process.stderr.closed)
+
+    def test_descendant_holding_stdout_prevents_completion_until_group_cleanup(self):
+        source = (f'import os, sys, time\nsys.stdout.write({api_metrics()!r})\nsys.stdout.flush()\n'
+                  'if os.fork() == 0: time.sleep(10)\n')
+        killpg = E.os.killpg
+        with self.fake_kubectl(source), patch.object(E.os, "killpg", wraps=killpg) as kill:
+            reader = E.Reader("fixture", budget=.3)
+            result = E.apiserver_evidence(reader, True)
+        self.assertEqual(result["observations"][0]["reason"], "request-time-budget-exhausted")
+        self.assertFalse(result["observations"][0]["collection_complete"])
+        kill.assert_called_once()
+
+    def test_expired_metrics_budget_does_not_start_subprocess(self):
+        reader = E.Reader("fixture", budget=-1)
+        with patch.object(E.subprocess, "Popen") as spawn:
+            result = E.apiserver_evidence(reader, True, 1)
+        spawn.assert_not_called()
+        observation = result["observations"][0]
+        self.assertEqual(observation["reason"], "snapshot-budget-exhausted")
+        self.assertEqual(observation["input_bytes_processed"], 0)
+        self.assertFalse(observation["collection_complete"])
+
+    def test_metrics_stderr_has_separate_bounded_sanitized_budget(self):
+        source = f'import sys\nsys.stdout.write({api_metrics()!r})\nsys.stderr.write({SECRET!r} * 2000)\n'
+        with self.fake_kubectl(source):
+            reader = E.Reader("fixture")
+            result = E.apiserver_evidence(reader, True)
+        self.assertEqual(result["observations"][0]["reason"], "metrics-stderr-byte-limit-exceeded")
+        self.assertNotIn(SECRET, json.dumps(result))
+
+    def test_unrelated_kubernetes_reads_keep_two_mib_default_limit(self):
+        source = 'import sys\nsys.stdout.write("{\\"padding\\":\\"" + "x" * 2097152 + "\\"}")\n'
+        with self.fake_kubectl(source):
+            reader = E.Reader("fixture")
+            self.assertEqual(reader.read("pods", ["get", "--raw", "/api/v1/pods"]), {})
+        self.assertEqual(reader.sources["pods"]["reason"], "response-byte-limit-exceeded")
+
     def test_metrics_transport_forbidden_timeout_and_overflow_are_sanitized(self):
         cases = [
             (f'import sys\nsys.stderr.write("Forbidden {SECRET}")\nsys.exit(1)\n', "forbidden", 5),
-            (f'import sys\nsys.stdout.write({SECRET!r} * 10000)\n', "response-byte-limit-exceeded", 5),
+            (f'import sys\nsys.stdout.write(({SECRET!r} + "\\n") * 10000)\n', "metrics-input-byte-limit-exceeded", 5),
             ('import time\ntime.sleep(10)\n', "request-time-budget-exhausted", .15),
         ]
         for source, reason, budget in cases:
-            with self.subTest(reason=reason), self.fake_kubectl(source), patch.object(E, "METRICS_CAP", 1000):
+            with self.subTest(reason=reason), self.fake_kubectl(source), patch.object(E, "METRICS_INPUT_CAP", 1000):
                 reader = E.Reader("fixture", budget=budget)
                 evidence = E.apiserver_evidence(reader, True, 1)
                 self.assertEqual(reader.sources["apiserver-metrics:1"]["reason"], reason)

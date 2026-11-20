@@ -185,16 +185,50 @@ Without it, `/metrics` is never requested. To request a bounded pair:
 
 ```bash
 python3 scripts/kyverno-timeout-evidence.py \
-  --context <existing-context> --budget-seconds 60 \
-  --apiserver-metrics --metrics-interval-seconds 5 > /tmp/kyverno-evidence.json
+  --context <existing-context> --since-minutes 120 --budget-seconds 90 \
+  --apiserver-metrics --metrics-interval-seconds 5 --max-items 40 > /tmp/kyverno-evidence.json
 ```
 
 This performs at most two read-only `kubectl get --raw /metrics` calls using the
-same explicit context, current credentials and existing request/response limits.
+same explicit context, current credentials and existing request timeouts.
 The interval accepts 1–30 seconds and consumes the overall budget; insufficient
 remaining time skips the second observation. No additional RBAC is requested.
 Forbidden access, request failures, response overflow and missing metrics remain
 explicitly unavailable; they are never converted into zero counters.
+
+The metrics response is streamed in chunks of at most 64 KiB. Complete metric
+names select only the allowlisted records below and the identity/process-start
+records; unrelated lines are discarded as they arrive. The independent bounds
+are:
+
+| Resource | Hard limit |
+| --- | --- |
+| Total `/metrics` stdout, including discarded lines | 32 MiB (33,554,432 bytes) |
+| Retained records, measured as UTF-8 bytes including LF | 2 MiB (2,097,152 bytes) |
+| Each input line, including unrelated lines, excluding LF | 16 KiB (16,384 bytes) |
+| Retained input records, including identity and other webhook records | 4,096 |
+| Valid target webhook samples | 2,048 |
+| Credential/helper stderr, never reported | 16 KiB (16,384 bytes) |
+| Final sanitized report | 48 KiB (49,152 bytes) |
+
+The 32 MiB input budget allows sixteen times the former full-response limit
+without retaining unrelated data, while bounding parsing work and keeping the
+existing request and snapshot deadlines. It is a fixed ceiling, not an automatic
+growth policy. Transport reads at most one byte beyond the input/stderr ceiling
+to detect overflow, then terminates and reaps the subprocess group. Unrelated
+Kubernetes API reads retain their original 2 MiB combined stdout/stderr cap;
+controller logs retain their smaller existing limits. No raw metrics files or
+temporary response files are created.
+
+An observation requires stdout/stderr EOF, a zero process exit status, a final
+LF on every line and successful strict validation. Overflow, timeout,
+interruption, malformed/duplicate relevant samples or incomplete histograms
+make it unavailable and discard all sample rows. A valid prefix is never
+returned as a verified response. Sanitized source/observation provenance includes
+`input_bytes_processed` (stdout, including the overflow detection byte if read),
+`retained_bytes`, `retained_metric_records` (before report limits), and
+`collection_complete`. Completeness means transport and record validation
+finished; source identity and metric-family availability are checked separately.
 
 Only exact `name` labels `validate-policy.kyverno.svc` and
 `validate.kyverno.svc-fail` are retained, from these Kubernetes 1.34 families:
@@ -304,6 +338,54 @@ The previously supplied **12:03:03 UTC** Flux timeout is historical evidence,
 not an observation reverified by this attempt. The API-server/transport/handler
 boundary remains unresolved; a corrective cluster PR is not justified yet.
 Keep #2133 and #2150 open, and keep Kubescape suspended.
+
+The streaming extension received its one bounded live verification on
+**20 November 2026, 23:41:46.433493–23:41:52.723425 Adelaide time**
+(13:11:46.433493–13:11:52.723425 UTC), through the existing Entra kubeconfig
+and explicit context alias `context-f5d6bc0f5626`. It used the 120-minute
+lookback, 90-second budget, five-second interval and `--max-items 40` shown
+above. Both metrics GETs completed: **8,981,990** and **8,982,036** input bytes,
+**38,541** and **38,544** retained bytes, and **244** retained input records in
+each. No input, line, record, request or snapshot limit was exceeded.
+Both had zero invalid samples and 107 valid target series: 90 histogram
+bucket/count series, six rejection counters and eleven request counters.
+All three target families were exposed. Both responses verified the same alias
+`apiserver-7afd4a5c3341` from authorization/encryption `last_config_info`
+metrics and the same `process_start_time_seconds` of **1792026958.48**.
+
+The first metrics GET ran at **13:11:46.433683–13:11:46.703799 UTC**;
+the second at **13:11:51.705140–13:11:51.912198 UTC**. All 107 series were
+compared before report limits. The successful `validate.kyverno.svc-fail`
+`UPDATE` request counter (`type=validating`, `code=200`, `rejected=false`)
+increased **5,152,750 → 5,152,755 (+5)**; the matching histogram count also
+increased by five. All six observed rejection counters were unchanged.
+The four `calling_webhook_error`, `type=validating`, `rejection_code=503`
+counters were:
+
+| Webhook | Operation | First cumulative value | Second cumulative value | Change |
+| --- | --- | --- | --- | --- |
+| `validate-policy.kyverno.svc` | UPDATE | 1,292 | 1,292 | 0 |
+| `validate.kyverno.svc-fail` | CREATE | 119 | 119 | 0 |
+| `validate.kyverno.svc-fail` | DELETE | 6 | 6 | 0 |
+| `validate.kyverno.svc-fail` | UPDATE | 578 | 578 | 0 |
+
+All existing Kubernetes sources succeeded without list truncation; both
+admission replicas were Ready with zero restarts and their two ready/serving,
+non-terminating endpoints were unchanged. One Flux event last observed at
+**22:48:08 Adelaide (12:18:08 UTC)** recorded the ten-second
+`validate-policy.kyverno.svc` timeout for
+`ClusterPolicy/platform-namespace-bootstrap` in `kyverno-policies`.
+It falls inside the historical lookback, before the metrics pair. No classified
+controller evidence or matching identifiers/correlations were obtained.
+No current invocation failure was observed on the sampled API server during
+the pair; this does not refute historical failures or cover other instances.
+The cumulative invocation-error counters do not identify a transport fault,
+and aggregate histogram evidence cannot identify which request stalled.
+The failure boundary remains unresolved; **no corrective cluster change is
+justified**. The collector exited **0** with a **49,073-byte** sanitized report;
+display rows were trimmed to the existing 48 KiB cap after validation/comparison,
+with original series counts and completeness retained. There were no retries,
+admission probes, raw metrics files or cluster changes. Keep #2133/#2150 open.
 
 Flag and endpoint semantics follow the Kubernetes references for
 [bounded pod logs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/),

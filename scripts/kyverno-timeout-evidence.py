@@ -46,8 +46,15 @@ IDENTITY_METRICS = {
 }
 BUCKETS = {"0.005", "0.025", "0.1", "0.5", "1", "2.5", "10", "25", "+Inf"}
 METRICS_CAP = 2097152
+# Only /metrics gets a larger *input* budget. Discarded lines count too; the
+# retained buffer stays at 2 MiB. Allow one extra byte solely to detect overflow.
+METRICS_INPUT_CAP = 32 * 1024 * 1024
+MAX_METRIC_LINE_BYTES = 16384
+MAX_RETAINED_METRIC_RECORDS = 4096
+METRICS_STDERR_CAP = 16384
 MAX_METRIC_ROWS = 2048
 PROM_NAME = re.compile(r"[a-zA-Z_:][a-zA-Z0-9_:]*")
+PROM_NAME_BYTES = re.compile(rb"[a-zA-Z_:][a-zA-Z0-9_:]*")
 PROM_LABEL = re.compile(r'\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"((?:[^"\\\n]|\\[\\"n])*)"\s*')
 PROM_VALUE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\Z")
 
@@ -224,6 +231,59 @@ class Unavailable(Exception):
     """Only fixed safe reason codes may cross the collection boundary."""
 
 
+class MetricsStream:
+    """Bound all input work and retain only exact allowlisted metric records.
+
+    Buffers are bounded by 64 KiB transport chunks, a 16 KiB pending line,
+    2 MiB of encoded retained records and at most 4096 record objects. No raw
+    output is persisted. Neither a target sample nor EOF alone means success.
+    """
+    def __init__(self):
+        self.input_bytes = 0
+        self.retained_bytes = 0
+        self.pending = bytearray()
+        self.records = []
+
+    def provenance(self, complete=False):
+        return {"input_bytes_processed": self.input_bytes,
+                "retained_bytes": self.retained_bytes,
+                "retained_metric_records": len(self.records),
+                "collection_complete": complete}
+
+    def feed(self, chunk):
+        self.input_bytes += len(chunk)
+        if self.input_bytes > METRICS_INPUT_CAP:
+            raise Unavailable("metrics-input-byte-limit-exceeded")
+        parts = chunk.split(b"\n")
+        for index, part in enumerate(parts):
+            if len(self.pending) + len(part) > MAX_METRIC_LINE_BYTES:
+                raise Unavailable("metrics-line-byte-limit-exceeded")
+            self.pending.extend(part)
+            if index == len(parts) - 1:
+                break
+            token = PROM_NAME_BYTES.match(self.pending)
+            metric = token[0].decode("ascii") if token else None
+            if metric in METRIC_LABELS or metric in IDENTITY_METRICS or metric == "process_start_time_seconds":
+                size = len(self.pending) + 1
+                if self.retained_bytes + size > METRICS_CAP:
+                    raise Unavailable("metrics-retained-byte-limit-exceeded")
+                if len(self.records) >= MAX_RETAINED_METRIC_RECORDS:
+                    raise Unavailable("metrics-record-limit-exceeded")
+                try:
+                    line = self.pending.decode("utf-8")
+                except UnicodeDecodeError:
+                    raise Unavailable("invalid-metric-encoding") from None
+                self.records.append(line)
+                self.retained_bytes += size
+            self.pending.clear()
+
+    def finish(self):
+        # Text exposition requires a terminating LF, even on discarded lines.
+        if self.pending:
+            raise Unavailable("metrics-truncated-final-line")
+        return self.records
+
+
 def prometheus_sample(line):
     """Parse one text-format sample, including only the three legal escapes.
 
@@ -269,7 +329,7 @@ def admission_metrics(raw):
     rows, seen, hashes, identity_metrics, process_starts = [], set(), set(), set(), []
     exposed = set()
     invalid, identity_invalid, overflow = 0, False, False
-    for line in raw.splitlines():
+    for line in raw.splitlines() if isinstance(raw, str) else raw:
         token = PROM_NAME.match(line)
         metric = token[0] if token else None
         is_identity = metric in IDENTITY_METRICS or metric == "process_start_time_seconds"
@@ -289,6 +349,10 @@ def admission_metrics(raw):
                     server_hash = labels.get("apiserver_id_hash", "")
                     if set(labels) != expected or not re.fullmatch(r"sha256:[0-9a-f]{64}", server_hash):
                         raise ValueError()
+                    key = (metric, tuple(sorted(labels.items())))
+                    if key in seen:
+                        raise ValueError()
+                    seen.add(key)
                     hashes.add(server_hash)
                     identity_metrics.add(metric)
                 continue
@@ -432,11 +496,10 @@ def apiserver_evidence(reader, enabled=False, interval=None, max_items=20):
     def observe(number):
         key = f"apiserver-metrics:{number}"
         began = iso(datetime.now(UTC))
-        raw = reader.read(key, ["get", "--raw", "/metrics"], cap=METRICS_CAP, json_data=False)
+        parsed = reader.read_metrics(key)
         observation = {"started_at": began, "finished_at": iso(datetime.now(UTC)), **reader.sources[key]}
         # Reader's 'at' is request start, not a server-provided sample timestamp.
-        if observation["status"] == "verified":
-            observation.update(admission_metrics(raw))
+        observation.update(parsed)
         evidence["observations"].append(observation)
         return observation
 
@@ -464,11 +527,15 @@ def apiserver_evidence(reader, enabled=False, interval=None, max_items=20):
         reader.sources["apiserver-metrics:changes"] = {k: evidence["counter_changes"][k] for k in ("status", "reason")}
     for observation in evidence["observations"]:
         if observation["status"] == "verified":
+            if observation["source_identity"]["status"] != "verified":
+                evidence.update(status="unavailable", reason=observation["source_identity"]["reason"])
             incomplete = observation["invalid_samples"] or observation["series_limit_exceeded"]
             for state in observation["families"].values():
                 if state["status"] == "unavailable" or incomplete:
                     evidence.update(status="unavailable", reason="missing-or-incomplete-metrics")
             observation["rows"] = observation["rows"][:max_items]
+        else:
+            evidence.update(status="unavailable", reason=observation.get("reason"))
     evidence["counter_changes"]["rows"] = evidence["counter_changes"]["rows"][:max_items]
     reader.sources["apiserver-metrics"] = {k: evidence[k] for k in ("status", "reason")}
     return evidence
@@ -482,6 +549,9 @@ class Reader:
         self.sources = {}
 
     def command(self, args, cap):
+        return self._command(args, cap)
+
+    def _command(self, args, cap, metrics=None):
         remaining = min(self.request_timeout + 2, self.deadline - time.monotonic())
         if remaining <= 0:
             raise Unavailable("snapshot-budget-exhausted")
@@ -501,19 +571,31 @@ class Reader:
                     if remaining <= 0:
                         raise Unavailable("request-time-budget-exhausted")
                     for key, _ in selector.select(min(remaining, .1)):
-                        chunk = os.read(key.fileobj.fileno(), 65536)
+                        size = 65536
+                        if metrics is not None:
+                            size = min(size, METRICS_INPUT_CAP - metrics.input_bytes + 1
+                                       if key.data is output else METRICS_STDERR_CAP - len(errors) + 1)
+                        chunk = os.read(key.fileobj.fileno(), size)
                         if not chunk:
                             selector.unregister(key.fileobj)
                         else:
-                            key.data.extend(chunk)
-                            if len(output) + len(errors) > cap:
+                            if metrics is not None and key.data is output:
+                                metrics.feed(chunk)
+                            else:
+                                key.data.extend(chunk)
+                            if metrics is not None and len(errors) > METRICS_STDERR_CAP:
+                                raise Unavailable("metrics-stderr-byte-limit-exceeded")
+                            if metrics is None and len(output) + len(errors) > cap:
                                 raise Unavailable("response-byte-limit-exceeded")
-                proc.wait(timeout=max(.01, deadline - time.monotonic()))
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise Unavailable("request-time-budget-exhausted")
+                proc.wait(timeout=remaining)
             if proc.returncode:
                 # Never reproduce stderr, which may include credential-plugin data.
                 reason = "forbidden" if b"Forbidden" in errors else "request-failed"
                 raise Unavailable(reason)
-            return output.decode("utf-8", errors="replace")
+            return metrics.finish() if metrics is not None else output.decode("utf-8", errors="replace")
         except subprocess.TimeoutExpired:
             raise Unavailable("request-time-budget-exhausted") from None
         finally:
@@ -525,6 +607,29 @@ class Reader:
             proc.wait()
             proc.stdout.close()
             proc.stderr.close()
+
+    def read_metrics(self, key):
+        at = iso(datetime.now(UTC))
+        stream = MetricsStream()
+        parsed = {}
+        try:
+            lines = self._command(["get", "--raw", "/metrics"], METRICS_INPUT_CAP, metrics=stream)
+            parsed = admission_metrics(lines)
+            if time.monotonic() >= self.deadline:
+                raise Unavailable("snapshot-budget-exhausted")
+            if parsed["invalid_samples"] or parsed["series_limit_exceeded"]:
+                raise Unavailable("invalid-or-incomplete-metrics")
+            if parsed["source_identity"]["reason"] in ("invalid-source-identity", "multiple-process-start-samples"):
+                raise Unavailable(parsed["source_identity"]["reason"])
+            self.sources[key] = {"status": "verified", "at": at, **stream.provenance(complete=True)}
+        except Unavailable as exc:
+            # Never release valid-looking subsets of a failed observation.
+            if parsed:
+                parsed["rows"] = []
+                for state in parsed["families"].values():
+                    state.update(status="unavailable", reason="invalid-or-incomplete-metrics")
+            self.sources[key] = {"status": "unavailable", "at": at, "reason": str(exc), **stream.provenance()}
+        return parsed
 
     def read(self, key, args, cap=2097152, json_data=True):
         at = iso(datetime.now(UTC))
