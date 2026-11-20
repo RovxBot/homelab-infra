@@ -200,7 +200,7 @@ class ClusterHealthTests(unittest.TestCase):
             'statefulsets': 'gitea/postgres\t1\t1',
             'daemonsets': 'kube-system/cilium\t8\t8',
             'persistentvolumeclaims': 'gitea/data\tBound',
-            FLUX_QUERY: 'flux-system/Kustomization/kyverno-policies\tTrue',
+            FLUX_QUERY: 'flux-system/Kustomization/kyverno-policies\tReady=True\t',
             'volumes.longhorn.io': 'attached-vol\tattached\thealthy\nretired-vol\tdetached\tunknown',
             'nodes.longhorn.io': 'node1\tTrue', 'jobs': '',
         }
@@ -245,6 +245,113 @@ print(value)
                                 capture_output=True, text=True, timeout=2)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_expected_kubescape_suspension_is_neutral_with_healthy_active_flux(self):
+        self.data[FLUX_QUERY] += ('\nmonitoring/HelmRelease/gatus\tReady=True\tfalse'
+                                  '\nkubescape/HelmRelease/kubescape\t\ttrue')
+        health = self.health()
+        self.assertEqual(health['status'], 'healthy')
+        self.assertEqual(health['checks']['flux'], 'ok')
+        self.assertEqual(health['collectionErrors'], {})
+        self.assertEqual(health['failures']['flux'], [])
+        # Neutral evidence is omitted, rather than rewritten as reconciled.
+        result = subprocess.run(
+            ['sh', '-c', self.script + '\nprintf "kubescape/HelmRelease/kubescape\\t\\ttrue\\n" | valid_status_rows flux'],
+            capture_output=True, text=True, timeout=2)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, '')
+
+    def test_only_expected_kubescape_suspension_is_unknown(self):
+        neutral = 'kubescape/HelmRelease/kubescape\t\ttrue'
+        for rows in ((neutral,), (neutral, neutral)):
+            with self.subTest(rows=rows):
+                self.data[FLUX_QUERY] = '\n'.join(rows)
+                health = self.health()
+                self.assertEqual(health['status'], 'unknown')
+                self.assertEqual(health['checks']['flux'], 'unknown')
+                self.assertEqual(health['collectionErrors'], {'flux': 'empty_result'})
+                self.assertEqual(health['failures']['flux'], [])
+
+    def test_missing_flux_ready_is_unknown_without_exact_suspension_allowlist(self):
+        for identity, suspend in (
+                ('kubescape/HelmRelease/kubescape', ''),
+                ('kubescape/HelmRelease/kubescape', 'false'),
+                ('other/HelmRelease/kubescape', 'true'),
+                ('kubescape/HelmRelease/other', 'true'),
+                ('kubescape/Kustomization/kubescape', 'true'),
+                ('flux-system/Kustomization/running', 'false'),
+                ('monitoring/HelmRelease/running', '')):
+            with self.subTest(identity=identity, suspend=suspend):
+                self.data[FLUX_QUERY] = f'{identity}\t\t{suspend}'
+                health = self.health()
+                self.assertEqual(health['status'], 'unknown')
+                self.assertEqual(health['checks']['flux'], 'unknown')
+                self.assertEqual(health['collectionErrors'], {'flux': 'invalid_data'})
+                self.assertEqual(health['failures']['flux'], [])
+
+    def test_kubescape_activation_reenters_normal_flux_health(self):
+        for suspend in ('', 'false'):
+            for ready in ('True', 'False', 'Unknown'):
+                with self.subTest(suspend=suspend, ready=ready):
+                    self.data[FLUX_QUERY] = f'kubescape/HelmRelease/kubescape\tReady={ready}\t{suspend}'
+                    health = self.health()
+                    success = ready == 'True'
+                    self.assertEqual(health['status'], 'healthy' if success else 'unhealthy')
+                    self.assertEqual(health['checks']['flux'], 'ok' if success else 'failed')
+                    self.assertEqual(health['collectionErrors'], {})
+                    self.assertEqual(health['failures']['flux'], [] if success else
+                                     [f'kubescape/HelmRelease/kubescape Ready={ready}'])
+
+    def test_suspended_flux_failure_conditions_are_never_hidden(self):
+        for identity in ('kubescape/HelmRelease/kubescape', 'other/HelmRelease/release',
+                         'flux-system/Kustomization/other'):
+            for ready in ('False', 'Unknown'):
+                with self.subTest(identity=identity, ready=ready):
+                    self.data[FLUX_QUERY] = f'{identity}\tReady={ready}\ttrue'
+                    health = self.health()
+                    self.assertEqual(health['status'], 'unhealthy')
+                    self.assertEqual(health['checks']['flux'], 'failed')
+                    self.assertEqual(health['collectionErrors'], {})
+                    self.assertEqual(health['failures']['flux'], [f'{identity} Ready={ready}'])
+
+    def test_suspended_ready_true_cannot_claim_successful_flux_health(self):
+        for identity in ('kubescape/HelmRelease/kubescape', 'other/HelmRelease/release',
+                         'flux-system/Kustomization/other'):
+            with self.subTest(identity=identity):
+                self.data[FLUX_QUERY] = f'{identity}\tReady=True\ttrue'
+                health = self.health()
+                self.assertEqual(health['status'], 'unknown')
+                self.assertEqual(health['checks']['flux'], 'unknown')
+                self.assertEqual(health['collectionErrors'], {'flux': 'invalid_data'})
+                self.assertEqual(health['failures']['flux'], [])
+
+    def test_flux_suspension_does_not_hide_failures_or_malformed_rows(self):
+        neutral = 'kubescape/HelmRelease/kubescape\t\ttrue'
+        failure = 'flux-system/Kustomization/kyverno-policies\tReady=False\t'
+        malformed = 'other/HelmRelease/missing-ready\t\ttrue'
+        for rows in ((neutral, failure), (failure, neutral), (neutral, malformed), (malformed, neutral),
+                     (neutral, failure, malformed), (malformed, failure, neutral)):
+            with self.subTest(rows=rows):
+                self.data[FLUX_QUERY] = '\n'.join(rows)
+                health = self.health()
+                failed = failure in rows
+                self.assertEqual(health['status'], 'unhealthy' if failed else 'unknown')
+                self.assertEqual(health['checks']['flux'], 'failed' if failed else 'unknown')
+                self.assertEqual(health['collectionErrors'],
+                                 {'flux': 'invalid_data'} if malformed in rows else {})
+                self.assertEqual(health['failures']['flux'],
+                                 ['flux-system/Kustomization/kyverno-policies Ready=False'] if failed else [])
+
+    def test_flux_failure_identities_remain_bounded_with_expected_suspension(self):
+        self.data[FLUX_QUERY] = '\n'.join(
+            ['kubescape/HelmRelease/kubescape\t\ttrue'] +
+            [f'test/HelmRelease/failed-{i}\tReady=False\tfalse' for i in range(25)])
+        health = self.health()
+        self.assertEqual(health['status'], 'unhealthy')
+        self.assertEqual(health['checks']['flux'], 'failed')
+        self.assertEqual(health['collectionErrors'], {})
+        self.assertEqual(health['failures']['flux'],
+                         [f'test/HelmRelease/failed-{i} Ready=False' for i in range(10)])
+
     def test_unready_node_is_confirmed_failure(self):
         self.data['nodes'] = 'node1\tFalse\tFalse\tFalse\tFalse'
         health = self.health()
@@ -256,7 +363,7 @@ print(value)
         self.data['deployments'] = 'koito/bridge\t1\t'
         self.data['statefulsets'] = 'gitea/postgres\t1\t0'
         self.data['daemonsets'] = 'kube-system/cilium\t8\t7'
-        self.data[FLUX_QUERY] = 'flux-system/Kustomization/kyverno-policies\tFalse'
+        self.data[FLUX_QUERY] = 'flux-system/Kustomization/kyverno-policies\tReady=False\t'
         health = self.health()
         self.assertEqual(health['status'], 'unhealthy')
         self.assertEqual(health['checks']['workloads'], 'failed')
@@ -376,8 +483,27 @@ print(value)
             'statefulsets': ('test/bad\tbogus\tjunk', 'test/bad\t-1\t0'),
             'daemonsets': ('test/bad\tbogus\tjunk', 'test/bad\t1.5\t0'),
             'persistentvolumeclaims': ('test/bad', 'test/bad\tbogus'),
-            FLUX_QUERY: ('flux-system/Kustomization/bad\t',
-                         'flux-system/Kustomization/bad\tbogus'),
+            FLUX_QUERY: ('flux-system/Kustomization/bad\t\t',
+                         'flux-system/Kustomization/bad\tbogus\t',
+                         'kubescape/HelmRelease/kubescape\t\tTRUE',
+                         'kubescape/HelmRelease/kubescape\t\t1',
+                         'kubescape/HelmRelease/kubescape\t\tnull',
+                         'kubescape/HelmRelease/kubescape\t\ttrue ',
+                         'kubescape/HelmRelease/kubescape\tReady=True\tbogus',
+                         'kubescape/HelmRelease/kubescape\t\ttrue\textra',
+                         'kubescape/HelmRelease/kubescape\ttrue',
+                         'kubescape/HelmRelease/kubescape\tReady=\ttrue',
+                         'kubescape/HelmRelease/kubescape\tTrue\ttrue',
+                         'kubescape/HelmRelease/kubescape\tReady=True',
+                         'kubescape/HelmRelease/kubescape\tReady=TrueTrue\ttrue',
+                         'kubescape/HelmRelease/kubescape\tReady=FalseTrue\tfalse',
+                         'Kubescape/HelmRelease/kubescape\tReady=True\tfalse',
+                         'kubescape/HelmRelease/kubescape-\tReady=True\tfalse',
+                         'kubescape/HelmRelease/kubescape..bad\tReady=True\tfalse',
+                         'kubescape/HelmRelease/kubescape/extra\tReady=True\tfalse',
+                         'kubescape/Deployment/kubescape\tReady=True\tfalse',
+                         f'{"n" * 64}/HelmRelease/kubescape\tReady=True\tfalse',
+                         f'kubescape/HelmRelease/{"n" * 254}\tReady=True\tfalse'),
             'volumes.longhorn.io': ('bad\tattached', 'bad\tbogus\thealthy',
                                     'bad\tattached\tbogus'),
             'nodes.longhorn.io': ('bad\t', 'bad\tbogus'),
@@ -424,7 +550,7 @@ print(value)
             'statefulsets': 'test/unhealthy\t2\t1',
             'daemonsets': 'test/unhealthy\t2\t1',
             'persistentvolumeclaims': 'test/unhealthy\tPending',
-            FLUX_QUERY: 'flux-system/Kustomization/unhealthy\tFalse',
+            FLUX_QUERY: 'flux-system/Kustomization/unhealthy\tReady=False\t',
             'volumes.longhorn.io': 'unhealthy\tattached\tdegraded',
             'nodes.longhorn.io': 'unhealthy\tFalse',
             'jobs': f'test/unhealthy|1|{datetime.now(timezone.utc).isoformat()}|',
@@ -501,6 +627,7 @@ class ClusterHealthAPIConfigTests(unittest.TestCase):
         self.make_certificate(self.sa / 'ca.crt', self.sa / 'server.key')
         self.requests = []
         self.api_error = None
+        self.flux_items = []
         fixture = self
 
         class API(BaseHTTPRequestHandler):
@@ -522,7 +649,22 @@ class ClusterHealthAPIConfigTests(unittest.TestCase):
                 elif path == '/api':
                     data = {'kind': 'APIVersions', 'apiVersion': 'v1', 'versions': ['v1']}
                 elif path == '/apis':
-                    data = {'kind': 'APIGroupList', 'apiVersion': 'v1', 'groups': []}
+                    data = {'kind': 'APIGroupList', 'apiVersion': 'v1', 'groups': [
+                        {'name': group, 'versions': [{'groupVersion': group + '/v1', 'version': 'v1'}],
+                         'preferredVersion': {'groupVersion': group + '/v1', 'version': 'v1'}}
+                        for group in ('kustomize.toolkit.fluxcd.io', 'helm.toolkit.fluxcd.io')]}
+                elif path in ('/apis/kustomize.toolkit.fluxcd.io/v1', '/apis/helm.toolkit.fluxcd.io/v1'):
+                    group_version = path.removeprefix('/apis/')
+                    kind, resource = (('Kustomization', 'kustomizations') if 'kustomize.' in path
+                                      else ('HelmRelease', 'helmreleases'))
+                    data = {'kind': 'APIResourceList', 'apiVersion': 'v1', 'groupVersion': group_version,
+                            'resources': [{'name': resource, 'singularName': resource[:-1],
+                                           'namespaced': True, 'kind': kind, 'verbs': ['list']}]}
+                elif path in ('/apis/kustomize.toolkit.fluxcd.io/v1/kustomizations',
+                              '/apis/helm.toolkit.fluxcd.io/v1/helmreleases'):
+                    kind = 'Kustomization' if 'kustomize.' in path else 'HelmRelease'
+                    data = {'kind': kind + 'List', 'apiVersion': path.split('/')[2] + '/v1',
+                            'items': [item for item in fixture.flux_items if item['kind'] == kind]}
                 elif path == '/api/v1':
                     data = {'kind': 'APIResourceList', 'apiVersion': 'v1', 'groupVersion': 'v1',
                             'resources': [{'name': 'nodes', 'singularName': 'node',
@@ -595,6 +737,38 @@ class ClusterHealthAPIConfigTests(unittest.TestCase):
                 result = self.nodes()
                 self.assertEqual(result.returncode, 2)
                 self.assertTrue(self.requests)
+
+    def test_flux_jsonpath_collects_ready_and_suspend_with_real_kubectl(self):
+        self.flux_items = [
+            {'apiVersion': group + '/v1', 'kind': kind,
+             'metadata': {'namespace': namespace, 'name': name}, 'spec': spec,
+             'status': {'conditions': conditions}}
+            for group, kind, namespace, name, spec, conditions in (
+                ('kustomize.toolkit.fluxcd.io', 'Kustomization', 'flux-system', 'active', {},
+                 [{'type': 'Ready', 'status': 'True'}]),
+                ('helm.toolkit.fluxcd.io', 'HelmRelease', 'monitoring', 'gatus', {'suspend': False},
+                 [{'type': 'Ready', 'status': 'True'}]),
+                ('helm.toolkit.fluxcd.io', 'HelmRelease', 'kubescape', 'kubescape', {'suspend': True}, []))]
+        wrapper = ('kubectl() { command ' + shlex.quote(self.kubectl)
+                   + ' --cache-dir=' + shlex.quote(str(self.root / 'cache')) + ' "$@"; }')
+        command = self.script + '\n' + wrapper + '\nflux_ok\nprintf "%s\\n" "$flux_statuses"\n'
+        result = subprocess.run(['sh', '-c', command], env=self.env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(set(result.stdout.splitlines()), {
+            'flux-system/Kustomization/active\tTrue\t',
+            'monitoring/HelmRelease/gatus\tTrue\tfalse'})
+        self.assertIn('/apis/helm.toolkit.fluxcd.io/v1/helmreleases',
+                      {urlsplit(path).path for path, _ in self.requests})
+        self.assertIn('/apis/kustomize.toolkit.fluxcd.io/v1/kustomizations',
+                      {urlsplit(path).path for path, _ in self.requests})
+        # A present Ready condition with missing status must not be confused
+        # with the absent condition on the deliberately staged release.
+        self.flux_items[-1]['status']['conditions'] = [{'type': 'Ready'}]
+        result = subprocess.run(['sh', '-c', self.script + '\n' + wrapper + '\nflux_ok\n'],
+                                env=self.env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 2, result.stderr)
 
     def test_untrusted_ca_is_rejected(self):
         self.make_certificate(self.sa / 'ca.crt', self.sa / 'other.key')
