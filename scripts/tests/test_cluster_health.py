@@ -260,6 +260,17 @@ print(value)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, '')
 
+    def test_only_expected_kubescape_suspension_is_unknown(self):
+        neutral = 'kubescape/HelmRelease/kubescape\t\ttrue'
+        for rows in ((neutral,), (neutral, neutral)):
+            with self.subTest(rows=rows):
+                self.data[FLUX_QUERY] = '\n'.join(rows)
+                health = self.health()
+                self.assertEqual(health['status'], 'unknown')
+                self.assertEqual(health['checks']['flux'], 'unknown')
+                self.assertEqual(health['collectionErrors'], {'flux': 'empty_result'})
+                self.assertEqual(health['failures']['flux'], [])
+
     def test_missing_flux_ready_is_unknown_without_exact_suspension_allowlist(self):
         for identity, suspend in (
                 ('kubescape/HelmRelease/kubescape', ''),
@@ -317,7 +328,7 @@ print(value)
         neutral = 'kubescape/HelmRelease/kubescape\t\ttrue'
         failure = 'flux-system/Kustomization/kyverno-policies\tReady=False\t'
         malformed = 'other/HelmRelease/missing-ready\t\ttrue'
-        for rows in ((neutral, failure), (failure, neutral), (neutral, malformed),
+        for rows in ((neutral, failure), (failure, neutral), (neutral, malformed), (malformed, neutral),
                      (neutral, failure, malformed), (malformed, failure, neutral)):
             with self.subTest(rows=rows):
                 self.data[FLUX_QUERY] = '\n'.join(rows)

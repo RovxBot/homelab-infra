@@ -160,7 +160,9 @@ spec:
                 flux_statuses="$(kubectl --request-timeout=15s get kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.kind}{"/"}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.type}{"="}{.status}{end}{"\t"}{.spec.suspend}{"\n"}{end}')" || { flux_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -n "$flux_statuses" ] || { collection_reason="empty_result"; return 2; }
                 flux_statuses="$(printf '%s\n' "$flux_statuses" | valid_status_rows flux)" || collection_reason="invalid_data"
-                [ -z "$flux_statuses" ] || printf '%s\n' "$flux_statuses" | awk -F '\t' '$2 != "True" { bad = 1 } END { exit bad }' || return $?
+                # Neutral suspensions alone cannot establish observed health.
+                [ -n "$flux_statuses" ] || { collection_reason="${collection_reason:-empty_result}"; return 2; }
+                printf '%s\n' "$flux_statuses" | awk -F '\t' '$2 != "True" { bad = 1 } END { exit bad }' || return $?
                 [ -z "${collection_reason:-}" ] || return 2
               }
 
