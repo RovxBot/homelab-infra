@@ -37,7 +37,40 @@ def generator_source():
     return '\n'.join(line[14:] for line in source.splitlines())
 
 
+def readiness_command(report):
+    deployment = yaml.safe_load((ROOT / 'infra/pod-report/deployment.yaml').read_text())
+    generator = next(c for c in deployment['spec']['template']['spec']['containers']
+                     if c['name'] == 'generator')
+    return [arg.replace('/work/health.json', str(report))
+            for arg in generator['readinessProbe']['exec']['command']]
+
+
 class ClusterHealthVolumeTests(unittest.TestCase):
+    def test_nginx_http_readiness_and_liveness_are_unchanged(self):
+        deployment = yaml.safe_load((ROOT / 'infra/pod-report/deployment.yaml').read_text())
+        web = next(c for c in deployment['spec']['template']['spec']['containers']
+                   if c['name'] == 'web')
+        self.assertEqual(web['readinessProbe'], {
+            'httpGet': {'path': '/', 'port': 'http'},
+            'periodSeconds': 10, 'timeoutSeconds': 2, 'failureThreshold': 6,
+        })
+        self.assertEqual(web['livenessProbe'], {
+            'httpGet': {'path': '/', 'port': 'http'},
+            'periodSeconds': 20, 'timeoutSeconds': 2, 'failureThreshold': 3,
+        })
+
+    def test_freshness_only_gates_readiness_and_service_uses_ready_endpoints(self):
+        deployment = yaml.safe_load((ROOT / 'infra/pod-report/deployment.yaml').read_text())
+        pod = deployment['spec']['template']
+        generator = next(c for c in pod['spec']['containers'] if c['name'] == 'generator')
+        self.assertIn('readinessProbe', generator)
+        self.assertNotIn('livenessProbe', generator)
+        self.assertNotIn('startupProbe', generator)
+        service = yaml.safe_load((ROOT / 'infra/pod-report/service.yaml').read_text())
+        self.assertFalse(service['spec'].get('publishNotReadyAddresses', False))
+        for label, value in service['spec']['selector'].items():
+            self.assertEqual(pod['metadata']['labels'][label], value)
+
     def test_kubeconfig_is_outside_nginx_served_volumes(self):
         deployment = yaml.safe_load((ROOT / 'infra/pod-report/deployment.yaml').read_text())
         pod = deployment['spec']['template']['spec']
@@ -62,6 +95,94 @@ class ClusterHealthVolumeTests(unittest.TestCase):
         self.assertEqual(published['name'], served['name'])
         self.assertTrue(served['readOnly'])
         self.assertFalse(config_path.is_relative_to(PurePosixPath('/work')))
+
+
+class ClusterHealthFreshnessTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.report = self.root / 'health.json'
+        self.now = 2_000_000_000
+        # Fix only the clock; execute the deployed shell command and real stat
+        # against actual file contents, permissions and modification timestamps.
+        clock = self.root / 'date'
+        clock.write_text(f'#!/bin/sh\nprintf "%s\\n" {self.now}\n')
+        clock.chmod(0o755)
+        self.env = dict(os.environ, PATH=str(self.root) + ':' + os.environ['PATH'])
+
+    def write_report(self, age=0, content='{"status":"healthy"}\n'):
+        self.report.write_text(content)
+        os.utime(self.report, (self.now - age, self.now - age))
+
+    def probe(self):
+        return subprocess.run(readiness_command(self.report), env=self.env,
+                              capture_output=True, text=True, timeout=2)
+
+    def test_fresh_report_is_ready(self):
+        self.write_report()
+        result = self.probe()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_missing_report_is_unready(self):
+        self.assertNotEqual(self.probe().returncode, 0)
+
+    def test_empty_report_is_unready(self):
+        self.write_report(content='')
+        self.assertNotEqual(self.probe().returncode, 0)
+
+    def test_unreadable_report_is_unready(self):
+        if os.geteuid() == 0:
+            self.skipTest('permission check requires a non-root user like the generator')
+        self.write_report()
+        self.report.chmod(0)
+        self.assertNotEqual(self.probe().returncode, 0)
+
+    def test_directory_is_unready(self):
+        self.report.mkdir()
+        os.utime(self.report, (self.now, self.now))
+        self.assertNotEqual(self.probe().returncode, 0)
+
+    def test_five_minute_freshness_boundary(self):
+        for age, ready in ((299, True), (300, True), (301, False), (600, False)):
+            with self.subTest(age=age):
+                self.write_report(age=age)
+                self.assertEqual(self.probe().returncode == 0, ready)
+
+    def test_future_dated_report_is_unready(self):
+        for age in (-1, -600):
+            with self.subTest(age=age):
+                self.write_report(age=age)
+                self.assertNotEqual(self.probe().returncode, 0)
+
+    def test_atomic_replacement_of_stale_report_recovers_readiness(self):
+        self.write_report(age=600)
+        self.assertNotEqual(self.probe().returncode, 0)
+        replacement = self.report.with_suffix('.json.tmp')
+        replacement.write_text('{"status":"healthy"}\n')
+        os.utime(replacement, (self.now, self.now))
+        replacement.replace(self.report)
+        self.assertEqual(self.probe().returncode, 0)
+
+    def test_freshness_does_not_classify_health(self):
+        for status in ('healthy', 'unhealthy', 'unknown'):
+            with self.subTest(status=status):
+                self.write_report(content=json.dumps({'status': status}))
+                self.assertEqual(self.probe().returncode, 0)
+
+    def test_timestamp_command_errors_fail_closed(self):
+        self.write_report()
+        for command in ('stat', 'date'):
+            with self.subTest(command=command):
+                stub = self.root / command
+                previous = stub.read_text() if stub.exists() else None
+                stub.write_text('#!/bin/sh\nexit 1\n')
+                stub.chmod(0o755)
+                self.assertNotEqual(self.probe().returncode, 0)
+                if previous is None:
+                    stub.unlink()
+                else:
+                    stub.write_text(previous)
 
 
 class ClusterHealthTests(unittest.TestCase):
@@ -117,6 +238,12 @@ print(value)
         self.assertEqual(health['collectionErrors'], {})
         self.assertEqual(health['observedAt'], '2026-11-19T00:00:00Z')
         self.assertTrue(all(not failures for failures in health['failures'].values()))
+
+    def test_freshly_generated_report_passes_readiness(self):
+        self.health()
+        result = subprocess.run(readiness_command(self.work / 'health.json'),
+                                capture_output=True, text=True, timeout=2)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_unready_node_is_confirmed_failure(self):
         self.data['nodes'] = 'node1\tFalse\tFalse\tFalse\tFalse'
