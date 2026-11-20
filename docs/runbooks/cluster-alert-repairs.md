@@ -97,6 +97,116 @@ provided live webhook/network configuration, metrics and safe dry runs. Do not
 claim the timeout is permanently fixed. Keep chart **3.9.2**; CEL migration and
 chart 3.10+ remain out of scope.
 
+### On-demand timeout evidence snapshot
+
+Use the workstation utility from a checkout with Python 3.10+ and `kubectl`.
+Select an existing context explicitly; it uses only its current permissions.
+It creates no Kubernetes resources and sends no admission probes, including
+server-side dry runs. It does not execute the older diagnostic suggestions
+above or change Kyverno configuration. Chart **3.9.2** stays pinned.
+
+```bash
+python3 scripts/kyverno-timeout-evidence.py \
+  --context <existing-context> --since-minutes 30 > /tmp/kyverno-evidence.json
+```
+
+The report is sanitized JSON with `confirmed_observations`,
+`possible_correlations`, `evidence_unavailable_or_limited`, per-source status
+and collection times. Review it before attaching it to an incident. The script
+never saves raw source data or emits raw errors/logs, credentials, environment,
+AdmissionReview bodies or complete objects. Pod/resource identities are kept;
+node/context identities, endpoint addresses and explicit request identifiers
+are represented by stable hashes. The report is capped at **48 KiB**.
+
+Defaults are the `kyverno` namespace, `kyverno-svc`, and Kustomizations/events
+in `flux-system`. Override with `--namespace`, `--service`, and
+`--flux-namespace` if needed; this is deliberately not a cluster-wide search.
+Pods use the chart's `app.kubernetes.io/component=admission-controller` label
+and logs use its `kyverno` container. Missing containers are reported. Current
+metrics are selected for those pods and include their own timestamps; usage
+does not establish earlier resource pressure. Pod UID hashes help distinguish
+instances and correlate current EndpointSlice targets. Recreated/deleted pods
+and historical endpoint state may be unavailable.
+
+Collection uses direct read-only API GETs to avoid relying on unrelated API
+discovery. Each request has an 8-second server timeout and a 10-second process
+bound, within a default **90-second total I/O budget** (`--budget-seconds`,
+10–180). Each list follows at most three 200-item pages, with explicit
+truncation status; a partial list is not guaranteed to contain the newest
+events. Each response is capped at 2 MiB. At most eight admission replicas are
+sampled, with current and (if restarted) previous logs capped at 1000 lines /
+128 KiB each. No follow/watch is used. Messages are examined for at most 200
+lines. The evidence window is configurable from 1–120 minutes; the default
+report retains at most 20 rows per evidence section (`--max-items`, 1–40).
+Counts before report limits and any final byte-limit trimming are reported.
+Exit **0** means the reads completed, **2** means a source was unavailable or a
+list was truncated (the report is still usable), and **1** means the snapshot
+could not be produced. Success does not mean the timeout is resolved or that
+retained logs/events cover every request.
+
+Flux timeout rows retain the webhook name, affected Kustomization, and resource
+identity when present in that same message line. An unavailable resource name
+is not inferred from nearby messages. Lines with multiple webhook names are
+excluded as ambiguous. Aggregated events use their last-observed time; report
+rows are evidence records, not independent request counts. Condition timestamps
+are explicitly last-transition times and are not
+used for time-only request correlation. A `timeout=10s` URL parameter is a
+configured deadline, **not measured latency**. Controller evidence retains
+classified errors, explicit request/audit UUID hashes and durations with
+explicit units. Generic `uid` fields, nested request bodies and bare numeric
+durations are excluded. Audit IDs, request IDs and admission UIDs are different
+identifier types and are never treated as interchangeable.
+
+Time overlap within 15 seconds is only a possible correlation, even if it
+involves the same webhook. Conflicting explicit identifiers do not correlate.
+An explicit shared identifier is stronger evidence of overlap but still does
+not locate the failing boundary. The absence of a corresponding request from
+bounded/rotated logs does **not** prove Kyverno never received it. Endpoints
+are sampled before and after collection; changes during collection are shown
+only when both lists are available and complete. Neither ready endpoints nor
+an unchanged endpoint sample proves API-server-to-webhook connectivity or
+endpoint health at an earlier timeout.
+
+The utility has **no configured control-plane audit/trace or Cilium flow
+source**. It reports those as unavailable, without requesting new RBAC, host
+access or substitute probes. To establish root cause, an operator with existing
+access would need a failing request's API-server identity, precise start/end
+times, webhook and AdmissionReview UID; matching request start/end and operation
+timings from both controller replicas; the endpoint state at that time; and
+existing flow observations showing TCP/TLS progress or drops/retransmissions
+from that API server to the chosen endpoint on TCP 9443. Retain only safe fields,
+never request bodies. Those data distinguish a path/TLS failure from a request
+that entered Kyverno and stalled, and can then identify a specific processing
+operation. Until that boundary is observed, root cause remains unresolved and
+[#2133](https://github.com/RovxBot/homelab-infra/issues/2133) stays open.
+
+Fixture checks (also included in the existing script test discovery):
+
+```bash
+python3 -m unittest discover -s scripts/tests -p test_kyverno_timeout_evidence.py -v
+```
+
+One authorized read-only snapshot ran on **20 November 2026, 20:30:19–20:30:21
+Adelaide time** (10:00:19–10:00:21 UTC), covering the preceding 30 minutes.
+All configured reads succeeded without list/report truncation; the sanitized
+report was 7,151 bytes. One retained event last observed at **20:19:40 Adelaide**
+(09:49:40 UTC) recorded `validate-policy.kyverno.svc` timing out with the existing
+10-second configured deadline while `kyverno-policies` reconciled
+`ClusterPolicy/platform-namespace-bootstrap`. Both admission replicas were Ready
+with zero restarts on distinct nodes, using approximately 28/50 millicores and
+100 MiB each when sampled. Service 443 selected both; its two ready, serving,
+non-terminating TCP 9443 endpoints were unchanged across the two samples.
+The bounded controller logs yielded no classified errors, explicit request
+identifiers or measured operation latency, so no controller correlation could
+be established. This does not prove the timed-out request was absent. Audit
+traces and Cilium flows were unavailable to the utility. The snapshot does not
+locate the failing boundary, prove connectivity or establish a distinct defect.
+
+Flag and endpoint semantics follow the Kubernetes references for
+[bounded pod logs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/),
+[read-only raw GETs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_get/),
+and [EndpointSlice conditions](https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/).
+
 ## Validation before rollout
 
 Run all local fast checks before relying on PR CI:
