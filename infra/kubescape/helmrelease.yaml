@@ -1,0 +1,218 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kubescape
+  namespace: kubescape
+spec:
+  # Staging only. See README.md: storage certgen init containers fail Kyverno.
+  # Activation requires a separate reviewed PR after all preflight failures close.
+  suspend: true
+  interval: 30m
+  releaseName: kubescape
+  chart:
+    spec:
+      chart: kubescape-operator
+      version: 1.42.0
+      sourceRef:
+        kind: HelmRepository
+        name: kubescape
+        namespace: flux-system
+      interval: 12h
+  install:
+    crds: Create
+    remediation:
+      retries: 0
+  upgrade:
+    crds: Skip
+    remediation:
+      retries: 0
+  timeout: 10m
+  # configurationScan enables a daily CronJob independently of continuousScan.
+  # The chart has no scheduler-disable value. Keep that job suspended as well.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: batch
+              version: v1
+              kind: CronJob
+              name: kubescape-scheduler
+              namespace: kubescape
+            patch: |-
+              - op: add
+                path: /spec/suspend
+                value: true
+  values:
+    clusterName: home
+    ksNamespace: kubescape
+    additionalLabels:
+      homelab.cooked.beer/owner: sam
+    # Initial canary scope only; do not silently claim cluster-wide coverage.
+    includeNamespaces: default
+    excludeNamespaces: ""
+    defaultFrameworks:
+      - nsa
+    certificates:
+      strategy: initContainer
+    server: ""
+    account: ""
+    accessKey: ""
+    credentials:
+      cloudSecret: ""
+    capabilities:
+      operator: enable
+      configurationScan: enable
+      continuousScan: disable
+      nodeScan: disable
+      nodeSbomGeneration: disable
+      scanEmbeddedSBOMs: disable
+      vulnerabilityScan: disable
+      relevancy: disable
+      vexGeneration: disable
+      runtimeObservability: disable
+      networkPolicyService: disable
+      networkEventsStreaming: disable
+      runtimeDetection: disable
+      malwareDetection: disable
+      nodeProfileService: disable
+      admissionController: disable
+      httpDetection: disable
+      seccompProfileService: disable
+      seccompProfileBackend: storage
+      sandboxSeccomp: disable
+      manageWorkloads: disable
+      syncSBOM: disable
+      agentRuntimePosture: disable
+      riskAcceptance: disable
+      remediation: disable
+      autoUpgrading: disable
+      kubescapeOffline: enable
+      prometheusExporter: disable
+      testing:
+        nodeAgentMultiplication:
+          enabled: false
+    global:
+      enableClusterWideSecretAccess: false
+      apiAuth:
+        enabled: true
+      kubescapePsp:
+        enabled: false
+      networkPolicy:
+        enabled: false
+        createEgressRules: false
+      openshift:
+        scc:
+          enabled: false
+    configurations:
+      persistence: enable
+      prometheusAnnotations: disable
+      priorityClass:
+        enabled: false
+    alertCRD:
+      installDefault: false
+      scopeClustered: false
+      scopeNamespaced: false
+    serviceScanConfig:
+      enabled: false
+    namespaceFilters:
+      enabled: false
+    nodeAgent:
+      privileged: false
+      config:
+        hostSensor:
+          enabled: false
+        prometheusExporter: disable
+      sbomScanner:
+        enabled: false
+      autoscaler:
+        enabled: false
+      multipleDaemonSets:
+        enabled: false
+      gVisorStart:
+        enabled: false
+    grypeOfflineDB:
+      enabled: false
+    kubevuln:
+      sbomScanner:
+        enabled: false
+      config:
+        grypeDbPersistence: false
+      tmpDirPersistence:
+        enabled: false
+    kubescape:
+      image:
+        repository: quay.io/kubescape/kubescape
+        tag: v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060
+      downloadArtifacts: false
+      skipUpdateCheck: true
+      serviceMonitor:
+        enabled: false
+      resources:
+        requests:
+          cpu: 250m
+          memory: 400Mi
+        limits:
+          cpu: 600m
+          memory: 1Gi
+    operator:
+      image:
+        repository: quay.io/kubescape/operator
+        tag: v0.2.209@sha256:b280f5154451d1d075d49e3fade361e934063fe5dc26e18e673f67a4cca3a558
+      triggerSecurityFramework: false
+      rulesUpdateConfig:
+        enabled: false
+      env:
+        workerConcurrency:
+          name: WORKERCONCURRENCY
+          value: "1"
+      resources:
+        requests:
+          cpu: 50m
+          memory: 100Mi
+        limits:
+          cpu: 300m
+          memory: 300Mi
+    storage:
+      enabled: true
+      image:
+        repository: quay.io/kubescape/storage
+        tag: v0.0.382@sha256:270e22b65e95de4054d6b9ed3aad2d63296e4941ba1aa49b356d5be94d41863b
+      mtls:
+        enabled: true
+      hostNetwork: false
+      mcp:
+        enabled: false
+        readerClusterRoles: false
+      resources:
+        requests:
+          cpu: 100m
+          memory: 400Mi
+        limits:
+          cpu: 1500m
+          memory: 1500Mi
+    kubescapeOpsTool:
+      image:
+        repository: quay.io/kubescape/kubescape-ops-tool
+        tag: 0.2.0-r1@sha256:2f1d8c9a76f05049f73ebefa292d4b65ce3ef3811317c4cc023b4df792a592e4
+    kubescapeScheduler:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      requestBody:
+        commands:
+          - CommandName: kubescapeScan
+            args:
+              scanV1:
+                targetType: framework
+                targetNames: [nsa]
+                hostScanner: false
+                keepLocal: true
+    persistence:
+      storageClass: longhorn
+      accessMode: ReadWriteOnce
+      size:
+        backingStorage: 5Gi
