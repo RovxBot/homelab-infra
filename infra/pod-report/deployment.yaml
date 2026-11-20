@@ -61,43 +61,43 @@ spec:
               current-context: pod-report
               EOF
 
+              # Check return codes: 0 = ok, 1 = confirmed unhealthy, 2 = unknown.
+              # Discard stdout from failed queries, including any partial results.
               nodes_ok() {
-                node_statuses="$(kubectl --request-timeout=15s get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="DiskPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="MemoryPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="PIDPressure")]}{.status}{end}{"\n"}{end}')" || return 1
-                [ -n "$node_statuses" ] || return 1
+                node_statuses="$(kubectl --request-timeout=15s get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="DiskPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="MemoryPressure")]}{.status}{end}{"\t"}{range .status.conditions[?(@.type=="PIDPressure")]}{.status}{end}{"\n"}{end}')" || { node_statuses=""; collection_reason="query_failed"; return 2; }
+                [ -n "$node_statuses" ] || { collection_reason="empty_result"; return 2; }
                 printf '%s\n' "$node_statuses" | awk -F '\t' 'NF != 5 || $2 != "True" || $3 != "False" || $4 != "False" || $5 != "False" { bad = 1 } END { exit bad }'
               }
 
               deployments_ok() {
-                deployment_statuses="$(kubectl --request-timeout=15s get deployments -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.availableReplicas}{"\n"}{end}')" || return 1
+                deployment_statuses="$(kubectl --request-timeout=15s get deployments -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.availableReplicas}{"\n"}{end}')" || { deployment_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -z "$deployment_statuses" ] || printf '%s\n' "$deployment_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
               }
 
               statefulsets_ok() {
-                statefulset_statuses="$(kubectl --request-timeout=15s get statefulsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.readyReplicas}{"\n"}{end}')" || return 1
+                statefulset_statuses="$(kubectl --request-timeout=15s get statefulsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.spec.replicas}{"\t"}{.status.readyReplicas}{"\n"}{end}')" || { statefulset_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -z "$statefulset_statuses" ] || printf '%s\n' "$statefulset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
               }
 
               daemonsets_ok() {
-                daemonset_statuses="$(kubectl --request-timeout=15s get daemonsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.desiredNumberScheduled}{"\t"}{.status.numberAvailable}{"\n"}{end}')" || return 1
+                daemonset_statuses="$(kubectl --request-timeout=15s get daemonsets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.desiredNumberScheduled}{"\t"}{.status.numberAvailable}{"\n"}{end}')" || { daemonset_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -z "$daemonset_statuses" ] || printf '%s\n' "$daemonset_statuses" | awk -F '\t' '$2 + 0 != $3 + 0 { bad = 1 } END { exit bad }'
               }
 
               pvcs_ok() {
-                pvc_statuses="$(kubectl --request-timeout=15s get persistentvolumeclaims -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')" || return 1
+                pvc_statuses="$(kubectl --request-timeout=15s get persistentvolumeclaims -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{.status.phase}{"\n"}{end}')" || { pvc_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -z "$pvc_statuses" ] || printf '%s\n' "$pvc_statuses" | awk -F '\t' '$2 != "Bound" { bad = 1 } END { exit bad }'
               }
 
               flux_ok() {
-                flux_statuses="$(kubectl --request-timeout=15s get kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.kind}{"/"}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}')" || return 1
-                [ -n "$flux_statuses" ] || return 1
+                flux_statuses="$(kubectl --request-timeout=15s get kustomizations.kustomize.toolkit.fluxcd.io,helmreleases.helm.toolkit.fluxcd.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.kind}{"/"}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}')" || { flux_statuses=""; collection_reason="query_failed"; return 2; }
+                [ -n "$flux_statuses" ] || { collection_reason="empty_result"; return 2; }
                 printf '%s\n' "$flux_statuses" | awk -F '\t' 'NF != 2 || $2 != "True" { bad = 1 } END { exit bad }'
               }
 
-              longhorn_ok() {
-                volume_statuses="$(kubectl --request-timeout=15s get volumes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.state}{"\t"}{.status.robustness}{"\n"}{end}')" || return 1
-                node_statuses="$(kubectl --request-timeout=15s get nodes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Schedulable")]}{.status}{end}{"\n"}{end}')" || return 1
-                [ -n "$volume_statuses" ] || return 1
-                [ -n "$node_statuses" ] || return 1
+              longhorn_volumes_ok() {
+                volume_statuses="$(kubectl --request-timeout=15s get volumes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.state}{"\t"}{.status.robustness}{"\n"}{end}')" || { volume_statuses=""; collection_reason="query_failed"; return 2; }
+                [ -n "$volume_statuses" ] || { collection_reason="empty_result"; return 2; }
                 # A detached Longhorn volume normally reports unknown robustness because
                 # it has no running engine to assess. Treat it as healthy only when it is
                 # scheduled; attached volumes must still have full replica health.
@@ -107,24 +107,64 @@ spec:
                   ($2 == "detached" && $3 != "unknown") ||
                   ($2 != "attached" && $2 != "detached") { bad = 1 }
                   END { exit bad }
-                ' || return 1
+                '
+              }
+
+              longhorn_nodes_ok() {
+                node_statuses="$(kubectl --request-timeout=15s get nodes.longhorn.io -n longhorn-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Schedulable")]}{.status}{end}{"\n"}{end}')" || { node_statuses=""; collection_reason="query_failed"; return 2; }
+                [ -n "$node_statuses" ] || { collection_reason="empty_result"; return 2; }
                 printf '%s\n' "$node_statuses" | awk -F '\t' 'NF != 2 || $2 != "True" { bad = 1 } END { exit bad }'
               }
 
               recent_jobs_ok() {
-                job_statuses="$(kubectl --request-timeout=15s get jobs -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"|"}{.status.failed}{"|"}{.status.startTime}{"|"}{range .status.conditions[?(@.type=="Complete")]}{.status}{end}{"\n"}{end}')" || return 1
+                job_statuses="$(kubectl --request-timeout=15s get jobs -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"|"}{.status.failed}{"|"}{.status.startTime}{"|"}{range .status.conditions[?(@.type=="Complete")]}{.status}{end}{"\n"}{end}')" || { job_statuses=""; collection_reason="query_failed"; return 2; }
                 [ -z "$job_statuses" ] && return 0
-                cutoff_epoch="$(date -u -d '6 hours ago' +%s)" || return 1
+                cutoff_epoch="$(date -u -d '6 hours ago' +%s)" || return 2
                 job_failures=""
                 while IFS='|' read -r job_name failed_count start_time complete; do
                   [ "$complete" != True ] || continue
+                  case "$failed_count" in
+                    *[!0-9]*) collection_reason="invalid_data"; continue ;;
+                  esac
                   [ "${failed_count:-0}" -gt 0 ] || continue
-                  start_epoch="$(date -u -d "$start_time" +%s)" || return 1
+                  # Keep checking other Jobs if one timestamp cannot be evaluated.
+                  [ -n "$start_time" ] || { collection_reason="invalid_data"; continue; }
+                  start_epoch="$(date -u -d "$start_time" +%s)" || { collection_reason="invalid_data"; continue; }
                   [ "$start_epoch" -lt "$cutoff_epoch" ] || job_failures="${job_failures}${job_name} failed-attempts=${failed_count}\n"
                 done <<EOF
               $job_statuses
               EOF
-                [ -z "$job_failures" ]
+                [ -z "$job_failures" ] || return 1
+                [ -z "$collection_reason" ] || return 2
+              }
+
+              check_health() {
+                check_category="$1"; check_name="$2"; shift 2
+                collection_reason=""
+                check_result=0
+                "$@" || check_result=$?
+                case "$check_result" in
+                  0) ;;
+                  1) failed_checks="$failed_checks $check_category" ;;
+                  *) collection_reason="${collection_reason:-check_failed}" ;;
+                esac
+                if [ -n "$collection_reason" ]; then
+                  unknown_checks="$unknown_checks $check_category"
+                  # Keys are the nine fixed subcheck names below; reasons are
+                  # allowlisted constants. Never include command output here.
+                  case "$collection_reason" in
+                    query_failed|empty_result|invalid_data) ;;
+                    *) collection_reason="check_failed" ;;
+                  esac
+                  collection_errors="${collection_errors}${collection_errors:+,}\"${check_name}\":\"${collection_reason}\""
+                fi
+              }
+
+              check_state() {
+                # A category can have both confirmed failures and unknown subchecks.
+                case " $failed_checks " in *" $1 "*) printf failed; return ;; esac
+                case " $unknown_checks " in *" $1 "*) printf unknown; return ;; esac
+                printf ok
               }
 
               diagnostic_json() {
@@ -134,22 +174,21 @@ spec:
               evaluate_health() {
                 deployment_statuses=""; statefulset_statuses=""; daemonset_statuses=""
                 flux_statuses=""; pvc_statuses=""; job_failures=""
-                health_status="healthy"
-                nodes_state="ok"
-                workloads_state="ok"
-                pvcs_state="ok"
-                flux_state="ok"
-                longhorn_state="ok"
-                jobs_state="ok"
+                failed_checks=""; unknown_checks=""; collection_errors=""
 
-                nodes_ok || { health_status="unhealthy"; nodes_state="failed"; }
-                deployments_ok || { health_status="unhealthy"; workloads_state="failed"; }
-                statefulsets_ok || { health_status="unhealthy"; workloads_state="failed"; }
-                daemonsets_ok || { health_status="unhealthy"; workloads_state="failed"; }
-                pvcs_ok || { health_status="unhealthy"; pvcs_state="failed"; }
-                flux_ok || { health_status="unhealthy"; flux_state="failed"; }
-                longhorn_ok || { health_status="unhealthy"; longhorn_state="failed"; }
-                recent_jobs_ok || { health_status="unhealthy"; jobs_state="failed"; }
+                check_health nodes nodes nodes_ok
+                check_health workloads deployments deployments_ok
+                check_health workloads statefulsets statefulsets_ok
+                check_health workloads daemonsets daemonsets_ok
+                check_health pvcs pvcs pvcs_ok
+                check_health flux flux flux_ok
+                check_health longhorn longhornVolumes longhorn_volumes_ok
+                check_health longhorn longhornNodes longhorn_nodes_ok
+                check_health recentJobs recentJobs recent_jobs_ok
+
+                health_status="healthy"
+                [ -z "$unknown_checks" ] || health_status="unknown"
+                [ -z "$failed_checks" ] || health_status="unhealthy"
 
                 # JSON-safe, bounded diagnostic identities. These status fields
                 # cannot contain credentials; omit arbitrary object messages.
@@ -158,12 +197,12 @@ spec:
                 pvc_failures="$(printf '%s\n' "$pvc_statuses" | awk -F '\t' 'NF && $2 != "Bound" { print $1 " phase=" $2 }')"
                 {
                   printf '{"status":"%s","observedAt":"%s","checks":{"nodes":"%s","workloads":"%s","pvcs":"%s","flux":"%s","longhorn":"%s","recentJobs":"%s"},"failures":{' \
-                    "$health_status" "$now" "$nodes_state" "$workloads_state" "$pvcs_state" "$flux_state" "$longhorn_state" "$jobs_state"
+                    "$health_status" "$now" "$(check_state nodes)" "$(check_state workloads)" "$(check_state pvcs)" "$(check_state flux)" "$(check_state longhorn)" "$(check_state recentJobs)"
                   printf '"workloads":'; printf '%s\n' "$workload_failures" | diagnostic_json
                   printf ',"flux":'; printf '%s\n' "$flux_failures" | diagnostic_json
                   printf ',"pvcs":'; printf '%s\n' "$pvc_failures" | diagnostic_json
                   printf ',"recentJobs":'; printf '%b' "${job_failures:-}" | diagnostic_json
-                  printf '}}\n'
+                  printf '},"collectionErrors":{%s}}\n' "$collection_errors"
                 } > "$health_tmp"
                 mv "$health_tmp" "$health"
               }
