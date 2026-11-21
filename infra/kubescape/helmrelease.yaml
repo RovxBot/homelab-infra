@@ -4,9 +4,8 @@ metadata:
   name: kubescape
   namespace: kubescape
 spec:
-  # Staging only. Offline preflight passes; live acceptance gates remain in README.md.
-  # Activation requires a separate reviewed PR.
-  suspend: true
+  # Qualified posture-only activation; recurring scans remain suspended below.
+  suspend: false
   interval: 30m
   releaseName: kubescape
   chart:
@@ -32,6 +31,16 @@ spec:
   postRenderers:
     - kustomize:
         patches:
+          # Certificate initialization only patches this release's APIService.
+          - target:
+              group: rbac.authorization.k8s.io
+              version: v1
+              kind: ClusterRole
+              name: storage-certgen-kubescape
+            patch: |-
+              - op: add
+                path: /rules/0/resourceNames
+                value: [v1beta1.spdx.softwarecomposition.kubescape.io]
           - target:
               group: batch
               version: v1
@@ -82,7 +91,7 @@ spec:
     additionalLabels:
       homelab.cooked.beer/owner: sam
     # Initial canary scope only; do not silently claim cluster-wide coverage.
-    includeNamespaces: default
+    includeNamespaces: memos
     excludeNamespaces: ""
     defaultFrameworks:
       - nsa
