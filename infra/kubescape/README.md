@@ -52,7 +52,7 @@ For each manual scan, capture the running Pod/container imageID, Deployment UID,
 namespace UID, node architecture and immutable registry manifest. Submit only
 that image to `/v1/scanImage`, with its workload WLID, container name, unique job
 ID and explicit platform. Use a short-lived operator ServiceAccount token with
-chart audience `kubescape` through a localhost-only port-forward; existing
+chart audience `kubescape.io` through a localhost-only port-forward; existing
 `operator-api-caller` RBAC grants the scan API. Never disable API authentication,
 publish tokens, create broad scan schedules, or submit the scheduler's empty
 all-workload designator. Check `/v1/scanStatus/<jobID>` and GET the full named
