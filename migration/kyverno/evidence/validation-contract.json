@@ -1,0 +1,38 @@
+{
+  "source_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44879145011",
+  "source_commit": "508df742f68f4a53f1fb31605e4b6e4d34d81b5f",
+  "target": {
+    "chart": "3.10.0",
+    "application": "1.20.0",
+    "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+    "chart_sha256": "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301"
+  },
+  "files": {
+    "migration/kyverno/policies/workloads.yaml": "77d487b863b83611f2d8a25815b60bc18224823ba8e5f1fc3a30541b19555946",
+    "migration/kyverno/policies/namespace.yaml": "85a6eabaa58c7d19900c1a23e12d814ae3ba748a7bfc44253093e2bf603089f8",
+    "migration/kyverno/policies/runners.yaml": "75ca3bfe094279b0da8e027755f808bc75e290c4a888753c9c415aa0e5cf1222",
+    "migration/kyverno/policies/flux.yaml": "189aa04d4486acf22f59eb881411577c1570548ac951f8d749785c596003fdd0",
+    "migration/kyverno/policies/governance-native.yaml": "1dd7dd746e8775ac068e68695f8b4ba7a5ae103470240cf88bb4c3ad32eb5f4d",
+    "migration/kyverno/policies/reporting-rbac.yaml": "840ab4f128f42e977ed2a308a9a5fb656fc93839891e116ddbc11c7979c2b2fa",
+    "migration/kyverno/exceptions/exceptions.yaml": "a33768d8560f3e408b18ec0fc96c9f37178daba3e0d8fb27ca858e067a65d8e3",
+    "migration/kyverno/policy-map.json": "70aadc53b8519708b5b29495047efffd1b03cdfee5b3b45394eb992747d2556f",
+    "migration/kyverno/harness/corpus.py": "549aaae0303d70ac4d3b5d16068ca7ed8ceb953f390f016f4d7006021bbc5e90",
+    "migration/kyverno/harness/equivalence.py": "0ef677fd1eb0fae55a3b6ffd6e9158f3a4fbc5ff6bd12cdf1728972e7c099e0a",
+    "migration/kyverno/harness/reporting.py": "62f1eed179658f0e0282a0f07a115767a508ae065a6cb5154c7380f4344fea99",
+    "infra/kyverno/policies/platform-pod-standards.yaml": "d6e8ecaca7d5e00b52868e911bf050280d26f08245d9a080034a362620c7f19f",
+    "infra/kyverno/policies/platform-namespace-standards.yaml": "6428b00bfba710b7e8e6669cbd539e3d27e9de7d8763dcf5a87998a81e758202",
+    "infra/kyverno/policies/platform-flux-guardrails.yaml": "506b8063f55850ba81e06455b3fcbd8a3a7c981acbd4d7bd75f31e5ee506cdd7",
+    "infra/kyverno/policies/policy-exception-accountability.yaml": "2e5421d978ea6b43aca40d66f47a85add571b73d87d282a66ac1a8669437dc2b",
+    "apps/gitea-runners/job-security.yaml": "872626788d3eb0e95e54e637f95bc49b11f7eaa1219837c6bd9d3dd5aa719b8f",
+    "apps/gitea-runners/wowdecomp/job-security.yaml": "c3aea9f34232ce4ef3c30da69e3bb7165482ce37f2dbbf43fcb6c02c2ecd88f9",
+    "infra/kyverno/exceptions/chart-managed-workloads.yaml": "a2d0e944297302174e3c82997e7d3ddb73831a0e5a5c61a26004d855a8c572cd",
+    "infra/kyverno/exceptions/gpu-operator-workloads.yaml": "e7ebabe4f906f2de9ae49031bc256f2362f2f008dabe5d7199448f803e5211aa",
+    "infra/kyverno/exceptions/home-assistant.yaml": "a417ae190215fd31e22dd2b017edd7f951d4516456004710dc517bb7fb0d1edc",
+    "infra/kyverno/exceptions/kustomization.yaml": "4858835db96742f365af929dde3f1465d6f8a212ac0646539b69fa7a55bdb558",
+    "infra/kyverno/exceptions/mutable-image-tags.yaml": "0c8315e2f1f994a6c4569285b4404135e53b9604f585cbcd0a96772a63418f28",
+    "infra/kyverno/exceptions/privileged-namespaces.yaml": "9db5e4a9ec24b7e25ffe6efdcd6845289b02cf496339c07e7ca0419f2997dd3b",
+    "infra/kyverno/exceptions/wotlk-latest-tag.yaml": "ddac3a3c7f799a38797a87039ca07912bce3366e6d32b194eaea2a41b1bcd5ad",
+    "migration/kyverno/evidence/admission-decisions.jsonl": "58c6c388bd7fb25c9d7d4a4e8ab81ad1626daef4076cad9433ed99586dd04ccb",
+    "migration/kyverno/evidence/admission-results.jsonl": "9f531a4f4cd7df2ea55eca6ef6b1a7242b4e6c5834c5d0b8fc62d8326df3e232"
+  }
+}

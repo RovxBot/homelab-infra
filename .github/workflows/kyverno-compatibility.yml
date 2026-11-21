@@ -6,6 +6,9 @@ on:
       chart:
         type: string
         required: true
+      reuse_validation:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       chart:
@@ -21,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [empty-upgraded, fresh-target, adopted, mutation]
+        scenario: [empty-upgraded, fresh-target, adopted, mutation, validation]
     # Adoption is diagnostic; the selected production path requires emptiness.
     continue-on-error: ${{ matrix.scenario == 'adopted' }}
     runs-on: ubuntu-24.04
@@ -39,6 +42,7 @@ jobs:
         env:
           REHEARSAL_SCENARIO: ${{ matrix.scenario }}
           CANDIDATE_TRUST: success
+          REUSE_VALIDATION: ${{ inputs.reuse_validation && 'true' || 'false' }}
         run: timeout 1500 bash migration/kyverno/harness/run.sh
       - name: Always destroy the rehearsal cluster
         if: always()

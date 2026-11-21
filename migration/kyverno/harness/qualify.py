@@ -125,6 +125,10 @@ def rollback_empty(flux,ns):
 
 def main():
     scenario=os.environ['REHEARSAL_SCENARIO']
+    assert scenario in ['validation','mutation','empty-upgraded','fresh-target','adopted']
+    if scenario=='validation':
+        from validation import main as validate
+        return validate()
     if scenario=='mutation':
         from mutation import run as mutation
         install('1.19.2')

@@ -447,6 +447,7 @@ def main():
         " && has(object.spec.template.spec.containers) && size(object.spec.template.spec.containers) > 0"
         f" && {c}.?name.orValue('') == 'node-driver-registrar'"
         f" && {c}.?image.orValue('') in {lit(refs)}"
+        f" && has({c}.lifecycle) && has({c}.lifecycle.preStop) && has({c}.lifecycle.preStop.exec)"
         f" && has({c}.lifecycle.preStop.exec.command) && size({c}.lifecycle.preStop.exec.command) > 0"
         f" && {c}.lifecycle.preStop.exec.command[0] == '/bin/sh'"
     )

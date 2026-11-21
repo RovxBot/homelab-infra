@@ -177,9 +177,10 @@ class RequiredGateTests(unittest.TestCase):
 
     @staticmethod
     def successful_results() -> dict:
-        names = ["changes", "manifest-validation", "public-edge", "shell-syntax", "actionlint", "yamllint", "gitleaks", "zizmor", "validate", "renovate-config"]
+        names = ["kyverno-release-change", "kyverno-compatibility", "changes", "manifest-validation", "public-edge", "shell-syntax", "actionlint", "yamllint", "gitleaks", "zizmor", "validate", "renovate-config"]
         results = {name: {"result": "success"} for name in names}
         results["changes"]["outputs"] = {selector: "true" for selector in ["manifests", "public_edge", "shell", "workflows", "renovate", "terraform"]}
+        results["kyverno-release-change"]["outputs"] = {"changed": "true", "chart": "3.10.0"}
         return results
 
     def test_full_success_passes(self):
@@ -188,8 +189,9 @@ class RequiredGateTests(unittest.TestCase):
     def test_unrelated_jobs_may_be_skipped(self):
         results = self.successful_results()
         results["changes"]["outputs"] = {selector: "false" for selector in results["changes"]["outputs"]}
+        results["kyverno-release-change"]["outputs"]["changed"] = "false"
         for name in results:
-            if name not in {"changes", "gitleaks"}:
+            if name not in {"changes", "gitleaks", "kyverno-release-change"}:
                 results[name]["result"] = "skipped"
         self.assertEqual(self.run_summary(results), 0)
 

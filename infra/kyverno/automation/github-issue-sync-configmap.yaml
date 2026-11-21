@@ -14,21 +14,21 @@ data:
     import urllib.parse
     import urllib.request
     from datetime import datetime, timedelta, timezone
-    
-    
+
+
     def env_bool(name, default=False):
         value = os.getenv(name)
         if value is None:
             return default
         return value.lower() in {"1", "true", "yes", "on"}
-    
-    
+
+
     def api_get(url, headers=None, ssl_context=None):
         request = urllib.request.Request(url, headers=headers or {})
         with urllib.request.urlopen(request, context=ssl_context or DEFAULT_SSL_CONTEXT, timeout=30) as response:
             return json.load(response)
-    
-    
+
+
     def api_request(url, method="GET", payload=None, headers=None, ssl_context=None):
         body = None if payload is None else json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(url, data=body, method=method, headers=headers or {})
@@ -36,8 +36,8 @@ data:
             if response.length == 0:
                 return None
             return json.load(response)
-    
-    
+
+
     def parse_result_time(result, fallback):
         timestamp = result.get("timestamp")
         if isinstance(timestamp, dict):
@@ -56,8 +56,8 @@ data:
                 except ValueError:
                     pass
         return None
-    
-    
+
+
     def list_kubernetes_resource(path):
         items, token = [], ""
         for _ in range(100):
@@ -70,13 +70,80 @@ data:
             if not token:
                 return {"items": items}
         raise ValueError("Kubernetes pagination exceeded bound")
-    
-    
+
+
     # BEGIN GENERATED POLICY IDENTITIES (render-report-identities.py)
-    POLICY_IDENTITIES = {'platform-namespace-standards': ('platform-namespace-standards', 'require-psa-and-owner-labels'), 'platform-pod-standards-require-owner-label': ('platform-pod-standards', 'require-owner-label'), 'platform-pod-standards-require-requests-and-limits': ('platform-pod-standards', 'require-requests-and-limits'), 'platform-pod-standards-require-runtime-hardening': ('platform-pod-standards', 'require-runtime-hardening'), 'platform-pod-standards-disallow-host-network': ('platform-pod-standards', 'disallow-host-network'), 'platform-pod-standards-require-digest-pinned-images': ('platform-pod-standards', 'require-digest-pinned-images'), 'platform-pod-standards-disallow-latest-tags': ('platform-pod-standards', 'disallow-latest-tags'), 'platform-pod-standards-require-probes': ('platform-pod-standards', 'require-probes'), 'platform-flux-guardrails': ('platform-flux-guardrails', 'audit-manual-edits-to-flux-managed-resources'), 'gitea-jobs/gitea-job-security-restricted-with-sanitizer-capability': ('gitea-job-security', 'restricted-with-sanitizer-capability'), 'gitea-jobs/gitea-job-security-bound-job-environment': ('gitea-job-security', 'bound-job-environment'), 'gitea-jobs/gitea-job-security-one-job-container': ('gitea-job-security', 'one-job-container'), 'gitea-jobs/gitea-job-security-drop-all-and-only-allow-ptrace': ('gitea-job-security', 'drop-all-and-only-allow-ptrace'), 'gitea-jobs/gitea-job-security-ptrace-only-in-sanitizer-jobs': ('gitea-job-security', 'ptrace-only-in-sanitizer-jobs'), 'gitea-jobs/gitea-job-security-ordinary-job-identity': ('gitea-job-security', 'ordinary-job-identity'), 'gitea-jobs/gitea-job-security-bounded-sanitizer-identity': ('gitea-job-security', 'bounded-sanitizer-identity'), 'gitea-jobs/gitea-job-security-no-extra-job-credentials': ('gitea-job-security', 'no-extra-job-credentials'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-restricted-with-sanitizer-capability': ('wowdecomp-linux-security', 'restricted-with-sanitizer-capability'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-bound-job-environment': ('wowdecomp-linux-security', 'bound-job-environment'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-one-job-container': ('wowdecomp-linux-security', 'one-job-container'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-bounded-toolchain-capabilities': ('wowdecomp-linux-security', 'bounded-toolchain-capabilities'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-no-extra-job-credentials': ('wowdecomp-linux-security', 'no-extra-job-credentials'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-no-mounted-registry-credential': ('wowdecomp-linux-security', 'no-mounted-registry-credential'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-no-registry-credential-in-environment': ('wowdecomp-linux-security', 'no-registry-credential-in-environment')}
+    POLICY_IDENTITIES = {'gitea-job-security-bound-job-environment': ('gitea-job-security', 'bound-job-environment'),
+     'gitea-job-security-bounded-sanitizer-identity': ('gitea-job-security',
+                                                       'bounded-sanitizer-identity'),
+     'gitea-job-security-drop-all-and-only-allow-ptrace': ('gitea-job-security',
+                                                           'drop-all-and-only-allow-ptrace'),
+     'gitea-job-security-no-extra-job-credentials': ('gitea-job-security', 'no-extra-job-credentials'),
+     'gitea-job-security-one-job-container': ('gitea-job-security', 'one-job-container'),
+     'gitea-job-security-ordinary-job-identity': ('gitea-job-security', 'ordinary-job-identity'),
+     'gitea-job-security-ptrace-only-in-sanitizer-jobs': ('gitea-job-security',
+                                                          'ptrace-only-in-sanitizer-jobs'),
+     'gitea-job-security-restricted-with-sanitizer-capability': ('gitea-job-security',
+                                                                 'restricted-with-sanitizer-capability'),
+     'gitea-jobs/gitea-job-security-bound-job-environment': ('gitea-job-security',
+                                                             'bound-job-environment'),
+     'gitea-jobs/gitea-job-security-bounded-sanitizer-identity': ('gitea-job-security',
+                                                                  'bounded-sanitizer-identity'),
+     'gitea-jobs/gitea-job-security-drop-all-and-only-allow-ptrace': ('gitea-job-security',
+                                                                      'drop-all-and-only-allow-ptrace'),
+     'gitea-jobs/gitea-job-security-no-extra-job-credentials': ('gitea-job-security',
+                                                                'no-extra-job-credentials'),
+     'gitea-jobs/gitea-job-security-one-job-container': ('gitea-job-security', 'one-job-container'),
+     'gitea-jobs/gitea-job-security-ordinary-job-identity': ('gitea-job-security',
+                                                             'ordinary-job-identity'),
+     'gitea-jobs/gitea-job-security-ptrace-only-in-sanitizer-jobs': ('gitea-job-security',
+                                                                     'ptrace-only-in-sanitizer-jobs'),
+     'gitea-jobs/gitea-job-security-restricted-with-sanitizer-capability': ('gitea-job-security',
+                                                                            'restricted-with-sanitizer-capability'),
+     'platform-flux-guardrails': ('platform-flux-guardrails',
+                                  'audit-manual-edits-to-flux-managed-resources'),
+     'platform-namespace-standards': ('platform-namespace-standards', 'require-psa-and-owner-labels'),
+     'platform-pod-standards-disallow-host-network': ('platform-pod-standards',
+                                                      'disallow-host-network'),
+     'platform-pod-standards-disallow-latest-tags': ('platform-pod-standards', 'disallow-latest-tags'),
+     'platform-pod-standards-require-digest-pinned-images': ('platform-pod-standards',
+                                                             'require-digest-pinned-images'),
+     'platform-pod-standards-require-owner-label': ('platform-pod-standards', 'require-owner-label'),
+     'platform-pod-standards-require-probes': ('platform-pod-standards', 'require-probes'),
+     'platform-pod-standards-require-requests-and-limits': ('platform-pod-standards',
+                                                            'require-requests-and-limits'),
+     'platform-pod-standards-require-runtime-hardening': ('platform-pod-standards',
+                                                          'require-runtime-hardening'),
+     'wowdecomp-ci-jobs/wowdecomp-linux-security-bound-job-environment': ('wowdecomp-linux-security',
+                                                                          'bound-job-environment'),
+     'wowdecomp-ci-jobs/wowdecomp-linux-security-bounded-toolchain-capabilities': ('wowdecomp-linux-security',
+                                                                                   'bounded-toolchain-capabilities'),
+     'wowdecomp-ci-jobs/wowdecomp-linux-security-no-extra-job-credentials': ('wowdecomp-linux-security',
+                                                                             'no-extra-job-credentials'),
+     'wowdecomp-ci-jobs/wowdecomp-linux-security-no-mounted-registry-credential': ('wowdecomp-linux-security',
+                                                                                   'no-mounted-registry-credential'),
+     'wowdecomp-ci-jobs/wowdecomp-linux-security-no-registry-credential-in-environment': ('wowdecomp-linux-security',
+                                                                                          'no-registry-credential-in-environment'),
+     'wowdecomp-ci-jobs/wowdecomp-linux-security-one-job-container': ('wowdecomp-linux-security',
+                                                                      'one-job-container'),
+     'wowdecomp-ci-jobs/wowdecomp-linux-security-restricted-with-sanitizer-capability': ('wowdecomp-linux-security',
+                                                                                         'restricted-with-sanitizer-capability'),
+     'wowdecomp-linux-security-bound-job-environment': ('wowdecomp-linux-security',
+                                                        'bound-job-environment'),
+     'wowdecomp-linux-security-bounded-toolchain-capabilities': ('wowdecomp-linux-security',
+                                                                 'bounded-toolchain-capabilities'),
+     'wowdecomp-linux-security-no-extra-job-credentials': ('wowdecomp-linux-security',
+                                                           'no-extra-job-credentials'),
+     'wowdecomp-linux-security-no-mounted-registry-credential': ('wowdecomp-linux-security',
+                                                                 'no-mounted-registry-credential'),
+     'wowdecomp-linux-security-no-registry-credential-in-environment': ('wowdecomp-linux-security',
+                                                                        'no-registry-credential-in-environment'),
+     'wowdecomp-linux-security-one-job-container': ('wowdecomp-linux-security', 'one-job-container'),
+     'wowdecomp-linux-security-restricted-with-sanitizer-capability': ('wowdecomp-linux-security',
+                                                                       'restricted-with-sanitizer-capability')}
     # END GENERATED POLICY IDENTITIES
-    
-    
+
+
     def canonical_identity(result):
         policy = result.get("policy", "")
         rule = result.get("rule") or ""
@@ -91,8 +158,8 @@ data:
         if not policy or not rule:
             raise ValueError("Report has no stable policy/rule identity")
         return policy, rule
-    
-    
+
+
     def load_observations():
         failures, passes, unknown = {}, {}, set()
         for path in (
@@ -141,12 +208,12 @@ data:
                         elif status != "pass":
                             unknown.add(key)
         return failures, passes, unknown
-    
-    
+
+
     def load_failures():
         return {k: v for k, v in load_observations()[0].items() if v["persistent"]}
-    
-    
+
+
     def github_headers():
         headers = {
             "Accept": "application/vnd.github+json",
@@ -156,8 +223,8 @@ data:
         if GITHUB_TOKEN:
             headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
         return headers
-    
-    
+
+
     def list_open_issues():
         issues = {}
         for page in range(1, 101):
@@ -169,8 +236,8 @@ data:
             if len(batch) < 100:
                 return issues
         raise ValueError("GitHub pagination exceeded bound")
-    
-    
+
+
     def issue_key(title):
         match = re.fullmatch(re.escape(ISSUE_TITLE_PREFIX) + r"(.+)/([^/ ]+) on ([^ ]+) ([^/ ]+)/(.+)", title)
         if not match:
@@ -181,19 +248,19 @@ data:
         except ValueError:
             return None
         return policy, rule, kind, ns, name
-    
-    
+
+
     def title_prefix(title):
         return title.startswith(ISSUE_TITLE_PREFIX)
-    
-    
+
+
     def issue_title(failure):
         return (
             f"{ISSUE_TITLE_PREFIX}{failure['policy']}/{failure['rule']} on "
             f"{failure['kind']} {failure['namespace']}/{failure['name']}"
         )
-    
-    
+
+
     def issue_body(failure):
         summary = {
             "policy": failure["policy"],
@@ -216,8 +283,8 @@ data:
                 "This issue was created automatically after the failure remained present past the configured persistence threshold.",
             ]
         )
-    
-    
+
+
     def create_issue(failure):
         title = issue_title(failure)
         payload = {
@@ -227,15 +294,15 @@ data:
         }
         url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/issues"
         return api_request(url, method="POST", payload=payload, headers=github_headers())
-    
-    
+
+
     def close_issue(issue):
         url = issue.get("url")
         if not url:
             return None
         return api_request(url, method="PATCH", payload={"state": "closed"}, headers=github_headers())
-    
-    
+
+
     def main():
         try:
             failures, passes, unknown = load_observations()
@@ -266,15 +333,15 @@ data:
                 close_issue(existing[title])
         print(json.dumps({"mode": "dry-run" if DRY_RUN else "apply", "create": creates, "close": closes}))
         return 0
-    
-    
+
+
     if __name__ == "__main__":
         SERVICEACCOUNT_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
         with open(f"{SERVICEACCOUNT_DIR}/token", "r", encoding="utf-8") as handle:
             TOKEN = handle.read().strip()
         with open(f"{SERVICEACCOUNT_DIR}/ca.crt", "rb") as handle:
             CA_FILE = handle.name
-    
+
         KUBE_SSL_CONTEXT = ssl.create_default_context(cafile=CA_FILE)
         DEFAULT_SSL_CONTEXT = ssl.create_default_context()
         KUBE_API = f"https://{os.environ['KUBERNETES_SERVICE_HOST']}:{os.environ['KUBERNETES_SERVICE_PORT_HTTPS']}"

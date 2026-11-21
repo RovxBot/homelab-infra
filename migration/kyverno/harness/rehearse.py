@@ -539,6 +539,7 @@ def main():
         assert os.environ.get("CANDIDATE_TRUST") == "success"
         from qualify import main as qualify
         return qualify()
+    raise RuntimeError("Select a mandatory deployment qualification scenario; historical validation-only runs cannot qualify migration")
     from reporting import install_fixture_crd
 
     install_fixture_crd()

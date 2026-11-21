@@ -31,8 +31,10 @@ spec:
       == 'node-driver-registrar' && object.spec.template.spec.containers[0].?image.orValue('') in ["docker.io/longhornio/csi-node-driver-registrar:v2.16.0",
       "docker.io/longhornio/csi-node-driver-registrar:v2.17.0", "docker.io/longhornio/csi-node-driver-registrar:v2.18.0",
       "longhornio/csi-node-driver-registrar:v2.16.0", "longhornio/csi-node-driver-registrar:v2.17.0", "longhornio/csi-node-driver-registrar:v2.18.0"]
-      && has(object.spec.template.spec.containers[0].lifecycle.preStop.exec.command) && size(object.spec.template.spec.containers[0].lifecycle.preStop.exec.command)
-      > 0 && object.spec.template.spec.containers[0].lifecycle.preStop.exec.command[0] == '/bin/sh'
+      && has(object.spec.template.spec.containers[0].lifecycle) && has(object.spec.template.spec.containers[0].lifecycle.preStop)
+      && has(object.spec.template.spec.containers[0].lifecycle.preStop.exec) && has(object.spec.template.spec.containers[0].lifecycle.preStop.exec.command)
+      && size(object.spec.template.spec.containers[0].lifecycle.preStop.exec.command) > 0 && object.spec.template.spec.containers[0].lifecycle.preStop.exec.command[0]
+      == '/bin/sh'
   mutations:
   - patchType: JSONPatch
     jsonPatch:

@@ -31,7 +31,12 @@ archive=".work/cel/trust/kyverno-cli_v${version}_linux_x86_64.tar.gz"
 printf '%s  %s\n' "$(jq -r .cli_sha256 .work/cel/trust/target.json)" "$archive" | sha256sum -c -
 tar xzf "$archive" -C .work/cel/bin kyverno
 .work/cel/bin/kyverno version | tee .work/cel/trust/cli-version.txt
-grep -Fx "Version: $version" .work/cel/trust/cli-version.txt
+python3 - "$version" "$source_commit" <<'PYVERSION'
+import pathlib, sys
+lines=pathlib.Path('.work/cel/trust/cli-version.txt').read_text().splitlines()
+assert any(line.removeprefix('Version: ').removeprefix('v') == sys.argv[1] for line in lines)
+assert 'Git commit ID: '+sys.argv[2] in lines
+PYVERSION
 if [[ ${TRUST_SCOPE:-all} == cli ]]; then printf 'verified\n' > .work/cel/trust/status; exit 0; fi
 # All runtime images used by the chart, including hooks. Pin verified digests below.
 for image in kyverno kyvernopre background-controller cleanup-controller reports-controller kyverno-cli readiness-checker; do
