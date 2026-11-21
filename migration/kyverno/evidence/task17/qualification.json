@@ -89,12 +89,14 @@
     "bounded": true,
     "local": {
       "operational_tests": 248,
-      "ci_tests": 71,
+      "ci_tests": 78,
       "gitea_tests": 38,
       "report_regressions": 17,
       "renovate": "verified",
       "actionlint": "verified",
       "activation_patch_renders": "verified"
-    }
+    },
+    "baseline_gate": "verified actual 1.19.2 CLI; zero findings, unchanged empty baseline; duplicate identities partitioned without discarding authored variants",
+    "suspended_kubescape_preflight": "verified CLI 1.19.2: 27 passes; CLI 1.20.0: 28 passes; zero failure/error/skip/warn; no activation"
   }
 }

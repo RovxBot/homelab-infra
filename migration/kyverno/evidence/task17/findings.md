@@ -99,6 +99,16 @@ unknown/unsupported combinations fail. Old validation evidence can be reused
 only for the exact pinned contract/target. Mandatory generator, mutation and
 validation subsets cannot silently skip to a passing full qualification.
 
+The version-matched 1.19.2 baseline gate exposed a duplicate-Namespace panic
+in the CLI fake client when multiple Flux renders were combined. CI now deduplicates
+identical documents and evaluates differing definitions in separate batches,
+preserving findings from every variant. The actual baseline passes with zero
+current findings and zero accepted exceptions; the baseline file was not refreshed.
+The suspended Kubescape preflight was also tested against both CLIs: 27 legacy
+passes and 28 CEL passes, with zero failures/errors/skips/warnings. The additional
+CEL pass is the explicit non-service probe guard on the Job; no admission decision
+changed. This is offline compatibility validation, not Kubescape activation.
+
 Three practical operator decisions remain:
 
 1. Keep the generator migration blocked pending a supported recovery correction,

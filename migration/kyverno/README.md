@@ -34,7 +34,10 @@ bundles; only the immutable historical chart 3.9.2 has an explicit documented
 pre-bundle exception. Runtime candidates use signature/provenance-verified image
 digests. Unknown artifacts fail without falling back to an older version. An
 application major change requires a reviewed migration contract; compatible minor
-and patch versions have no fixed ceiling.
+and patch versions have no fixed ceiling. The existing suspended Kubescape
+preflight also uses that verified proposed CLI and the corresponding legacy/CEL
+policies; it cannot silently keep testing 1.19.2 after the upgrade. Its suspension,
+zero-finding and infrastructure scope guards remain enforced.
 
 Every scenario runs on disposable hosted kind v0.30.0/Kubernetes v1.34.0 with
 Calico v3.31.0, Helm v3.19.0 and committed Flux v2.9.0. The scenario has a 25-minute
