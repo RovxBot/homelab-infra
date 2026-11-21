@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-container-limits
+  labels:
+    app.kubernetes.io/managed-by: Flux
+    homelab.cooked.beer/bootstrap: enabled
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      default:
+        cpu: 500m
+        memory: 512Mi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: namespace-defaults
+  labels:
+    app.kubernetes.io/managed-by: Flux
+    homelab.cooked.beer/bootstrap: enabled
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  hard:
+    pods: '20'
+    persistentvolumeclaims: '10'
+    requests.cpu: '4'
+    requests.memory: 8Gi
+    limits.cpu: '8'
+    limits.memory: 16Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  labels:
+    app.kubernetes.io/managed-by: Flux
+    homelab.cooked.beer/bootstrap: enabled
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

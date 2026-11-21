@@ -34,7 +34,7 @@ class EmptyStateGateTests(unittest.TestCase):
     def test_skipped_mandatory_scenarios_cannot_qualify(self):
         workflow=yaml.safe_load((ROOT/'.github/workflows/kyverno-compatibility.yml').read_text())
         command=workflow['jobs']['deployment-qualification']['steps'][0]['run']
-        required=['empty-upgraded','fresh-target','mutation','validation']
+        required=['namespace-lifecycle','production-sequence','mutation','validation']
         for selected,status,expected in [(required,'success',0),(required,'skipped',1),(required,'failure',1),([], 'success',1)]+[(list(set(required)-{missing}),'success',1) for missing in required]:
             result=subprocess.run(['bash','-e','-c',command],env={**os.environ,'CONTRACT_RESULT':status,'REQUESTED_SCENARIOS':json.dumps(selected)},capture_output=True)
             self.assertEqual(result.returncode,expected,(selected,status))

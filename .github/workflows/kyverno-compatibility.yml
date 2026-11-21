@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: ${{ fromJSON(inputs.scenarios || '["empty-upgraded", "fresh-target", "mutation", "validation"]') }}
+        scenario: ${{ fromJSON(inputs.scenarios || '["namespace-lifecycle", "production-sequence", "mutation", "validation"]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -72,14 +72,14 @@ jobs:
     needs: contracts
     runs-on: ubuntu-24.04
     steps:
-      - name: Require every mandatory generator and mutation job
+      - name: Require Flux lifecycle, integrated upgrade, mutation and validation
         env:
           CONTRACT_RESULT: ${{ needs.contracts.result }}
           REQUESTED_SCENARIOS: ${{ inputs.scenarios }}
         run: |
           python3 - <<'PY'
           import json, os
-          required = {'empty-upgraded', 'fresh-target', 'mutation', 'validation'}
+          required = {'namespace-lifecycle', 'production-sequence', 'mutation', 'validation'}
           requested = json.loads(os.environ['REQUESTED_SCENARIOS']) if os.environ['REQUESTED_SCENARIOS'] else required
           assert required <= set(requested), 'Diagnostic subset cannot qualify deployment'
           assert os.environ['CONTRACT_RESULT'] == 'success', 'Mandatory contracts failed or skipped'

@@ -108,6 +108,11 @@ jobs:
           sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           kubeconform -v
 
+      - name: Validate complete namespace bundles and workload dependencies
+        run: |
+          python3 -m pip install PyYAML==6.0.3
+          python3 scripts/ci/check_namespace_defaults.py
+
       - name: Install Kyverno CLI
         env:
           GH_TOKEN: ${{ github.token }}

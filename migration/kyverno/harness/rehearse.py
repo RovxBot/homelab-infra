@@ -143,7 +143,7 @@ def load(path):
     return list(yaml.safe_load_all((ROOT / path).read_text()))
 
 
-def install(version):
+def install(version, via_flux=False):
     import hashlib
     target = json.loads((WORK / "trust/target.json").read_text())
     candidate = version == target["application"]
@@ -160,41 +160,8 @@ def install(version):
         digest = hashlib.sha256(chartfile.read_bytes()).hexdigest()
         assert digest == "f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e"
     values = load("infra/kyverno/helmrelease.yaml")[0]["spec"]["values"]
-    values["admissionController"]["replicas"] = 1
+    values["admissionController"]["replicas"] = 2 if via_flux else 1
     values["features"]["backgroundScan"] = {"backgroundScanInterval": "20s"}
-    # Additional isolated permissions are scoped to these three output kinds.
-    values["backgroundController"]["rbac"] = {
-        "clusterRole": {
-            "extraResources": [
-                {
-                    "apiGroups": [""],
-                    "resources": ["limitranges", "resourcequotas"],
-                    "verbs": [
-                        "get",
-                        "list",
-                        "watch",
-                        "create",
-                        "update",
-                        "patch",
-                        "delete",
-                    ],
-                },
-                {
-                    "apiGroups": ["networking.k8s.io"],
-                    "resources": ["networkpolicies"],
-                    "verbs": [
-                        "get",
-                        "list",
-                        "watch",
-                        "create",
-                        "update",
-                        "patch",
-                        "delete",
-                    ],
-                },
-            ]
-        }
-    }
     if candidate:
         for component, image in [
             ("admissionController", "kyverno"),
@@ -241,26 +208,48 @@ def install(version):
         }
     vp = WORK / "values.yaml"
     vp.write_text(yaml.safe_dump(values))
-    run(
-        [
-            "helm",
-            "upgrade",
-            "--install",
-            "kyverno",
-            str(chartfile),
-            "--namespace",
-            "kyverno",
-            "--create-namespace",
-            "--kube-context",
-            CONTEXT,
-            "--values",
-            str(vp),
-            "--wait",
-            "--timeout",
-            "4m",
-        ],
-        timeout=270,
-    )
+    if via_flux:
+        apply(dict(apiVersion='source.toolkit.fluxcd.io/v1', kind='HelmRepository',
+                   metadata=dict(name='kyverno-rehearsal', namespace='flux-system'),
+                   spec=dict(interval='1h', url='https://kyverno.github.io/kyverno/')))
+        hr = dict(apiVersion='helm.toolkit.fluxcd.io/v2', kind='HelmRelease',
+                  metadata=dict(name='kyverno', namespace='kyverno'),
+                  spec=dict(interval='10s', releaseName='kyverno',
+                            chart=dict(spec=dict(chart='kyverno', version=chart,
+                                       sourceRef=dict(kind='HelmRepository',name='kyverno-rehearsal',namespace='flux-system'))),
+                            install=dict(crds='CreateReplace',timeout='4m'),
+                            upgrade=dict(crds='CreateReplace',timeout='4m',remediation=dict(retries=0)),
+                            values=values))
+        apply(hr)
+        k('annotate','helmrelease','kyverno','-n','kyverno','--overwrite',f'reconcile.fluxcd.io/requestedAt={time.time_ns()}')
+        def healthy():
+            live=get('helmrelease','kyverno','kyverno')
+            return live.get('status',{}).get('observedGeneration') == live['metadata']['generation'] and any(c['type']=='Ready' and c['status']=='True' for c in live.get('status',{}).get('conditions',[]))
+        wait('Flux Helm reconciliation '+version, healthy, 300)
+        live=get('helmrelease','kyverno','kyverno')
+        (EVIDENCE/('helmrelease-'+version+'.json')).write_text(json.dumps(live,indent=2)+'\n')
+        record('flux-helm',status='verified',version=version,chart=chart,revision=live['status'].get('lastAttemptedRevision'))
+    else:
+        run(
+            [
+                "helm",
+                "upgrade",
+                "--install",
+                "kyverno",
+                str(chartfile),
+                "--namespace",
+                "kyverno",
+                "--create-namespace",
+                "--kube-context",
+                CONTEXT,
+                "--values",
+                str(vp),
+                "--wait",
+                "--timeout",
+                "4m",
+            ],
+            timeout=270,
+        )
     observed = [
         dict(
             pod=p["metadata"]["name"],

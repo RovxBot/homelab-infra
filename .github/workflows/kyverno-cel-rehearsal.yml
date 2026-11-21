@@ -25,4 +25,4 @@ jobs:
     with:
       chart: ${{ inputs.chart || '3.10.0' }}
       scenarios: ${{ inputs.scenarios }}
-      reuse_validation: ${{ inputs.chart == '' || inputs.chart == '3.10.0' }}
+      reuse_validation: false

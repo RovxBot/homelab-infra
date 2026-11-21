@@ -45,11 +45,6 @@ for path in protect:
     changes[path]='\n---\n'.join(part for part in parts if yaml.safe_load(part)['kind']!='Namespace')
 changes['infra/kyverno/runner-namespaces.yaml']=yaml.safe_dump_all(namespaces,sort_keys=False)
 p='infra/kyverno/kustomization.yaml';doc=yaml.safe_load(read(p));doc['resources'].append('runner-namespaces.yaml');changes[p]=dump(doc)
-p='infra/kyverno/helmrelease.yaml';hr=yaml.safe_load(read(p))
-hr['spec']['values']['backgroundController']['rbac']={'clusterRole':{'extraResources':[
-    dict(apiGroups=[''],resources=['limitranges','resourcequotas'],verbs=['get','list','watch','create','update','patch','delete']),
-    dict(apiGroups=['networking.k8s.io'],resources=['networkpolicies'],verbs=['get','list','watch','create','update','patch','delete'])]}}
-changes[p]=dump(hr)
 cel=['workloads','namespace','flux','runners','governance-native','mutation','reporting-rbac']
 paths=['../../migration/kyverno/policies/'+name+'.yaml' for name in cel]+['../../migration/kyverno/exceptions/exceptions.yaml']
 p='infra/kyverno-policies/kustomization.yaml';aggregate=yaml.safe_load(read(p));aggregate['resources']+=paths;changes[p]=dump(aggregate)
@@ -59,7 +54,7 @@ for name in ['workloads','namespace','flux','runners','mutation']:
     policies+=list(yaml.safe_load_all((ROOT/'migration/kyverno/policies'/f'{name}.yaml').read_text()))
 ks['spec']['healthChecks']=[dict(apiVersion=d['apiVersion'],kind=d['kind'],name=d['metadata']['name'],**({'namespace':d['metadata']['namespace']} if d['metadata'].get('namespace') else {})) for d in policies]
 ks['spec']['healthCheckExprs']=[dict(apiVersion='policies.kyverno.io/v1',kind=kind,
-    current="has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c, c.status == 'True')") for kind in ['ValidatingPolicy','NamespacedValidatingPolicy','MutatingPolicy','GeneratingPolicy']]
+    current="has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c, c.status == 'True')") for kind in ['ValidatingPolicy','NamespacedValidatingPolicy','MutatingPolicy']]
 changes[p]=dump(ks)
 p='clusters/home/apps/gitea-runners-kustomization.yaml';app=yaml.safe_load(read(p));app['spec']['dependsOn'].append({'name':'kyverno-policies'});changes[p]=dump(app)
 stage('01-overlap-cel-and-reporting',changes)
@@ -70,9 +65,8 @@ old['patches']=[dict(target=dict(kind='ClusterPolicy',name='platform-namespace-b
 stage('02b-orphan-legacy-before-retirement',{p:dump(old)})
 old['resources'].remove('platform-namespace-bootstrap.yaml');old.pop('patches')
 stage('02c-retire-empty-legacy-generator',{p:dump(old)})
-p='infra/kyverno-policies/kustomization.yaml';aggregate=yaml.safe_load(read(p));aggregate['resources'].append('../../migration/kyverno/policies/generator.yaml')
-ks=yaml.safe_load(read('clusters/home/infrastructure/kyverno-policies-kustomization.yaml'));ks['spec']['healthChecks'].append(dict(apiVersion='policies.kyverno.io/v1',kind='GeneratingPolicy',name='platform-namespace-bootstrap'))
-stage('02d-activate-cel-generator',{p:dump(aggregate),'clusters/home/infrastructure/kyverno-policies-kustomization.yaml':dump(ks)})
+p='infra/kyverno-policies/kustomization.yaml';aggregate=yaml.safe_load(read(p));aggregate['resources'].append('../namespace-defaults/admission.yaml')
+stage('02d-qualify-flux-onboarding-contract',{p:dump(aggregate)})
 aggregate['resources'].remove(freeze);stage('02e-thaw',{p:dump(aggregate)})
 aggregate['resources']=[r for r in aggregate['resources'] if r not in ['../kyverno/policies','../kyverno/exceptions']]
 changes={p:dump(aggregate)}

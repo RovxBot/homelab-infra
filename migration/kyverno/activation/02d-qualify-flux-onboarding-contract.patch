@@ -1,0 +1,7 @@
+--- a/infra/kyverno-policies/kustomization.yaml
++++ b/infra/kyverno-policies/kustomization.yaml
+@@ -13,3 +13,4 @@
+ - ../../migration/kyverno/policies/reporting-rbac.yaml
+ - ../../migration/kyverno/exceptions/exceptions.yaml
+ - ../../migration/kyverno/activation/freeze.yaml
++- ../namespace-defaults/admission.yaml

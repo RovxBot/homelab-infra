@@ -13,8 +13,8 @@ class Traffic:
         apply(namespace(self.control))
         for ns in [self.ns,self.control]:
             for name in ['server','client']:
-                command=['sh','-c','mkdir -p /www; echo ok > /www/index.html; httpd -f -p 8080 -h /www'] if name=='server' else ['sleep','3600']
-                apply(dict(apiVersion='v1',kind='Pod',metadata=dict(name=name,namespace=ns),spec=dict(containers=[dict(name=name,image='busybox:1.37.0',command=command)])))
+                command=['sh','-c','mkdir -p /tmp/www; echo ok > /tmp/www/index.html; httpd -f -p 8080 -h /tmp/www'] if name=='server' else ['sleep','3600']
+                apply(dict(apiVersion='v1',kind='Pod',metadata=dict(name=name,namespace=ns),spec=dict(securityContext=dict(runAsNonRoot=True,runAsUser=65532,seccompProfile=dict(type='RuntimeDefault')),containers=[dict(name=name,image='busybox:1.37.0',command=command,securityContext=dict(allowPrivilegeEscalation=False,capabilities=dict(drop=['ALL'])),resources=dict(requests=dict(cpu='10m',memory='16Mi'),limits=dict(cpu='100m',memory='32Mi')))])))
                 k('wait','--for=condition=Ready','pod/'+name,'-n',ns,'--timeout=90s',timeout=100)
         self.protected_ip=get('pod','server',self.ns)['status']['podIP']
         self.control_ip=get('pod','server',self.control)['status']['podIP']
