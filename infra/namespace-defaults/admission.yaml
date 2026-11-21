@@ -1,6 +1,8 @@
 # Review-only until phase 02d. Quantity-map equality is checked by rendered
 # bundle CI: native structural CEL projection omits those fields. Native guards
 # restrict the authenticated writer and enforce the accessible shape/network spec.
+# Namespace selection uses namespaceSelector: namespaceObject is unavailable in
+# matchConditions, but available in validations.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -72,11 +74,13 @@ spec:
       - DELETE
       resources:
       - limitranges
+    namespaceSelector:
+      matchLabels:
+        homelab.cooked.beer/bootstrap: enabled
   matchConditions:
   - name: enrolled-default
-    expression: 'namespaceObject != null && namespaceObject.metadata.?labels.orValue({})[?''homelab.cooked.beer/bootstrap''].orValue('''')
-      == ''enabled'' && (request.operation == ''DELETE'' ? oldObject.metadata.name
-      : object.metadata.name) == ''default-container-limits'''
+    expression: '(request.operation == ''DELETE'' ? oldObject.metadata.name : object.metadata.name)
+      == ''default-container-limits'''
   validations:
   - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
       && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
@@ -112,11 +116,13 @@ spec:
       - DELETE
       resources:
       - resourcequotas
+    namespaceSelector:
+      matchLabels:
+        homelab.cooked.beer/bootstrap: enabled
   matchConditions:
   - name: enrolled-default
-    expression: 'namespaceObject != null && namespaceObject.metadata.?labels.orValue({})[?''homelab.cooked.beer/bootstrap''].orValue('''')
-      == ''enabled'' && (request.operation == ''DELETE'' ? oldObject.metadata.name
-      : object.metadata.name) == ''namespace-defaults'''
+    expression: '(request.operation == ''DELETE'' ? oldObject.metadata.name : object.metadata.name)
+      == ''namespace-defaults'''
   validations:
   - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
       && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
@@ -148,11 +154,13 @@ spec:
       - DELETE
       resources:
       - networkpolicies
+    namespaceSelector:
+      matchLabels:
+        homelab.cooked.beer/bootstrap: enabled
   matchConditions:
   - name: enrolled-default
-    expression: 'namespaceObject != null && namespaceObject.metadata.?labels.orValue({})[?''homelab.cooked.beer/bootstrap''].orValue('''')
-      == ''enabled'' && (request.operation == ''DELETE'' ? oldObject.metadata.name
-      : object.metadata.name) == ''default-deny'''
+    expression: '(request.operation == ''DELETE'' ? oldObject.metadata.name : object.metadata.name)
+      == ''default-deny'''
   validations:
   - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
       && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')

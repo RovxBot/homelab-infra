@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Apply review patches only in a disposable filesystem; verify phase boundaries."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -15,6 +16,9 @@ from kyverno_gate import render_kustomization
 
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--verify-renovate',action='store_true')
+    args=parser.parse_args()
     rows=[]
     with tempfile.TemporaryDirectory(prefix='kyverno-activation-review-') as tmp:
         folder=Path(tmp)
@@ -58,7 +62,10 @@ def main():
         assert hr['spec']['upgrade']['crds']=='CreateReplace'
         assert hr['spec']['values']['admissionController']['replicas']==2
         assert not any(r.get('allowedVersions')=='<3.10.0' for r in json.loads((folder/'renovate.json').read_text())['packageRules'])
-    print(json.dumps(dict(status='verified',scope='filesystem only; production not contacted',stages=rows),indent=2))
+        if args.verify_renovate:
+            command=['npx','--yes','--package','renovate@44.126.1','-c','renovate-config-validator --strict renovate.json && node --test .github/tests/renovate-policy.test.cjs']
+            subprocess.run(command,cwd=folder,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True,timeout=180)
+    print(json.dumps(dict(status='verified',scope='filesystem only; production not contacted',stages=rows,renovate_after_cap_removal='verified' if args.verify_renovate else 'not run'),indent=2))
 
 
 if __name__=='__main__':main()

@@ -110,14 +110,16 @@ def production_entries(root):
     for docs in rendered.values():
         all_docs += docs
     entries = []
-    seen = set()
+    seen = {}
     for ks in all_docs:
         if ks.get('apiVersion') != 'kustomize.toolkit.fluxcd.io/v1' or ks.get('kind') != 'Kustomization':
             continue
         key = (ks['metadata'].get('namespace'), ks['metadata']['name'])
         if key in seen:
+            if seen[key] != ks:
+                raise ValueError(f'Conflicting Flux Kustomization definitions: {key}')
             continue
-        seen.add(key)
+        seen[key] = ks
         path = ks['spec']['path'].removeprefix('./')
         entries.append((ks, rendered.get(path) if path in rendered else render_kustomization(root, path)))
     return entries

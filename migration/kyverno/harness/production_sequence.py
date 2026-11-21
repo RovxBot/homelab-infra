@@ -97,8 +97,11 @@ def report_probe(stage):
     apply(namespace('cel-reporting'))
     doc=dict(apiVersion='v1',kind='ConfigMap',metadata=dict(name='report-'+stage,namespace='cel-reporting',labels={'kustomize.toolkit.fluxcd.io/name':'rehearsal'}),data=dict(probe='audit'))
     apply(doc)
+    uid=get('configmap',doc['metadata']['name'],'cel-reporting')['metadata']['uid']
     def findings():
-        return [r for report in get('policyreports',ns='cel-reporting')['items'] for r in report.get('results',[]) if r.get('policy') in ['platform-flux-guardrails','platform-flux-guardrails-audit-flux-managed-resources']]
+        return [r for report in get('policyreports',ns='cel-reporting')['items'] for r in report.get('results',[])
+                if r.get('policy')=='platform-flux-guardrails' and r.get('result')=='fail'
+                and (report.get('scope',{}).get('uid')==uid or any(resource.get('uid')==uid for resource in r.get('resources',[])))]
     rows=wait('actual report automation input '+stage,findings)
     (EVIDENCE/('report-'+stage+'.json')).write_text(json.dumps(rows,indent=2)+'\n')
     record('report-consumer-live-input',status='verified',stage=stage,rows=len(rows))
