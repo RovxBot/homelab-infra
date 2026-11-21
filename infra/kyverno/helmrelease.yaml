@@ -38,6 +38,10 @@ spec:
           == "backuptargets") && (request.resource.group != "cilium.io" || request.resource.resource
           != "ciliumnodes") && (request.resource.group != "coordination.k8s.io" ||
           request.resource.resource != "leases" || request.namespace != "kube-node-lease")
+      - name: exclude-filtered-access-review-creates
+        expression: '!(request.operation == "CREATE" && request.resource.group ==
+          "authorization.k8s.io" && request.resource.resource in ["subjectaccessreviews",
+          "selfsubjectaccessreviews"])'
       resourceFiltersExcludeNamespaces:
       - kyverno
       - flux-system
