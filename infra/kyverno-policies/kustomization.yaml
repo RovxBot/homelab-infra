@@ -12,3 +12,4 @@ resources:
 - ../../migration/kyverno/policies/mutation.yaml
 - ../../migration/kyverno/policies/reporting-rbac.yaml
 - ../../migration/kyverno/exceptions/exceptions.yaml
+- ../../migration/kyverno/activation/freeze.yaml
