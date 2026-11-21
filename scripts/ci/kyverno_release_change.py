@@ -11,8 +11,20 @@ PATH='infra/kyverno/helmrelease.yaml'
 
 def release_inputs(doc):
     values=doc['spec'].get('values',{})
+    images = {}
+    def collect(obj, path=()):
+        if not isinstance(obj, dict):
+            return
+        for key, value in obj.items():
+            if key == 'image':
+                images['.'.join((*path, key))] = value
+            else:
+                collect(value, (*path, key))
+    collect(values)
     return {'chart':str(doc['spec']['chart']['spec']['version']),
-            'images':{k:v for k,v in values.items() if k in {'image','global','admissionController','backgroundController','cleanupController','reportsController','crds','upgrade'}}}
+            'images': images,
+            'upgrade_safety': values.get('upgrade', {}),
+            'crds': values.get('crds', {})}
 
 
 def main():
