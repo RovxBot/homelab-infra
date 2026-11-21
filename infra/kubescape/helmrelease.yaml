@@ -63,6 +63,22 @@ spec:
               - op: add
                 path: /metadata/annotations/helm.sh~1resource-policy
                 value: keep
+          # Manual public-image requests do not use registry credential Secrets.
+          - target:
+              group: rbac.authorization.k8s.io
+              version: v1
+              kind: Role
+              name: operator
+              namespace: kubescape
+            patch: |-
+              - op: test
+                path: /rules/1
+                value:
+                  apiGroups: [""]
+                  resources: [secrets]
+                  verbs: [create, get, update, watch, list, patch, delete]
+              - op: remove
+                path: /rules/1
           # Certificate initialization only patches this release's APIService.
           - target:
               group: rbac.authorization.k8s.io

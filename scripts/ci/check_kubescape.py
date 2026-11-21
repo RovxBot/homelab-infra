@@ -268,6 +268,10 @@ def check_post_render(raw, rendered):
         for name in ("kubescape-storage", "kubescape-kubevuln"):
             pvc = expected[("v1", "PersistentVolumeClaim", "kubescape", name)]
             pvc["metadata"].setdefault("annotations", {})["helm.sh/resource-policy"] = "keep"
+        operator_role = expected[("rbac.authorization.k8s.io/v1", "Role", "kubescape", "operator")]
+        assert operator_role["rules"][1] == {"apiGroups": [""], "resources": ["secrets"],
+            "verbs": ["create", "get", "update", "watch", "list", "patch", "delete"]}
+        del operator_role["rules"][1]
     certgen = expected[("rbac.authorization.k8s.io/v1", "ClusterRole", None, "storage-certgen-kubescape")]
     assert certgen["rules"] == [{"apiGroups": ["apiregistration.k8s.io"],
                                  "resources": ["apiservices"], "verbs": ["get", "patch"]}], "chart certgen RBAC changed"

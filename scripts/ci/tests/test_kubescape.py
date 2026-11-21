@@ -235,7 +235,13 @@ class PostRenderTests(unittest.TestCase):
         for name in ("kubescape-storage", "kubescape-kubevuln"):
             raw.append({"apiVersion": "v1", "kind": "PersistentVolumeClaim", "metadata": {
                 "name": name, "namespace": "kubescape"}, "spec": {"storageClassName": "longhorn"}})
+        raw.append({"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "Role", "metadata": {
+            "name": "operator", "namespace": "kubescape"}, "rules": [
+                {"apiGroups": [""], "resources": ["configmaps"], "verbs": ["get"]},
+                {"apiGroups": [""], "resources": ["secrets"],
+                 "verbs": ["create", "get", "update", "watch", "list", "patch", "delete"]}]})
         rendered = corrected_resources(raw)
+        rendered[-1]["rules"].pop(1)
         caps = next(r["data"] for r in rendered if r["kind"] == "ConfigMap")
         caps["capabilities"] = json.dumps({"components": {
             "kubevuln": {"enabled": False}, "kubevulnScheduler": {"enabled": False}}}, separators=(",", ":"))
@@ -243,7 +249,7 @@ class PostRenderTests(unittest.TestCase):
             pvc["metadata"]["annotations"] = {"helm.sh/resource-policy": "keep"}
         CHECK.check_post_render(raw, rendered)
         for index in range(len(rendered)):
-            if rendered[index]["kind"] not in {"ConfigMap", "CronJob", "PersistentVolumeClaim"}:
+            if rendered[index]["kind"] not in {"ConfigMap", "CronJob", "PersistentVolumeClaim", "Role"}:
                 continue
             changed = copy.deepcopy(rendered)
             changed[index] = copy.deepcopy(raw[index])

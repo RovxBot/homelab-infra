@@ -72,7 +72,8 @@ reads ContainerProfiles, and deletes only SBOM kinds to replace stale TooLarge
 markers. Its namespace Role creates OperatorCommands and reads Jobs. Auth
 delegation creates TokenReview/SubjectAccessReview requests. It cannot mutate
 application Deployments, read application Secrets or alter admission policy.
-The mirror has no token automount or RBAC grants. Existing posture/RBAC grants
+The operator's newly rendered registry-credential Secret rule is removed: manual
+public-image scans do not require it. The mirror has no token automount or RBAC grants. Existing posture/RBAC grants
 and scoped certificate APIService permissions are preserved. Exact **61** chart
 objects are in `rendered-inventory.json`.
 
