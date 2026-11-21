@@ -7,8 +7,9 @@ metadata:
     homelab.cooked.beer/owner: platform
   annotations:
     kyverno.cooked.beer/reason: Certain namespaces run storage, networking, or game workloads that need privileged runtime behavior.
-    kyverno.cooked.beer/expires-at: "2026-08-31"
+    kyverno.cooked.beer/expires-at: "2026-12-21"
     github.cooked.beer/issue-create: "true"
+    github.cooked.beer/issue-url: https://github.com/RovxBot/homelab-infra/issues/2133
 spec:
   exceptions:
     - policyName: platform-pod-standards

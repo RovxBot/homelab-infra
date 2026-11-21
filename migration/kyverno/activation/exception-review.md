@@ -1,9 +1,26 @@
 # Consolidated platform-owner exception decisions
 
-**Review proposal only. No exception is renewed, revoked or widened.** All six
-legacy and CEL scopes and dates remain byte-for-byte unchanged. RovxBot must
-approve any remediation, scope reduction or renewal in one consolidated follow-up
-change. Home Assistant remains unchanged, including its 2027-02-28 expiry.
+**Task 20 maintenance decision, 22 November 2026:** the platform owner delegated
+conservative maintenance authority. Renew `chart-managed-workloads`,
+`gpu-operator-workloads`, `mutable-image-tags` and `privileged-namespaces` through
+**2026-12-21**, and the already narrow `wotlk-latest-tag` through **2026-12-05**.
+Apply the same metadata to the overlapping legacy and CEL APIs. Preserve every
+policy/rule reference, match condition, namespace, resource kind and name exactly.
+Retain owner, justification and issue-create markers; add the existing tracking
+issue [#2133](https://github.com/RovxBot/homelab-infra/issues/2133). Home Assistant
+remains unchanged, including its 2027-02-28 expiry.
+
+The workload-specific evidence below demonstrates required recovery/deployment
+paths. Sampled passing paths do not establish complete hook/operator-generated
+coverage, so no scope reduction is justified during this migration. Runtime
+identity, GPU/Longhorn settings and WotLK workload changes need their own tested
+maintenance work; none is bundled with these renewals. In particular the restart
+helper is already digest pinned but its `latest` spelling still matches the
+legacy denial. Review a version-tag alias for those exact bytes before 5 December,
+including recovery Job compatibility, then remove this exception if proven safe.
+The other four reviews are due before 21 December. Dates are maintenance deadlines;
+existing governance requires nonempty expiry metadata and does not auto-revoke.
+No security scope expands or expiry semantics change.
 
 The 21 November 2026 read-only audit evaluated the original legacy rules with
 **no exceptions supplied**, using Kyverno CLI 1.19.2. Inputs were current rendered
@@ -25,9 +42,9 @@ on fresh admission; unchanged existing-violation UPDATE behavior is preserved.
 | `privileged-namespaces` (2026-08-31) | Hardening: Longhorn controllers/hooks/CSI/engine/system backup, wireguard-client, WotLK registration/auth/world/MariaDB, six CronJobs and retained Jobs. 25 live identities fail. All inspected templates have hostNetwork=false; none violates that rule. | Propose dropping the host-network exemption after owner confirmation of maintenance/recovery templates. Bound hardening to named controllers/generated families. Missing standard securityContext fields in WotLK jobs do not prove a need for broad privilege. | Add non-root identity, no privilege escalation, drop ALL and RuntimeDefault to simple SQL/kubectl helpers first; test image UID/filesystem behavior. WireGuard/Longhorn host access requires runtime qualification. Propose renewal to **2026-12-21** for remaining hardening scope. |
 | `wotlk-latest-tag` (2026-08-31) | Latest-tag rule: repository/live CronJob wotlk-weekly-restart and retained Job wotlk-weekly-restart-29915340 use latest. | Current CronJob name and bounded Job family are already narrow. Keep namespaces/kinds unchanged. Retained completed Jobs do not justify widening future scope. | Replace the kubectl helper reference with a tested version/digest, verify new CronJob/Job admission, then revoke after owner approval. Direct remediation is feasible. If not completed first, propose renewal to **2026-12-05**. |
 
-Dates are proposed review deadlines, not applied renewals or automatic revocations.
-Expiry metadata retains its original behavior. Record RovxBot's action,
-justification, approved scope/date and tracking reference for each row in one
-consolidated decision change. Keep #2133 open. Rerun the audit and admission checks
-on final workloads. Neither zero reports nor disappearing completed Jobs establish
-safe revocation. The Home Assistant exception needs no change in this review.
+The audit table retains the original review proposals and evidence; the decision
+above selects bounded renewal without unproven narrowing. Metadata-only change
+validation compares both API specs with the qualified input, requires identical
+Home Assistant bytes, verifies the inventory contracts and submits production
+server dry runs. Keep #2133 open. Neither zero reports nor disappearing completed
+Jobs establish safe revocation.
