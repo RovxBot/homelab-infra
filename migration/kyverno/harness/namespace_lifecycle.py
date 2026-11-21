@@ -61,7 +61,9 @@ def empty_retirement(flux):
     for guard in guards:
         if guard['kind'] == 'ValidatingAdmissionPolicy':
             wait('type check '+guard['metadata']['name'], lambda: 'typeChecking' in get(guard['kind'],guard['metadata']['name']).get('status',{}))
-            assert not get(guard['kind'],guard['metadata']['name'])['status']['typeChecking'].get('expressionWarnings'), guard
+            live_guard = get(guard['kind'],guard['metadata']['name'])
+            (EVIDENCE/('native-'+guard['metadata']['name']+'.json')).write_text(json.dumps(live_guard,indent=2)+'\n')
+            assert not live_guard['status']['typeChecking'].get('expressionWarnings'), live_guard['status']
     inventory('safeguards-ready-before-thaw')
     flux.commit(guards, 'replace-freeze-with-gitops-contract')
     record('legacy-generator-retirement', status='verified', ownership_transfer=False, cel_generator_activated=False, empty_rollback='verified')
@@ -154,6 +156,7 @@ def run(flux, during=None):
     (EVIDENCE/'flux-owned-defaults.json').write_text(json.dumps(rows,indent=2)+'\n')
     flux.reconcile(appks, 'workloads-after-complete-bundle')
     assert get('configmap','workload-readiness-marker',NS)
+    k('rollout','status','deployment/readiness-probe','-n',NS,'--timeout=75s')
     record('namespace-creation-and-dependencies', status='verified', exact_specs=True, namespace_uid=uid, flux_owned=True)
     for obj in rows:
         bad = copy.deepcopy(obj); bad['spec'] = {}

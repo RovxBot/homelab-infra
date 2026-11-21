@@ -1,25 +1,33 @@
-# Platform-owner exception decisions
+# Consolidated platform-owner exception decisions
 
-All six scopes and dates remain unchanged in both APIs. Five historical expiries
-require an explicit decision from the platform owner (RovxBot). This draft neither
-renews nor revokes them. Expiry is metadata; the migration must not silently turn
-it into a new automatic revocation rule.
+**Review proposal only. No exception is renewed, revoked or widened.** All six
+legacy and CEL scopes and dates remain byte-for-byte unchanged. RovxBot must
+approve any remediation, scope reduction or renewal in one consolidated follow-up
+change. Home Assistant remains unchanged, including its 2027-02-28 expiry.
 
-| Exception / date | Exact affected scope | Existing justification | Expected consequence of removal |
+The 21 November 2026 read-only audit evaluated the original legacy rules with
+**no exceptions supplied**, using Kyverno CLI 1.19.2. Inputs were current rendered
+Flux workload manifests, exact chart versions/committed values (Longhorn 1.13.0,
+GPU Operator v26.7.2), and complete live Deployment/StatefulSet/DaemonSet/Job/
+CronJob/Pod inventories in the six affected namespaces. Both live HelmRelease
+versions, values and post-renderers match Git; the
+[live comparison](../evidence/task18/live-chart-comparison.json) records this.
+The [machine-readable audit](../evidence/task18/exception-audit.json) lists every
+violating identity and rule, source counts and private-input hashes. Raw live
+specs remain private. CREATE evaluation shows what a current spec would violate
+on fresh admission; unchanged existing-violation UPDATE behavior is preserved.
+
+| Expired exception | Current workloads still needing it / violated rules | Narrowing proposal for owner review | Remediation and proposed bounded renewal |
 | --- | --- | --- | --- |
-| `chart-managed-workloads` — **expired 2026-08-31** | Pod, Deployment, StatefulSet, DaemonSet, Job and CronJob in `longhorn-system`; owner, resource budgets and probes only | Chart templates do not consistently expose those fields. | Recreated or newly violating Longhorn workloads can be denied until their templates satisfy labels, budgets and probes. |
-| `gpu-operator-workloads` — **expired 2026-10-31** | The same six workload kinds in `gpu-operator`; six original owner/budget/hardening/host-network/image/probe rules only | NVIDIA GPU Operator/NFD require host hardware access; Talos supplies the driver/toolkit. | Hardware discovery/operator pods may fail admission for host access or other outstanding template violations. |
-| `mutable-image-tags` — **expired 2026-08-31** | Digest rule only: all resources in `longhorn-system`, `wireguard`, `wotlk`; plus Deployment/CronJob/StatefulSet named `cloudflared`, `grimguzzler-registration`, `homepage-assets` or `pod-report` within the original `cloudflared`, `homepage`, `wotlk` namespace union | Tag-based updates and upstream-controlled tags remain in use. | New/recreated matching workloads require digest references; tag-only updates may be denied. |
-| `privileged-namespaces` — **expired 2026-08-31** | Hardening and host-network rules only, original resources in `longhorn-system`, `wireguard`, `wotlk` | Storage, networking and game workloads need privileged runtime behavior. | Matching new/recreated pods or templates may be denied until their runtime/network requirements change. |
-| `wotlk-latest-tag` — **expired 2026-08-31** | Latest-tag rule only: CronJob `wotlk-weekly-restart` and Job `wotlk-weekly-restart*` in `wotlk` | Weekly restart intentionally follows the latest built image. | The weekly CronJob or newly created matching Jobs may be denied while using `latest`. |
-| `home-assistant` — 2027-02-28 | Hardening and host-network rules only: Deployment `home-assistant` in namespace `home-assistant` | LAN multicast needs host networking; upstream S6 starts as UID 0. Capabilities remain dropped, privilege escalation forbidden and seccomp RuntimeDefault. | Recreating/updating the Deployment with those violations can be denied; multicast discovery requires an alternative networking design. |
+| `chart-managed-workloads` (2026-08-31) | Longhorn manager, CSI plugin, attacher/provisioner/resizer/snapshotter, driver deployer, global manager, UI, engine-image DaemonSet, weekly system-backup CronJob/Job. Missing owner/budgets; manager/UI/CSI also lack probes. All seven rendered chart controller/hook templates violate owner/budget rules; manager/UI also probes. The repository retention CronJob passes these rules. | Replace namespace-wide matching with rule-specific controller names, bounded engine-image/system-backup names, retaining all three chart hook Job names. Pods do not match these original controller rules. Require tests of operator-generated templates and future hooks before narrowing. | Add owner/budgets/probes using supported values or reviewed post-renderers, including operator-generated CSI/engine/backup settings. A namespace manifest fix cannot eliminate this exception. Propose renewal to **2026-12-21** while these templates are qualified. |
+| `gpu-operator-workloads` (2026-10-31) | Eight live controllers: operator, NFD master/gc/worker, GPU feature discovery, device plugin, MPS control daemon, validator. Owner, budgets, digest pinning and/or hardening fail. Seven chart templates include cleanup, NFD-prune and CRD-upgrade hooks with the same violations. No sampled host-network/probe violations. | Propose removing host-network and probe exemptions after owner acceptance of rendered hooks and generated DaemonSets. Bound names to the listed controllers/hooks and generated hardware validation workloads. Current samples cannot guarantee future chart behavior. | NFD master/gc/worker need RuntimeDefault seccomp; add owner/budgets and pinned images. Privileged hardware validation requires separate qualification. Propose renewal to **2026-12-21**, reducing rules only after reviewed tests. |
+| `mutable-image-tags` (2026-08-31) | Digest rule: Longhorn chart hooks/controllers and live manager/CSI/engine/system backup; WotLK authserver/worldserver and both extraction CronJobs; retained one-off realm-upsert Job. Current cloudflared, registration, homepage-assets, pod-report and wireguard controller specs pass this rule. | Remove passing named branches and wireguard scope after owner review. Replace broad WotLK matching with four controller names plus any supported one-off recreation path; bound dynamic Longhorn names/hooks. Completed retained Jobs are distinct from scheduled work. | Pin the four WotLK controller images and chart/manager settings to tested digests, retaining Renovate updates. Do not edit completed Jobs to manufacture a clean audit. Propose renewal to **2026-12-21** for required paths. |
+| `privileged-namespaces` (2026-08-31) | Hardening: Longhorn controllers/hooks/CSI/engine/system backup, wireguard-client, WotLK registration/auth/world/MariaDB, six CronJobs and retained Jobs. 25 live identities fail. All inspected templates have hostNetwork=false; none violates that rule. | Propose dropping the host-network exemption after owner confirmation of maintenance/recovery templates. Bound hardening to named controllers/generated families. Missing standard securityContext fields in WotLK jobs do not prove a need for broad privilege. | Add non-root identity, no privilege escalation, drop ALL and RuntimeDefault to simple SQL/kubectl helpers first; test image UID/filesystem behavior. WireGuard/Longhorn host access requires runtime qualification. Propose renewal to **2026-12-21** for remaining hardening scope. |
+| `wotlk-latest-tag` (2026-08-31) | Latest-tag rule: repository/live CronJob wotlk-weekly-restart and retained Job wotlk-weekly-restart-29915340 use latest. | Current CronJob name and bounded Job family are already narrow. Keep namespaces/kinds unchanged. Retained completed Jobs do not justify widening future scope. | Replace the kubectl helper reference with a tested version/digest, verify new CronJob/Job admission, then revoke after owner approval. Direct remediation is feasible. If not completed first, propose renewal to **2026-12-05**. |
 
-Removal does not terminate existing running pods. Existing-violation UPDATE
-behavior is preserved; precise effects depend on the operation and whether a new
-violation is introduced. Do not treat this table as approval to remove an exception.
-
-For **each expired row**, record owner, chosen action (remediate and revoke, or
-explicitly approved time-bounded renewal), justification, tracking issue and
-reviewed date/scope change in a separate commit. The future Home Assistant date
-requires no automatic adjustment. Native accountability preserves metadata/issue
-tracking requirements across both APIs; it does not create tracking issues itself.
+Dates are proposed review deadlines, not applied renewals or automatic revocations.
+Expiry metadata retains its original behavior. Record RovxBot's action,
+justification, approved scope/date and tracking reference for each row in one
+consolidated decision change. Keep #2133 open. Rerun the audit and admission checks
+on final workloads. Neither zero reports nor disappearing completed Jobs establish
+safe revocation. The Home Assistant exception needs no change in this review.

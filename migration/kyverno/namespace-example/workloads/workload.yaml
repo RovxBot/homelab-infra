@@ -4,3 +4,39 @@ metadata:
   name: workload-readiness-marker
 data:
   purpose: proves the dependent reconciliation ran
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: readiness-probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: readiness-probe
+  template:
+    metadata:
+      labels:
+        app: readiness-probe
+        homelab.cooked.beer/owner: platform
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi

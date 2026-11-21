@@ -1,69 +1,77 @@
-# Kyverno deployment qualification (draft)
+# Kyverno migration with Flux-owned namespace defaults
 
-**Not deployable yet:** restart recovery fails for fresh CEL generators on both
-releases. The empty-state cutover mechanics passed, but the complete generator
-path and rollback did not. See the [Task 17 qualification](evidence/task17/qualification.json),
-[findings](evidence/task17/findings.md), [activation/rollback proposal](activation/README.md)
-and [exception decisions](activation/exception-review.md).
+Task 18 replaces unused namespace generation with explicit Flux reconciliation.
+Kyverno remains responsible for validation, mutation, scoped exceptions and
+reporting. The [activation sequence](activation/README.md),
+[exception decision table](activation/exception-review.md) and
+[qualification evidence](evidence/task18/qualification.json) define review gates.
+No production entrypoint references the namespace example, new admission guards
+or CEL policy fixtures. Production chart, exceptions and Cilium are unchanged.
 
-No production Kustomization references these policy manifests. The production
-inventory was refreshed read-only; no production mutation, deployment, merge,
-legacy acknowledgement bypass or Renovate unpin occurred. #2133 remains open.
+The [reusable namespace base](../../infra/namespace-defaults/README.md) preserves
+all three legacy resource specifications. A complete four-object bundle and a
+separate Flux workload dependency are required. A label alone does not onboard a
+namespace. CI checks completeness/dependencies; native admission restricts
+identity, metadata, default specifications and destructive deletion. The empty
+legacy generator is retired only under proven native freeze, repeated complete
+zero inventories, observed orphan settings and explicit policy/queue absence.
 
-The unchanged validation contracts reuse successful run
-[44879145011](https://github.com/RovxBot/homelab-infra/actions/runs/44879145011):
-596 actual decisions per engine, both runner suites, native governance and
-representative background/Audit reports. `evidence/validation-contract.json` pins
-the exact input and decision hashes and target release identity. Reuse fails if
-those inputs or the verified chart/application pair change. Proposed future
-releases run the actual old/new admission contracts instead.
+The [architectural decision](../../docs/decisions/0003-flux-namespace-defaults.md)
+retains historical generator failures. Historical generation manifests/modules
+remain diagnostic evidence, are excluded from every runnable qualification path,
+and must never be added to a production Kustomization. No GeneratingPolicy or
+additional generator write RBAC is needed by the selected architecture.
 
-Run [deployment qualification](../../.github/workflows/kyverno-cel-rehearsal.yml)
-manually on the implementation branch. Its default chart is the explicit Task 17
-target, 3.10.0. Leave `scenarios` empty for full qualification. A JSON subset such
-as `["empty-upgraded"]` runs a bounded diagnostic and **cannot** qualify deployment.
-The required scenarios are empty/upgraded generation, fresh target generation,
-mutation and validation; adoption is optional diagnostic evidence.
+Run the [manual deployment workflow](../../.github/workflows/kyverno-cel-rehearsal.yml)
+on the implementation branch. Blank scenarios runs **all four mandatory jobs**:
+namespace-lifecycle, production-sequence, mutation and validation. A JSON subset
+is diagnostic and cannot qualify deployment. Each disposable hosted kind v0.30.0 /
+Kubernetes v1.34.0 environment uses enforcing Calico v3.31.0, Helm v3.19.0 and the
+committed digest-pinned Flux v2.9.0 artifacts, with a 25-minute execution ceiling,
+30-minute job ceiling and unconditional teardown. Production kubeconfig, sync and
+credentials are never imported.
 
-The reusable [compatibility workflow](../../.github/workflows/kyverno-compatibility.yml)
-reads the proposed HelmRelease chart when called without a chart override. Repo
-Checks passes the actual proposed chart for chart/controller image changes. The
-resolver verifies the Helm index/chart metadata, release assets, source commit,
-signed CLI and exact executed CLI version. New charts require signed release
-bundles; only the immutable historical chart 3.9.2 has an explicit documented
-pre-bundle exception. Runtime candidates use signature/provenance-verified image
-digests. Unknown artifacts fail without falling back to an older version. An
-application major change requires a reviewed migration contract; compatible minor
-and patch versions have no fixed ceiling. The existing suspended Kubescape
-preflight also uses that verified proposed CLI and the corresponding legacy/CEL
-policies; it cannot silently keep testing 1.19.2 after the upgrade. Its suspension,
-zero-finding and infrastructure scope guards remain enforced.
+The namespace job exercises complete creation, partial/malformed rejection,
+legacy equality, dependency blocking and workload readiness, drift prevention and
+correction, source/kustomize-controller restart, resource recreation, protected
+pruning, source rollback and consumer-first decommissioning. The integrated job
+adds full legacy/CEL overlap, all six unchanged exceptions, continuous runner
+security, Longhorn mutation, actual report inputs and RBAC, separate legacy prune,
+Flux Helm upgrade with the original safety check, storage migration and compatible
+chart/policy rollback while retaining CEL/native enforcement and Flux defaults.
+Traffic probes sample ingress/egress denial with working positive controls through
+restart/upgrade/rollback. Production Cilium retains policyEnforcementMode=never;
+isolated Calico results do not establish production NetworkPolicy enforcement.
 
-Every scenario runs on disposable hosted kind v0.30.0/Kubernetes v1.34.0 with
-Calico v3.31.0, Helm v3.19.0 and committed Flux v2.9.0. The scenario has a 25-minute
-ceiling and the job 30 minutes. Teardown runs even after failure. No production
-kubeconfig or Flux sync is imported. Continuous watches, independent explicit
-NotFound/unavailable snapshots, triggers, policies, URs, readiness and relevant
-controller logs are retained across restart and upgrade. Sampled traffic probes
-include working positive controls; object watches alone do not prove enforcement.
+Validation reruns the 596-case per-engine equivalence corpus, both complete runner
+suites and ephemeral-container probes, native exception accountability and real
+Audit/background reporting. The mutation job compares 42 actual CREATE/UPDATE
+admissions per engine (126 total) including full server-defaulted PodSpecs. Report
+consumer regression fixtures preserve legacy/CEL identity, overlap/deduplication,
+exceptions, persistence, recovery and collection failure semantics. Fresh explicit
+same-finding pass evidence is required to close an incident.
 
-To reproduce one scenario in a fresh disposable Linux Docker environment with
-Python/PyYAML 6.0.3:
+The [version-aware workflow](../../.github/workflows/kyverno-compatibility.yml)
+resolves and tests the actual proposed chart/application pair, authenticates exact
+release/source/CLI identities, validates image signatures/provenance and vendor
+Kubernetes support, and never silently substitutes an older version. Unchanged
+evidence can be reused only with complete input **and implementation** hashes and
+identical verified release artifacts; Task 18 reruns validation because shared
+harness installation changed. The old incomplete reuse contract cannot pass.
+Kyverno remains separate from Monday maintenance, manual review and no automerge;
+temporary Renovate cap removal is prepared only in the final reviewed upgrade
+patch, with no permanent single-release pin.
 
-```sh
-KYVERNO_CANDIDATE_CHART=3.10.0 bash migration/kyverno/harness/trust.sh
-# Continue only if verification succeeded.
-KYVERNO_REHEARSAL_LOCAL=1 CANDIDATE_TRUST=success \
-  REHEARSAL_SCENARIO=mutation timeout 1500 bash migration/kyverno/harness/run.sh
-```
+For local reproduction, use a disposable Linux Docker host with Python/PyYAML
+6.0.3, run trust.sh successfully, then set KYVERNO_REHEARSAL_LOCAL=1,
+CANDIDATE_TRUST=success and REHEARSAL_SCENARIO to one of the mandatory jobs before
+running harness/run.sh under timeout 1500. The entrypoint refuses existing kind
+clusters/kubeconfigs. GH_TOKEN may provide read-only GitHub metadata access;
+credentials are not written into evidence. Artifact trust uses Sigstore's official
+certificate/transparency/TUF checks. New hosted runs stay manual and bounded.
 
-`GH_TOKEN` may supply a read-only GitHub token for release metadata rate limits;
-it is sent only to api.github.com, never written to evidence. Sigstore retains
-official TUF/certificate/transparency checks. See historical trust evidence for
-the verifier bootstrap boundary. Do not reuse the task's kubeconfig or an existing
-cluster. New runs are manual to keep CI expenditure bounded.
-
-Regenerate policy manifests with `harness/build.py`, then report aliases with
-`harness/render-report-identities.py`. Review the diff. No exception scope/date is
-changed. `activation/prepare.py` creates review-only sequential Git patches; it
-never applies them or contacts Kubernetes.
+Policy regeneration remains harness/build.py followed by
+harness/render-report-identities.py. activation/prepare.py only prepares reviewed
+Git patches. Keep #2133 open, #2158 independent/unmerged and #2160 draft until
+operator review. No production deployment, merge, bypass or exception change is
+performed by this task.

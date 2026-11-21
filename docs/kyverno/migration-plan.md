@@ -1,5 +1,7 @@
 # Kyverno CEL migration preflight
 
+> Task 18 supersedes the generator transition/activation portions of this historical assessment. Use [decision 0003](../decisions/0003-flux-namespace-defaults.md) and the [current staged sequence](../../migration/kyverno/activation/README.md). No CEL generator activation is proposed.
+
 Status: **stopped before deployable migration changes**. Inventory and bounded
 source tests are verified; policy equivalence, generator lifecycle transfer and
 artifact signature verification are not qualified. This change does not contain

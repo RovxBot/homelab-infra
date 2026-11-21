@@ -9,6 +9,8 @@ def main():
     contract=json.loads((ROOT/'migration/kyverno/evidence/validation-contract.json').read_text())
     target=json.loads((WORK/'trust/target.json').read_text())
     if os.environ.get('REUSE_VALIDATION')=='true':
+        assert contract.get('implementation_files'), 'Historical contract lacks complete implementation hashes: rerun validation'
+        assert all(hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==digest for p,digest in contract['implementation_files'].items()), 'Validation implementation changed: rerun the contracts'
         assert all(hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==digest for p,digest in contract['files'].items()),'Validation inputs changed: rerun the contracts'
         assert all(target[k]==v for k,v in contract['target'].items()),'Release changed: actual proposed-version testing required'
         record('validation-evidence-reused',status='verified',source_run=contract['source_run'],files=len(contract['files']))

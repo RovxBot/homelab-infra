@@ -77,8 +77,10 @@ spec:
       : object.metadata.name) == ''default-container-limits'''
   validations:
   - expression: request.operation == 'DELETE' || (size(object.spec.limits) == 1 &&
-      object.spec.limits[0].type == 'Container' && object.spec.limits[0].default ==
-      {'cpu':'500m','memory':'512Mi'} && object.spec.limits[0].defaultRequest == {'cpu':'100m','memory':'128Mi'}
+      object.spec.limits[0].type == 'Container' && size(object.spec.limits[0].default)
+      == 2 && string(object.spec.limits[0].default['cpu']) == '500m' && string(object.spec.limits[0].default['memory'])
+      == '512Mi' && size(object.spec.limits[0].defaultRequest) == 2 && string(object.spec.limits[0].defaultRequest['cpu'])
+      == '100m' && string(object.spec.limits[0].defaultRequest['memory']) == '128Mi'
       && !has(object.spec.limits[0].max) && !has(object.spec.limits[0].min) && !has(object.spec.limits[0].maxLimitRequestRatio))
     message: Namespace defaults must preserve the exact legacy specification
   - expression: request.operation != 'DELETE' || (namespaceObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/decommission'].orValue('')
@@ -109,10 +111,11 @@ spec:
       == ''enabled'' && (request.operation == ''DELETE'' ? oldObject.metadata.name
       : object.metadata.name) == ''namespace-defaults'''
   validations:
-  - expression: 'request.operation == ''DELETE'' || (object.spec.hard == {"pods":
-      "20", "persistentvolumeclaims": "10", "requests.cpu": "4", "requests.memory":
-      "8Gi", "limits.cpu": "8", "limits.memory": "16Gi"} && !has(object.spec.scopes)
-      && !has(object.spec.scopeSelector))'
+  - expression: request.operation == 'DELETE' || (size(object.spec.hard) == 6 && string(object.spec.hard['pods'])
+      == '20' && string(object.spec.hard['persistentvolumeclaims']) == '10' && string(object.spec.hard['requests.cpu'])
+      == '4' && string(object.spec.hard['requests.memory']) == '8Gi' && string(object.spec.hard['limits.cpu'])
+      == '8' && string(object.spec.hard['limits.memory']) == '16Gi' && !has(object.spec.scopes)
+      && !has(object.spec.scopeSelector))
     message: Namespace defaults must preserve the exact legacy specification
   - expression: request.operation != 'DELETE' || (namespaceObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/decommission'].orValue('')
       == 'approved' && request.userInfo.username in ['system:serviceaccount:flux-system:kustomize-controller','system:serviceaccount:kube-system:namespace-controller'])
