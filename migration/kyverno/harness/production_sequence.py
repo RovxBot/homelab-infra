@@ -189,6 +189,30 @@ def report_probe(stage):
     rows=wait('actual report automation input '+stage,findings)
     (EVIDENCE/('report-'+stage+'.json')).write_text(json.dumps(rows,indent=2)+'\n')
     record('report-consumer-live-input',status='verified',stage=stage,rows=len(rows))
+    # Release defaults may introduce additional producers (including native
+    # admission-policy reports). Exercise the real consumer against the entire
+    # current report inventory, not only the selected Audit fixture above.
+    from datetime import datetime, timedelta, timezone
+    import re
+    sources = {
+        '/apis/wgpolicyk8s.io/v1alpha2/policyreports': get('policyreports'),
+        '/apis/wgpolicyk8s.io/v1alpha2/clusterpolicyreports': get('clusterpolicyreports'),
+    }
+    assert all(isinstance(data.get('items'),list) and not data.get('metadata',{}).get('continue') for data in sources.values())
+    script = yaml.safe_load((ROOT/'infra/kyverno/automation/github-issue-sync-configmap.yaml').read_text())['data']['sync.py']
+    consumer = {'__name__': 'qualification_report_consumer'}
+    exec(compile(script,'sync.py','exec'),consumer)
+    consumer.update(IGNORED_SCOPE_KINDS={'Pod','ReplicaSet','Job'},
+                    IGNORED_POLICIES={'platform-flux-guardrails'},
+                    EXCLUDE_NAMESPACE_RE=re.compile(r'^(flux-system|kube-.*|kyverno|sops)$'),
+                    CUTOFF=datetime.now(timezone.utc)-timedelta(hours=24))
+    consumer['list_kubernetes_resource'] = lambda path: sources[path]
+    failures, passes, unknown = consumer['load_observations']()
+    reports = [report for data in sources.values() for report in data['items']]
+    (EVIDENCE/('consumer-all-reports-'+stage+'.json')).write_text(json.dumps(reports,indent=2)+'\n')
+    record('report-consumer-complete-current-inventory',status='verified',stage=stage,
+           reports=len(reports),failures=len(failures),passes=len(passes),unknown=len(unknown),
+           sources=sorted({result.get('source','') for report in reports for result in report.get('results',[])}),writes=0)
 
 
 def during(flux, guards):
