@@ -52,10 +52,9 @@ def labels():
 def namespace(name): return dict(apiVersion='v1',kind='Namespace',metadata=dict(name=name,labels=labels()))
 def load(path): return list(yaml.safe_load_all((ROOT/path).read_text()))
 def install(version):
-    import urllib.request
     chart={'1.19.2':'3.9.2','1.20.0':'3.10.0'}[version]
     chartfile=WORK/f'kyverno-{chart}.tgz'
-    run(['curl','-fsSL','--connect-timeout','15','--max-time','120',f'https://github.com/kyverno/kyverno/releases/download/v{version}/kyverno-{chart}.tgz','-o',str(chartfile)])
+    run(['curl','-fsSL','--connect-timeout','15','--max-time','120',f'https://kyverno.github.io/kyverno/kyverno-{chart}.tgz','-o',str(chartfile)])
     import hashlib
     digest=hashlib.sha256(chartfile.read_bytes()).hexdigest()
     if version=='1.20.0': assert digest=='55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301'
@@ -141,14 +140,25 @@ def main():
     install('1.19.2')
     smoke()
     governance('1.19.2')
+    from equivalence import suite
+    suite('1.19.2','legacy')
+    suite('1.19.2','cel')
+    from generation import before_upgrade
+    generation_state=before_upgrade()
     record('integration-baseline',status='verified')
     if os.environ.get('CANDIDATE_TRUST')!='success':
         record('candidate-upgrade',status='not run',reason='artifact trust failed'); return
     install('1.20.0')
     smoke()
     governance('1.20.0')
+    suite('1.20.0','cel')
+    if generation_state['passed']:
+        from generation import after_upgrade
+        after_upgrade(generation_state)
 
 if __name__=='__main__':
+    import sys
+    sys.modules['rehearse']=sys.modules[__name__]
     try: main()
     except Exception as e:
         record('rehearsal',status='failed',error=str(e)); traceback.print_exc(); raise
