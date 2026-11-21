@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: kyverno
-      version: 3.9.2
+      version: 3.10.0
       sourceRef:
         kind: HelmRepository
         name: kyverno
@@ -74,3 +74,9 @@ spec:
       policyExceptions:
         enabled: true
         namespace: kyverno
+    upgrade:
+      legacyPolicyCheck:
+        enabled: true
+        image:
+          registry: ghcr.io
+      acknowledgeLegacyPoliciesNotEnforced: false
