@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "run_url": "https://github.com/RovxBot/homelab-infra/actions/runs/44847501918",
+  "run_url": "https://github.com/RovxBot/homelab-infra/actions/runs/44879145011",
   "release": "v1.20.0",
   "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
   "issuer": "https://token.actions.githubusercontent.com",
@@ -8,10 +8,10 @@
   "verifier": "cosign v3.1.4",
   "verifier_bootstrap": "official GitHub release SHA256; no independent verifier signature claim",
   "trust": "official Sigstore TUF defaults; certificate and transparency log checks enabled",
-  "blobs": [
-    "kyverno-3.10.0.tgz",
-    "kyverno-cli_v1.20.0_linux_x86_64.tar.gz"
-  ],
+  "blobs": {
+    "kyverno-3.10.0.tgz": "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301",
+    "kyverno-cli_v1.20.0_linux_x86_64.tar.gz": "06b8f3ca7b5626473be8fb4d343ad54ab84e317142766f72420e7d44b80942e2"
+  },
   "images": {
     "background-controller": {
       "digest": "sha256:c72df38320a48fc9de10f9d23d087a117853bb08207b7f60f6d1e8457fb3ddb7",
@@ -62,5 +62,7 @@
       "verification_output_sha256": "a1be89c3de9faf89ee0f2b4e4cbcde257f18292ab749be1e696988e508d97f3c",
       "provenance_output_sha256": "3c9ad258b06b7a6839c61b8590876595db7e20d0fb5eeb2c865c4432ccf4f416"
     }
-  }
+  },
+  "tested_commit": "9d6cba5a855b494cdf997c16ec55852a5b475a11",
+  "durable_evidence": "trust/: original successful verification outputs, public bundles and official root"
 }

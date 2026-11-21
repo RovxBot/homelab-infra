@@ -1,0 +1,258 @@
+{
+  "status": "draft; deployment gates remain open",
+  "as_of": "2026-11-21",
+  "preflight_commit": "117ad3913928195a5365011d96f18fb241e639d9",
+  "tracking_issue": "https://github.com/RovxBot/homelab-infra/issues/2133",
+  "draft_pr": "https://github.com/RovxBot/homelab-infra/pull/2160",
+  "verified_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44879145011",
+  "tested_commit": "9d6cba5a855b494cdf997c16ec55852a5b475a11",
+  "run_conclusion": "success",
+  "run_attempt": 1,
+  "environment": {
+    "kubernetes": "v1.34.0",
+    "kind": "v0.30.0",
+    "flux": "v2.9.0",
+    "helm_cli": "v3.19.0",
+    "baseline": {
+      "app": "1.19.2",
+      "chart": "3.9.2"
+    },
+    "candidate": {
+      "app": "1.20.0",
+      "chart": "3.10.0"
+    },
+    "execution": "ephemeral GitHub-hosted runner; isolated kind context; no production GitRepository or kubeconfig",
+    "bounds": {
+      "job_minutes": 35,
+      "rehearsal_minutes": 25
+    },
+    "teardown": "verified: task node deleted; see teardown.txt"
+  },
+  "implementation": {
+    "cel_validation_policies": 24,
+    "primary_validation_policies": 23,
+    "flux_audit_policies": 1,
+    "native_accountability_policies": 1,
+    "cel_exception_resources": 6,
+    "remaining_source_rules": "Three generator rules have a draft GP but are blocked; one mutation rule deferred",
+    "production_entrypoint": false
+  },
+  "admission_comparisons": [
+    {
+      "name": "validation-equivalence",
+      "status": "verified",
+      "version": "1.19.2",
+      "cases": 596,
+      "differences": 0
+    },
+    {
+      "name": "validation-equivalence",
+      "status": "verified",
+      "version": "1.20.0",
+      "cases": 596,
+      "differences": 0
+    }
+  ],
+  "whole_runner_admission": [
+    {
+      "name": "whole-runner-admission",
+      "status": "verified",
+      "version": "1.19.2",
+      "engine": "legacy",
+      "pool": "core",
+      "cases": 14
+    },
+    {
+      "name": "whole-runner-admission",
+      "status": "verified",
+      "version": "1.19.2",
+      "engine": "legacy",
+      "pool": "wowdecomp",
+      "cases": 15
+    },
+    {
+      "name": "whole-runner-admission",
+      "status": "verified",
+      "version": "1.19.2",
+      "engine": "cel",
+      "pool": "core",
+      "cases": 14
+    },
+    {
+      "name": "whole-runner-admission",
+      "status": "verified",
+      "version": "1.19.2",
+      "engine": "cel",
+      "pool": "wowdecomp",
+      "cases": 15
+    },
+    {
+      "name": "whole-runner-admission",
+      "status": "verified",
+      "version": "1.20.0",
+      "engine": "cel",
+      "pool": "core",
+      "cases": 14
+    },
+    {
+      "name": "whole-runner-admission",
+      "status": "verified",
+      "version": "1.20.0",
+      "engine": "cel",
+      "pool": "wowdecomp",
+      "cases": 15
+    }
+  ],
+  "ephemeral_container_update": {
+    "cases": 6,
+    "status": "verified: denied by explicit runner policy in each pool/engine/version; namespaces use privileged PSA enforcement"
+  },
+  "reporting": {
+    "background_reports": 3,
+    "admission_audit_reports": 3,
+    "existing_invalid_update_allowed": 3,
+    "new_invalid_update_denied": 3,
+    "flux_scope_boundary_cases": 51,
+    "flux_operations": [
+      "CREATE",
+      "UPDATE",
+      "DELETE"
+    ],
+    "status": "verified for the representative background/Audit checks and tested boundary corpus",
+    "identity_compatibility": "CEL changes source/policy/rule fields: KyvernoValidatingPolicy source and v1.20 validation rule; consumer migration remains gated",
+    "rbac": "Explicit read-only pods/ephemeralcontainers report aggregation tested; before false, after true"
+  },
+  "governance": {
+    "decisions": {
+      "1.19.2-original": {
+        "cases": 48,
+        "allowed": 48,
+        "denied": 0,
+        "apis": [
+          "kyverno.io/v2",
+          "policies.kyverno.io/v1"
+        ],
+        "operations": [
+          "CREATE",
+          "UPDATE"
+        ]
+      },
+      "1.19.2-native": {
+        "cases": 48,
+        "allowed": 8,
+        "denied": 40,
+        "apis": [
+          "kyverno.io/v2",
+          "policies.kyverno.io/v1"
+        ],
+        "operations": [
+          "CREATE",
+          "UPDATE"
+        ]
+      },
+      "1.20.0-native": {
+        "cases": 24,
+        "allowed": 4,
+        "denied": 20,
+        "apis": [
+          "policies.kyverno.io/v1"
+        ],
+        "operations": [
+          "CREATE",
+          "UPDATE"
+        ]
+      }
+    },
+    "finding": "Original accountability policy admitted all 40 invalid CREATE/UPDATE cases on v1.19.2; no protection claimed",
+    "enforcement": "Native ValidatingAdmissionPolicy+binding deny malformed metadata across both exception APIs; no Kyverno webhook dependency",
+    "bootstrap": "Own controller Deployment dry-run permitted with admission controller scaled to zero on both versions",
+    "historical_expiries": "Five flagged for platform owner review; no expiry date or exception scope changed; native guard does not silently revoke historical exceptions"
+  },
+  "artifact_trust": "verified exact release identity and issuer, chart/CLI blobs, seven image signatures and SLSA provenance with default official TUF/certificate/tlog checks; see artifact-trust.json and trust/",
+  "generator": {
+    "status": "blocked; stopped",
+    "source_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44854007495",
+    "evidence": "generator-lifecycle.json",
+    "handoff": "Controlled legacy-to-CEL handoff on v1.19.2 retained three UIDs and repaired real LimitRange drift",
+    "failure": "After v1.20.0 upgrade/background restart and quota drift injection, the three-output invariant did not recover within 75 seconds; root cause not established",
+    "rollback": "not run",
+    "empty_output_cutover": "not run",
+    "default_deny_limitation": "API object watch only; kindnet does not enforce NetworkPolicy traffic; no full-lifecycle default-deny guarantee"
+  },
+  "open_gates": [
+    "Generator restart/upgrade failure, complete cleanup/trigger lifecycle, empty-state race controls and rollback",
+    "Real NetworkPolicy dataplane continuity with an enforcing CNI",
+    "Remaining mutation implementation",
+    "Report-consumer identity migration and report coverage beyond representative probes",
+    "Platform owner review of five historical exception expiries",
+    "Reviewed production activation and legacy policy/exception retirement sequence"
+  ],
+  "decision_artifacts": {
+    "admission-1.19.2-legacy.json": {
+      "cases": 596,
+      "sha256": "aefb4b380bac32b7d2b39ae48bef3f98d462aa00dbaca24c6fb737945400edb4"
+    },
+    "admission-1.19.2-cel.json": {
+      "cases": 596,
+      "sha256": "665d1d2dc68b3cceb84ee5d174160a460e9428e12a6e51f6eaae92f432df4295"
+    },
+    "admission-1.20.0-cel.json": {
+      "cases": 596,
+      "sha256": "665d1d2dc68b3cceb84ee5d174160a460e9428e12a6e51f6eaae92f432df4295"
+    }
+  },
+  "durable_evidence": {
+    "admission-decisions.jsonl": "596 keyed cases with actual allowed/warning outcomes for all three engines; full raw stderr retained in hosted artifact",
+    "admission-results.jsonl": "All 294 original result records, including governance admission stderr and actual report findings",
+    "trust/": "Public signature/provenance/bundle outputs; no private credentials"
+  },
+  "production_changes": false,
+  "durable_file_hashes": {
+    "admission-decisions.jsonl": "58c6c388bd7fb25c9d7d4a4e8ab81ad1626daef4076cad9433ed99586dd04ccb",
+    "admission-results.jsonl": "9f531a4f4cd7df2ea55eca6ef6b1a7242b4e6c5834c5d0b8fc62d8326df3e232",
+    "artifact-trust.json": "5402f68140f58f0fc326941fd9f6507cee8086b45be061d501ba50ba3c482f8b",
+    "expired-exceptions.json": "8781e78a6c2a97c290cd0404c0afafc38872a60b0071358e60fa8e64fed5fb04",
+    "generation-adopted.json": "2408693393204b3110fae53a8929ffdbd1b1c2344b9d4bdfc8f43eb1536ac719",
+    "generation-initial.json": "b808a322204d5cbd3726ff962eab46a4dffb95162311d3565f21f5dd6469416c",
+    "generator-lifecycle.json": "0e8d6889f8f26d5998b4f009b618b3d72f0eab2aaa8b7589f106410a6056457b",
+    "generator-restart-cleanup.log": "84e3946f49afb5cd44bc026fb34eb13467ed699791cf53155126c0c8d64b36d2",
+    "teardown.txt": "17fcffc6c3465b6bec451737a0960b76fa442ea9d8bc153fb54accb0d9372c9f",
+    "trust/background-controller.provenance.json": "8813b0e4f4163d88250e28b53331639949dee2f039549813077a13c8f83c00e8",
+    "trust/background-controller.provenance.log": "adf015b45353373fd800b1e41cfff3aaba0e4d6f64bf95ee628bcf1b37b80122",
+    "trust/background-controller.signature.json": "0e388e9f5f5a68da708735346e82af3a04e59630c1255f121b1e8847d6981524",
+    "trust/background-controller.signature.log": "8df55ef2cf229d929b5edb6b75578453011533a5263de3ee4204a2db6a493efc",
+    "trust/cleanup-controller.provenance.json": "4ab9ee0a4aa27335153a753d168183eae7131ece551644f1b2970b12aef15634",
+    "trust/cleanup-controller.provenance.log": "2528d7bfa9fa692555d4855d4bc01d00a6be9c0774ba0d6b17e5248c16bf202e",
+    "trust/cleanup-controller.signature.json": "5ef28352318ac109acf62105c03220326ffed5ac2153f8b6fb477d7e09eaf0f1",
+    "trust/cleanup-controller.signature.log": "1dde0b54c7c4bd3b1c8b8f93888915327eb41aca02c83367c3e39c70e10b41f6",
+    "trust/kyverno-3.10.0.tgz.sigstore.json": "bd0b597c68c3753b8f4d68162844e253cc0c9997b7a74f14882384c47adc2a5f",
+    "trust/kyverno-3.10.0.tgz.verification.log": "80a53f76c7ed6969dade3b6ee47cdb753162db7c00be625448999d08bae77ed8",
+    "trust/kyverno-cli.provenance.json": "9faa16fdca5d100ec76665c75c3942d18b04d1ae513bc0a5a44f838cc9eadfcb",
+    "trust/kyverno-cli.provenance.log": "dc1b96e0a7f9c6c25b6614dfc0b26a9a61a812919474e9cb0891595248601b31",
+    "trust/kyverno-cli.signature.json": "a51ed3917facf035606989909d86759e85b5d8e465967ba86c9c1355b1bed443",
+    "trust/kyverno-cli.signature.log": "d09e72059ef1a3d023f3fdd8bac0ae2940eb549664b176f2e91ab965ecf949da",
+    "trust/kyverno-cli_v1.20.0_linux_x86_64.tar.gz.sigstore.json": "2d15fc49bc8d3aee1c7a37404a1fa43d743828b09d9ecd89e4e71e1a33b8a52b",
+    "trust/kyverno-cli_v1.20.0_linux_x86_64.tar.gz.verification.log": "80a53f76c7ed6969dade3b6ee47cdb753162db7c00be625448999d08bae77ed8",
+    "trust/kyverno.provenance.json": "421b4a752f5ac9038d7e060a7f5e869c8f684e08d6807c7cdc15ea4b4d0dff77",
+    "trust/kyverno.provenance.log": "9b5b880b2f6dee52279ea6f835036008def42e8cf832ee1f87eec884487e0e36",
+    "trust/kyverno.signature.json": "2145875255b11d31ed9ce1e20a9de56ac49070d0c95ec8418f9dcab934b86121",
+    "trust/kyverno.signature.log": "79ed571cb3fa8839d645fca17322204e20357a55508f176685536a979d1ce8b8",
+    "trust/kyvernopre.provenance.json": "8e9b734361a5db154e7488a70b44d901cd1c412cf12ba98ac49ff70fc3762257",
+    "trust/kyvernopre.provenance.log": "889aa882fd415a3630c52424270f3df957aae71830279c57215d11e9214b4895",
+    "trust/kyvernopre.signature.json": "005f0a44a0d9316bd9848a61de6b8157be2b8cb4c65fe1212a86715722ee7054",
+    "trust/kyvernopre.signature.log": "3471d006c3ef4a096687ff9241c66a03d60e1d077dadb875121e1feb374c8bd0",
+    "trust/official-root.json": "73747011d0857ada15479a16c4cae0f3ed03aac698b523b97e1de314ac9d9ca8",
+    "trust/readiness-checker.provenance.json": "5a09d91be18bf070d086baede35a622293d1b04622cb6822b3f837567d16d51b",
+    "trust/readiness-checker.provenance.log": "1f8943ec66cd334e01d00d1d92954251b72c718cc0c8271c7d2c1d852d86f0f4",
+    "trust/readiness-checker.signature.json": "df760a032c74818751640dd16f11ca2544474352a36cd51d25edc9afc2743ecd",
+    "trust/readiness-checker.signature.log": "37f312828fff175d2ebff8be2e77872964057805b226036b59af3bd71fc3fe50",
+    "trust/reports-controller.provenance.json": "3c9ad258b06b7a6839c61b8590876595db7e20d0fb5eeb2c865c4432ccf4f416",
+    "trust/reports-controller.provenance.log": "41e821541378b636801c8919b1883a59b4cf540ca81bb75488dce94e909335df",
+    "trust/reports-controller.signature.json": "a1be89c3de9faf89ee0f2b4e4cbcde257f18292ab749be1e696988e508d97f3c",
+    "trust/reports-controller.signature.log": "574ff9231a492a1be0fa08f639922b3ad91ba5b465a10491ab91e128dc7b93d7",
+    "trust/summary.json": "f8fb7ce0cc0e64da492b65ccc85ca156c308a7dd69d2faee7df42b4675f1aefe",
+    "watch-generation-existing-limitranges.jsonl": "11de8bdb4ca7f0e244e2392156a2348f9c925b701f7cd307146f3307b8d7f8ee",
+    "watch-generation-existing-networkpolicies.jsonl": "5adf3893f798672d96ae243e51bbe102c757386f622d7de2db4ff7e12a79e8af",
+    "watch-generation-existing-resourcequotas.jsonl": "ea5d62044e56e88e113a1c6278a726828e8edd31b9a25e24acd5bea999a5a9b3"
+  }
+}

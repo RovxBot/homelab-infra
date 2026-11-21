@@ -1,0 +1,7 @@
+
+Verification for ghcr.io/kyverno/background-controller:v1.20.0 --
+The following checks were performed on each of these signatures:
+  - The specified annotations were verified.
+  - The cosign claims were validated
+  - Existence of the claims in the transparency log was verified offline
+  - The code-signing certificate was verified using trusted certificate authority certificates
