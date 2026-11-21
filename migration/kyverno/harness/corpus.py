@@ -237,7 +237,10 @@ def cases(source, r):
     b = runner(pool)
     cp = ["spec", "containers", 0]
     sc = cp + ["securityContext"]
-    rows = [("valid", b)]
+    rows = [
+        ("valid", b),
+        ("adjacent-namespace", change(b, ["metadata", "namespace"], "cel-tests")),
+    ]
     add = lambda name, d: rows.append((name, d))
     if r == "restricted-with-sanitizer-capability":
         for key in ["hostPID", "hostIPC", "hostNetwork"]:
@@ -378,6 +381,7 @@ def cases(source, r):
             capabilities={"drop": ["ALL"], "add": ["SYS_PTRACE"]},
         )
         add("sanitizer", san)
+        add("sanitizer-bad-uid", change(san, sc + ["runAsUser"], 2000))
         add(
             "sanitizer-extra-cap",
             change(san, sc + ["capabilities", "add"], ["SYS_PTRACE", "SYS_ADMIN"]),

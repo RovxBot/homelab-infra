@@ -311,7 +311,7 @@ def main():
                     source,
                     r["name"],
                     common[r["name"]],
-                    [rule(["pods"], [""])],
+                    [rule(["pods", "pods/ephemeralcontainers"], [""])],
                     ns=ns,
                     warning=False,
                     existing=r["name"] != "restricted-with-sanitizer-capability",

@@ -47,11 +47,18 @@ def apply(doc):
 
 
 def delete(doc):
+    docs = doc if isinstance(doc, list) else [doc]
+    # Fixture Pods deliberately reference a nonexistent node, so no kubelet can
+    # acknowledge graceful deletion. They never start or pull an image.
+    pod_flags = (
+        ["--grace-period=0", "--force"] if any(d["kind"] == "Pod" for d in docs) else []
+    )
     return k(
         "delete",
         "--wait=true",
         "--timeout=45s",
         "--ignore-not-found=true",
+        *pod_flags,
         "-f",
         "-",
         data=yaml.safe_dump_all(doc if isinstance(doc, list) else [doc]),

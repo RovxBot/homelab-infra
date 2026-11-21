@@ -33,6 +33,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   validations:
   - expression: (!object.spec.?hostNetwork.orValue(false) && !object.spec.?hostPID.orValue(false) && !object.spec.?hostIPC.orValue(false))
       && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
@@ -105,6 +106,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('')
@@ -159,6 +161,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.size() == 1 &&
@@ -204,6 +207,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.all(c, 'ALL' in
@@ -249,6 +253,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || ((oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/sanitizer"].orValue('')
@@ -294,6 +299,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || ((oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/sanitizer"].orValue('')
@@ -344,6 +350,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (!(oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/sanitizer"].orValue('')
@@ -395,6 +402,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.?volumes.orValue([]).all(v,
@@ -437,6 +445,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   validations:
   - expression: (!object.spec.?hostNetwork.orValue(false) && !object.spec.?hostPID.orValue(false) && !object.spec.?hostIPC.orValue(false))
       && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
@@ -509,6 +518,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('')
@@ -564,6 +574,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.size() == 1 &&
@@ -609,6 +620,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.all(c, 'ALL' in
@@ -655,6 +667,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.?volumes.orValue([]).all(v,
@@ -697,6 +710,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.?volumes.orValue([]).all(v,
@@ -740,6 +754,7 @@ spec:
       - UPDATE
       resources:
       - pods
+      - pods/ephemeralcontainers
   matchConditions:
   - name: legacy-existing-violation
     expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.all(c, c.?env.orValue([]).all(e,

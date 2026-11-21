@@ -7,6 +7,7 @@ masking a missing control. Exceptions retain their original complete scopes.
 import copy
 import json
 import time
+import yaml
 from corpus import cases
 from rehearse import (
     ROOT,
@@ -59,7 +60,25 @@ def suite(version, engine):
         # Store two objects before activating this rule. nodeName prevents every
         # runner Pod from scheduling or attempting a production registry pull.
         updates = []
-        for state, raw in [("valid", rows[0][1]), ("invalid", rows[1][1])]:
+        invalid_cases = {
+            "require-requests-and-limits": "Deployment-no-resources",
+            "disallow-latest-tags": "Deployment-repo:latest",
+            "drop-all-and-only-allow-ptrace": "drop-absent",
+            "bounded-toolchain-capabilities": "drop-absent",
+            "ptrace-only-in-sanitizer-jobs": "['SYS_PTRACE']",
+            "ordinary-job-identity": "uid0",
+            "bounded-sanitizer-identity": "sanitizer-bad-uid",
+            "no-extra-job-credentials": "configMap",
+        }
+        invalid = next(
+            (
+                doc
+                for name, doc in rows
+                if name == invalid_cases.get(item["source_rule"])
+            ),
+            next(doc for name, doc in rows[1:] if name != "adjacent-namespace"),
+        )
+        for state, raw in [("valid", rows[0][1]), ("invalid", invalid)]:
             d = copy.deepcopy(raw)
             d["metadata"]["name"] = "existing-" + state
             if d["kind"] == "Pod":
@@ -67,9 +86,7 @@ def suite(version, engine):
             if d["kind"] == "Namespace":
                 d["metadata"]["name"] = "existing-" + state + "-ns"
             # A native-invalid fixture is not usable as an oldObject.
-            p = k(
-                "create", "-f", "-", data=__import__("yaml").safe_dump(d), check=False
-            )
+            p = k("create", "-f", "-", data=yaml.safe_dump(d), check=False)
             if p.returncode:
                 if "already exists" not in p.stderr:
                     continue
@@ -90,6 +107,19 @@ def suite(version, engine):
                 "rehearsal.cooked.beer/update"
             ] = "true"
             updates.append(("existing-" + state, mutated))
+            if state == "valid":
+                introduced = copy.deepcopy(stored)
+                introduced["metadata"]["labels"] = copy.deepcopy(
+                    invalid["metadata"].get("labels", {})
+                )
+                introduced["spec"] = (
+                    copy.deepcopy(invalid.get("spec", {}))
+                    if stored["kind"] != "Namespace"
+                    else introduced.get("spec", {})
+                )
+                if stored["kind"] == "Pod":
+                    introduced["spec"]["nodeName"] = "rehearsal-unscheduled"
+                updates.append(("introduce-violation", introduced))
         successful = False
         try:
             apply(policy)
@@ -132,8 +162,17 @@ def suite(version, engine):
             )
         finally:
             delete(policy)
+            deleted = set()
             for _, doc in updates:
-                delete(doc)
+                identity = (
+                    doc["kind"],
+                    doc["metadata"].get("namespace", ""),
+                    doc["metadata"]["name"],
+                )
+                if identity not in deleted:
+                    delete(doc)
+                    deleted.add(identity)
+            time.sleep(1)
         path = EVIDENCE / f"admission-{version}-{engine}.json"
         path.write_text(json.dumps(output, indent=2) + "\n")
         record(
@@ -195,6 +234,23 @@ def whole_runners(version, engine):
                 if p["metadata"]["namespace"] == namespace
             ]
         )
+        from corpus import runner
+
+        live_pod = runner(pool)
+        live_pod["metadata"]["name"] = "ephemeral-probe"
+        live_pod["spec"]["nodeName"] = "rehearsal-unscheduled"
+        apply(live_pod)
+        ephem = copy.deepcopy(get("pods", "ephemeral-probe", namespace))
+        debug = copy.deepcopy(ephem["spec"]["containers"][0])
+        debug.pop("resources", None)
+        debug["name"] = "debug"
+        debug["targetContainerName"] = "job"
+        ephem["spec"]["ephemeralContainers"] = [debug]
+        endpoint = f"/api/v1/namespaces/{namespace}/pods/ephemeral-probe/ephemeralcontainers?dryRun=All"
+        control = k(
+            "replace", "--raw", endpoint, "-f", "-", data=json.dumps(ephem), check=False
+        )
+        assert control.returncode == 0, control.stderr
         try:
             for p in policies:
                 apply(p)
@@ -222,5 +278,27 @@ def whole_runners(version, engine):
                 pool=pool,
                 cases=len(result.stdout.splitlines()),
             )
+            denied = k(
+                "replace",
+                "--raw",
+                endpoint,
+                "-f",
+                "-",
+                data=json.dumps(ephem),
+                check=False,
+            )
+            good = denied.returncode != 0 and (
+                "one-job-container" in denied.stderr
+                or "Only the job container" in denied.stderr
+            )
+            record(
+                "runner-ephemeral-update",
+                status="verified" if good else "failed",
+                version=version,
+                engine=engine,
+                pool=pool,
+                stderr=denied.stderr,
+            )
         finally:
             delete(policies)
+            delete(live_pod)
