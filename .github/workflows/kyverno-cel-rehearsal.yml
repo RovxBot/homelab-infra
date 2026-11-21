@@ -10,6 +10,11 @@ on:
       - migration/kyverno/policy-map.json
       - .github/workflows/kyverno-cel-rehearsal.yml
   workflow_dispatch:
+    inputs:
+      generators:
+        description: Re-run the currently blocked generator lifecycle
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,6 +39,7 @@ jobs:
         run: python3 -m pip install PyYAML==6.0.3
       - name: Rehearse in a disposable Kubernetes cluster
         env:
+          REHEARSAL_GENERATORS: ${{ inputs.generators && 'true' || 'false' }}
           CANDIDATE_TRUST: ${{ steps.trust.outcome }}
         run: timeout 1500 bash migration/kyverno/harness/run.sh
       - name: Always destroy the rehearsal cluster

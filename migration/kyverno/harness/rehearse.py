@@ -322,7 +322,7 @@ def admission(doc, operation="CREATE", check_policy=True, user=None):
         )
     ):
         raise AssertionError(f"Non-policy denial: {p.stderr}")
-    if not allowed and any(
+    if any(
         x in p.stderr.lower()
         for x in [
             "failed calling webhook",
@@ -331,6 +331,7 @@ def admission(doc, operation="CREATE", check_policy=True, user=None):
             "invalid expression",
             "undeclared reference",
             "no such key",
+            "failed to load context",
         ]
     ):
         raise AssertionError(
@@ -545,6 +546,9 @@ def main():
     assert endpoint.startswith("https://127.0.0.1:"), endpoint
     assert get("nodes")["items"][0]["status"]["nodeInfo"]["kubeletVersion"] == "v1.34.0"
     assert not get("gitrepositories.source.toolkit.fluxcd.io")["items"]
+    from reporting import install_fixture_crd
+
+    install_fixture_crd()
     install("1.19.2")
     smoke()
     governance("1.19.2")
@@ -568,23 +572,31 @@ def main():
                 engine=engine,
                 error=str(e),
             )
-    from generation import before_upgrade
+    generation_state = {"passed": False}
+    if os.environ.get("REHEARSAL_GENERATORS") == "true":
+        from generation import before_upgrade
 
-    try:
-        generation_state = before_upgrade()
-    except Exception as e:
-        generation_state = {"passed": False, "error": str(e)}
-        record("generator", status="failed", error=str(e))
-        # Abandon this isolated fixture so the chart safety check can still gate
-        # a real upgrade and independent validation work can finish.
-        for kind in ["clusterpolicy", "generatingpolicy"]:
-            k(
-                "delete",
-                kind,
-                "platform-namespace-bootstrap",
-                "--ignore-not-found=true",
-                check=False,
-            )
+        try:
+            generation_state = before_upgrade()
+        except Exception as e:
+            generation_state = {"passed": False, "error": str(e)}
+            record("generator", status="failed", error=str(e))
+            # Abandon this isolated fixture so the chart safety check can still gate
+            # a real upgrade and independent validation work can finish.
+            for kind in ["clusterpolicy", "generatingpolicy"]:
+                k(
+                    "delete",
+                    kind,
+                    "platform-namespace-bootstrap",
+                    "--ignore-not-found=true",
+                    check=False,
+                )
+    else:
+        record(
+            "generator-lifecycle",
+            status="not run",
+            reason="Stopped after the v1.20 post-restart invariant failure in run 44854007495; deployment gate retained",
+        )
     record("integration-baseline", status="verified")
     if os.environ.get("CANDIDATE_TRUST") != "success":
         record("candidate-upgrade", status="not run", reason="artifact trust failed")

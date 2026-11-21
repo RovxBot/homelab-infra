@@ -496,7 +496,8 @@ def after_upgrade(state):
         "generator-upgrade-restart", status="verified", version="1.20.0", namespace=ns
     )
     # Empty-output case: freeze prevents new trigger admission while legacy is
-    # absent. Namespace is created without bootstrap and cannot run any Pods;
+    # absent. This fixture creates no workloads; a workload admission hold
+    # and global empty-set cutover remain unqualified.
     # existing generated deny objects stay continuously present during transfer.
     empty = "generation-empty"
     apply(namespace(empty))
@@ -529,6 +530,7 @@ def after_upgrade(state):
             install("1.19.2")
             legacy = load("infra/kyverno/policies/platform-namespace-bootstrap.yaml")[0]
             flux.commit([legacy], "restore-legacy-after-downgrade")
+            ready(legacy)
             thaw(locks, ns)
             locks = []
             k(

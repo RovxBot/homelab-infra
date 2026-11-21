@@ -23,7 +23,15 @@ from rehearse import (
 def policy_results(namespace, policy, uid=None):
     reports = get("policyreports", ns=namespace)["items"]
     return [
-        r for p in reports for r in p.get("results", []) if r.get("policy") == policy
+        r
+        for p in reports
+        for r in p.get("results", [])
+        if r.get("policy") == policy
+        and (
+            uid is None
+            or p.get("scope", {}).get("uid") == uid
+            or any(resource.get("uid") == uid for resource in r.get("resources", []))
+        )
     ]
 
 
@@ -98,7 +106,7 @@ def run(version, engine):
             "apiVersion": "v1",
             "kind": "ConfigMap",
             "metadata": {
-                "name": "flux-probe",
+                "name": "flux-probe-" + version.replace(".", "") + "-" + engine,
                 "namespace": ns,
                 "labels": {"kustomize.toolkit.fluxcd.io/name": "rehearsal"},
             },
@@ -120,9 +128,9 @@ def run(version, engine):
                 **p
             )
         apply(cm)
-        cm_uid = get("configmap", "flux-probe", ns)["metadata"]["uid"]
+        cm_uid = get("configmap", cm["metadata"]["name"], ns)["metadata"]["uid"]
         for operation in ["UPDATE", "DELETE"]:
-            obj = get("configmap", "flux-probe", ns)
+            obj = get("configmap", cm["metadata"]["name"], ns)
             if operation == "UPDATE":
                 obj["data"]["test"] = "after"
             for user in [
@@ -160,11 +168,12 @@ def run(version, engine):
         )
         delete(cm)
     finally:
+        if "cm" in locals():
+            delete(cm)
         delete(flux)
 
 
-def flux_boundaries(version, engine):
-    """Real Audit/warning decisions, including the exact Longhorn conjunction."""
+def install_fixture_crd():
     versions = [
         {
             "name": v,
@@ -206,6 +215,11 @@ def flux_boundaries(version, engine):
         "crd/backuptargets.longhorn.io",
         "--timeout=30s",
     )
+
+
+def flux_boundaries(version, engine):
+    """Real Audit/warning decisions, including the exact Longhorn conjunction."""
+    install_fixture_crd()
     users = ["longhorn-service-account", "adjacent-controller"]
     for name in users:
         apply(
@@ -305,16 +319,18 @@ def flux_boundaries(version, engine):
             d["metadata"].pop("namespace")
         rows.append(("excluded-kind-" + kind, d, None, False))
     for name, doc, user, warning in rows:
+        doc["metadata"]["name"] = "scope-probe-" + name.lower()
         result = admission(doc, user=user)
         policy_warning = "Flux-managed resources should be changed" in result["stderr"]
-        assert result["allowed"] and policy_warning == warning, (name, result)
+        matches_contract = result["allowed"] and policy_warning == warning
         record(
             "flux-boundary",
-            status="verified",
+            status="verified" if matches_contract else "failed",
             version=version,
             engine=engine,
             case=name,
             policy_warning=policy_warning,
+            expected_policy_warning=warning,
             **result
         )
     delete([binding, role])

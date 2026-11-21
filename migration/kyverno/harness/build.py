@@ -202,7 +202,7 @@ def main():
     fc = [
         dict(
             name="has-flux-label",
-            expression="'kustomize.toolkit.fluxcd.io/name' in (object == null ? oldObject : object).metadata.?labels.orValue({})",
+            expression="'kustomize.toolkit.fluxcd.io/name' in (request.operation == 'DELETE' ? oldObject : object).metadata.?labels.orValue({})",
         ),
         dict(
             name="excluded-namespaces",
@@ -210,7 +210,7 @@ def main():
         ),
         dict(
             name="excluded-kinds",
-            expression="!((object == null ? oldObject : object).kind in ['Endpoints','EndpointSlice','PolicyReport','ClusterPolicyReport'])",
+            expression="!((request.operation == 'DELETE' ? oldObject : object).kind in ['Endpoints','EndpointSlice','PolicyReport','ClusterPolicyReport'])",
         ),
         dict(
             name="longhorn-controller",

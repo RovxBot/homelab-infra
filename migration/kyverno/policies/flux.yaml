@@ -39,11 +39,11 @@ spec:
       - '*'
   matchConditions:
   - name: has-flux-label
-    expression: '''kustomize.toolkit.fluxcd.io/name'' in (object == null ? oldObject : object).metadata.?labels.orValue({})'
+    expression: '''kustomize.toolkit.fluxcd.io/name'' in (request.operation == ''DELETE'' ? oldObject : object).metadata.?labels.orValue({})'
   - name: excluded-namespaces
     expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
   - name: excluded-kinds
-    expression: '!((object == null ? oldObject : object).kind in [''Endpoints'',''EndpointSlice'',''PolicyReport'',''ClusterPolicyReport''])'
+    expression: '!((request.operation == ''DELETE'' ? oldObject : object).kind in [''Endpoints'',''EndpointSlice'',''PolicyReport'',''ClusterPolicyReport''])'
   - name: longhorn-controller
     expression: '!(request.resource.group == ''longhorn.io'' && request.resource.version == ''v1beta2'' && request.resource.resource
       == ''backuptargets'' && request.namespace == ''longhorn-system'' && request.userInfo.username == ''system:serviceaccount:longhorn-system:longhorn-service-account'')'
