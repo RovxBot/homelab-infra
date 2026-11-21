@@ -1,0 +1,144 @@
+{
+  "status": "in_progress",
+  "qualification": {
+    "run": "https://github.com/RovxBot/homelab-infra/actions/runs/44894792843",
+    "commit": "3e42e03d8335a8f4ec9e8302778ede4386d77a38",
+    "four_mandatory_scenarios": "verified"
+  },
+  "target": {
+    "chart": "3.10.0",
+    "application": "1.20.0"
+  },
+  "current": {
+    "chart": "3.9.2",
+    "application": "1.19.2",
+    "legacy_generator": "retired",
+    "temporary_enrollment_freeze": "active"
+  },
+  "merged": [
+    {
+      "pr": 2159,
+      "phase": "preflight",
+      "commit": "332163d3baeda81bb9eb68c98ca9778e36ddb9c1"
+    },
+    {
+      "pr": 2160,
+      "phase": "implementation",
+      "commit": "940fa200434ecd4dd990dd1bbe8b90fdbc4dfef8"
+    },
+    {
+      "pr": 2165,
+      "phase": "exceptions",
+      "commit": "cb24ba27524964d262f054e749fe4100a49688bc"
+    },
+    {
+      "pr": 2166,
+      "phase": "00",
+      "commit": "27e280324674365ebec02b69a543792e5c6261d9"
+    },
+    {
+      "pr": 2167,
+      "phase": "01",
+      "commit": "da0e0f95fd7accf264981e6c721fd83277fdee28"
+    },
+    {
+      "pr": 2168,
+      "phase": "02a",
+      "commit": "18f9289ac22a14512926bd0a38f1955657fa21a6"
+    },
+    {
+      "pr": 2169,
+      "phase": "02b",
+      "commit": "a9d5ed695683e00441198f125790f2350699c954"
+    },
+    {
+      "pr": 2170,
+      "phase": "02c",
+      "commit": "10517d5c5d75b00a3c815d9cb71f4dcdb50b5621"
+    }
+  ],
+  "acceptance": {
+    "00": {
+      "checks": 65,
+      "status": "verified"
+    },
+    "01": {
+      "checks": 99,
+      "status": "verified"
+    },
+    "exceptions": {
+      "checks": 52,
+      "status": "verified",
+      "scope": "unchanged; Home Assistant unchanged"
+    },
+    "02a": {
+      "checks": 45,
+      "api_servers": 3,
+      "inventory": [
+        0,
+        0,
+        0
+      ],
+      "status": "verified"
+    },
+    "02b": {
+      "checks": 45,
+      "orphan_rules_observed": 3,
+      "inventory": [
+        0,
+        0,
+        0
+      ],
+      "status": "verified"
+    },
+    "02c": {
+      "checks": 87,
+      "generator_absent": true,
+      "inventory": [
+        0,
+        0,
+        0
+      ],
+      "status": "verified"
+    }
+  },
+  "reporting": {
+    "live_overlap_audit_sources": [
+      "kyverno",
+      "KyvernoValidatingPolicy"
+    ],
+    "same_resource_identity": "verified",
+    "scheduled_issue_sync": {
+      "completed_at": "2026-11-21T14:15:10Z",
+      "mode": "apply",
+      "created": 0,
+      "closed": 0
+    },
+    "cel_background_pass_observation": "awaiting normal production scan; no timing claim from the 20-second isolated scan interval"
+  },
+  "recovery": {
+    "fresh_private_policy_report_crd_flux_workload_inventories": "verified before generator retirement; checksums and restricted file permissions verified",
+    "restore_access": "Entra cluster administrator verified",
+    "qualified_chart_and_policy_rollback": "verified in isolated qualification; retain CEL/native enforcement and Flux defaults",
+    "update_requests_replayed": false,
+    "crds_deleted": false,
+    "stored_versions_manually_patched": false
+  },
+  "incident": {
+    "2133": "open; historical timeout cause unproven",
+    "2158": "unmerged and undeployed; current-version reassessment prepared during retries",
+    "legacy_timeout": "recurred during preparation and orphan update; bounded third retry succeeded without SAR condition"
+  },
+  "ci_gate_anomaly": {
+    "pr": 2170,
+    "description": "JSON-mode gh polling returned exit zero while a final check was pending; PR merged prematurely. All checks subsequently passed before explicit retirement reconciliation, and generator presence was confirmed before that reconciliation. No failed check was promoted.",
+    "correction": "Every later merge requires repo-checks pass and every returned bucket explicitly pass/skipping; pending is rejected."
+  },
+  "unchanged": {
+    "original_namespace_uids": 33,
+    "original_psa_labels": true,
+    "cilium_policy_enforcement_mode": "never",
+    "production_network_isolation_claim": false,
+    "kubescape_helmrelease_suspended": true
+  }
+}
