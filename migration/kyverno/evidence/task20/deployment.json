@@ -14,11 +14,13 @@
     "application": "1.19.2",
     "legacy_generator": "retired",
     "temporary_enrollment_freeze": "removed after permanent safeguards acceptance",
-    "last_verified_revision": "6163ccafdbcad617e00e752eaaa18206fbd84752",
+    "last_verified_revision": "308aa0a61574f9a06eaa1dabf5b71ec7524d7728",
     "permanent_safeguards": "active",
     "explicit_new_flux_namespaces": [
       "policy-check"
-    ]
+    ],
+    "legacy_policies_and_exceptions": "absent",
+    "cel_policies": 25
   },
   "merged": [
     {
@@ -70,6 +72,11 @@
       "pr": 2172,
       "phase": "02e",
       "commit": "6163ccafdbcad617e00e752eaaa18206fbd84752"
+    },
+    {
+      "pr": 2173,
+      "phase": "03",
+      "commit": "308aa0a61574f9a06eaa1dabf5b71ec7524d7728"
     }
   ],
   "acceptance": {
@@ -147,6 +154,15 @@
       "live_orphan_check": "verified",
       "orphan_negative_controls": 4,
       "native_default_write_delete_checks": 30
+    },
+    "03": {
+      "status": "verified",
+      "checks": 141,
+      "all_deprecated_instances": 0,
+      "both_generator_apis": 0,
+      "update_requests": 0,
+      "runner_ephemeral_pools": 2,
+      "live_namespace_orphans": 0
     }
   },
   "reporting": {
