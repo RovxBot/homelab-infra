@@ -439,16 +439,6 @@
       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+))?(?:-(?:alpha|beta|rc)(?<prerelease>\\d+))?$"
     },
     {
-      "description": "Keep Kyverno on the last legacy-policy-compatible chart until the CEL policy and PolicyException migration is complete.",
-      "matchManagers": [
-        "flux"
-      ],
-      "matchPackageNames": [
-        "kyverno"
-      ],
-      "allowedVersions": "<3.10.0"
-    },
-    {
       "description": "Only stable, coordinated Immich release tags are eligible; CI rejects mismatched server and machine-learning versions. Keep public Docker discovery enabled.",
       "matchDatasources": [
         "docker"

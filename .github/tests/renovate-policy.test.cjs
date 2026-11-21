@@ -274,7 +274,7 @@ test('custom Gitea extraction keeps the rootless tag and digest atomic; Terrafor
 
 test('versioning exceptions and compatibility caps survive classification', async () => {
   const kyverno = await effective(update('kyverno', 'infra/kyverno/helmrelease.yaml', 'minor', { manager: 'flux', datasource: 'helm' }));
-  assert.equal(kyverno.allowedVersions, '<3.10.0');
+  assert.equal(kyverno.allowedVersions, undefined);
   assert.equal(kyverno.automerge, false);
   assert.equal(kyverno.dependencyDashboardApproval, true);
   assert.equal(kyverno.groupName, 'kyverno');
