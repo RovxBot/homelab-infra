@@ -11,6 +11,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import yaml
+import copy
 
 ROOT=Path(__file__).resolve().parents[3]
 
@@ -81,6 +82,23 @@ class EmptyStateGateTests(unittest.TestCase):
 
 
 class ProposedReleaseTests(unittest.TestCase):
+    def test_release_selection_distinguishes_artifacts_from_drain_and_replicas(self):
+        spec=importlib.util.spec_from_file_location('release_change',ROOT/'scripts/ci/kyverno_release_change.py')
+        detector=importlib.util.module_from_spec(spec);spec.loader.exec_module(detector)
+        baseline=yaml.safe_load((ROOT/'infra/kyverno/helmrelease.yaml').read_text())
+        prepared=copy.deepcopy(baseline)
+        prepared['spec']['values']['admissionController']['container']['lifecycle']={'preStop':{'sleep':{'seconds':10}}}
+        prepared['spec']['values']['admissionController']['replicas']=3
+        self.assertEqual(detector.release_inputs(baseline),detector.release_inputs(prepared))
+        for key in ['tag','digest','registry','repository']:
+            changed=copy.deepcopy(prepared)
+            changed['spec']['values']['admissionController']['container']['image'][key]='changed'
+            self.assertNotEqual(detector.release_inputs(baseline),detector.release_inputs(changed),key)
+        changed=copy.deepcopy(baseline);changed['spec']['chart']['spec']['version']='3.10.0'
+        self.assertNotEqual(detector.release_inputs(baseline),detector.release_inputs(changed))
+        changed=copy.deepcopy(baseline);changed['spec']['values']['upgrade']={'acknowledgeLegacyPoliciesNotEnforced':True}
+        self.assertNotEqual(detector.release_inputs(baseline),detector.release_inputs(changed))
+
     def fixture(self,chart='3.11.2',version='1.21.4',signed=True):
         blob=io.BytesIO()
         with tarfile.open(fileobj=blob,mode='w:gz') as archive:
