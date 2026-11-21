@@ -22,6 +22,18 @@ def fetch(url):
         return response.read()
 
 
+def supported_kubernetes(version):
+    source='https://raw.githubusercontent.com/kyverno/website/main/src/content/docs/docs/installation/releases.md'
+    raw=fetch(source)
+    text=' '.join(raw.decode().replace('*','').replace('|',' ').split())
+    release=re.search(r'Supported Release:\s*v(\d+\.\d+)',text)
+    kube=re.search(r'Kubernetes Versions Supported:\s*v?1\.(\d+)\s*[-–—]\s*v?1\.(\d+)',text)
+    assert release and kube, 'Vendor support matrix unavailable or changed; review required'
+    assert release[1]=='.'.join(version.split('.')[:2]), 'Proposed release is not in the current vendor support matrix'
+    assert int(kube[1]) <= 34 <= int(kube[2]), 'The production/rehearsal Kubernetes 1.34 minor is unsupported'
+    return dict(source=source,document_sha256=hashlib.sha256(raw).hexdigest(),release=release[1],kubernetes_min_minor=int(kube[1]),kubernetes_max_minor=int(kube[2]),tested_minor=34)
+
+
 def resolve(chart, folder):
     if not re.fullmatch(r'\d+\.\d+\.\d+', chart):
         raise ValueError('An exact stable chart is required')
@@ -50,6 +62,7 @@ def resolve(chart, folder):
     # The immutable legacy baseline predates chart bundles. Every new chart
     # must supply a verified release bundle; absence never selects an older app.
     historical=chart=='3.9.2' and digest=='f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e'
+    support = None if historical else supported_kubernetes(version)
     if not historical:
         assert chart_name in assets and chart_name+'.sigstore.json' in assets, 'Signed chart release assets required'
         assert assets[chart_name]['digest']=='sha256:'+digest
@@ -71,7 +84,7 @@ def resolve(chart, folder):
     (folder/chart_name).write_bytes(blob)
     workflow='release.yaml' if historical else 'release-publish.yaml'
     result=dict(chart=chart,application=version,source_commit=source,chart_sha256=digest,
-                chart_signed=not historical, cli_sha256=assets[cli]['digest'].removeprefix('sha256:'),
+                chart_signed=not historical, kubernetes_support=support, cli_sha256=assets[cli]['digest'].removeprefix('sha256:'),
                 identity=f'https://github.com/kyverno/kyverno/.github/workflows/{workflow}@refs/tags/v{version}')
     (folder/'target.json').write_text(json.dumps(result,indent=2)+'\n')
     return result

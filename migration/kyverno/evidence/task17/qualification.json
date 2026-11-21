@@ -1,0 +1,100 @@
+{
+  "status": "failed",
+  "production_activation": "blocked",
+  "production_changes": false,
+  "source_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44882022959",
+  "tested_commit": "8dc63d5b12ebeb06a045cec61cda90a37887fe8f",
+  "empty_state_inventory": {
+    "status": "verified",
+    "namespace_count": 33,
+    "enabled_namespaces": 0,
+    "bootstrap_output_candidates": 0,
+    "update_requests": 0,
+    "resource_counts": {
+      "namespaces": 33,
+      "limitranges": 0,
+      "resourcequotas": 3,
+      "networkpolicies.networking.k8s.io": 25,
+      "updaterequests.kyverno.io": 0
+    },
+    "requirement": "all three counts must be zero; repeat under proven admission freeze",
+    "observed_at": "2026-11-21T08:17:35.193878+00:00",
+    "raw_sha256": {
+      "namespaces": "a99c0f66b7c8c40840859bcc98bb54e5b5e0602b60155732d10a2e33984f3756",
+      "limitranges": "7a779468a2dde976a9b896541df1e4ef805e813093bd5edb40ef1a6eea588edf",
+      "resourcequotas": "dab9a135c1bee43c7c295a43a1cb18906ee988effdf077eb8f379f8992275416",
+      "networkpolicies.networking.k8s.io": "9d62e8052c71ff86e098d28b2e676ec83b88bfa021c86e0affb06d49014bfa57",
+      "updaterequests.kyverno.io": "7a779468a2dde976a9b896541df1e4ef805e813093bd5edb40ef1a6eea588edf"
+    },
+    "read_only": true
+  },
+  "validation": {
+    "status": "verified",
+    "method": "unchanged contract/decision hashes verified; historical actual admission evidence reused",
+    "contract": "../validation-contract.json"
+  },
+  "mutation": {
+    "status": "verified",
+    "cases_per_engine": 42,
+    "engines": [
+      "1.19.2-legacy",
+      "1.19.2-cel",
+      "1.20.0-cel"
+    ],
+    "comparison": "full server-defaulted PodSpec and allowed result"
+  },
+  "generator": {
+    "status": "failed",
+    "empty_cutover_mechanics": "verified",
+    "fresh_1_19_restart": "failed",
+    "fresh_1_20_restart": "failed",
+    "adopted_upgrade_restart": "failed",
+    "fresh_1_19_upgraded_restart": "failed",
+    "outputs_after_failure": "all present; unchanged UIDs; quota pods remained 21",
+    "cause": "startup cache restoration captures live drifted state before watcher starts; source-supported explanation",
+    "full_trigger_deletion_lifecycle": "not run",
+    "rollback": "not run",
+    "targeted_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44883383400",
+    "targeted_commit": "bde3230fd9619bf08727231cd71bcad9b931beae",
+    "explicit_namespace_event": "verified to repair baseline drift; failure retained; not automatic restart recovery"
+  },
+  "reports": {
+    "status": "verified",
+    "regression_cases": 17,
+    "actual_report_fixtures": "from preserved admission-results.jsonl",
+    "live_rbac": "verified on 1.19.2 and 1.20.0: both report kinds readable; Secrets and both PolicyException APIs forbidden",
+    "closure": "fresh explicit same-finding pass only; identity changes/absence/skip/unknown cannot close incidents"
+  },
+  "activation": {
+    "status": "not run",
+    "patches": "verified sequential application and Kustomize renders in an isolated filesystem copy",
+    "live_flux_crd_storage_downgrade": "not run",
+    "mandatory_gates_retained": true
+  },
+  "renovate": {
+    "temporary_cap_retained": true,
+    "unpin_only_in_review_patch": "04-qualified-upgrade-and-renovate.patch",
+    "separate_high_risk": true,
+    "automerge": false
+  },
+  "remaining_decisions": [
+    "supported generator correction versus review of declarative Flux-owned defaults",
+    "five individual expired-exception owner decisions",
+    "review gated activation, durable backup and qualified rollback/storage sequence"
+  ],
+  "ci": {
+    "full_qualification": "failed; mandatory generator recovery fails",
+    "initial_trust_check": "corrected optional v prefix in CLI version assertion",
+    "release_metadata": "authenticated read-only API calls avoid unauthenticated quota exhaustion",
+    "bounded": true,
+    "local": {
+      "operational_tests": 248,
+      "ci_tests": 71,
+      "gitea_tests": 38,
+      "report_regressions": 17,
+      "renovate": "verified",
+      "actionlint": "verified",
+      "activation_patch_renders": "verified"
+    }
+  }
+}

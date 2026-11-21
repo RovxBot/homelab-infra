@@ -1,0 +1,302 @@
+[
+  {
+    "observed_at": 1795248730.1399646,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248734.4615755,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248738.673275,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248742.877147,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248747.092351,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248751.2974482,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248755.4977076,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248759.7106042,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248763.9170473,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248768.1158266,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248772.3236878,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248776.5265994,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248780.7439647,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248784.951141,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248789.1611123,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248793.3666778,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248797.5717347,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248801.7910957,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248805.9947069,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248810.2175386,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248814.447878,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248818.7069426,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248822.9194946,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248827.1476638,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248831.362574,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248835.7930558,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248840.012464,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248844.2314384,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248848.4447677,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248852.7318852,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248856.9524505,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248861.1896925,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248865.4127386,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248869.63027,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248873.8507438,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248878.0643775,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248882.2826447,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248886.4952,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248890.7028863,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248894.9112828,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248899.1159925,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248903.3145323,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248907.5223532,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248911.7313561,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248915.9513204,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248920.1583865,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248924.3668141,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248928.576916,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248932.7876499,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795248936.9985201,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  }
+]

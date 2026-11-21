@@ -31,9 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: ${{ fromJSON(inputs.scenarios || '["empty-upgraded", "fresh-target", "adopted", "mutation", "validation"]') }}
-    # Adoption is diagnostic; the selected production path requires emptiness.
-    continue-on-error: ${{ matrix.scenario == 'adopted' }}
+        scenario: ${{ fromJSON(inputs.scenarios || '["empty-upgraded", "fresh-target", "mutation", "validation"]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

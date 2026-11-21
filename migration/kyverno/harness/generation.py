@@ -460,4 +460,3 @@ def before_upgrade():
             if locks:
                 delete(locks)
     return state
-

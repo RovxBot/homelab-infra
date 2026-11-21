@@ -180,12 +180,10 @@
     "default_deny_limitation": "API object watch only; kindnet does not enforce NetworkPolicy traffic; no full-lifecycle default-deny guarantee"
   },
   "open_gates": [
-    "Generator restart/upgrade failure, complete cleanup/trigger lifecycle, empty-state race controls and rollback",
-    "Real NetworkPolicy dataplane continuity with an enforcing CNI",
-    "Remaining mutation implementation",
-    "Report-consumer identity migration and report coverage beyond representative probes",
-    "Platform owner review of five historical exception expiries",
-    "Reviewed production activation and legacy policy/exception retirement sequence"
+    "General CEL generator restart recovery and remaining trigger/deletion lifecycle",
+    "Selected empty-state rollback and storage/downgrade acceptance",
+    "Platform owner decisions on five historical exception expiries",
+    "Review and live acceptance of staged production activation"
   ],
   "decision_artifacts": {
     "admission-1.19.2-legacy.json": {
@@ -254,5 +252,10 @@
     "watch-generation-existing-limitranges.jsonl": "11de8bdb4ca7f0e244e2392156a2348f9c925b701f7cd307146f3307b8d7f8ee",
     "watch-generation-existing-networkpolicies.jsonl": "5adf3893f798672d96ae243e51bbe102c757386f622d7de2db4ff7e12a79e8af",
     "watch-generation-existing-resourcequotas.jsonl": "ea5d62044e56e88e113a1c6278a726828e8edd31b9a25e24acd5bea999a5a9b3"
+  },
+  "task17": {
+    "qualification": "task17/qualification.json",
+    "findings": "task17/findings.md",
+    "status": "failed; production activation blocked on general generator restart recovery"
   }
 }

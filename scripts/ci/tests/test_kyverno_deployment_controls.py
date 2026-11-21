@@ -50,7 +50,8 @@ class ProposedReleaseTests(unittest.TestCase):
         digest=hashlib.sha256(blob.getvalue()).hexdigest()
         cli=f'kyverno-cli_v{version}_linux_x86_64.tar.gz';chartname=f'kyverno-{chart}.tgz'
         assets=[dict(name=n,digest='sha256:'+digest) for n in [cli,cli+'.sigstore.json',chartname,*([chartname+'.sigstore.json'] if signed else [])]]
-        responses={'https://kyverno.github.io/kyverno/index.yaml':yaml.safe_dump(dict(entries=dict(kyverno=[dict(version=chart,appVersion='v'+version,digest=digest,urls=[chartname])]))).encode(),
+        responses={'https://raw.githubusercontent.com/kyverno/website/main/src/content/docs/docs/installation/releases.md':f'| **Supported Release:** | v{version.rsplit(".",1)[0]} |\n| **Kubernetes Versions Supported:** | v1.34 - v1.37 |'.encode(),
+                   'https://kyverno.github.io/kyverno/index.yaml':yaml.safe_dump(dict(entries=dict(kyverno=[dict(version=chart,appVersion='v'+version,digest=digest,urls=[chartname])]))).encode(),
                    'https://kyverno.github.io/kyverno/'+chartname:blob.getvalue(),
                    f'https://api.github.com/repos/kyverno/kyverno/releases/tags/v{version}':json.dumps(dict(draft=False,prerelease=False,assets=assets)).encode(),
                    f'https://api.github.com/repos/kyverno/kyverno/commits/v{version}':json.dumps(dict(sha='a'*40)).encode()}
@@ -73,6 +74,12 @@ class ProposedReleaseTests(unittest.TestCase):
         resolver=module('resolve');responses=self.fixture(version='2.0.0')
         with tempfile.TemporaryDirectory() as tmp,patch.object(resolver,'fetch',side_effect=lambda url:responses[url]):
             with self.assertRaisesRegex(AssertionError,'major change'):resolver.resolve('3.11.2',Path(tmp))
+
+    def test_unsupported_kubernetes_fails_before_qualification(self):
+        resolver=module('resolve');responses=self.fixture()
+        responses['https://raw.githubusercontent.com/kyverno/website/main/src/content/docs/docs/installation/releases.md']=responses['https://raw.githubusercontent.com/kyverno/website/main/src/content/docs/docs/installation/releases.md'].replace(b'v1.34',b'v1.35')
+        with tempfile.TemporaryDirectory() as tmp,patch.object(resolver,'fetch',side_effect=lambda url:responses[url]):
+            with self.assertRaisesRegex(AssertionError,'unsupported'):resolver.resolve('3.11.2',Path(tmp))
 
     def test_unknown_or_prerelease_chart_cannot_select_older_artifacts(self):
         resolver=module('resolve')

@@ -1,0 +1,93 @@
+[
+  {
+    "name": "install",
+    "status": "verified",
+    "version": "1.20.0",
+    "chart": "3.10.0",
+    "chart_sha256": "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301",
+    "images": [
+      {
+        "pod": "kyverno-admission-controller-cb467b466-tmtn4",
+        "images": [
+          "ghcr.io/kyverno/kyvernopre:v1.20.0@sha256:339067e083430e0c97007541bef9cfdbac89bee13f7228772c77ae8aead14b8b",
+          "ghcr.io/kyverno/kyverno:v1.20.0@sha256:9de49c5416ea536f00a205527197ac048abdf32c5a75d633cd9afff8928f359d"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/kyverno@sha256:9de49c5416ea536f00a205527197ac048abdf32c5a75d633cd9afff8928f359d"
+        ]
+      },
+      {
+        "pod": "kyverno-background-controller-5c5f585978-vqp4b",
+        "images": [
+          "ghcr.io/kyverno/background-controller:v1.20.0@sha256:c72df38320a48fc9de10f9d23d087a117853bb08207b7f60f6d1e8457fb3ddb7"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/background-controller@sha256:c72df38320a48fc9de10f9d23d087a117853bb08207b7f60f6d1e8457fb3ddb7"
+        ]
+      },
+      {
+        "pod": "kyverno-cleanup-controller-6944cfd74-v98sw",
+        "images": [
+          "ghcr.io/kyverno/cleanup-controller:v1.20.0@sha256:0f9ce0c203561c52499e871a987ff987371f57385fcafe7af1a01dfd6db1feee"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/cleanup-controller@sha256:0f9ce0c203561c52499e871a987ff987371f57385fcafe7af1a01dfd6db1feee"
+        ]
+      },
+      {
+        "pod": "kyverno-reports-controller-5957c48896-pgmpk",
+        "images": [
+          "ghcr.io/kyverno/reports-controller:v1.20.0@sha256:f54e3cc106fadb1a615d0ec11c42f741f51d3580a5f70dfbe7bd7ec58864ef03"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/reports-controller@sha256:f54e3cc106fadb1a615d0ec11c42f741f51d3580a5f70dfbe7bd7ec58864ef03"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "flux-stage",
+    "status": "verified",
+    "stage": "fresh-target-cel",
+    "revision": "a279d8c95c05f6b11a8fe87f4b5d3059c2e7d081",
+    "inventory": {
+      "entries": [
+        {
+          "id": "_platform-namespace-bootstrap_policies.kyverno.io_GeneratingPolicy",
+          "v": "v1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "traffic-positive-controls",
+    "status": "verified",
+    "namespace": "generation-fresh-target",
+    "cni": "Calico v3.31.0"
+  },
+  {
+    "name": "scenario",
+    "status": "failed",
+    "scenario": "fresh-target",
+    "error": "fresh-target quota reconciliation: deadline exceeded; last=False"
+  },
+  {
+    "name": "traffic-upgrade-restart",
+    "status": "verified",
+    "namespace": "generation-fresh-target",
+    "samples": 20,
+    "scope": "sampled TCP ingress/egress denial with a working positive control, across upgrade/restart"
+  },
+  {
+    "name": "diagnostic-watches",
+    "status": "verified",
+    "namespace": "generation-fresh-target",
+    "early_exits": [],
+    "scope": "API events only; traffic probes separately establish CNI enforcement"
+  },
+  {
+    "name": "rehearsal",
+    "status": "failed",
+    "error": "Qualification failed; inspect complete snapshots and watches"
+  }
+]
