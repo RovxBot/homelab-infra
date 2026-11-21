@@ -4,7 +4,7 @@ metadata:
   name: kubescape
   namespace: kubescape
 spec:
-  # Qualified posture-only activation; recurring scans remain suspended below.
+  # Qualified posture and manual image assessment; recurring scans remain suspended below.
   suspend: false
   interval: 30m
   releaseName: kubescape
@@ -31,6 +31,38 @@ spec:
   postRenderers:
     - kustomize:
         patches:
+          # Chart has no manual-only switch: only operator mounts this data.
+          # Provision Kubevuln but disable its automatic event/command routing.
+          - target:
+              version: v1
+              kind: ConfigMap
+              name: ks-capabilities
+              namespace: kubescape
+            patch: |-
+              - op: replace
+                path: /data/capabilities
+                value: >-
+                  {"capabilities":{"admissionController":"disable","agentRuntimePosture":"disable","autoUpgrading":"disable","configurationScan":"enable","continuousScan":"disable","httpDetection":"disable","kubescapeOffline":"enable","malwareDetection":"disable","manageWorkloads":"disable","networkEventsStreaming":"disable","networkPolicyService":"disable","nodeProfileService":"disable","nodeSbomGeneration":"disable","nodeScan":"disable","operator":"enable","prometheusExporter":"disable","relevancy":"disable","remediation":"disable","riskAcceptance":"disable","runtimeDetection":"disable","runtimeObservability":"disable","sandboxSeccomp":"disable","scanEmbeddedSBOMs":"disable","seccompProfileBackend":"storage","seccompProfileService":"disable","syncSBOM":"disable","testing":{"nodeAgentMultiplication":{"enabled":false,"replicas":5}},"vexGeneration":"disable","vulnerabilityScan":"enable"},"effectiveCapabilities":{"configurationScan":"enable","httpDetection":"disable","malwareDetection":"disable","networkEventsStreaming":"disable","nodeProfileService":"disable","nodeScan":"disable","vulnerabilityScan":"enable"},"capabilityWarnings":[],"components":{"autoUpdater":{"enabled":false},"cloudSecret":{"create":true,"name":"cloud-secret"},"customCaCertificates":{"name":"custom-ca-certificates"},"kubescape":{"enabled":true},"kubescapeScheduler":{"enabled":true},"kubevuln":{"enabled":false},"kubevulnScheduler":{"enabled":false},"nodeAgent":{"enabled":false},"operator":{"enabled":true},"prometheusExporter":{"enabled":false},"sbomScanner":{"enabled":false},"serviceDiscovery":{"enabled":false},"storage":{"enabled":true},"synchronizer":{"enabled":false}},"configurations":{"excludeJsonPaths":null,"otelUrl":null,"persistence":"enable","priorityClass":{"daemonset":100000100,"enabled":false},"prometheusAnnotations":"disable"},"serviceScanConfig":{"enabled":false,"interval":"1h"}}
+          - target:
+              group: batch
+              version: v1
+              kind: CronJob
+              name: kubevuln-scheduler
+              namespace: kubescape
+            patch: |-
+              - op: add
+                path: /spec/suspend
+                value: true
+          # Retain findings and DB cache on any future chart removal/rollback.
+          - target:
+              version: v1
+              kind: PersistentVolumeClaim
+              name: kubescape-(storage|kubevuln)
+              namespace: kubescape
+            patch: |-
+              - op: add
+                path: /metadata/annotations/helm.sh~1resource-policy
+                value: keep
           # Certificate initialization only patches this release's APIService.
           - target:
               group: rbac.authorization.k8s.io
@@ -109,7 +141,7 @@ spec:
       nodeScan: disable
       nodeSbomGeneration: disable
       scanEmbeddedSBOMs: disable
-      vulnerabilityScan: disable
+      vulnerabilityScan: enable
       relevancy: disable
       vexGeneration: disable
       runtimeObservability: disable
@@ -173,13 +205,39 @@ spec:
         enabled: false
       gVisorStart:
         enabled: false
+    # Immutable local mirror; verify DB build age before every manual assessment.
     grypeOfflineDB:
-      enabled: false
+      enabled: true
+      image:
+        tag: ""
+        sha: sha256:9dd3b2eb49d80612866cfb13f7da0038fe9e3d4108784881de9a7b554a29815a
+        pullPolicy: IfNotPresent
     kubevuln:
+      image:
+        repository: quay.io/kubescape/kubevuln
+        tag: v0.3.578@sha256:925ced171a8d262e95ea72c04b0ebfec43d9128dbe4d875e783b80df56e54416
+      resources:
+        requests:
+          cpu: 300m
+          memory: 1Gi
+          ephemeral-storage: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 3Gi
+          ephemeral-storage: 3Gi
+      env:
+        - name: CA_MAX_VULN_SCAN_ROUTINES
+          value: "1"
+        - name: MAXQUEUEDEPTH
+          value: "1"
       sbomScanner:
         enabled: false
       config:
-        grypeDbPersistence: false
+        grypeDbPersistence: true
+        maxImageSize: 536870912
+        maxSBOMSize: 20971520
+        scanTimeout: 5m
+        cveMatchingMode: "off"
       tmpDirPersistence:
         enabled: false
     kubescape:
@@ -237,6 +295,14 @@ spec:
       image:
         repository: quay.io/kubescape/kubescape-ops-tool
         tag: 0.2.0-r1@sha256:2f1d8c9a76f05049f73ebefa292d4b65ce3ef3811317c4cc023b4df792a592e4
+    kubevulnScheduler:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
     kubescapeScheduler:
       resources:
         requests:
@@ -259,3 +325,4 @@ spec:
       accessMode: ReadWriteOnce
       size:
         backingStorage: 5Gi
+        kubevuln: 10Gi

@@ -162,10 +162,36 @@ class StagedReleaseTests(unittest.TestCase):
 
     def test_scheduler_has_explicit_flux_postrender_suspension(self):
         renderer, = self.release["spec"]["postRenderers"]
-        patch, = [p for p in renderer["kustomize"]["patches"] if p["target"]["kind"] == "CronJob"]
-        self.assertEqual(patch["target"]["kind"], "CronJob")
-        self.assertEqual(patch["target"]["name"], "kubescape-scheduler")
-        self.assertEqual(yaml.safe_load(patch["patch"]), [{"op": "add", "path": "/spec/suspend", "value": True}])
+        patches = [p for p in renderer["kustomize"]["patches"] if p["target"]["kind"] == "CronJob"]
+        self.assertEqual({p["target"]["name"] for p in patches}, {"kubescape-scheduler", "kubevuln-scheduler"})
+        for patch in patches:
+            self.assertEqual(yaml.safe_load(patch["patch"]), [{"op": "add", "path": "/spec/suspend", "value": True}])
+
+    def test_manual_image_routing_disables_operator_watchers(self):
+        renderer, = self.release["spec"]["postRenderers"]
+        patch, = [p for p in renderer["kustomize"]["patches"]
+                  if p["target"]["kind"] == "ConfigMap"]
+        self.assertEqual(patch["target"]["name"], "ks-capabilities")
+        data = json.loads(yaml.safe_load(patch["patch"])[0]["value"])
+        for key in ("kubevuln", "kubevulnScheduler", "nodeAgent", "sbomScanner", "synchronizer"):
+            self.assertIs(data["components"][key]["enabled"], False)
+        self.assertIs(data["components"]["kubescape"]["enabled"], True)
+
+    def test_database_and_scan_bounds_are_required(self):
+        for path, value in [(("grypeOfflineDB", "image", "tag"), "v6-latest"),
+                            (("grypeOfflineDB", "image", "sha"), ""),
+                            (("kubevuln", "sbomScanner", "enabled"), True),
+                            (("kubevuln", "config", "grypeDbPersistence"), False),
+                            (("kubevuln", "config", "maxImageSize"), 5368709120),
+                            (("persistence", "size", "kubevuln"), "5Gi")]:
+            with self.subTest(path=path):
+                changed = copy.deepcopy(self.release)
+                target = changed["spec"]["values"]
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = value
+                with self.assertRaises(AssertionError):
+                    CHECK.check_release(changed)
 
     def test_scope_guard_still_applies_to_kubescape_infrastructure(self):
         self.assertTrue(CHECK.scope_guard_required(["infra/kubescape/helmrelease.yaml", "infra/kyverno/helmrelease.yaml"]))
@@ -186,13 +212,45 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertEqual(inventory["admissionBlockers"], [])
         self.assertEqual(inventory["certificateInitBudgets"], {
             name: CHECK.CERTGEN_BUDGET for name in CHECK.CERTGEN_NAMES})
-        self.assertEqual(sum(inventory["counts"].values()), 47)
-        self.assertEqual(inventory["counts"]["Deployment"], 3)
+        self.assertEqual(sum(inventory["counts"].values()), 61)
+        self.assertEqual(inventory["counts"]["Deployment"], 5)
         self.assertEqual(inventory["counts"]["APIService"], 1)
         self.assertNotIn("DaemonSet", inventory["counts"])
 
 
 class PostRenderTests(unittest.TestCase):
+    def test_image_routing_schedulers_and_data_retention_are_exact(self):
+        raw = [certgen_workload(), scheduler_workload(),
+               {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole",
+                "metadata": {"name": "storage-certgen-kubescape"},
+                "rules": [{"apiGroups": ["apiregistration.k8s.io"], "resources": ["apiservices"],
+                           "verbs": ["get", "patch"]}]}]
+        vulnerability_job = scheduler_workload()
+        vulnerability_job["metadata"]["name"] = "kubevuln-scheduler"
+        raw.append(vulnerability_job)
+        raw.append({"apiVersion": "v1", "kind": "ConfigMap", "metadata": {
+            "name": "ks-capabilities", "namespace": "kubescape"}, "data": {
+                "capabilities": json.dumps({"components": {
+                    "kubevuln": {"enabled": True}, "kubevulnScheduler": {"enabled": True}}})}})
+        for name in ("kubescape-storage", "kubescape-kubevuln"):
+            raw.append({"apiVersion": "v1", "kind": "PersistentVolumeClaim", "metadata": {
+                "name": name, "namespace": "kubescape"}, "spec": {"storageClassName": "longhorn"}})
+        rendered = corrected_resources(raw)
+        caps = next(r["data"] for r in rendered if r["kind"] == "ConfigMap")
+        caps["capabilities"] = json.dumps({"components": {
+            "kubevuln": {"enabled": False}, "kubevulnScheduler": {"enabled": False}}}, separators=(",", ":"))
+        for pvc in (r for r in rendered if r["kind"] == "PersistentVolumeClaim"):
+            pvc["metadata"]["annotations"] = {"helm.sh/resource-policy": "keep"}
+        CHECK.check_post_render(raw, rendered)
+        for index in range(len(rendered)):
+            if rendered[index]["kind"] not in {"ConfigMap", "CronJob", "PersistentVolumeClaim"}:
+                continue
+            changed = copy.deepcopy(rendered)
+            changed[index] = copy.deepcopy(raw[index])
+            with self.subTest(resource=raw[index]["metadata"]["name"]):
+                with self.assertRaises(AssertionError):
+                    CHECK.check_post_render(raw, changed)
+
     def setUp(self):
         self.raw = [certgen_workload(), scheduler_workload(),
                     {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole",
@@ -337,13 +395,13 @@ class FailClosedPreflightTests(unittest.TestCase):
 
     def test_admission_rejects_failures_errors_skips_and_empty_evaluations(self):
         passing = {"apiVersion": "openreports.io/v1alpha1", "summary": {
-            "pass": 27, "fail": 0, "error": 0, "skip": 0, "warn": 0},
+            "pass": 46, "fail": 0, "error": 0, "skip": 0, "warn": 0},
             "results": [{"policy": "platform-pod-standards", "rule": "require-requests-and-limits",
-                         "result": "pass", "resources": [{"kind": "Deployment", "name": "storage"}]}] * 27}
+                         "result": "pass", "resources": [{"kind": "Deployment", "name": "storage"}]}] * 46}
         invalid = []
         for result in ("fail", "error", "skip", "warn"):
             report = copy.deepcopy(passing)
-            report["summary"].update({"pass": 26, result: 1})
+            report["summary"].update({"pass": 45, result: 1})
             report["results"][0]["result"] = result
             invalid.append((report, int(result in {"fail", "error"})))
         empty = copy.deepcopy(passing)
@@ -360,7 +418,7 @@ class FailClosedPreflightTests(unittest.TestCase):
                             CHECK.check_admission(SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.19.2"), Path(directory), [])
 
     def test_cel_admission_requires_its_complete_report(self):
-        for count in [27, 28]:
+        for count in [28, 47, 48]:
             report = {"apiVersion": "openreports.io/v1alpha1", "summary": {
                 "pass": count, "fail": 0, "error": 0, "skip": 0, "warn": 0},
                 "results": [{"policy": "platform-pod-standards-require-owner-label", "rule": "validation",
@@ -370,7 +428,7 @@ class FailClosedPreflightTests(unittest.TestCase):
                  mock.patch.object(CHECK.subprocess, "check_output", return_value="Version: v1.20.0\n"), \
                  mock.patch.object(CHECK.subprocess, "run", return_value=evaluated):
                 args = SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.20.0")
-                if count == 28:
+                if count == 48:
                     CHECK.check_admission(args, Path(directory), [])
                 else:
                     with self.assertRaises(AssertionError):
