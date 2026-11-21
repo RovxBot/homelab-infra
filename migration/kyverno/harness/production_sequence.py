@@ -1,7 +1,9 @@
 """Overlap -> observed legacy prune -> Flux Helm upgrade -> compatible rollback."""
+import base64
 import json
 import threading
 import time
+import yaml
 from rehearse import ROOT, WORK, EVIDENCE, apply, get, install, k, load, namespace, ready, record, run, smoke, wait
 
 
@@ -83,6 +85,53 @@ def storage(stage):
     return rows
 
 
+def stored_policy(stage):
+    # Read one public policy fixture from THIS disposable kind etcd only. Do not
+    # export keys, credentials or unrelated objects. This proves encoding rather
+    # than inferring migration from a CRD status field.
+    key='/registry/policies.kyverno.io/validatingpolicies/platform-flux-guardrails'
+    result=json.loads(k('exec','-n','kube-system','etcd-kyverno-cel-rehearsal-control-plane','--',
+        'etcdctl','--endpoints=https://127.0.0.1:2379','--cacert=/etc/kubernetes/pki/etcd/ca.crt',
+        '--cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt','--key=/etc/kubernetes/pki/etcd/healthcheck-client.key',
+        'get',key,'--write-out=json').stdout)
+    assert result.get('count')==1,result.get('count')
+    obj=json.loads(base64.b64decode(result['kvs'][0]['value']))
+    record('actual-etcd-storage',status='verified',stage=stage,apiVersion=obj['apiVersion'],uid=obj['metadata']['uid'])
+    return obj['apiVersion']
+
+
+def seed_storage_history():
+    before=stored_policy('baseline')
+    crd=get('crd','validatingpolicies.policies.kyverno.io')
+    assert any(v['name']=='v1' and v['served'] for v in crd['spec']['versions'])
+    assert before!='policies.kyverno.io/v1'
+    for version in crd['spec']['versions']:version['storage']=version['name']=='v1'
+    crd.pop('status',None)
+    apply(crd)
+    k('annotate','validatingpolicy','platform-flux-guardrails','--overwrite','rehearsal.cooked.beer/storage-seed=v1')
+    wait('historical storage fixture is actually encoded v1',lambda:stored_policy('seed')=='policies.kyverno.io/v1')
+    record('storage-history-fixture',status='verified',method='isolated CRD spec.storage change and real API write; never a manual storedVersions status patch')
+
+
+def check_chart_storage(version,rows):
+    target=json.loads((WORK/'trust/target.json').read_text())
+    chart=WORK/('trust/kyverno-'+target['chart']+'.tgz') if version==target['application'] else WORK/'kyverno-3.9.2.tgz'
+    rendered=run(['helm','template','kyverno',str(chart),'--include-crds','--namespace','kyverno']).stdout
+    expected={d['metadata']['name']:d for d in yaml.safe_load_all(rendered) if isinstance(d,dict) and d.get('kind')=='CustomResourceDefinition' and d['spec']['group']=='policies.kyverno.io'}
+    versions={}
+    for row in rows:
+        if row['name'] not in expected:continue
+        spec=expected[row['name']]['spec']
+        desired={v['name']:(v['served'],v['storage']) for v in spec['versions']}
+        actual={v['name']:(v['served'],v['storage']) for v in row['versions']}
+        storage_version=next(name for name,flags in desired.items() if flags[1])
+        assert actual==desired and row['storedVersions']==[storage_version],row
+        versions[row['name']]=storage_version
+    assert versions.keys()==expected.keys()
+    record('chart-storage-contract',status='verified',version=version,storage_versions=versions)
+    return versions
+
+
 def hooks(version):
     release=json.loads(run(['helm','status','kyverno','-n','kyverno','--kube-context','kind-kyverno-cel-rehearsal','-o','json']).stdout)
     rows=[dict(name=h['name'],events=h.get('events'),last_run=h.get('last_run')) for h in release.get('hooks',[])]
@@ -153,6 +202,7 @@ def during(flux, guards):
     install('1.19.2',via_flux=True)
     flux_release_evidence('1.19.2')
     mutation_probe('overlap');report_probe('overlap')
+    seed_storage_history()
     before=storage('before-upgrade')
     with RunnerContinuity() as runner:
         wait('continuous runner positive/negative probes',lambda:len(runner.samples)>=2)
@@ -165,13 +215,16 @@ def during(flux, guards):
         version=os.environ['KYVERNO_TARGET_VERSION']
         install(version,via_flux=True);flux_release_evidence(version);hooks(version)
         after=storage('after-upgrade')
-        assert all(r['storedVersions']==['v1'] for r in after if r['name'].endswith('.policies.kyverno.io'))
+        target_storage=check_chart_storage(version,after)
+        assert stored_policy('after-upgrade')=='policies.kyverno.io/'+target_storage['validatingpolicies.policies.kyverno.io']
         retained=lambda rows:{r['name']:(r['uid'],next(iter(r['objects'].values()),[])) for r in rows if r['name'].endswith('.policies.kyverno.io')}
         assert retained(before)==retained(after),'CRD/object identities changed across migration'
         check_policies(cel);mutation_probe('upgraded');report_access(version);report_probe('upgraded');runner.checkpoint('upgraded')
         # Downgrade only after retained schemas can serve every stored version.
         install('1.19.2',via_flux=True);flux_release_evidence('1.19.2');hooks('1.19.2')
         rollback=storage('after-supported-downgrade')
+        rollback_storage=check_chart_storage('1.19.2',rollback)
+        assert stored_policy('after-downgrade')=='policies.kyverno.io/'+rollback_storage['validatingpolicies.policies.kyverno.io']
         assert retained(after)==retained(rollback)
         check_policies(cel);mutation_probe('rollback');report_probe('rollback');runner.checkpoint('rollback')
         # Keep CEL and native enforcement while restoring the reviewed legacy
@@ -179,4 +232,4 @@ def during(flux, guards):
         # Flux namespaces exist.
         flux.commit([*guards,*legacy,*cel],'supported-policy-rollback-with-flux-defaults')
         check_policies([*legacy,*cel]);runner.checkpoint('legacy-restored')
-        record('storage-upgrade-and-rollback',status='verified',stored_v1=True,identities_preserved=True,original_legacy_check=True,cel_enforcement_retained=True,generator_restored=False)
+        record('storage-upgrade-and-rollback',status='verified',storage_matches_verified_chart=True,actual_encoding_rewrite_verified=True,identities_preserved=True,original_legacy_check=True,cel_enforcement_retained=True,generator_restored=False)
