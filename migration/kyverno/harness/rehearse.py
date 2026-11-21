@@ -100,6 +100,7 @@ def ready(p):
     def check():
         obj = get(p["kind"], p["metadata"]["name"], p["metadata"].get("namespace", ""))
         status = obj.get("status", {})
+        status = status.get("conditionStatus", status)
         (
             EVIDENCE
             / ("policy-status-" + p["kind"] + "-" + p["metadata"]["name"] + ".json")
