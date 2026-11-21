@@ -1,0 +1,14 @@
+{
+  "status": "verified",
+  "namespace": "policy-check",
+  "existing_namespaces_enrolled": 0,
+  "complete_owned_resources": 4,
+  "consumer": "Ready",
+  "revision": "main@sha1:6163ccafdbcad617e00e752eaaa18206fbd84752",
+  "orphan_negative_controls": {
+    "missing-owner": "detected without changing the cluster",
+    "missing-inventory": "detected without changing the cluster",
+    "suspended-owner": "detected without changing the cluster",
+    "missing-quota": "detected without changing the cluster"
+  }
+}
