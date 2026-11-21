@@ -13,3 +13,4 @@ resources:
 - ../../migration/kyverno/policies/reporting-rbac.yaml
 - ../../migration/kyverno/exceptions/exceptions.yaml
 - ../../migration/kyverno/activation/freeze.yaml
+- ../namespace-defaults/admission.yaml
