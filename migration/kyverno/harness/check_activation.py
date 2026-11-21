@@ -36,6 +36,7 @@ def main():
                 render_kustomization(folder,path)
             hr=yaml.safe_load((folder/'infra/kyverno/helmrelease.yaml').read_text())
             assert not hr['spec']['values']['backgroundController'].get('rbac'),'New generator write RBAC is forbidden'
+            assert hr['spec']['values']['admissionController']['container']['lifecycle']['preStop']=={'sleep':{'seconds':10}}
             assert not any(d['kind'] in ['GeneratingPolicy','NamespacedGeneratingPolicy'] for d in docs),'Abandoned generator activation is forbidden'
             legacy=[d for d in docs if d['apiVersion'].startswith('kyverno.io/')]
             frozen=any(d['metadata']['name']=='freeze-namespace-bootstrap' for d in docs)

@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -20,6 +21,16 @@ def module(name):
 
 
 class EmptyStateGateTests(unittest.TestCase):
+    def test_unavailable_runner_probe_cannot_qualify_continuity(self):
+        sys.path.insert(0,str(ROOT/'migration/kyverno/harness'))
+        continuity=module('production_sequence')
+        with tempfile.TemporaryDirectory() as tmp,patch.object(continuity,'EVIDENCE',Path(tmp)),patch.object(continuity,'run',side_effect=subprocess.TimeoutExpired('probe',120)):
+            monitor=continuity.RunnerContinuity()
+            with self.assertRaises(AssertionError):
+                with monitor:
+                    monitor.thread.join(timeout=2)
+            self.assertEqual(monitor.samples[0]['collection'],'unavailable')
+
     def test_nonempty_inventory_always_stops(self):
         inventory=module('inventory')
         empty={kind:{'items':[]} for kind in ['namespaces',*inventory.OUTPUTS,'updaterequests.kyverno.io']}

@@ -38,7 +38,7 @@ copy. Rendering is separate from the real Flux/Helm lifecycle evidence.
 
 | Production PR / patch | Change | Required acceptance before proceeding |
 | --- | --- | --- |
-| `00-protect-runner-namespaces` | Add prune protection before moving the three runner Namespace declarations. | Observe current app revision and all three Namespace UIDs/prune annotations. |
+| `00-protect-runner-namespaces-and-admission-drain` | Add prune protection before moving runner Namespaces; configure the chart-supported admission preStop sleep of 10 seconds for endpoint drain. | Observe app/Helm revisions, all three Namespace UIDs/prune annotations and two ready admission replicas with the drain hook. Accept the initial preparation rollout before continuous upgrade probes. |
 | `01-overlap-cel-and-reporting` | Move runner Namespaces to infrastructure, preserving labels/UIDs; add CEL validations, all six exceptions, native exception accountability, 15 namespaced runner policies, Longhorn mutation and reporting/RBAC alongside legacy enforcement. | Infrastructure/policies/apps Ready at expected revisions and unchanged Namespace UIDs. Real positive/negative runner and ephemeral-container tests in both pools; exception metadata/accountability; Longhorn mutation; representative Enforce/Audit/report inputs. Approved exception decisions applied and retested. No new generator RBAC. |
 | `02a-freeze` | Activate native fail-closed bootstrap enrollment freeze. | CREATE and UPDATE adding enrollment must be denied; unrelated Namespace operations allowed. Inspect type-check warnings/binding and prove cache propagation through **every serving API server**. Collect a fresh complete inventory under the proven freeze; stop on any enrolled Namespace, matching output candidate or UR, including completed URs. |
 | `02b-orphan-legacy-before-retirement` | Set orphanDownstreamOnPolicyDelete=true on all three legacy rules. | Observe the live rule settings and applied Flux revision, then repeat complete zero inventory. Do not strip labels, adopt or delete outputs to force zero. |
@@ -46,7 +46,14 @@ copy. Rendering is separate from the real Flux/Helm lifecycle evidence.
 | `02d-qualify-flux-onboarding-contract` | Add reviewed native enrollment/default guards while freeze stays active. No replacement generator. | Native policies/bindings ready with no type warnings; CI complete-bundle/dependency checks accepted; Flux controller identity/inventory label assumptions reviewed; isolated lifecycle/restart/rollback evidence accepted. Freeze still denies enrollment. |
 | `02e-thaw` | Remove only the temporary freeze after the new contract is qualified. | Label-only CREATE/UPDATE still denied by permanent guards. First explicitly approved bundle reconciles four exact, Flux-owned objects; dependent workloads remain held until success. No existing namespace is enrolled automatically. |
 | `03-retire-legacy-after-acceptance` | Prune old validation/mutation/governance/exceptions and both old runner policies only after every CEL replacement is live accepted. | CEL/native security and runner probes remain continuously valid. All legacy ClusterPolicy, Policy, CleanupPolicy, ClusterCleanupPolicy and PolicyException lists empty; URs empty. Observe separate policy and app Flux revisions, archive report history. |
-| `04-qualified-upgrade-and-renovate` | Upgrade chart 3.10.0/app 1.20.0 with CreateReplace, original legacy-policy check enabled, acknowledgement=false, ghcr.io hook; remove temporary Renovate cap. | Legacy pruning already observed before Helm reconciliation. Exact artifact pair/signatures/provenance accepted; chart safety/migration hooks succeeded; storedVersions and served APIs verified with retained object UIDs; two admission replicas, other controllers/webhooks and Flux healthy; admission/mutation/report/runner probes pass. |
+| `04-qualified-upgrade-and-renovate` | Upgrade chart 3.10.0/app 1.20.0 with CreateReplace, original legacy-policy check enabled, acknowledgement=false, ghcr.io hook; remove temporary Renovate cap. | Legacy pruning already observed before Helm reconciliation. Exact artifact pair/signatures/provenance accepted; chart safety/migration hooks succeeded; storedVersions match the verified chart and served APIs are verified with retained object UIDs; two admission replicas, other controllers/webhooks and Flux healthy; admission/mutation/report/runner probes pass. |
+
+The preparation drain keeps the admission listener alive during endpoint removal.
+It uses Kubernetes native sleep, with no shell/sidecar and unchanged webhook
+timeouts/failurePolicy. Continuous positive and negative runner probes must pass
+through upgrade and supported downgrade; a connection refusal is a failed gate.
+See [Kubernetes lifecycle hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/)
+and the pinned charts' admissionController.container.lifecycle field.
 
 Do not combine phase 03 and phase 04: infrastructure Helm reconciliation occurs
 before the downstream policy prune and the original hook must refuse an unsafe
@@ -76,6 +83,13 @@ Rollback is conditional:
   qualified prior chart. Validate stored/served versions and read/write/admission
   compatibility before restoring legacy validators on 1.19.2. Do not restore the
   generator when Flux namespaces exist. A Git revert alone is not recovery.
+
+The signed chart 3.10.0 artifact currently declares CEL storage v1beta1 while
+serving v1; do not infer v1 storage from the application release announcement.
+The rehearsal checks the actual chart schema, seeds real isolated historical v1
+storage via CRD spec and an API write, and verifies the hook rewrites etcd objects
+to the declared target version. This fixture never patches storedVersions status
+manually and is never part of the production patch sequence.
 
 CRD compatibility is a release gate. Capture CRD UIDs, all served/storage versions
 and retained policy/exception UIDs before upgrade, after the migration hook and

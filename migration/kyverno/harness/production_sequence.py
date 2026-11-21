@@ -45,10 +45,15 @@ class RunnerContinuity:
         def probe():
             while not self.stop.is_set():
                 for pool in ['core','wowdecomp']:
-                    p=run(['python3',str(ROOT/'ops/gitea/check-job-policy.py'),'--server','--pool',pool],check=False,timeout=120)
-                    row=dict(at=time.time(),pool=pool,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)
+                    try:
+                        p=run(['python3',str(ROOT/'ops/gitea/check-job-policy.py'),'--server','--pool',pool],check=False,timeout=120)
+                        row=dict(at=time.time(),pool=pool,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)
+                    except Exception as error:
+                        row=dict(at=time.time(),pool=pool,returncode=1,stdout='',stderr=str(error),collection='unavailable')
                     self.samples.append(row)
                     (EVIDENCE/'continuous-runner-admission.json').write_text(json.dumps(self.samples,indent=2)+'\n')
+                    if row['returncode']:
+                        return
                 self.stop.wait(3)
         self.thread=threading.Thread(target=probe,daemon=True);self.thread.start()
         return self
@@ -155,6 +160,8 @@ def flux_release_evidence(version):
         deployment=get('deployment','kyverno-'+role+'-controller','kyverno')
         expected_replicas=2 if role=='admission' else 1
         assert deployment['spec']['replicas']==expected_replicas and deployment['status'].get('readyReplicas')==expected_replicas, deployment['status']
+        if role=='admission':
+            assert deployment['spec']['template']['spec']['containers'][0]['lifecycle']['preStop']=={'sleep':{'seconds':10}}
         replicas[role]=expected_replicas
     record('flux-release-artifact-and-readiness',status='verified',version=version,chart_sha256=expected,ready_replicas=replicas)
 

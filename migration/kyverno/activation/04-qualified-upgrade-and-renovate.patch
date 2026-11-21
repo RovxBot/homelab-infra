@@ -1,63 +1,15 @@
 --- a/infra/kyverno/helmrelease.yaml
 +++ b/infra/kyverno/helmrelease.yaml
-@@ -8,9 +8,7 @@
+@@ -8,7 +8,7 @@
    chart:
      spec:
        chart: kyverno
--      # 3.10 / Kyverno 1.20 stops enforcing our legacy policies. Complete the
--      # CEL migration before lifting this pin and the Renovate version gate.
 -      version: 3.9.2
 +      version: 3.10.0
        sourceRef:
          kind: HelmRepository
          name: kyverno
-@@ -31,35 +29,21 @@
-       registry: ghcr.io
-     crds:
-       migration:
--        # The chart defaults this post-upgrade hook to reg.kyverno.io. That
--        # registry is intentionally sinkholed on this network, so use the
--        # same registry as the deployed Kyverno controllers.
-         image:
-           registry: ghcr.io
-     config:
--      # The Flux guardrail deliberately has a wildcard match so that manual
--      # edits to any Flux-managed resource are audited.  Do not send
--      # high-churn Longhorn controller CR updates through that webhook: no
--      # workload policy applies to those CRs, and admission latency can stall
--      # storage recovery.  Keep BackupTarget requests so its existing,
--      # narrowly scoped guardrail exception still distinguishes the Longhorn
--      # controller from a manual edit.
-       matchConditions:
--        - name: exclude-dynamic-longhorn-crds
--          expression: >-
--            (request.resource.group != "longhorn.io" ||
--            request.resource.resource == "backuptargets") &&
--            (request.resource.group != "cilium.io" ||
--            request.resource.resource != "ciliumnodes") &&
--            (request.resource.group != "coordination.k8s.io" ||
--            request.resource.resource != "leases" ||
--            request.namespace != "kube-node-lease")
-+      - name: exclude-dynamic-longhorn-crds
-+        expression: (request.resource.group != "longhorn.io" || request.resource.resource
-+          == "backuptargets") && (request.resource.group != "cilium.io" || request.resource.resource
-+          != "ciliumnodes") && (request.resource.group != "coordination.k8s.io" ||
-+          request.resource.resource != "leases" || request.namespace != "kube-node-lease")
-       resourceFiltersExcludeNamespaces:
--        - kyverno
--        - flux-system
--        - kube-system
--        - kube-public
--        - kube-node-lease
-+      - kyverno
-+      - flux-system
-+      - kube-system
-+      - kube-public
-+      - kube-node-lease
-     admissionController:
-       replicas: 2
-       initContainer:
-@@ -84,3 +68,9 @@
+@@ -72,3 +72,9 @@
        policyExceptions:
          enabled: true
          namespace: kyverno

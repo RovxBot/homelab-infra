@@ -83,12 +83,16 @@ def check_graph(entries, root=ROOT):
     for ks, docs in entries:
         deps = {d['name'] for d in ks['spec'].get('dependsOn', []) if d.get('namespace', 'flux-system') == 'flux-system'}
         for obj in docs:
+            if obj['kind']=='Namespace' and obj['metadata']['name'] in enrolled and ks['metadata']['name']!=owners[obj['metadata']['name']]:
+                errors.append(f'{obj["metadata"]["name"]}: competing Namespace declaration outside its bundle')
             ns = obj['metadata'].get('namespace', '')
             # HelmRelease can select a different target namespace.
             if obj['kind'] == 'HelmRelease':
                 ns = obj.get('spec', {}).get('targetNamespace', ns)
             if ns not in enrolled or ks['metadata']['name'] == owners[ns]:
                 continue
+            if (obj['kind'],obj['metadata']['name']) in expected(root):
+                errors.append(f'{ns}: competing default resource outside its bundle')
             if enrolled[ns]['metadata'].get('annotations', {}).get(DECOMMISSION) == 'approved':
                 errors.append(f'{ns}: remove consumers before decommissioning')
             if owners[ns] not in deps:

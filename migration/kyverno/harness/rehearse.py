@@ -161,6 +161,10 @@ def install(version, via_flux=False):
         assert digest == "f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e"
     values = load("infra/kyverno/helmrelease.yaml")[0]["spec"]["values"]
     values["admissionController"]["replicas"] = 2 if via_flux else 1
+    if via_flux:
+        # The staged preparation patch uses the chart's supported native hook.
+        # Keep the listener alive while terminating endpoints leave service maps.
+        values["admissionController"]["container"]["lifecycle"] = {"preStop": {"sleep": {"seconds": 10}}}
     values["features"]["backgroundScan"] = {"backgroundScanInterval": "20s"}
     if candidate:
         for component, image in [

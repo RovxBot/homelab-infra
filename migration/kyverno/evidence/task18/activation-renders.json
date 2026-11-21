@@ -3,7 +3,7 @@
   "scope": "filesystem only; production not contacted",
   "stages": [
     {
-      "patch": "00-protect-runner-namespaces.patch",
+      "patch": "00-protect-runner-namespaces-and-admission-drain.patch",
       "status": "verified",
       "legacy_objects": 12,
       "render_sha256": "d1c86701d76a8b944035ce1b60b043f1cf2be9f5f3657b81f3ae901024de1bd6"

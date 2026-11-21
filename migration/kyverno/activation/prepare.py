@@ -36,10 +36,14 @@ for path in ['apps/gitea-runners/namespaces.yaml','apps/gitea-runners/wowdecomp/
         if doc['kind']=='Namespace' and 'kustomize.toolkit.fluxcd.io/prune' not in doc['metadata'].get('annotations',{}):
             parts[i]=part.replace('  annotations:\n','  annotations:\n    kustomize.toolkit.fluxcd.io/prune: disabled\n',1)
     protect[path]='\n---\n'.join(parts)
-stage('00-protect-runner-namespaces',protect)
+runner_paths=tuple(protect)
+p='infra/kyverno/helmrelease.yaml';hr=yaml.safe_load(read(p))
+hr['spec']['values']['admissionController']['container']['lifecycle']={'preStop':{'sleep':{'seconds':10}}}
+protect[p]=dump(hr)
+stage('00-protect-runner-namespaces-and-admission-drain',protect)
 
 changes={};namespaces=[]
-for path in protect:
+for path in runner_paths:
     parts=read(path).split('\n---\n')
     namespaces += [yaml.safe_load(part) for part in parts if yaml.safe_load(part)['kind']=='Namespace']
     changes[path]='\n---\n'.join(part for part in parts if yaml.safe_load(part)['kind']!='Namespace')

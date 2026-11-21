@@ -67,6 +67,10 @@ class NamespaceBundleTests(unittest.TestCase):
     def test_duplicate_owners_fail(self):
         self.assertTrue(contract.check_graph([(self.ks,self.docs),(self.ks,self.docs)]))
 
+    def test_unlabelled_competing_namespace_declaration_fails(self):
+        competing={'apiVersion':'v1','kind':'Namespace','metadata':{'name':'namespace-example'}}
+        self.assertTrue(self.errors(workloads=[competing]))
+
     def test_namespace_scope_does_not_use_unavailable_match_condition_variables(self):
         guards=list(yaml.safe_load_all((ROOT/'infra/namespace-defaults/admission.yaml').read_text()))
         for guard in guards:
