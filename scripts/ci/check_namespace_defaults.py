@@ -3,6 +3,8 @@
 import argparse
 from pathlib import Path
 import sys
+import json
+import subprocess
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -131,10 +133,72 @@ def production_entries(root):
     return entries
 
 
+def check_live(objects, root=ROOT):
+    """Detect retained bundles whose Flux owner or inventory no longer reconciles."""
+    errors = []
+    docs = objects['namespaces']['items'][:]
+    for resource in ['limitranges', 'resourcequotas', 'networkpolicies']:
+        docs += objects[resource]['items']
+    enrolled = {d['metadata']['name']: d for d in docs if d['kind'] == 'Namespace'
+                and (d['metadata'].get('labels', {}).get(LABEL) == 'enabled'
+                     or d['metadata'].get('annotations', {}).get(CONTRACT) == 'flux-v1')}
+    owners = {(d['metadata'].get('namespace'), d['metadata']['name']): d
+              for d in objects['kustomizations']['items']}
+    for name, ns in enrolled.items():
+        bundle = [ns] + [d for d in docs if d['metadata'].get('namespace') == name
+                         and (d['kind'], d['metadata']['name']) in expected(root)]
+        errors += check_bundle(bundle, root)
+        owner_name = 'namespace-' + name
+        owner = owners.get(('flux-system', owner_name))
+        if owner is None:
+            errors.append(f'{name}: orphaned bundle; Flux Kustomization {owner_name} is absent')
+            continue
+        errors += check_graph([(owner, bundle)], root)
+        status = owner.get('status', {})
+        ready = any(c.get('type') == 'Ready' and c.get('status') == 'True'
+                    and c.get('observedGeneration') == owner['metadata']['generation']
+                    for c in status.get('conditions', []))
+        if not ready or status.get('observedGeneration') != owner['metadata']['generation']:
+            errors.append(f'{name}: Flux bundle owner is not Ready at its current generation')
+        inventory = {entry['id'] for entry in status.get('inventory', {}).get('entries', [])}
+        for obj in bundle:
+            meta = obj['metadata']; group = obj['apiVersion'].split('/')[0] if '/' in obj['apiVersion'] else ''
+            identity = '_'.join([meta.get('namespace', ''), meta['name'], group, obj['kind']])
+            labels = meta.get('labels', {})
+            if labels.get('kustomize.toolkit.fluxcd.io/name') != owner_name or labels.get('kustomize.toolkit.fluxcd.io/namespace') != 'flux-system' or identity not in inventory:
+                errors.append(f'{name}: {obj["kind"]}/{meta["name"]} is orphaned from the expected Flux inventory')
+    for obj in docs:
+        if obj['kind'] != 'Namespace' and (obj['kind'], obj['metadata']['name']) in expected(root) and obj['metadata'].get('labels', {}).get(LABEL) == 'enabled' and obj['metadata'].get('namespace') not in enrolled:
+            errors.append(f'{obj["metadata"].get("namespace")}: orphaned default without an enrolled Namespace')
+    return sorted(set(errors))
+
+
+def collect_live():
+    objects = {}
+    for resource in ['namespaces', 'limitranges', 'resourcequotas', 'networkpolicies', 'kustomizations']:
+        result = subprocess.run(['kubectl', '--request-timeout=20s', 'get', resource, '-A', '-o', 'json'],
+                                text=True, capture_output=True, check=True, timeout=30)
+        data = json.loads(result.stdout)
+        if not isinstance(data.get('items'), list) or data.get('metadata', {}).get('continue'):
+            raise ValueError('Incomplete live inventory: ' + resource)
+        objects[resource] = data
+    return objects
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repo-root', type=Path, default=ROOT)
+    parser.add_argument('--live', action='store_true', help='read-only live orphan, ownership, readiness and default-spec check')
     args = parser.parse_args(); root = args.repo_root.resolve()
+    if args.live:
+        try:
+            errors = check_live(collect_live(), root)
+        except (subprocess.SubprocessError, ValueError, KeyError) as error:
+            parser.exit(1, f'Live namespace collection unavailable: {error}\n')
+        if errors:
+            parser.exit(1, '\n'.join(errors)+'\n')
+        print('verified live namespace bundles: no orphaned resources or inactive Flux owners')
+        return
     sys.path.insert(0, str(root/'scripts/ci'))
     from kyverno_gate import render_kustomization
     entries = production_entries(root)

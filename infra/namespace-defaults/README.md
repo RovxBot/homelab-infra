@@ -47,6 +47,14 @@ Flux ownership and drift repair. An orphaned bundle is a failed operational stat
 requiring restoration, not a completed decommission. Removing a bootstrap label
 does not decommission a namespace and is denied once these safeguards activate.
 
+Run `python3 scripts/ci/check_namespace_defaults.py --live` with the normal
+administrative kubeconfig after reconciliation and during operational checks.
+This read-only check fails for missing/suspended/stale Flux owners, missing
+inventory membership or ownership labels, partial bundles and specification drift.
+Collection failure or an incomplete inventory fails the check. It detects retained
+resources after source or Kustomization removal; source-only CI cannot observe
+that live orphan state. Restore the complete bundle and its original owner.
+
 Decommission in separately reviewed Git changes: first remove consumers and wait
 for their pruning, check Pods, PVCs, Jobs, Helm releases and external data/backup
 dependencies, then mark the Namespace annotation

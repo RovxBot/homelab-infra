@@ -4,6 +4,8 @@ import importlib.util
 from pathlib import Path
 import subprocess
 import unittest
+from unittest.mock import patch
+import json
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -84,6 +86,51 @@ class NamespaceBundleTests(unittest.TestCase):
             self.assertEqual(guard['spec']['failurePolicy'],'Fail')
             self.assertEqual(guard['spec']['matchConstraints']['namespaceSelector']['matchLabels'],{contract.LABEL:'enabled'})
             self.assertTrue(all('namespaceObject' not in c['expression'] for c in guard['spec'].get('matchConditions',[])))
+
+    def live(self):
+        owner = copy.deepcopy(self.ks)
+        owner['metadata']['generation'] = 4
+        inventory = []
+        for doc in self.docs:
+            meta = doc['metadata']
+            meta.setdefault('labels', {}).update({'kustomize.toolkit.fluxcd.io/name': owner['metadata']['name'],
+                                                  'kustomize.toolkit.fluxcd.io/namespace': 'flux-system'})
+            group = doc['apiVersion'].split('/')[0] if '/' in doc['apiVersion'] else ''
+            inventory.append({'id': '_'.join([meta.get('namespace', ''), meta['name'], group, doc['kind']]), 'v': 'v1'})
+        owner['status'] = {'observedGeneration': 4, 'conditions': [{'type': 'Ready', 'status': 'True', 'observedGeneration': 4}],
+                           'inventory': {'entries': inventory}}
+        kinds = {'namespaces': 'Namespace', 'limitranges': 'LimitRange', 'resourcequotas': 'ResourceQuota', 'networkpolicies': 'NetworkPolicy'}
+        return {**{key: {'items': [d for d in self.docs if d['kind'] == kind]} for key, kind in kinds.items()},
+                'kustomizations': {'items': [owner]}}
+
+    def test_live_complete_bundle_and_empty_unenrolled_cluster_pass(self):
+        objects = self.live()
+        self.assertEqual(contract.check_live(objects), [])
+        self.assertEqual(contract.check_live({key: {'items': []} for key in objects}), [])
+
+    def test_live_deleted_suspended_and_stale_owner_are_detected(self):
+        for failure in ['absent', 'suspended', 'not-ready', 'stale-generation']:
+            objects = self.live(); owner = objects['kustomizations']['items'][0]
+            if failure == 'absent': objects['kustomizations']['items'] = []
+            elif failure == 'suspended': owner['spec']['suspend'] = True
+            elif failure == 'not-ready': owner['status']['conditions'][0]['status'] = 'False'
+            else: owner['metadata']['generation'] = 5
+            self.assertTrue(contract.check_live(objects), failure)
+
+    def test_live_retained_objects_require_owner_labels_and_inventory(self):
+        for failure in ['inventory', 'labels', 'missing-default', 'missing-namespace', 'spec-drift']:
+            objects = self.live()
+            if failure == 'inventory': objects['kustomizations']['items'][0]['status']['inventory']['entries'] = []
+            elif failure == 'labels': objects['resourcequotas']['items'][0]['metadata']['labels'].pop('kustomize.toolkit.fluxcd.io/name')
+            elif failure == 'missing-default': objects['resourcequotas']['items'] = []
+            elif failure == 'missing-namespace': objects['namespaces']['items'] = []
+            else: objects['resourcequotas']['items'][0]['spec']['hard']['pods'] = '21'
+            self.assertTrue(contract.check_live(objects), failure)
+
+    def test_live_incomplete_collection_cannot_report_success(self):
+        for response in [{'items': [], 'metadata': {'continue': 'more'}}, {}]:
+            with patch.object(contract.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, json.dumps(response))):
+                with self.assertRaises(ValueError): contract.collect_live()
 
 
 if __name__ == '__main__': unittest.main()

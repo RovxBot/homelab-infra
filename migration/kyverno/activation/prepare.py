@@ -80,9 +80,10 @@ stage('03-retire-legacy-after-acceptance',changes)
 
 p='infra/kyverno/helmrelease.yaml';hr=yaml.safe_load(read(p));hr['spec']['chart']['spec']['version']='3.10.0'
 hr['spec']['values']['upgrade']={'legacyPolicyCheck':{'enabled':True,'image':{'registry':'ghcr.io'}},'acknowledgeLegacyPoliciesNotEnforced':False}
-changes={p:dump(hr)}
+stage('04-qualified-upgrade', {p:dump(hr)})
+changes={}
 p='renovate.json';renovate=json.loads(read(p));renovate['packageRules']=[rule for rule in renovate['packageRules'] if not (rule.get('matchPackageNames')==['kyverno'] and rule.get('allowedVersions')=='<3.10.0')];changes[p]=json.dumps(renovate,indent=2)+'\n'
 p='.github/tests/renovate-policy.test.cjs';changes[p]=read(p).replace("assert.equal(kyverno.allowedVersions, '<3.10.0');","assert.equal(kyverno.allowedVersions, undefined);")
 p='docs/runbooks/renovate-operations.md';changes[p]=read(p).replace('Kyverno remains `<3.10.0`;','Kyverno uses the proposed chart/application compatibility gate with a separate high-risk PR and no automerge;')
-stage('04-qualified-upgrade-and-renovate',changes)
+stage('05-release-renovate-cap',changes)
 print('Prepared review patches only; no active entrypoints changed.')

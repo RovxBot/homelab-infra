@@ -1,6 +1,6 @@
 # 0003: Explicit Flux-owned namespace defaults
 
-Status: proposed for platform-owner review, 21 November 2026. Implementation:
+Status: accepted by the platform owner in Task 20, 22 November 2026. Implementation:
 #2160, superseding the generator transition portions of #2159's assessment.
 
 Repeated isolated Kyverno generator restart recovery failed on both releases,

@@ -76,6 +76,7 @@ certificate/transparency/TUF checks. New hosted runs stay manual and bounded.
 
 Policy regeneration remains harness/build.py followed by
 harness/render-report-identities.py. activation/prepare.py only prepares reviewed
-Git patches. Keep #2133 open, #2158 independent/unmerged and #2160 draft until
-operator review. No production deployment, merge, bypass or exception change is
-performed by this task.
+Git patches. Task 20 authorizes execution of the qualified architecture and staged
+merges after CI and live acceptance. Keep #2133 open and #2158 independent/unmerged
+pending assessment against the deployed version. The Renovate cap is removed in
+phase 05 only after live acceptance of the phase 04 upgrade.

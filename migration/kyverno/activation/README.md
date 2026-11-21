@@ -1,7 +1,8 @@
-# Production activation proposal — operator review required
+# Production activation sequence
 
-These sequential Git patches are review artifacts, not deployment permission.
-No production mutation is authorized by Task 18. Qualification and immutable
+Task 20 authorizes staged execution, routine merge decisions and live acceptance
+without additional owner confirmation between passing stages. These sequential
+Git patches still require CI and the acceptance gates below. Qualification and immutable
 inputs/results are recorded in [Task 18 evidence](../evidence/task18/qualification.json).
 Historical generator failures remain in [Task 17](../evidence/task17/findings.md);
 there is no further generator debugging, adoption, or CEL generator activation.
@@ -32,7 +33,7 @@ Exact merge/review order:
    the filenames are their exact change boundaries. Regenerate against the then
    current main and recheck each diff. Keep #2158 independent and unmerged.
 
-`python3 migration/kyverno/activation/prepare.py` regenerates nine patches without
+`python3 migration/kyverno/activation/prepare.py` regenerates ten patches without
 contacting Kubernetes. They apply/render sequentially in a disposable filesystem
 copy. Rendering is separate from the real Flux/Helm lifecycle evidence.
 
@@ -46,7 +47,8 @@ copy. Rendering is separate from the real Flux/Helm lifecycle evidence.
 | `02d-qualify-flux-onboarding-contract` | Add reviewed native enrollment/default guards while freeze stays active. No replacement generator. | Native policies/bindings ready with no type warnings; CI complete-bundle/dependency checks accepted; Flux controller identity/inventory label assumptions reviewed; isolated lifecycle/restart/rollback evidence accepted. Prove the permanent binding independently with a denied contract-only malformed dry run that the freeze does not match, through every serving API server. Freeze still denies enrollment. |
 | `02e-thaw` | Remove only the temporary freeze after the new contract is qualified. | Wait for a complete Flux-identity dry run to succeed after freeze removal, then confirm label-only CREATE/UPDATE still denied by permanent guards. First explicitly approved bundle reconciles four exact, Flux-owned objects; dependent workloads remain held until success. No existing namespace is enrolled automatically. |
 | `03-retire-legacy-after-acceptance` | Prune old validation/mutation/governance/exceptions and both old runner policies only after every CEL replacement is live accepted. | CEL/native security and runner probes remain continuously valid. All legacy ClusterPolicy, Policy, CleanupPolicy, ClusterCleanupPolicy and PolicyException lists empty; URs empty. Observe separate policy and app Flux revisions, archive report history. |
-| `04-qualified-upgrade-and-renovate` | Upgrade chart 3.10.0/app 1.20.0 with CreateReplace, original legacy-policy check enabled, acknowledgement=false, ghcr.io hook; remove temporary Renovate cap. | Legacy pruning already observed before Helm reconciliation. Exact artifact pair/signatures/provenance accepted; chart safety/migration hooks succeeded; storedVersions match the verified chart and served APIs are verified with retained object UIDs; two admission replicas, other controllers/webhooks and Flux healthy; admission/mutation/report/runner probes pass. |
+| `04-qualified-upgrade` | Upgrade chart 3.10.0/app 1.20.0 with CreateReplace, original legacy-policy check enabled, acknowledgement=false, ghcr.io hook. | Legacy pruning already observed before Helm reconciliation. Exact artifact pair/signatures/provenance accepted; chart safety/migration hooks succeeded; storedVersions match the verified chart and served APIs are verified with retained object UIDs; two admission replicas, other controllers/webhooks and Flux healthy; admission/mutation/report/runner probes pass. |
+| `05-release-renovate-cap` | Remove the temporary Renovate cap after successful live upgrade acceptance. | Separate high-risk updates, manual review, no automerge, artifact provenance and version-matched compatibility gates remain active. |
 
 The preparation drain keeps the admission listener alive during endpoint removal.
 It uses Kubernetes native sleep, with no shell/sidecar and unchanged webhook

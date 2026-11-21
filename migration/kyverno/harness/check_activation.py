@@ -44,18 +44,21 @@ def main():
             if patch.name.startswith('02b-'):
                 bootstrap=next(d for d in legacy if d['metadata']['name']=='platform-namespace-bootstrap')
                 assert all(r['generate']['orphanDownstreamOnPolicyDelete'] for r in bootstrap['spec']['rules'])
-            if patch.name.startswith(('02c-','02d-','02e-','03-','04-')):
+            if patch.name.startswith(('02c-','02d-','02e-','03-','04-','05-')):
                 assert not any(d['metadata']['name']=='platform-namespace-bootstrap' for d in legacy)
-            if patch.name.startswith(('02d-','02e-','03-','04-')):
+            if patch.name.startswith(('02d-','02e-','03-','04-','05-')):
                 assert len([d for d in docs if d['kind']=='ValidatingAdmissionPolicy' and d['metadata']['name'].startswith('flux-')])==4
-            if patch.name.startswith(('02e-','03-','04-')):assert not frozen
+            if patch.name.startswith(('02e-','03-','04-','05-')):assert not frozen
             if patch.name.startswith(('01-','02')):
                 assert len([d for d in docs if d['kind']=='PolicyException' and d['apiVersion'].startswith('kyverno.io/')])==6
                 assert len([d for d in docs if d['kind']=='PolicyException' and d['apiVersion'].startswith('policies.kyverno.io/')])==6
-            if patch.name.startswith(('03-','04-')):
+            if patch.name.startswith(('03-','04-','05-')):
                 assert not legacy
                 assert sum(d['kind']=='NamespacedValidatingPolicy' for d in docs)==15
-            if not patch.name.startswith('04-'):assert hr['spec']['chart']['spec']['version']=='3.9.2'
+            upgraded = patch.name.startswith(('04-', '05-'))
+            assert hr['spec']['chart']['spec']['version'] == ('3.10.0' if upgraded else '3.9.2')
+            capped = any(r.get('allowedVersions') == '<3.10.0' for r in json.loads((folder/'renovate.json').read_text())['packageRules'])
+            assert capped == (not patch.name.startswith('05-')), 'Lift Renovate cap only after live upgrade acceptance'
             rows.append(dict(patch=patch.name,status='verified',legacy_objects=len(legacy),render_sha256=hashlib.sha256(yaml.safe_dump_all(docs,sort_keys=True).encode()).hexdigest()))
         assert hr['spec']['chart']['spec']['version']=='3.10.0'
         assert hr['spec']['values']['upgrade']['legacyPolicyCheck']['enabled'] is True
