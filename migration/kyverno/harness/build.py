@@ -437,6 +437,29 @@ def main():
         ),
     )
     emit("policies/generator.yaml", [gp])
+    old_mutation = SOURCES["longhorn-csi-registrar-lifecycle"]
+    refs = old_mutation["spec"]["rules"][0]["preconditions"]["all"][1]["value"]
+    c = "object.spec.template.spec.containers[0]"
+    # One short-circuit guard avoids indexing absent/empty fields. Kubernetes
+    # schema validation rejects wrong types; those are tested separately.
+    guard = (
+        "request.namespace == 'longhorn-system' && object.metadata.name == 'longhorn-csi-plugin'"
+        " && has(object.spec.template.spec.containers) && size(object.spec.template.spec.containers) > 0"
+        f" && {c}.?name.orValue('') == 'node-driver-registrar'"
+        f" && {c}.?image.orValue('') in {lit(refs)}"
+        f" && has({c}.lifecycle.preStop.exec.command) && size({c}.lifecycle.preStop.exec.command) > 0"
+        f" && {c}.lifecycle.preStop.exec.command[0] == '/bin/sh'"
+    )
+    emit("policies/mutation.yaml", [dict(
+        apiVersion="policies.kyverno.io/v1", kind="MutatingPolicy",
+        metadata=copy.deepcopy(old_mutation["metadata"]),
+        spec=dict(
+            matchConstraints=dict(resourceRules=[rule(["daemonsets"], ["apps"])]),
+            matchConditions=[dict(name="exact-legacy-preconditions", expression=guard)],
+            mutations=[dict(patchType="JSONPatch", jsonPatch=dict(expression=
+                '[JSONPatch{op: "remove", path: "/spec/template/spec/containers/0/lifecycle/preStop"}]'))],
+        ),
+    )])
     # Native governance covers both APIs and needs no Kyverno admission dependency.
     good = f"{label('object',OWNER)} != '' && {ann('object','kyverno.cooked.beer/reason')} != '' && {ann('object','kyverno.cooked.beer/expires-at')} != '' && ({ann('object','github.cooked.beer/issue-create')} == 'true' || {ann('object','github.cooked.beer/issue-url')}.matches('^https://github[.]com/.*/issues/.*$'))"
     vap = dict(

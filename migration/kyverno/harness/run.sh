@@ -45,8 +45,22 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 143' TERM INT
-kind create cluster --name kyverno-cel-rehearsal --kubeconfig "$KUBECONFIG" --wait 120s \
+cat > .work/cel/kind.yaml <<'KIND'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  podSubnet: 192.168.0.0/16
+nodes:
+  - role: control-plane
+KIND
+kind create cluster --config .work/cel/kind.yaml --name kyverno-cel-rehearsal --kubeconfig "$KUBECONFIG" --wait 120s \
   --image kindest/node:v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a
+fetch https://raw.githubusercontent.com/projectcalico/calico/v3.31.0/manifests/calico.yaml .work/cel/calico.yaml
+printf '%s  %s\n' 1990b1cec14002790718bb960b1b8445eb7b896cd16c32e952309f35a9026981 .work/cel/calico.yaml | sha256sum -c -
+kubectl --context "$REHEARSAL_CONTEXT" apply --server-side -f .work/cel/calico.yaml
+kubectl --context "$REHEARSAL_CONTEXT" -n kube-system rollout status daemonset/calico-node --timeout=180s
+kubectl --context "$REHEARSAL_CONTEXT" wait --for=condition=Ready nodes --all --timeout=120s
 kubectl --context "$REHEARSAL_CONTEXT" get --raw /version > .work/cel/evidence/kubernetes.json
 # Exact committed Flux v2.9.0 artifacts, including digest-pinned controllers.
 # gotk-sync.yaml is never applied. There is no production GitRepository or Secret.
@@ -56,4 +70,5 @@ kubectl --context "$REHEARSAL_CONTEXT" -n flux-system rollout status deployment/
 python3 scripts/ci/check_kyverno_migration_inventory.py
 python3 migration/kyverno/harness/build.py
 git diff --exit-code -- migration/kyverno/policies migration/kyverno/exceptions migration/kyverno/policy-map.json
+export KYVERNO_TARGET_VERSION="$(python3 -c 'import json; print(json.load(open(".work/cel/trust/target.json"))["application"])')"
 python3 -u migration/kyverno/harness/rehearse.py

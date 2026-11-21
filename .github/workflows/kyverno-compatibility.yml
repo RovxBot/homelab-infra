@@ -1,0 +1,68 @@
+name: Kyverno proposed release compatibility
+
+on:
+  workflow_call:
+    inputs:
+      chart:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      chart:
+        description: Exact proposed chart; blank reads the proposed HelmRelease
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [empty-upgraded, fresh-target, adopted, mutation]
+    # Adoption is diagnostic; the selected production path requires emptiness.
+    continue-on-error: ${{ matrix.scenario == 'adopted' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install PyYAML==6.0.3
+      - name: Verify proposed release artifacts
+        env:
+          KYVERNO_CANDIDATE_CHART: ${{ inputs.chart }}
+        run: bash migration/kyverno/harness/trust.sh
+      - name: Test the verified pair in an isolated enforcing CNI
+        env:
+          REHEARSAL_SCENARIO: ${{ matrix.scenario }}
+          CANDIDATE_TRUST: success
+        run: timeout 1500 bash migration/kyverno/harness/run.sh
+      - name: Always destroy the rehearsal cluster
+        if: always()
+        run: |
+          if test -x .work/cel/bin/kind; then
+            timeout 60 .work/cel/bin/kind delete cluster --name kyverno-cel-rehearsal
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: kyverno-${{ matrix.scenario }}
+          path: |
+            .work/cel/trust/*.json
+            .work/cel/trust/*.log
+            .work/cel/trust/*.txt
+            .work/cel/trust/status
+            .work/cel/evidence/**
+          retention-days: 14
+  deployment-qualification:
+    if: always()
+    needs: contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every mandatory generator and mutation job
+        env:
+          CONTRACT_RESULT: ${{ needs.contracts.result }}
+        run: test "$CONTRACT_RESULT" = success

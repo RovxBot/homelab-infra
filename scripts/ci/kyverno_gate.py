@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from policy_identity import canonical_identity
 
 
 IGNORED_FLUX_RENDER_PATHS = {
@@ -269,16 +270,19 @@ def evaluate_resources(
             f"kyverno apply failed for {resource_dir.name}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
     if not result.stdout.strip():
-        return []
+        raise RuntimeError("Kyverno returned no policy report; collection is unknown")
 
     records: list[FailureRecord] = []
     reports = load_policy_reports(result.stdout)
     for report in reports:
         for item in report.get("results", []):
+            if item.get("result") == "error":
+                raise RuntimeError("Kyverno report contains an evaluation error")
             if item.get("result") != "fail":
                 continue
 
-            subjects = extract_result_subjects(item)
+            policy, rule = canonical_identity(item)
+            subjects = extract_result_subjects(item) or extract_result_subjects({"scope": report.get("scope")})
             if not subjects:
                 raise RuntimeError(
                     "Kyverno policy report failure result did not include a resource subject\n"
@@ -288,8 +292,8 @@ def evaluate_resources(
             for subject in subjects:
                 records.append(
                     FailureRecord(
-                        policy=str(item.get("policy", "unknown-policy")),
-                        rule=str(item.get("rule", "unknown-rule")),
+                        policy=policy,
+                        rule=rule,
                         kind=subject["kind"],
                         namespace=subject["namespace"],
                         name=subject["name"],

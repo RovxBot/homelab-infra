@@ -1,4 +1,4 @@
-name: Isolated Kyverno CEL rehearsal
+name: Isolated Kyverno deployment qualification
 
 on:
   push:
@@ -11,10 +11,10 @@ on:
       - .github/workflows/kyverno-cel-rehearsal.yml
   workflow_dispatch:
     inputs:
-      generators:
-        description: Re-run the currently blocked generator lifecycle
-        type: boolean
-        default: false
+      chart:
+        description: Exact proposed chart (blank uses the migration target)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -24,40 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  rehearsal:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - name: Verify official trust, release identity, signatures and provenance
-        id: trust
-        continue-on-error: true
-        run: bash migration/kyverno/harness/trust.sh
-      - name: Install test dependencies
-        run: python3 -m pip install PyYAML==6.0.3
-      - name: Rehearse in a disposable Kubernetes cluster
-        env:
-          REHEARSAL_GENERATORS: ${{ inputs.generators && 'true' || 'false' }}
-          CANDIDATE_TRUST: ${{ steps.trust.outcome }}
-        run: timeout 1500 bash migration/kyverno/harness/run.sh
-      - name: Always destroy the rehearsal cluster
-        if: always()
-        run: |
-          if test -x .work/cel/bin/kind; then
-            timeout 60 .work/cel/bin/kind delete cluster --name kyverno-cel-rehearsal
-          fi
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        if: always()
-        with:
-          name: kyverno-cel-trust
-          path: |
-            .work/cel/trust/*.json
-            .work/cel/trust/*.log
-            .work/cel/trust/status
-            .work/cel/evidence/**
-          retention-days: 14
-      - name: Retain artifact trust gate
-        if: always() && steps.trust.outcome != 'success'
-        run: exit 1
+  qualification:
+    uses: ./.github/workflows/kyverno-compatibility.yml
+    with:
+      chart: ${{ inputs.chart || '3.10.0' }}

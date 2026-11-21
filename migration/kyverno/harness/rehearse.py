@@ -144,32 +144,21 @@ def load(path):
 
 
 def install(version):
-    chart = {"1.19.2": "3.9.2", "1.20.0": "3.10.0"}[version]
-    chartfile = WORK / f"kyverno-{chart}.tgz"
-    run(
-        [
-            "curl",
-            "-fsSL",
-            "--connect-timeout",
-            "15",
-            "--max-time",
-            "120",
-            f"https://kyverno.github.io/kyverno/kyverno-{chart}.tgz",
-            "-o",
-            str(chartfile),
-        ]
-    )
     import hashlib
-
-    digest = hashlib.sha256(chartfile.read_bytes()).hexdigest()
-    if version == "1.19.2":
-        assert (
-            digest == "f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e"
-        )
-    if version == "1.20.0":
-        assert (
-            digest == "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301"
-        )
+    target = json.loads((WORK / "trust/target.json").read_text())
+    candidate = version == target["application"]
+    if candidate:
+        chart = target["chart"]
+        chartfile = WORK / f"trust/kyverno-{chart}.tgz"
+        digest = hashlib.sha256(chartfile.read_bytes()).hexdigest()
+        assert digest == target["chart_sha256"]
+    else:
+        assert version == "1.19.2", "Unverified release requested"
+        chart = "3.9.2"
+        chartfile = WORK / f"kyverno-{chart}.tgz"
+        run(["curl", "-fsSL", "--max-time", "120", f"https://kyverno.github.io/kyverno/kyverno-{chart}.tgz", "-o", str(chartfile)])
+        digest = hashlib.sha256(chartfile.read_bytes()).hexdigest()
+        assert digest == "f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e"
     values = load("infra/kyverno/helmrelease.yaml")[0]["spec"]["values"]
     values["admissionController"]["replicas"] = 1
     values["features"]["backgroundScan"] = {"backgroundScanInterval": "20s"}
@@ -206,7 +195,7 @@ def install(version):
             ]
         }
     }
-    if version == "1.20.0":
+    if candidate:
         for component, image in [
             ("admissionController", "kyverno"),
             ("backgroundController", "background-controller"),
@@ -220,14 +209,14 @@ def install(version):
                 else values[component]["image"]
             )
             target["tag"] = (
-                "v1.20.0@" + sig[0]["critical"]["image"]["docker-manifest-digest"]
+                f"v{version}@" + sig[0]["critical"]["image"]["docker-manifest-digest"]
             )
         for target, image in [
             (values["admissionController"]["initContainer"]["image"], "kyvernopre"),
             (values["crds"]["migration"]["image"], "kyverno-cli"),
         ]:
             target["tag"] = (
-                "v1.20.0@"
+                f"v{version}@"
                 + json.loads((WORK / f"trust/{image}.signature.json").read_text())[0][
                     "critical"
                 ]["image"]["docker-manifest-digest"]
@@ -241,14 +230,14 @@ def install(version):
         values["global"] = {"image": {"registry": "ghcr.io"}}
         values["upgrade"] = {
             "legacyPolicyCheck": {
-                "image": {"registry": "ghcr.io", "tag": "v1.20.0@" + cli_digest}
+                "image": {"registry": "ghcr.io", "tag": f"v{version}@" + cli_digest}
             }
         }
         values["webhooksCleanup"] = {
-            "image": {"registry": "ghcr.io", "tag": "v1.20.0@" + ready_digest}
+            "image": {"registry": "ghcr.io", "tag": f"v{version}@" + ready_digest}
         }
         values["test"] = {
-            "image": {"registry": "ghcr.io", "tag": "v1.20.0@" + ready_digest}
+            "image": {"registry": "ghcr.io", "tag": f"v{version}@" + ready_digest}
         }
     vp = WORK / "values.yaml"
     vp.write_text(yaml.safe_dump(values))
@@ -287,7 +276,7 @@ def install(version):
         for p in get("pods", ns="kyverno")["items"]
         if not p["metadata"].get("deletionTimestamp")
     ]
-    if version == "1.20.0":
+    if candidate:
         assert all(
             "@sha256:" in image for p in observed for image in p["images"]
         ), observed
@@ -546,6 +535,10 @@ def main():
     assert endpoint.startswith("https://127.0.0.1:"), endpoint
     assert get("nodes")["items"][0]["status"]["nodeInfo"]["kubeletVersion"] == "v1.34.0"
     assert not get("gitrepositories.source.toolkit.fluxcd.io")["items"]
+    if os.environ.get("REHEARSAL_SCENARIO"):
+        assert os.environ.get("CANDIDATE_TRUST") == "success"
+        from qualify import main as qualify
+        return qualify()
     from reporting import install_fixture_crd
 
     install_fixture_crd()
@@ -616,6 +609,7 @@ def main():
         from generation import after_upgrade
 
         after_upgrade(generation_state)
+    assert os.environ.get("REHEARSAL_GENERATORS") == "true", "Full qualification requires generator lifecycle; validation evidence only"
     assert not any(
         r.get("status") == "failed" for r in RESULTS
     ), "One or more activation gates failed; see results.json"

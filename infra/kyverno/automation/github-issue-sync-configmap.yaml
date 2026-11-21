@@ -14,21 +14,21 @@ data:
     import urllib.parse
     import urllib.request
     from datetime import datetime, timedelta, timezone
-
-
+    
+    
     def env_bool(name, default=False):
         value = os.getenv(name)
         if value is None:
             return default
         return value.lower() in {"1", "true", "yes", "on"}
-
-
+    
+    
     def api_get(url, headers=None, ssl_context=None):
         request = urllib.request.Request(url, headers=headers or {})
         with urllib.request.urlopen(request, context=ssl_context or DEFAULT_SSL_CONTEXT, timeout=30) as response:
             return json.load(response)
-
-
+    
+    
     def api_request(url, method="GET", payload=None, headers=None, ssl_context=None):
         body = None if payload is None else json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(url, data=body, method=method, headers=headers or {})
@@ -36,8 +36,8 @@ data:
             if response.length == 0:
                 return None
             return json.load(response)
-
-
+    
+    
     def parse_result_time(result, fallback):
         timestamp = result.get("timestamp")
         if isinstance(timestamp, dict):
@@ -56,64 +56,97 @@ data:
                 except ValueError:
                     pass
         return None
-
-
+    
+    
     def list_kubernetes_resource(path):
-        url = f"{KUBE_API}{path}"
-        return api_get(url, headers=KUBE_HEADERS, ssl_context=KUBE_SSL_CONTEXT)
-
-
-    def load_failures():
-        failures = {}
+        items, token = [], ""
+        for _ in range(100):
+            query = urllib.parse.urlencode({"limit": 500, "continue": token})
+            response = api_get(f"{KUBE_API}{path}?{query}", headers=KUBE_HEADERS, ssl_context=KUBE_SSL_CONTEXT)
+            if not isinstance(response.get("items"), list):
+                raise ValueError("Incomplete Kubernetes collection")
+            items.extend(response["items"])
+            token = response.get("metadata", {}).get("continue", "")
+            if not token:
+                return {"items": items}
+        raise ValueError("Kubernetes pagination exceeded bound")
+    
+    
+    # BEGIN GENERATED POLICY IDENTITIES (render-report-identities.py)
+    POLICY_IDENTITIES = {'platform-namespace-standards': ('platform-namespace-standards', 'require-psa-and-owner-labels'), 'platform-pod-standards-require-owner-label': ('platform-pod-standards', 'require-owner-label'), 'platform-pod-standards-require-requests-and-limits': ('platform-pod-standards', 'require-requests-and-limits'), 'platform-pod-standards-require-runtime-hardening': ('platform-pod-standards', 'require-runtime-hardening'), 'platform-pod-standards-disallow-host-network': ('platform-pod-standards', 'disallow-host-network'), 'platform-pod-standards-require-digest-pinned-images': ('platform-pod-standards', 'require-digest-pinned-images'), 'platform-pod-standards-disallow-latest-tags': ('platform-pod-standards', 'disallow-latest-tags'), 'platform-pod-standards-require-probes': ('platform-pod-standards', 'require-probes'), 'platform-flux-guardrails': ('platform-flux-guardrails', 'audit-manual-edits-to-flux-managed-resources'), 'gitea-jobs/gitea-job-security-restricted-with-sanitizer-capability': ('gitea-job-security', 'restricted-with-sanitizer-capability'), 'gitea-jobs/gitea-job-security-bound-job-environment': ('gitea-job-security', 'bound-job-environment'), 'gitea-jobs/gitea-job-security-one-job-container': ('gitea-job-security', 'one-job-container'), 'gitea-jobs/gitea-job-security-drop-all-and-only-allow-ptrace': ('gitea-job-security', 'drop-all-and-only-allow-ptrace'), 'gitea-jobs/gitea-job-security-ptrace-only-in-sanitizer-jobs': ('gitea-job-security', 'ptrace-only-in-sanitizer-jobs'), 'gitea-jobs/gitea-job-security-ordinary-job-identity': ('gitea-job-security', 'ordinary-job-identity'), 'gitea-jobs/gitea-job-security-bounded-sanitizer-identity': ('gitea-job-security', 'bounded-sanitizer-identity'), 'gitea-jobs/gitea-job-security-no-extra-job-credentials': ('gitea-job-security', 'no-extra-job-credentials'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-restricted-with-sanitizer-capability': ('wowdecomp-linux-security', 'restricted-with-sanitizer-capability'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-bound-job-environment': ('wowdecomp-linux-security', 'bound-job-environment'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-one-job-container': ('wowdecomp-linux-security', 'one-job-container'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-bounded-toolchain-capabilities': ('wowdecomp-linux-security', 'bounded-toolchain-capabilities'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-no-extra-job-credentials': ('wowdecomp-linux-security', 'no-extra-job-credentials'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-no-mounted-registry-credential': ('wowdecomp-linux-security', 'no-mounted-registry-credential'), 'wowdecomp-ci-jobs/wowdecomp-linux-security-no-registry-credential-in-environment': ('wowdecomp-linux-security', 'no-registry-credential-in-environment')}
+    # END GENERATED POLICY IDENTITIES
+    
+    
+    def canonical_identity(result):
+        policy = result.get("policy", "")
+        rule = result.get("rule") or ""
+        source = result.get("source", "")
+        mapped = POLICY_IDENTITIES.get(policy)
+        if mapped and (source != "kyverno" or rule in {"", "validation"}):
+            if rule not in {"", "validation", mapped[1]}:
+                raise ValueError("Unrecognized CEL validation rule: " + rule)
+            return mapped
+        if source not in {"", "kyverno"}:
+            raise ValueError("Unmapped report identity: " + source + "/" + policy)
+        if not policy or not rule:
+            raise ValueError("Report has no stable policy/rule identity")
+        return policy, rule
+    
+    
+    def load_observations():
+        failures, passes, unknown = {}, {}, set()
         for path in (
             "/apis/wgpolicyk8s.io/v1alpha2/clusterpolicyreports",
             "/apis/wgpolicyk8s.io/v1alpha2/policyreports",
         ):
             response = list_kubernetes_resource(path)
-            for report in response.get("items", []):
-                report_meta = report.get("metadata", {})
-                report_namespace = report_meta.get("namespace", "")
-                report_scope = report.get("scope") or {}
-                report_scope_kind = report_scope.get("kind", "")
-                report_created = report_meta.get("creationTimestamp")
-                if report_scope_kind in IGNORED_SCOPE_KINDS:
+            for report in response["items"]:
+                meta, scope = report.get("metadata", {}), report.get("scope") or {}
+                if scope.get("kind") in IGNORED_SCOPE_KINDS:
                     continue
                 for result in report.get("results", []):
-                    if result.get("result") != "fail":
-                        continue
-                    policy = result.get("policy", "unknown-policy")
+                    policy, rule = canonical_identity(result)
                     if policy in IGNORED_POLICIES:
                         continue
-                    resource = (result.get("resources") or [{}])[0]
-                    kind = resource.get("kind") or report_scope.get("kind") or "Unknown"
-                    name = resource.get("name") or report_scope.get("name") or report_meta.get("name", "unknown-resource")
-                    namespace = (
-                        resource.get("namespace")
-                        or report_scope.get("namespace")
-                        or report_namespace
-                        or "cluster"
-                    )
-                    if kind == "Namespace" and EXCLUDE_NAMESPACE_RE and EXCLUDE_NAMESPACE_RE.match(name):
-                        continue
-                    if EXCLUDE_NAMESPACE_RE and EXCLUDE_NAMESPACE_RE.match(namespace):
-                        continue
-                    observed_at = parse_result_time(result, report_created)
-                    if observed_at is None or observed_at > CUTOFF:
-                        continue
-                    rule = result.get("rule", "unknown-rule")
-                    key = (policy, rule, kind, namespace, name)
-                    failures[key] = {
-                        "policy": policy,
-                        "rule": rule,
-                        "kind": kind,
-                        "namespace": namespace,
-                        "name": name,
-                        "message": result.get("message", "Kyverno reported a persistent policy failure."),
-                        "observed_at": observed_at.isoformat(),
-                    }
-        return failures
-
-
+                    resources = result.get("resources") or result.get("subjects") or [scope]
+                    for resource in resources:
+                        kind = resource.get("kind") or scope.get("kind")
+                        name = resource.get("name") or scope.get("name")
+                        namespace = resource.get("namespace") or scope.get("namespace") or meta.get("namespace") or "cluster"
+                        if kind == "Namespace":
+                            namespace = "cluster"
+                        if not kind or not name:
+                            raise ValueError("Report result has no resource identity")
+                        if kind in IGNORED_SCOPE_KINDS:
+                            continue
+                        if EXCLUDE_NAMESPACE_RE and (EXCLUDE_NAMESPACE_RE.match(namespace) or kind == "Namespace" and EXCLUDE_NAMESPACE_RE.match(name)):
+                            continue
+                        key = (policy, rule, kind, namespace, name)
+                        status = result.get("result")
+                        observed = parse_result_time(result, meta.get("creationTimestamp") if status == "fail" else None)
+                        if status == "fail":
+                            failure = dict(policy=policy, rule=rule, kind=kind, namespace=namespace, name=name,
+                                           message=result.get("message", "Kyverno reported a persistent policy failure."),
+                                           observed_at=observed.isoformat() if observed else "unknown", persistent=observed is not None and observed <= CUTOFF,
+                                           raw_identity={k: result.get(k) for k in ("source", "policy", "rule")})
+                            # Legacy/CEL overlap is one finding. Any failure blocks closure,
+                            # including findings younger than the incident threshold.
+                            if key not in failures or failure["persistent"]:
+                                failures[key] = failure
+                        elif status == "pass" and observed:
+                            passes[key] = max(observed, passes.get(key, observed))
+                        elif status == "skip":
+                            # An exception is not proof of remediation. Preserve history.
+                            unknown.add(key)
+                        elif status != "pass":
+                            unknown.add(key)
+        return failures, passes, unknown
+    
+    
+    def load_failures():
+        return {k: v for k, v in load_observations()[0].items() if v["persistent"]}
+    
+    
     def github_headers():
         headers = {
             "Accept": "application/vnd.github+json",
@@ -123,28 +156,44 @@ data:
         if GITHUB_TOKEN:
             headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
         return headers
-
-
+    
+    
     def list_open_issues():
-        if not GITHUB_OWNER or not GITHUB_REPO or not GITHUB_TOKEN:
-            return {}
-        query = urllib.parse.urlencode({"state": "open", "labels": ISSUE_LABEL, "per_page": 100})
-        url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/issues?{query}"
-        issues = api_get(url, headers=github_headers())
-        return {issue.get("title", ""): issue for issue in issues if title_prefix(issue.get("title", ""))}
-
-
+        issues = {}
+        for page in range(1, 101):
+            query = urllib.parse.urlencode({"state": "open", "labels": ISSUE_LABEL, "per_page": 100, "page": page})
+            batch = api_get(f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/issues?{query}", headers=github_headers())
+            if not isinstance(batch, list):
+                raise ValueError("Incomplete GitHub collection")
+            issues.update({i["title"]: i for i in batch if "pull_request" not in i and title_prefix(i.get("title", ""))})
+            if len(batch) < 100:
+                return issues
+        raise ValueError("GitHub pagination exceeded bound")
+    
+    
+    def issue_key(title):
+        match = re.fullmatch(re.escape(ISSUE_TITLE_PREFIX) + r"(.+)/([^/ ]+) on ([^ ]+) ([^/ ]+)/(.+)", title)
+        if not match:
+            return None
+        policy, rule, kind, ns, name = match.groups()
+        try:
+            policy, rule = canonical_identity({"policy": policy, "rule": rule})
+        except ValueError:
+            return None
+        return policy, rule, kind, ns, name
+    
+    
     def title_prefix(title):
         return title.startswith(ISSUE_TITLE_PREFIX)
-
-
+    
+    
     def issue_title(failure):
         return (
             f"{ISSUE_TITLE_PREFIX}{failure['policy']}/{failure['rule']} on "
             f"{failure['kind']} {failure['namespace']}/{failure['name']}"
         )
-
-
+    
+    
     def issue_body(failure):
         summary = {
             "policy": failure["policy"],
@@ -167,8 +216,8 @@ data:
                 "This issue was created automatically after the failure remained present past the configured persistence threshold.",
             ]
         )
-
-
+    
+    
     def create_issue(failure):
         title = issue_title(failure)
         payload = {
@@ -178,45 +227,54 @@ data:
         }
         url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/issues"
         return api_request(url, method="POST", payload=payload, headers=github_headers())
-
-
+    
+    
     def close_issue(issue):
         url = issue.get("url")
         if not url:
             return None
         return api_request(url, method="PATCH", payload={"state": "closed"}, headers=github_headers())
-
-
+    
+    
     def main():
-        failures = load_failures()
-        desired_titles = {issue_title(failure): failure for failure in failures.values()}
-        if not GITHUB_OWNER or not GITHUB_REPO or not GITHUB_TOKEN:
-            print(json.dumps({"mode": "dry-run", "reason": "missing GitHub config", "failures": list(desired_titles)}, indent=2))
-            return 0
-
-        existing = list_open_issues()
-        creates = [title for title in desired_titles if title not in existing]
-        closes = [title for title in existing if title_prefix(title) and title not in desired_titles]
-
-        if DRY_RUN:
-            print(json.dumps({"mode": "dry-run", "create": creates, "close": closes}, indent=2))
-            return 0
-
-        for title in creates:
-            create_issue(desired_titles[title])
-        for title in closes:
-            close_issue(existing[title])
-        print(json.dumps({"mode": "apply", "created": creates, "closed": closes}, indent=2))
+        try:
+            failures, passes, unknown = load_observations()
+            desired = {issue_title(v): v for v in failures.values() if v["persistent"]}
+            if not GITHUB_OWNER or not GITHUB_REPO or not GITHUB_TOKEN:
+                print(json.dumps({"mode": "dry-run", "reason": "missing GitHub config", "failures": list(desired)}))
+                return 0
+            existing = list_open_issues()
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            print(json.dumps({"status": "unknown", "reason": type(error).__name__, "writes": 0}))
+            return 1
+        keys = {issue_key(title) for title in existing}
+        creates = [title for title, failure in desired.items()
+                   if (failure["policy"], failure["rule"], failure["kind"], failure["namespace"], failure["name"]) not in keys]
+        closes = []
+        now = datetime.now(timezone.utc)
+        for title, issue in existing.items():
+            key = issue_key(title)
+            observed = passes.get(key)
+            created = parse_result_time({}, issue.get("created_at"))
+            if (key and key not in failures and key not in unknown and observed and created
+                    and created < observed <= now and (now-observed).total_seconds() <= 900):
+                closes.append(title)
+        if not DRY_RUN:
+            for title in creates:
+                create_issue(desired[title])
+            for title in closes:
+                close_issue(existing[title])
+        print(json.dumps({"mode": "dry-run" if DRY_RUN else "apply", "create": creates, "close": closes}))
         return 0
-
-
+    
+    
     if __name__ == "__main__":
         SERVICEACCOUNT_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
         with open(f"{SERVICEACCOUNT_DIR}/token", "r", encoding="utf-8") as handle:
             TOKEN = handle.read().strip()
         with open(f"{SERVICEACCOUNT_DIR}/ca.crt", "rb") as handle:
             CA_FILE = handle.name
-
+    
         KUBE_SSL_CONTEXT = ssl.create_default_context(cafile=CA_FILE)
         DEFAULT_SSL_CONTEXT = ssl.create_default_context()
         KUBE_API = f"https://{os.environ['KUBERNETES_SERVICE_HOST']}:{os.environ['KUBERNETES_SERVICE_PORT_HTTPS']}"
