@@ -94,7 +94,7 @@ class ProposedReleaseTests(unittest.TestCase):
             changed=copy.deepcopy(prepared)
             changed['spec']['values']['admissionController']['container']['image'][key]='changed'
             self.assertNotEqual(detector.release_inputs(baseline),detector.release_inputs(changed),key)
-        changed=copy.deepcopy(baseline);changed['spec']['chart']['spec']['version']='3.10.0'
+        changed=copy.deepcopy(baseline);changed['spec']['chart']['spec']['version']+='-changed'
         self.assertNotEqual(detector.release_inputs(baseline),detector.release_inputs(changed))
         changed=copy.deepcopy(baseline);changed['spec']['values']['upgrade']={'acknowledgeLegacyPoliciesNotEnforced':True}
         self.assertNotEqual(detector.release_inputs(baseline),detector.release_inputs(changed))
