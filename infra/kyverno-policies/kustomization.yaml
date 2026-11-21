@@ -1,6 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../kyverno/policies
-  - ../kyverno/exceptions
-  - ../kyverno/automation
+- ../kyverno/policies
+- ../kyverno/exceptions
+- ../kyverno/automation
+- ../../migration/kyverno/policies/workloads.yaml
+- ../../migration/kyverno/policies/namespace.yaml
+- ../../migration/kyverno/policies/flux.yaml
+- ../../migration/kyverno/policies/runners.yaml
+- ../../migration/kyverno/policies/governance-native.yaml
+- ../../migration/kyverno/policies/mutation.yaml
+- ../../migration/kyverno/policies/reporting-rbac.yaml
+- ../../migration/kyverno/exceptions/exceptions.yaml
