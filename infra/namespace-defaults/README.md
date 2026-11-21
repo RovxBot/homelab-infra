@@ -1,10 +1,17 @@
 # Flux namespace onboarding contract
 
-This reusable base is inert until a reviewed namespace overlay and its own Flux
-Kustomization reference it. No current namespace is enrolled by this change.
+This reusable base requires a reviewed namespace overlay and its own Flux
+Kustomization. Existing namespaces are never enrolled implicitly.
 Adding `homelab.cooked.beer/bootstrap=enabled` alone is unsupported. The legacy
 generator is retired through the separately gated empty-state sequence; no CEL
 GeneratingPolicy replaces it.
+
+The first production bundle is [policy-check](policy-check/namespace/kustomization.yaml).
+Its four prune-protected defaults and a separate ConfigMap consumer demonstrate
+Flux ownership and the readiness dependency without scheduling Pods or creating
+storage. Keep it reconciled for operational checks; use `--live` below to detect
+orphaned ownership or drift. Its NetworkPolicy declaration does not provide
+traffic isolation while production Cilium uses `policyEnforcementMode=never`.
 
 Copy the [isolated example](../../migration/kyverno/namespace-example/flux.yaml)
 into the appropriate `clusters/home` entrypoint, change the namespace and paths,

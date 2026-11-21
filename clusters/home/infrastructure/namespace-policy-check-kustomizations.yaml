@@ -1,0 +1,38 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: namespace-policy-check
+  namespace: flux-system
+  labels:
+    homelab.cooked.beer/namespace: policy-check
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 2m
+  path: ./infra/namespace-defaults/policy-check/namespace
+  prune: true
+  deletionPolicy: Orphan
+  wait: true
+  dependsOn:
+    - name: kyverno-policies
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: namespace-policy-check-consumer
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 2m
+  path: ./infra/namespace-defaults/policy-check/consumer
+  prune: true
+  wait: true
+  dependsOn:
+    - name: namespace-policy-check
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
