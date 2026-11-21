@@ -36,25 +36,25 @@
       "patch": "02d-qualify-flux-onboarding-contract.patch",
       "status": "verified",
       "legacy_objects": 11,
-      "render_sha256": "2e380de9eaefdf063b0290d16aad44d4f70d6ce69b64661e099893f22e85b99d"
+      "render_sha256": "1d11a51a82e643913f66127bb362b62d836eb85634588c311d2aeb54dc978bd0"
     },
     {
       "patch": "02e-thaw.patch",
       "status": "verified",
       "legacy_objects": 11,
-      "render_sha256": "7f04d6baae1b02d7b358238da2c5ba07715684ec2553727be7066b24234f3007"
+      "render_sha256": "3b1b0a519cfd2123ac2a812fd96e2d99c01d41aaf3826bd3d5b2487d2fc8e919"
     },
     {
       "patch": "03-retire-legacy-after-acceptance.patch",
       "status": "verified",
       "legacy_objects": 0,
-      "render_sha256": "9324d4ffa75b6fc383e51b6c4d8c3b69fe774e2ad79ff17b4fda5cb161fc3525"
+      "render_sha256": "3085caf4909c5a9ceb825d846978bb062e9dbd7f0a6a932aad226098eeb81a4b"
     },
     {
       "patch": "04-qualified-upgrade-and-renovate.patch",
       "status": "verified",
       "legacy_objects": 0,
-      "render_sha256": "9324d4ffa75b6fc383e51b6c4d8c3b69fe774e2ad79ff17b4fda5cb161fc3525"
+      "render_sha256": "3085caf4909c5a9ceb825d846978bb062e9dbd7f0a6a932aad226098eeb81a4b"
     }
   ]
 }

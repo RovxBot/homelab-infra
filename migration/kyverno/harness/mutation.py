@@ -1,6 +1,7 @@
 """Compare actual dry-run admission objects with the legacy Longhorn mutation."""
 import copy
 import json
+import time
 from rehearse import EVIDENCE, apply, delete, load, k, ready, record, namespace
 
 
@@ -37,7 +38,16 @@ def cases():
 
 
 def admission_object(doc, operation):
-    p = k('create' if operation == 'CREATE' else 'replace', '--dry-run=server', '-f', '-', '-o', 'json', data=json.dumps(doc), check=False)
+    for attempt in range(4):
+        p = k('create' if operation == 'CREATE' else 'replace', '--dry-run=server', '-f', '-', '-o', 'json', data=json.dumps(doc), check=False)
+        if operation != 'UPDATE' or '(Conflict)' not in p.stderr or not p.returncode or attempt == 3:
+            break
+        # DaemonSet status writes can race the probe. Refresh only the version;
+        # keep the exact intended spec and never retry an admission denial.
+        current = json.loads(k('get',doc['kind'],doc['metadata']['name'],'-n',doc['metadata']['namespace'],'-o','json').stdout)
+        doc = copy.deepcopy(doc)
+        doc['metadata']['resourceVersion'] = current['metadata']['resourceVersion']
+        time.sleep(0.1)
     assert not any(s in p.stderr.lower() for s in ['failed calling webhook', 'no such key', 'invalid expression', 'context deadline', 'no endpoints']), p.stderr
     return {'allowed': p.returncode == 0, 'object': json.loads(p.stdout) if p.returncode == 0 else None, 'stderr': p.stderr}
 

@@ -102,6 +102,12 @@ def safeguards():
         probe = copy.deepcopy(ns); probe['metadata']['labels'].pop(field)
         result = admission(probe, user=FLUX_USER, check_policy=False)
         assert not result['allowed'] and 'flux-namespace-enrollment' in result['stderr'], result
+    apply(namespace('label-only-update-probe'))
+    probe = get('namespace','label-only-update-probe')
+    probe['metadata']['labels']['homelab.cooked.beer/bootstrap'] = 'enabled'
+    for user in [None, FLUX_USER]:
+        result = admission(probe,'UPDATE',user=user,check_policy=False)
+        assert not result['allowed'] and 'flux-namespace-enrollment' in result['stderr'], result
     record('namespace-invalid-bundles', status='verified', checks=['each partial bundle rejected by CI','label-only rejected for humans and Flux','missing owner/PSA rejected'])
 
 
@@ -151,7 +157,9 @@ def run(flux, during=None):
     live = get('namespace',NS)
     uid = live['metadata']['uid']
     rows = snapshots()
-    assert all(any(f['manager']=='kustomize-controller' for f in d['metadata']['managedFields']) for d in [live, *rows])
+    ownership = [json.loads(k('get',kind,name,*(['-n',NS] if kind!='namespace' else []),'-o','json','--show-managed-fields').stdout) for kind,name in [('namespace',NS), *OUTPUTS.items()]]
+    assert all(any(f['manager']=='kustomize-controller' for f in d['metadata']['managedFields']) for d in ownership)
+    (EVIDENCE/'flux-owned-managed-fields.json').write_text(json.dumps(ownership,indent=2)+'\n')
     assert all(not d['metadata'].get('ownerReferences') for d in rows)
     (EVIDENCE/'flux-owned-defaults.json').write_text(json.dumps(rows,indent=2)+'\n')
     flux.reconcile(appks, 'workloads-after-complete-bundle')
@@ -162,7 +170,7 @@ def run(flux, during=None):
         bad = copy.deepcopy(obj); bad['spec'] = {}
         result = admission(bad,'UPDATE',check_policy=False)
         assert not result['allowed'], result
-    # Preventive spec guards and actual metadata drift correction are distinct.
+    # Untrusted writes are denied; trusted-identity drift still repairs from Git.
     def drift():
         for kind, name in OUTPUTS.items():
             k('annotate',kind,name,'-n',NS,'--as',FLUX_USER,'--overwrite',PRUNE+'=drift')
