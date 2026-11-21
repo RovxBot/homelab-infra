@@ -1,0 +1,66 @@
+{
+  "status": "verified",
+  "run_url": "https://github.com/RovxBot/homelab-infra/actions/runs/44847501918",
+  "release": "v1.20.0",
+  "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+  "verifier": "cosign v3.1.4",
+  "verifier_bootstrap": "official GitHub release SHA256; no independent verifier signature claim",
+  "trust": "official Sigstore TUF defaults; certificate and transparency log checks enabled",
+  "blobs": [
+    "kyverno-3.10.0.tgz",
+    "kyverno-cli_v1.20.0_linux_x86_64.tar.gz"
+  ],
+  "images": {
+    "background-controller": {
+      "digest": "sha256:c72df38320a48fc9de10f9d23d087a117853bb08207b7f60f6d1e8457fb3ddb7",
+      "signature_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+      "provenance_builder": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0",
+      "verification_output_sha256": "0e388e9f5f5a68da708735346e82af3a04e59630c1255f121b1e8847d6981524",
+      "provenance_output_sha256": "8813b0e4f4163d88250e28b53331639949dee2f039549813077a13c8f83c00e8"
+    },
+    "cleanup-controller": {
+      "digest": "sha256:0f9ce0c203561c52499e871a987ff987371f57385fcafe7af1a01dfd6db1feee",
+      "signature_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+      "provenance_builder": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0",
+      "verification_output_sha256": "5ef28352318ac109acf62105c03220326ffed5ac2153f8b6fb477d7e09eaf0f1",
+      "provenance_output_sha256": "4ab9ee0a4aa27335153a753d168183eae7131ece551644f1b2970b12aef15634"
+    },
+    "kyverno-cli": {
+      "digest": "sha256:bd2b8b7c9d550ecf04e0bacaf351adce2f82ce67fd3f291075edcee7f8ab4ab4",
+      "signature_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+      "provenance_builder": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0",
+      "verification_output_sha256": "a51ed3917facf035606989909d86759e85b5d8e465967ba86c9c1355b1bed443",
+      "provenance_output_sha256": "9faa16fdca5d100ec76665c75c3942d18b04d1ae513bc0a5a44f838cc9eadfcb"
+    },
+    "kyverno": {
+      "digest": "sha256:9de49c5416ea536f00a205527197ac048abdf32c5a75d633cd9afff8928f359d",
+      "signature_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+      "provenance_builder": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0",
+      "verification_output_sha256": "2145875255b11d31ed9ce1e20a9de56ac49070d0c95ec8418f9dcab934b86121",
+      "provenance_output_sha256": "421b4a752f5ac9038d7e060a7f5e869c8f684e08d6807c7cdc15ea4b4d0dff77"
+    },
+    "kyvernopre": {
+      "digest": "sha256:339067e083430e0c97007541bef9cfdbac89bee13f7228772c77ae8aead14b8b",
+      "signature_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+      "provenance_builder": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0",
+      "verification_output_sha256": "005f0a44a0d9316bd9848a61de6b8157be2b8cb4c65fe1212a86715722ee7054",
+      "provenance_output_sha256": "8e9b734361a5db154e7488a70b44d901cd1c412cf12ba98ac49ff70fc3762257"
+    },
+    "readiness-checker": {
+      "digest": "sha256:6079a30d75fe7ba868a5a7e5dfa71ee92a3a8bae97adcea1c8cfb1009280ee6c",
+      "signature_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+      "provenance_builder": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0",
+      "verification_output_sha256": "df760a032c74818751640dd16f11ca2544474352a36cd51d25edc9afc2743ecd",
+      "provenance_output_sha256": "5a09d91be18bf070d086baede35a622293d1b04622cb6822b3f837567d16d51b"
+    },
+    "reports-controller": {
+      "digest": "sha256:f54e3cc106fadb1a615d0ec11c42f741f51d3580a5f70dfbe7bd7ec58864ef03",
+      "signature_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+      "provenance_builder": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0",
+      "verification_output_sha256": "a1be89c3de9faf89ee0f2b4e4cbcde257f18292ab749be1e696988e508d97f3c",
+      "provenance_output_sha256": "3c9ad258b06b7a6839c61b8590876595db7e20d0fb5eeb2c865c4432ccf4f416"
+    }
+  }
+}

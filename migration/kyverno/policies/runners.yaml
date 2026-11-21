@@ -53,7 +53,7 @@ spec:
       + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default') ==
       'Default')) && (object.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
       || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
-      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes']))
+      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
       && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
       + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
       in ['RuntimeDefault','Localhost'])) && (object.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
@@ -64,7 +64,10 @@ spec:
       == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
       + object.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
       p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
-      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '')))
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (object.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false)))
     message: restricted-with-sanitizer-capability
 ---
 apiVersion: policies.kyverno.io/v1
@@ -446,7 +449,7 @@ spec:
       + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default') ==
       'Default')) && (object.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
       || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
-      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes']))
+      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
       && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
       + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
       in ['RuntimeDefault','Localhost'])) && (object.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
@@ -457,7 +460,10 @@ spec:
       == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
       + object.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
       p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
-      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '')))
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (object.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false)))
     message: restricted-with-sanitizer-capability
 ---
 apiVersion: policies.kyverno.io/v1

@@ -27,14 +27,16 @@ cleanup() {
   if test -s "$KUBECONFIG"; then
     kubectl --context "$REHEARSAL_CONTEXT" --request-timeout=10s get pods -A -o wide > .work/cel/evidence/pods.txt 2>&1
     kubectl --context "$REHEARSAL_CONTEXT" --request-timeout=10s get events -A > .work/cel/evidence/events.txt 2>&1
+    kubectl --context "$REHEARSAL_CONTEXT" --request-timeout=10s get validatingpolicies,policyexceptions.policies.kyverno.io,generatingpolicies -A -o json > .work/cel/evidence/cel-resources-final.json 2>&1
     for role in admission background cleanup reports; do
-      kubectl --context "$REHEARSAL_CONTEXT" --request-timeout=10s logs -n kyverno -l app.kubernetes.io/component="$role" --all-containers --tail=250 > ".work/cel/evidence/$role.log" 2>&1
+      kubectl --context "$REHEARSAL_CONTEXT" --request-timeout=10s logs -n kyverno -l app.kubernetes.io/component="$role-controller" --all-containers --tail=250 > ".work/cel/evidence/$role.log" 2>&1
     done
   fi
   timeout 60 kind delete cluster --name kyverno-cel-rehearsal > .work/cel/evidence/teardown.txt 2>&1
   exit "$code"
 }
 trap cleanup EXIT
+trap 'exit 143' TERM INT
 kind create cluster --name kyverno-cel-rehearsal --kubeconfig "$KUBECONFIG" --wait 120s \
   --image kindest/node:v1.34.0@sha256:7416a61b42b1662ca6ca89f02028ac133a309a2a30ba309614e8ec94d976dc5a
 kubectl --context "$REHEARSAL_CONTEXT" get --raw /version > .work/cel/evidence/kubernetes.json

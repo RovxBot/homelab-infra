@@ -33,6 +33,12 @@ jobs:
         env:
           CANDIDATE_TRUST: ${{ steps.trust.outcome }}
         run: timeout 1500 bash migration/kyverno/harness/run.sh
+      - name: Always destroy the rehearsal cluster
+        if: always()
+        run: |
+          if test -x .work/cel/bin/kind; then
+            timeout 60 .work/cel/bin/kind delete cluster --name kyverno-cel-rehearsal
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
