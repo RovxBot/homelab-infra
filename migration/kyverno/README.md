@@ -58,7 +58,10 @@ release/source/CLI identities, validates image signatures/provenance and vendor
 Kubernetes support, and never silently substitutes an older version. Unchanged
 evidence can be reused only with complete input **and implementation** hashes and
 identical verified release artifacts; Task 18 reruns validation because shared
-harness installation changed. The old incomplete reuse contract cannot pass.
+harness installation changed. Its successful validation job now has a complete
+input/implementation contract; exact matches can reuse that job in the final
+full run. Set workflow reuse_validation=false to force new admissions. Historical
+incomplete contracts cannot pass.
 Kyverno remains separate from Monday maintenance, manual review and no automerge;
 temporary Renovate cap removal is prepared only in the final reviewed upgrade
 patch, with no permanent single-release pin.

@@ -67,5 +67,14 @@ class NamespaceBundleTests(unittest.TestCase):
     def test_duplicate_owners_fail(self):
         self.assertTrue(contract.check_graph([(self.ks,self.docs),(self.ks,self.docs)]))
 
+    def test_namespace_scope_does_not_use_unavailable_match_condition_variables(self):
+        guards=list(yaml.safe_load_all((ROOT/'infra/namespace-defaults/admission.yaml').read_text()))
+        for guard in guards:
+            if guard['kind']!='ValidatingAdmissionPolicy' or not guard['metadata']['name'].startswith('flux-default-'):
+                continue
+            self.assertEqual(guard['spec']['failurePolicy'],'Fail')
+            self.assertEqual(guard['spec']['matchConstraints']['namespaceSelector']['matchLabels'],{contract.LABEL:'enabled'})
+            self.assertTrue(all('namespaceObject' not in c['expression'] for c in guard['spec'].get('matchConditions',[])))
+
 
 if __name__ == '__main__': unittest.main()

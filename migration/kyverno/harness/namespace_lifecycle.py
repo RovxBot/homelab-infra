@@ -167,7 +167,10 @@ def run(flux, during=None):
     k('rollout','status','deployment/readiness-probe','-n',NS,'--timeout=75s')
     record('namespace-creation-and-dependencies', status='verified', exact_specs=True, namespace_uid=uid, flux_owned=True)
     for obj in rows:
-        bad = copy.deepcopy(obj); bad['spec'] = {}
+        bad = copy.deepcopy(obj)
+        if obj['kind']=='LimitRange': bad['spec']['limits'][0]['default']['cpu']='600m'
+        elif obj['kind']=='ResourceQuota': bad['spec']['hard']['pods']='21'
+        else: bad['spec']['ingress']=[{}]
         result = admission(bad,'UPDATE',check_policy=False)
         assert not result['allowed'], result
     # Untrusted writes are denied; trusted-identity drift still repairs from Git.

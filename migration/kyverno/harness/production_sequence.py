@@ -111,6 +111,11 @@ def during(flux, guards):
     import os
     from qualify import report_access
     smoke()
+    # Controllers were installed from components only. Supply the committed
+    # Namespace governance metadata before enabling the complete policy set.
+    apply(load('clusters/home/flux-system/namespace-security.yaml'))
+    apply(load('infra/kyverno/namespace.yaml'))
+    apply(namespace('local-path-storage'))
     legacy=policies('legacy');cel=policies('cel')
     flux.commit([*guards,*legacy,*cel],'overlap-every-policy-and-exception')
     check_policies([*legacy,*cel])

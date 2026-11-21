@@ -41,7 +41,8 @@ spec:
   - name: has-flux-label
     expression: '''kustomize.toolkit.fluxcd.io/name'' in (request.operation == ''DELETE'' ? oldObject : object).metadata.?labels.orValue({})'
   - name: excluded-namespaces
-    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+    expression: '!(request.?namespace.orValue('''') in ["flux-system", "kube-node-lease", "kube-public", "kube-system",
+      "kyverno"])'
   - name: excluded-kinds
     expression: '!((request.operation == ''DELETE'' ? oldObject : object).kind in [''Endpoints'',''EndpointSlice'',''PolicyReport'',''ClusterPolicyReport''])'
   - name: longhorn-controller

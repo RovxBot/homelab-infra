@@ -48,6 +48,7 @@ def admission_object(doc, operation):
         doc = copy.deepcopy(doc)
         doc['metadata']['resourceVersion'] = current['metadata']['resourceVersion']
         time.sleep(0.1)
+    assert '(Conflict)' not in p.stderr, 'Optimistic concurrency failure is not a schema or policy denial: '+p.stderr
     assert not any(s in p.stderr.lower() for s in ['failed calling webhook', 'no such key', 'invalid expression', 'context deadline', 'no endpoints']), p.stderr
     return {'allowed': p.returncode == 0, 'object': json.loads(p.stdout) if p.returncode == 0 else None, 'stderr': p.stderr}
 

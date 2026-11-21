@@ -206,7 +206,7 @@ def main():
         ),
         dict(
             name="excluded-namespaces",
-            expression=f"!(request.namespace in {lit(SYSTEM)})",
+            expression=f"!(request.?namespace.orValue('') in {lit(SYSTEM)})",
         ),
         dict(
             name="excluded-kinds",

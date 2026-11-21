@@ -11,6 +11,10 @@ on:
         description: JSON array of diagnostic scenarios; blank runs full qualification
         type: string
         default: ''
+      reuse_validation:
+        description: Reuse only exact hashed validation evidence; false forces all admission tests
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -25,4 +29,4 @@ jobs:
     with:
       chart: ${{ inputs.chart || '3.10.0' }}
       scenarios: ${{ inputs.scenarios }}
-      reuse_validation: false
+      reuse_validation: ${{ inputs.reuse_validation && (inputs.chart == '' || inputs.chart == '3.10.0') }}

@@ -1,0 +1,3146 @@
+[
+  {
+    "name": "install",
+    "status": "verified",
+    "version": "1.19.2",
+    "chart": "3.9.2",
+    "chart_sha256": "f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e",
+    "images": [
+      {
+        "pod": "kyverno-admission-controller-d6bc59994-brrjh",
+        "images": [
+          "ghcr.io/kyverno/kyvernopre:v1.19.2",
+          "ghcr.io/kyverno/kyverno:v1.19.2"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/kyverno@sha256:c8c4dd09e720d2cd7fd24ca73ac28e46651001372f988e0cba3f2f612f04b955"
+        ]
+      },
+      {
+        "pod": "kyverno-background-controller-5c59b5878b-5h9l7",
+        "images": [
+          "ghcr.io/kyverno/background-controller:v1.19.2"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/background-controller@sha256:c46e124f21ef8a6bb4b48de57106808b1007edcd5ddd4ff7df5d23b9efa60ce2"
+        ]
+      },
+      {
+        "pod": "kyverno-cleanup-controller-65f958bfbc-nhzp7",
+        "images": [
+          "ghcr.io/kyverno/cleanup-controller:v1.19.2"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/cleanup-controller@sha256:d7340aa7c9315080c3dafa7b765d090ced37353e89e5cd7a3f9ac69e8fb532b2"
+        ]
+      },
+      {
+        "pod": "kyverno-reports-controller-b97f79458-bvsdd",
+        "images": [
+          "ghcr.io/kyverno/reports-controller:v1.19.2"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/reports-controller@sha256:5fb6d3e738050dbce84f60ecabaede7665fbe0578d07c1e8c912443b035e79c3"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "valid",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "invalid-issue-url",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "false-issue-marker",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "valid",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "invalid-issue-url",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "false-issue-marker",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "invalid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "false-issue-marker",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "invalid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "false-issue-marker",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "original",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "valid",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "invalid-issue-url",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "false-issue-marker",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "valid",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nWarning: kyverno.io/v2beta1 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "invalid-issue-url",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "false-issue-marker",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "kyverno.io/v2",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": false,
+    "warning": true,
+    "stderr": "Warning: kyverno.io/v2 PolicyException is deprecated and will be removed in a future release; migrate to PolicyException (policies.kyverno.io), see https://kyverno.io/docs/guides/migration-to-cel/\nThe policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "invalid-issue-url",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "false-issue-marker",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "invalid-issue-url",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "false-issue-marker",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "native-governance-bootstrap",
+    "status": "verified",
+    "version": "1.19.2",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "runner-reporting-rbac",
+    "status": "verified",
+    "before": false,
+    "after": true,
+    "resource": "pods/ephemeralcontainers",
+    "verbs": [
+      "get",
+      "list",
+      "watch"
+    ]
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-namespace-standards/require-psa-and-owner-labels",
+    "cases": 23
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-pod-standards/require-owner-label",
+    "cases": 41
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-pod-standards/require-requests-and-limits",
+    "cases": 66
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-pod-standards/require-runtime-hardening",
+    "cases": 66
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-pod-standards/disallow-host-network",
+    "cases": 41
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-pod-standards/require-digest-pinned-images",
+    "cases": 61
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-pod-standards/disallow-latest-tags",
+    "cases": 61
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "platform-pod-standards/require-probes",
+    "cases": 51
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/restricted-with-sanitizer-capability",
+    "cases": 27
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/bound-job-environment",
+    "cases": 13
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/one-job-container",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/drop-all-and-only-allow-ptrace",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/ptrace-only-in-sanitizer-jobs",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/ordinary-job-identity",
+    "cases": 12
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/bounded-sanitizer-identity",
+    "cases": 12
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "gitea-job-security/no-extra-job-credentials",
+    "cases": 9
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "wowdecomp-linux-security/restricted-with-sanitizer-capability",
+    "cases": 27
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "wowdecomp-linux-security/bound-job-environment",
+    "cases": 14
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "wowdecomp-linux-security/one-job-container",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "wowdecomp-linux-security/bounded-toolchain-capabilities",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "wowdecomp-linux-security/no-extra-job-credentials",
+    "cases": 9
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "wowdecomp-linux-security/no-mounted-registry-credential",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "rule": "wowdecomp-linux-security/no-registry-credential-in-environment",
+    "cases": 9
+  },
+  {
+    "name": "whole-runner-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "pool": "core",
+    "cases": 14
+  },
+  {
+    "name": "runner-ephemeral-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "pool": "core",
+    "stderr": "Error from server: admission webhook \"validate.kyverno.svc-fail\" denied the request: \n\nresource Pod/gitea-jobs/ephemeral-probe was blocked due to the following policies \n\ngitea-job-security:\n  one-job-container: Only the job container is allowed; no init or ephemeral containers.\n"
+  },
+  {
+    "name": "whole-runner-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "pool": "wowdecomp",
+    "cases": 15
+  },
+  {
+    "name": "runner-ephemeral-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "pool": "wowdecomp",
+    "stderr": "Warning: would violate PodSecurity \"restricted:v1.34\": unrestricted capabilities (containers \"job\", \"debug\" must not include \"CHOWN\", \"DAC_OVERRIDE\", \"FOWNER\", \"SETGID\", \"SETUID\", \"SYS_PTRACE\" in securityContext.capabilities.add), runAsNonRoot != true (containers \"job\", \"debug\" must not set securityContext.runAsNonRoot=false), runAsUser=0 (containers \"job\", \"debug\" must not set runAsUser=0)\nError from server: admission webhook \"validate.kyverno.svc-fail\" denied the request: \n\nresource Pod/wowdecomp-ci-jobs/ephemeral-probe was blocked due to the following policies \n\nwowdecomp-linux-security:\n  one-job-container: Only the job container is allowed; no init or ephemeral containers.\n"
+  },
+  {
+    "name": "background-report",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "results": [
+      {
+        "category": "Security, Operations",
+        "message": "validation error: Workload pod templates must carry the homelab owner label. rule require-owner-label[0] failed at path /spec/template/metadata/labels/homelab.cooked.beer/owner/ rule require-owner-label[1] failed at path /spec/jobTemplate/",
+        "policy": "platform-pod-standards",
+        "properties": {
+          "process": "background scan"
+        },
+        "result": "fail",
+        "rule": "require-owner-label",
+        "scored": true,
+        "severity": "medium",
+        "source": "kyverno",
+        "timestamp": {
+          "nanos": 0,
+          "seconds": 1795252797
+        }
+      }
+    ]
+  },
+  {
+    "name": "existing-violation-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "introduce-new-violation",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "allowed": false,
+    "warning": false,
+    "stderr": "Error from server: error when replacing \"STDIN\": admission webhook \"validate.kyverno.svc-fail\" denied the request: \n\nresource Deployment/cel-reporting/new-violation was blocked due to the following policies \n\nplatform-pod-standards:\n  require-owner-label: 'validation error: Workload pod templates must carry the homelab owner label. rule require-owner-label[0] failed at path /spec/template/metadata/labels/homelab.cooked.beer/owner/ rule require-owner-label[1] failed at path /spec/jobTemplate/'\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "no-label",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "empty-label",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-flux-system",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kube-node-lease",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kube-public",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kube-system",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kyverno",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "longhorn-exact",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "longhorn-manual",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "longhorn-other-user",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "longhorn-other-namespace",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "longhorn-other-version",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "longhorn-other-kind",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kind-Endpoints",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kind-EndpointSlice",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kind-PolicyReport",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "case": "excluded-kind-ClusterPolicyReport",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "user": "system:serviceaccount:flux-system:helm-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-delete",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: policy platform-flux-guardrails.audit-manual-edits-to-flux-managed-resources: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-delete",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-audit-report",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "legacy",
+    "results": [
+      {
+        "category": "GitOps",
+        "message": "Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.",
+        "policy": "platform-flux-guardrails",
+        "properties": {
+          "process": "admission review"
+        },
+        "result": "fail",
+        "rule": "audit-manual-edits-to-flux-managed-resources",
+        "scored": true,
+        "severity": "medium",
+        "source": "kyverno",
+        "timestamp": {
+          "nanos": 0,
+          "seconds": 1795252811
+        }
+      }
+    ]
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-namespace-standards/require-psa-and-owner-labels",
+    "cases": 23
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-owner-label",
+    "cases": 41
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-requests-and-limits",
+    "cases": 66
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-runtime-hardening",
+    "cases": 66
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-pod-standards/disallow-host-network",
+    "cases": 41
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-digest-pinned-images",
+    "cases": 61
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-pod-standards/disallow-latest-tags",
+    "cases": 61
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-probes",
+    "cases": 51
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/restricted-with-sanitizer-capability",
+    "cases": 27
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/bound-job-environment",
+    "cases": 13
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/one-job-container",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/drop-all-and-only-allow-ptrace",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/ptrace-only-in-sanitizer-jobs",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/ordinary-job-identity",
+    "cases": 12
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/bounded-sanitizer-identity",
+    "cases": 12
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "gitea-job-security/no-extra-job-credentials",
+    "cases": 9
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/restricted-with-sanitizer-capability",
+    "cases": 27
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/bound-job-environment",
+    "cases": 14
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/one-job-container",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/bounded-toolchain-capabilities",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/no-extra-job-credentials",
+    "cases": 9
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/no-mounted-registry-credential",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/no-registry-credential-in-environment",
+    "cases": 9
+  },
+  {
+    "name": "validation-equivalence",
+    "status": "verified",
+    "version": "1.19.2",
+    "cases": 596,
+    "differences": 0
+  },
+  {
+    "name": "whole-runner-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "pool": "core",
+    "cases": 14
+  },
+  {
+    "name": "runner-ephemeral-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "pool": "core",
+    "stderr": "Error from server: admission webhook \"nvpol.validate.kyverno.svc-fail-finegrained-gitea-jobs-gitea-job-security-one-job-container\" denied the request: Policy gitea-job-security-one-job-container failed: Only the job container is allowed; no init or ephemeral containers.\n"
+  },
+  {
+    "name": "whole-runner-admission",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "pool": "wowdecomp",
+    "cases": 15
+  },
+  {
+    "name": "runner-ephemeral-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "pool": "wowdecomp",
+    "stderr": "Warning: would violate PodSecurity \"restricted:v1.34\": unrestricted capabilities (containers \"job\", \"debug\" must not include \"CHOWN\", \"DAC_OVERRIDE\", \"FOWNER\", \"SETGID\", \"SETUID\", \"SYS_PTRACE\" in securityContext.capabilities.add), runAsNonRoot != true (containers \"job\", \"debug\" must not set securityContext.runAsNonRoot=false), runAsUser=0 (containers \"job\", \"debug\" must not set runAsUser=0)\nError from server: admission webhook \"nvpol.validate.kyverno.svc-fail-finegrained-wowdecomp-ci-jobs-wowdecomp-linux-security-one-job-container\" denied the request: Policy wowdecomp-linux-security-one-job-container failed: Only the job container is allowed; no init or ephemeral containers.\n"
+  },
+  {
+    "name": "background-report",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "results": [
+      {
+        "category": "Security, Operations",
+        "message": "Workload pod templates must carry the homelab owner label.",
+        "policy": "platform-pod-standards-require-owner-label",
+        "properties": {
+          "cel.validationIndex": "0",
+          "process": "background scan"
+        },
+        "result": "fail",
+        "scored": true,
+        "severity": "medium",
+        "source": "KyvernoValidatingPolicy",
+        "timestamp": {
+          "nanos": 0,
+          "seconds": 1795252994
+        }
+      }
+    ]
+  },
+  {
+    "name": "existing-violation-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "introduce-new-violation",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "allowed": false,
+    "warning": false,
+    "stderr": "Error from server: error when replacing \"STDIN\": admission webhook \"vpol.validate.kyverno.svc-fail-finegrained-platform-pod-standards-require-owner-label\" denied the request: Policy platform-pod-standards-require-owner-label failed: Workload pod templates must carry the homelab owner label.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "no-label",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "empty-label",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-flux-system",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kube-node-lease",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kube-public",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kube-system",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kyverno",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "longhorn-exact",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "longhorn-manual",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "longhorn-other-user",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "longhorn-other-namespace",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "longhorn-other-version",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "longhorn-other-kind",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kind-Endpoints",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kind-EndpointSlice",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kind-PolicyReport",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "case": "excluded-kind-ClusterPolicyReport",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:helm-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-update",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-delete",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-delete",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-audit-report",
+    "status": "verified",
+    "version": "1.19.2",
+    "engine": "cel",
+    "results": [
+      {
+        "category": "GitOps",
+        "message": "Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.",
+        "policy": "platform-flux-guardrails",
+        "properties": {
+          "cel.validationIndex": "0",
+          "process": "admission review"
+        },
+        "result": "fail",
+        "scored": true,
+        "severity": "medium",
+        "source": "KyvernoValidatingPolicy",
+        "timestamp": {
+          "nanos": 0,
+          "seconds": 1795253009
+        }
+      }
+    ]
+  },
+  {
+    "name": "install",
+    "status": "verified",
+    "version": "1.20.0",
+    "chart": "3.10.0",
+    "chart_sha256": "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301",
+    "images": [
+      {
+        "pod": "kyverno-admission-controller-cb467b466-6qv9p",
+        "images": [
+          "ghcr.io/kyverno/kyvernopre:v1.20.0@sha256:339067e083430e0c97007541bef9cfdbac89bee13f7228772c77ae8aead14b8b",
+          "ghcr.io/kyverno/kyverno:v1.20.0@sha256:9de49c5416ea536f00a205527197ac048abdf32c5a75d633cd9afff8928f359d"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/kyverno@sha256:9de49c5416ea536f00a205527197ac048abdf32c5a75d633cd9afff8928f359d"
+        ]
+      },
+      {
+        "pod": "kyverno-background-controller-5c5f585978-6q5cl",
+        "images": [
+          "ghcr.io/kyverno/background-controller:v1.20.0@sha256:c72df38320a48fc9de10f9d23d087a117853bb08207b7f60f6d1e8457fb3ddb7"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/background-controller@sha256:c72df38320a48fc9de10f9d23d087a117853bb08207b7f60f6d1e8457fb3ddb7"
+        ]
+      },
+      {
+        "pod": "kyverno-cleanup-controller-6944cfd74-7gbgg",
+        "images": [
+          "ghcr.io/kyverno/cleanup-controller:v1.20.0@sha256:0f9ce0c203561c52499e871a987ff987371f57385fcafe7af1a01dfd6db1feee"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/cleanup-controller@sha256:0f9ce0c203561c52499e871a987ff987371f57385fcafe7af1a01dfd6db1feee"
+        ]
+      },
+      {
+        "pod": "kyverno-migrate-resources-8xldh",
+        "images": [
+          "ghcr.io/kyverno/kyverno-cli:v1.20.0@sha256:bd2b8b7c9d550ecf04e0bacaf351adce2f82ce67fd3f291075edcee7f8ab4ab4"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/kyverno-cli@sha256:bd2b8b7c9d550ecf04e0bacaf351adce2f82ce67fd3f291075edcee7f8ab4ab4"
+        ]
+      },
+      {
+        "pod": "kyverno-reports-controller-5957c48896-2qgd6",
+        "images": [
+          "ghcr.io/kyverno/reports-controller:v1.20.0@sha256:f54e3cc106fadb1a615d0ec11c42f741f51d3580a5f70dfbe7bd7ec58864ef03"
+        ],
+        "runtime_images": [
+          "ghcr.io/kyverno/reports-controller@sha256:f54e3cc106fadb1a615d0ec11c42f741f51d3580a5f70dfbe7bd7ec58864ef03"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "invalid-issue-url",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "false-issue-marker",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "valid-issue-url",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "invalid-issue-url",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "false-issue-marker",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "homelab.cooked.beer/owner-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/reason-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "kyverno.cooked.beer/expires-at-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-missing",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "governance-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "mode": "native",
+    "api": "policies.kyverno.io/v1",
+    "case": "github.cooked.beer/issue-create-empty",
+    "allowed": false,
+    "warning": false,
+    "stderr": "The policyexceptions \"accountability-probe\" is invalid: : ValidatingAdmissionPolicy 'policy-exception-accountability' with binding 'policy-exception-accountability' denied request: Exceptions require owner, reason, expiry and issue tracking\n"
+  },
+  {
+    "name": "native-governance-bootstrap",
+    "status": "verified",
+    "version": "1.20.0",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-namespace-standards/require-psa-and-owner-labels",
+    "cases": 23
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-owner-label",
+    "cases": 41
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-requests-and-limits",
+    "cases": 66
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-runtime-hardening",
+    "cases": 66
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-pod-standards/disallow-host-network",
+    "cases": 41
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-digest-pinned-images",
+    "cases": 61
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-pod-standards/disallow-latest-tags",
+    "cases": 61
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "platform-pod-standards/require-probes",
+    "cases": 51
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/restricted-with-sanitizer-capability",
+    "cases": 27
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/bound-job-environment",
+    "cases": 13
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/one-job-container",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/drop-all-and-only-allow-ptrace",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/ptrace-only-in-sanitizer-jobs",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/ordinary-job-identity",
+    "cases": 12
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/bounded-sanitizer-identity",
+    "cases": 12
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "gitea-job-security/no-extra-job-credentials",
+    "cases": 9
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/restricted-with-sanitizer-capability",
+    "cases": 27
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/bound-job-environment",
+    "cases": 14
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/one-job-container",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/bounded-toolchain-capabilities",
+    "cases": 11
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/no-extra-job-credentials",
+    "cases": 9
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/no-mounted-registry-credential",
+    "cases": 7
+  },
+  {
+    "name": "rule-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "rule": "wowdecomp-linux-security/no-registry-credential-in-environment",
+    "cases": 9
+  },
+  {
+    "name": "validation-equivalence",
+    "status": "verified",
+    "version": "1.20.0",
+    "cases": 596,
+    "differences": 0
+  },
+  {
+    "name": "whole-runner-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "pool": "core",
+    "cases": 14
+  },
+  {
+    "name": "runner-ephemeral-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "pool": "core",
+    "stderr": "Error from server: admission webhook \"nvpol.validate.kyverno.svc-fail-finegrained-gitea-jobs-gitea-job-security-one-job-container\" denied the request: Policy gitea-job-security-one-job-container failed: Only the job container is allowed; no init or ephemeral containers.\n"
+  },
+  {
+    "name": "whole-runner-admission",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "pool": "wowdecomp",
+    "cases": 15
+  },
+  {
+    "name": "runner-ephemeral-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "pool": "wowdecomp",
+    "stderr": "Warning: would violate PodSecurity \"restricted:v1.34\": unrestricted capabilities (containers \"job\", \"debug\" must not include \"CHOWN\", \"DAC_OVERRIDE\", \"FOWNER\", \"SETGID\", \"SETUID\", \"SYS_PTRACE\" in securityContext.capabilities.add), runAsNonRoot != true (containers \"job\", \"debug\" must not set securityContext.runAsNonRoot=false), runAsUser=0 (containers \"job\", \"debug\" must not set runAsUser=0)\nError from server: admission webhook \"nvpol.validate.kyverno.svc-fail-finegrained-wowdecomp-ci-jobs-wowdecomp-linux-security-one-job-container\" denied the request: Policy wowdecomp-linux-security-one-job-container failed: Only the job container is allowed; no init or ephemeral containers.\n"
+  },
+  {
+    "name": "background-report",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "results": [
+      {
+        "category": "Security, Operations",
+        "message": "Workload pod templates must carry the homelab owner label.",
+        "policy": "platform-pod-standards-require-owner-label",
+        "properties": {
+          "cel.validationIndex": "0",
+          "process": "background scan"
+        },
+        "result": "fail",
+        "rule": "validation",
+        "scored": true,
+        "severity": "medium",
+        "source": "KyvernoValidatingPolicy",
+        "timestamp": {
+          "nanos": 60486385,
+          "seconds": 1795253287
+        }
+      }
+    ]
+  },
+  {
+    "name": "existing-violation-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "introduce-new-violation",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "allowed": false,
+    "warning": false,
+    "stderr": "Error from server: error when replacing \"STDIN\": admission webhook \"vpol.validate.kyverno.svc-fail-finegrained-platform-pod-standards-require-owner-label\" denied the request: Policy platform-pod-standards-require-owner-label failed: Workload pod templates must carry the homelab owner label.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "no-label",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "empty-label",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-flux-system",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kube-node-lease",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kube-public",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kube-system",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kyverno",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "longhorn-exact",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "longhorn-manual",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "longhorn-other-user",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "longhorn-other-namespace",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "longhorn-other-version",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "longhorn-other-kind",
+    "policy_warning": true,
+    "expected_policy_warning": true,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kind-Endpoints",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice\n"
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kind-EndpointSlice",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kind-PolicyReport",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-boundary",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "case": "excluded-kind-ClusterPolicyReport",
+    "policy_warning": false,
+    "expected_policy_warning": false,
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:helm-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-create",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-update",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-delete",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "user": "manual",
+    "allowed": true,
+    "warning": true,
+    "stderr": "Warning: Policy platform-flux-guardrails failed: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.\n"
+  },
+  {
+    "name": "flux-delete",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "user": "system:serviceaccount:flux-system:kustomize-controller",
+    "allowed": true,
+    "warning": false,
+    "stderr": ""
+  },
+  {
+    "name": "flux-audit-report",
+    "status": "verified",
+    "version": "1.20.0",
+    "engine": "cel",
+    "results": [
+      {
+        "category": "GitOps",
+        "message": "Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of being edited manually in-cluster.",
+        "policy": "platform-flux-guardrails",
+        "properties": {
+          "cel.validationIndex": "0",
+          "process": "admission review"
+        },
+        "result": "fail",
+        "rule": "validation",
+        "scored": true,
+        "severity": "medium",
+        "source": "KyvernoValidatingPolicy",
+        "timestamp": {
+          "nanos": 564945761,
+          "seconds": 1795253301
+        }
+      }
+    ]
+  },
+  {
+    "name": "proposed-validation-contracts",
+    "status": "verified",
+    "version": "1.20.0"
+  }
+]

@@ -271,6 +271,15 @@ def flux_boundaries(version, engine):
         },
     }
     rows = []
+    # Wildcard Flux policies also see cluster-scoped resources, whose
+    # AdmissionRequest omits namespace. Exercise both actors on those paths.
+    for kind, extra in [('ClusterRole', {'rules': []}),
+                        ('ClusterRoleBinding', {'roleRef': {'apiGroup':'rbac.authorization.k8s.io','kind':'ClusterRole','name':'view'}, 'subjects': []})]:
+        for actor, user, expected in [('manual', None, True), ('flux', 'system:serviceaccount:flux-system:kustomize-controller', False)]:
+            d = copy.deepcopy(base)
+            d.update(kind=kind, apiVersion='rbac.authorization.k8s.io/v1', **extra)
+            d['metadata'].pop('namespace')
+            rows.append(('cluster-'+kind.lower()+'-'+actor,d,user,expected))
     absent = copy.deepcopy(base)
     absent["metadata"].pop("labels")
     rows.append(("no-label", absent, None, False))
