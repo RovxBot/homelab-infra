@@ -45,8 +45,8 @@ spec:
   - name: excluded-kinds
     expression: '!((object == null ? oldObject : object).kind in [''Endpoints'',''EndpointSlice'',''PolicyReport'',''ClusterPolicyReport''])'
   - name: longhorn-controller
-    expression: '!(request.resource.group == ''longhorn.io'' && request.resource.resource == ''backuptargets'' &&
-      request.namespace == ''longhorn-system'' && request.userInfo.username == ''system:serviceaccount:longhorn-system:longhorn-service-account'')'
+    expression: '!(request.resource.group == ''longhorn.io'' && request.resource.version == ''v1beta2'' && request.resource.resource
+      == ''backuptargets'' && request.namespace == ''longhorn-system'' && request.userInfo.username == ''system:serviceaccount:longhorn-system:longhorn-service-account'')'
   validations:
   - expression: request.userInfo.username in ['system:serviceaccount:flux-system:helm-controller','system:serviceaccount:flux-system:kustomize-controller']
     message: Flux-managed resources should be changed through Git and reconciled by Flux controllers instead of

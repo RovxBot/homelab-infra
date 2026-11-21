@@ -29,7 +29,7 @@ spec:
     - apiGroups:
       - apps
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -40,7 +40,7 @@ spec:
     - apiGroups:
       - batch
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -90,7 +90,7 @@ spec:
     - apiGroups:
       - apps
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -101,7 +101,7 @@ spec:
     - apiGroups:
       - batch
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -160,7 +160,7 @@ spec:
     - apiGroups:
       - apps
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -171,7 +171,7 @@ spec:
     - apiGroups:
       - batch
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -240,7 +240,7 @@ spec:
     - apiGroups:
       - apps
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -251,7 +251,7 @@ spec:
     - apiGroups:
       - batch
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -299,7 +299,7 @@ spec:
     - apiGroups:
       - apps
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -310,7 +310,7 @@ spec:
     - apiGroups:
       - batch
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -360,7 +360,7 @@ spec:
     - apiGroups:
       - apps
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -371,7 +371,7 @@ spec:
     - apiGroups:
       - batch
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -421,7 +421,7 @@ spec:
     - apiGroups:
       - apps
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE

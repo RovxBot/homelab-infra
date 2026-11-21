@@ -285,6 +285,7 @@ def install(version):
             ],
         )
         for p in get("pods", ns="kyverno")["items"]
+        if not p["metadata"].get("deletionTimestamp")
     ]
     if version == "1.20.0":
         assert all(
@@ -307,7 +308,7 @@ def admission(doc, operation="CREATE", check_policy=True, user=None):
         "-f",
         "-",
         "-o",
-        "json",
+        "name" if operation == "DELETE" else "json",
     ]
     if user:
         args += ["--as", user]

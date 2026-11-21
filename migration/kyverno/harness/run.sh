@@ -16,11 +16,19 @@ fetch https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-lin
 fetch https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-linux-amd64.sha256sum .work/cel/kind.sha256
 printf '%s  %s\n' "$(cut -d ' ' -f1 .work/cel/kind.sha256)" .work/cel/bin/kind | sha256sum -c -
 chmod +x .work/cel/bin/kind
+fetch https://dl.k8s.io/release/v1.34.0/bin/linux/amd64/kubectl .work/cel/bin/kubectl
+fetch https://dl.k8s.io/release/v1.34.0/bin/linux/amd64/kubectl.sha256 .work/cel/kubectl.sha256
+printf '%s  %s\n' "$(cat .work/cel/kubectl.sha256)" .work/cel/bin/kubectl | sha256sum -c -
+chmod +x .work/cel/bin/kubectl
 fetch https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz .work/cel/helm.tgz
 fetch https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz.sha256sum .work/cel/helm.sha256
 printf '%s  %s\n' "$(cut -d ' ' -f1 .work/cel/helm.sha256)" .work/cel/helm.tgz | sha256sum -c -
 tar xzf .work/cel/helm.tgz -C .work/cel
 cp .work/cel/linux-amd64/helm .work/cel/bin/helm
+if [[ "$(kind get clusters 2>/dev/null)" == *kyverno-cel-rehearsal* ]]; then
+  echo 'Refusing to reuse an existing cluster' >&2
+  exit 2
+fi
 cleanup() {
   code=$?
   set +e

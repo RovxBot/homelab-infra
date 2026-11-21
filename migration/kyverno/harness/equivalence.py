@@ -80,7 +80,7 @@ def suite(version, engine):
             else next(p for p in draft if p["metadata"]["name"] == item["name"])
         )
         rows = cases(item["source_policy"], item["source_rule"])
-        # Store two objects before activating this rule. nodeName prevents every
+        # Store two objects before activating this rule. A nonexistent scheduler prevents every
         # runner Pod from scheduling or attempting a production registry pull.
         updates = []
         invalid_cases = {
@@ -105,7 +105,7 @@ def suite(version, engine):
             d = copy.deepcopy(raw)
             d["metadata"]["name"] = "existing-" + state
             if d["kind"] == "Pod":
-                d["spec"]["nodeName"] = "rehearsal-unscheduled"
+                d["spec"]["schedulerName"] = "rehearsal-no-scheduler"
             if d["kind"] == "Namespace":
                 d["metadata"]["name"] = "existing-" + state + "-ns"
             # A native-invalid fixture is not usable as an oldObject.
@@ -141,7 +141,7 @@ def suite(version, engine):
                     else introduced.get("spec", {})
                 )
                 if stored["kind"] == "Pod":
-                    introduced["spec"]["nodeName"] = "rehearsal-unscheduled"
+                    introduced["spec"]["schedulerName"] = "rehearsal-no-scheduler"
                 updates.append(("introduce-violation", introduced))
         successful = False
         try:
@@ -273,7 +273,7 @@ def whole_runners(version, engine):
 
         live_pod = runner("wow" if pool == "wowdecomp" else "core")
         live_pod["metadata"]["name"] = "ephemeral-probe"
-        live_pod["spec"]["nodeName"] = "rehearsal-unscheduled"
+        live_pod["spec"]["schedulerName"] = "rehearsal-no-scheduler"
         try:
             apply(live_pod)
             ephem = copy.deepcopy(get("pods", "ephemeral-probe", namespace))

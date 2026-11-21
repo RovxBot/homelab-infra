@@ -27,7 +27,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -172,7 +172,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -227,7 +227,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -273,7 +273,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -319,7 +319,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -361,7 +361,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -405,7 +405,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -450,7 +450,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -493,7 +493,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -638,7 +638,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -694,7 +694,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -740,7 +740,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -787,7 +787,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -830,7 +830,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE
@@ -874,7 +874,7 @@ spec:
     - apiGroups:
       - ''
       apiVersions:
-      - '*'
+      - v1
       operations:
       - CREATE
       - UPDATE

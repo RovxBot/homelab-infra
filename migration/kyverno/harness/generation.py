@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 import yaml
+import urllib.parse
 from rehearse import (
     WORK,
     EVIDENCE,
@@ -42,6 +43,7 @@ def snapshot(ns):
                 "uid": obj["metadata"]["uid"],
                 "labels": obj["metadata"].get("labels", {}),
                 "annotations": obj["metadata"].get("annotations", {}),
+                "ownerReferences": obj["metadata"].get("ownerReferences", []),
                 "spec": obj["spec"],
             }
         )
@@ -226,15 +228,20 @@ class Watch:
                         "--context",
                         "kind-kyverno-cel-rehearsal",
                         "get",
-                        kind,
-                        name,
-                        "-n",
-                        self.ns,
-                        "--watch-only",
-                        "--output-watch-events",
-                        "--resource-version=" + rv,
-                        "-o",
-                        "json",
+                        "--raw",
+                        (
+                            "/apis/networking.k8s.io/v1"
+                            if kind == "networkpolicies"
+                            else "/api/v1"
+                        )
+                        + f"/namespaces/{self.ns}/{kind}?"
+                        + urllib.parse.urlencode(
+                            {
+                                "watch": "true",
+                                "resourceVersion": rv,
+                                "fieldSelector": "metadata.name=" + name,
+                            }
+                        ),
                     ],
                     stdout=out,
                     stderr=out,
@@ -257,7 +264,9 @@ class Watch:
                 event, end = decoder.raw_decode(raw)
                 raw = raw[end:].lstrip()
                 events.append(event)
-                assert event["type"] != "DELETED", event
+                assert event["type"] in ["ADDED", "MODIFIED", "BOOKMARK"], event
+                if event["type"] == "BOOKMARK":
+                    continue
                 if kind == "networkpolicies":
                     spec = event["object"]["spec"]
                     assert (
@@ -317,6 +326,17 @@ def freeze():
     return [b, p]
 
 
+def thaw(locks, ns):
+    delete(locks)
+    wait(
+        "API server observes trigger thaw",
+        lambda: admission(get("namespaces", ns), "UPDATE", check_policy=False)[
+            "allowed"
+        ],
+        20,
+    )
+
+
 def queue_drained():
     urs = get("updaterequests.kyverno.io")["items"]
     return all(u.get("status", {}).get("state") in ["Completed", "Skip"] for u in urs)
@@ -330,6 +350,7 @@ def before_upgrade():
         ns = "generation-existing"
         apply(namespace(ns))
         flux.commit([legacy], "legacy-active")
+        ready(legacy)
         trigger = get("namespaces", ns)
         trigger["metadata"]["labels"]["homelab.cooked.beer/bootstrap"] = "enabled"
         apply(trigger)
@@ -362,10 +383,28 @@ def before_upgrade():
             wait("post-prune legacy queue drains", queue_drained)
             assert [r["uid"] for r in snapshot(ns)] == [r["uid"] for r in initial]
             assert correct(ns)
+            # Restart under the freeze to discard all legacy policy caches and
+            # watchers before activating a new synchronizer.
+            k(
+                "rollout",
+                "restart",
+                "deployment/kyverno-background-controller",
+                "-n",
+                "kyverno",
+            )
+            k(
+                "rollout",
+                "status",
+                "deployment/kyverno-background-controller",
+                "-n",
+                "kyverno",
+                "--timeout=90s",
+                timeout=100,
+            )
             # No legacy generator exists when CEL synchronization is activated.
             flux.commit([gp], "cel-active-after-legacy-absent")
             ready(gp)
-            delete(locks)
+            thaw(locks, ns)
             locks = []
             k(
                 "annotate",
@@ -428,6 +467,9 @@ def before_upgrade():
 def after_upgrade(state):
     ns = "generation-existing"
     before = snapshot(ns)
+    assert [r["uid"] for r in before] == [
+        r["uid"] for r in state["initial"]
+    ], "Upgrade changed output identity"
     k("rollout", "restart", "deployment/kyverno-background-controller", "-n", "kyverno")
     k(
         "rollout",
@@ -487,7 +529,7 @@ def after_upgrade(state):
             install("1.19.2")
             legacy = load("infra/kyverno/policies/platform-namespace-bootstrap.yaml")[0]
             flux.commit([legacy], "restore-legacy-after-downgrade")
-            delete(locks)
+            thaw(locks, ns)
             locks = []
             k(
                 "annotate",

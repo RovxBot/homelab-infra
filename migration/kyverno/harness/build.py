@@ -26,10 +26,11 @@ def lit(x):
     return json.dumps(x)
 
 
-def rule(resources, groups=None, operations=None):
+def rule(resources, groups=None, operations=None, versions=None):
     return dict(
         apiGroups=groups or ["*"],
-        apiVersions=["*"],
+        apiVersions=versions
+        or (["*"] if groups is None or groups == ["*"] else ["v1"]),
         operations=operations or ["CREATE", "UPDATE"],
         resources=resources,
     )
@@ -213,7 +214,7 @@ def main():
         ),
         dict(
             name="longhorn-controller",
-            expression="!(request.resource.group == 'longhorn.io' && request.resource.resource == 'backuptargets' && request.namespace == 'longhorn-system' && request.userInfo.username == 'system:serviceaccount:longhorn-system:longhorn-service-account')",
+            expression="!(request.resource.group == 'longhorn.io' && request.resource.version == 'v1beta2' && request.resource.resource == 'backuptargets' && request.namespace == 'longhorn-system' && request.userInfo.username == 'system:serviceaccount:longhorn-system:longhorn-service-account')",
         ),
     ]
     emit(
@@ -446,7 +447,11 @@ def main():
             failurePolicy="Fail",
             matchConstraints=dict(
                 resourceRules=[
-                    rule(["policyexceptions"], ["kyverno.io", "policies.kyverno.io"])
+                    rule(
+                        ["policyexceptions"],
+                        ["kyverno.io", "policies.kyverno.io"],
+                        versions=["*"],
+                    )
                 ]
             ),
             matchConditions=[

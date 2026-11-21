@@ -4,7 +4,10 @@ on:
   push:
     branches: [feat/kyverno-cel-isolated-rehearsal]
     paths:
-      - migration/kyverno/**
+      - migration/kyverno/harness/**
+      - migration/kyverno/policies/**
+      - migration/kyverno/exceptions/**
+      - migration/kyverno/policy-map.json
       - .github/workflows/kyverno-cel-rehearsal.yml
   workflow_dispatch:
 

@@ -1,0 +1,35 @@
+{
+  "as_of": "2026-11-21",
+  "exceptions": [
+    {
+      "name": "chart-managed-workloads",
+      "owner": "platform",
+      "expired_on": "2026-08-31",
+      "action": "Owner review required; date and scope unchanged"
+    },
+    {
+      "name": "gpu-operator-workloads",
+      "owner": "platform",
+      "expired_on": "2026-10-31",
+      "action": "Owner review required; date and scope unchanged"
+    },
+    {
+      "name": "mutable-image-tags",
+      "owner": "platform",
+      "expired_on": "2026-08-31",
+      "action": "Owner review required; date and scope unchanged"
+    },
+    {
+      "name": "privileged-namespaces",
+      "owner": "platform",
+      "expired_on": "2026-08-31",
+      "action": "Owner review required; date and scope unchanged"
+    },
+    {
+      "name": "wotlk-latest-tag",
+      "owner": "platform",
+      "expired_on": "2026-08-31",
+      "action": "Owner review required; date and scope unchanged"
+    }
+  ]
+}
