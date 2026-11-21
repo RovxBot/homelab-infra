@@ -2,7 +2,7 @@
 import json
 import threading
 import time
-from rehearse import ROOT, EVIDENCE, apply, get, install, k, load, namespace, ready, record, run, smoke, wait
+from rehearse import ROOT, WORK, EVIDENCE, apply, get, install, k, load, namespace, ready, record, run, smoke, wait
 
 
 def policies(engine):
@@ -93,6 +93,23 @@ def hooks(version):
     record('helm-safety-and-migration-hooks',status='verified',version=version,hooks=rows)
 
 
+def flux_release_evidence(version):
+    target=json.loads((WORK/'trust/target.json').read_text())
+    expected=(target['chart_sha256'] if version==target['application'] else 'f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e')
+    release=get('helmrelease','kyverno','kyverno')
+    chart_ns,chart_name=release['status']['helmChart'].split('/')
+    chart=get('helmchart',chart_name,chart_ns)
+    assert chart['status']['artifact']['digest']=='sha256:'+expected, chart['status']
+    (EVIDENCE/('flux-chart-'+version+'.json')).write_text(json.dumps(chart,indent=2)+'\n')
+    replicas={}
+    for role in ['admission','background','cleanup','reports']:
+        deployment=get('deployment','kyverno-'+role+'-controller','kyverno')
+        expected_replicas=2 if role=='admission' else 1
+        assert deployment['spec']['replicas']==expected_replicas and deployment['status'].get('readyReplicas')==expected_replicas, deployment['status']
+        replicas[role]=expected_replicas
+    record('flux-release-artifact-and-readiness',status='verified',version=version,chart_sha256=expected,ready_replicas=replicas)
+
+
 def mutation_probe(stage):
     from mutation import cases, admission_object
     doc=cases()[0][1]
@@ -134,6 +151,7 @@ def during(flux, guards):
     # Governance and full ephemeral-container contracts were rerun separately;
     # this test keeps both complete runner suites active through every phase.
     install('1.19.2',via_flux=True)
+    flux_release_evidence('1.19.2')
     mutation_probe('overlap');report_probe('overlap')
     before=storage('before-upgrade')
     with RunnerContinuity() as runner:
@@ -145,14 +163,14 @@ def during(flux, guards):
         assert not get('updaterequests.kyverno.io')['items']
         check_policies(cel);mutation_probe('legacy-retired');runner.checkpoint('legacy-retired')
         version=os.environ['KYVERNO_TARGET_VERSION']
-        install(version,via_flux=True);hooks(version)
+        install(version,via_flux=True);flux_release_evidence(version);hooks(version)
         after=storage('after-upgrade')
         assert all(r['storedVersions']==['v1'] for r in after if r['name'].endswith('.policies.kyverno.io'))
         retained=lambda rows:{r['name']:(r['uid'],next(iter(r['objects'].values()),[])) for r in rows if r['name'].endswith('.policies.kyverno.io')}
         assert retained(before)==retained(after),'CRD/object identities changed across migration'
         check_policies(cel);mutation_probe('upgraded');report_access(version);report_probe('upgraded');runner.checkpoint('upgraded')
         # Downgrade only after retained schemas can serve every stored version.
-        install('1.19.2',via_flux=True);hooks('1.19.2')
+        install('1.19.2',via_flux=True);flux_release_evidence('1.19.2');hooks('1.19.2')
         rollback=storage('after-supported-downgrade')
         assert retained(after)==retained(rollback)
         check_policies(cel);mutation_probe('rollback');report_probe('rollback');runner.checkpoint('rollback')
