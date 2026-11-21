@@ -1,4 +1,6 @@
-# Review-only until activated by phase 02d. No cross-resource atomicity claim.
+# Review-only until phase 02d. Quantity-map equality is checked by rendered
+# bundle CI: native structural CEL projection omits those fields. Native guards
+# restrict the authenticated writer and enforce the accessible shape/network spec.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -76,13 +78,18 @@ spec:
       == ''enabled'' && (request.operation == ''DELETE'' ? oldObject.metadata.name
       : object.metadata.name) == ''default-container-limits'''
   validations:
+  - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
+      && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
+      == 'Flux' && object.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled' && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/name'].orValue('')
+      == 'namespace-' + namespaceObject.metadata.name && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/namespace'].orValue('')
+      == 'flux-system')
+    message: Namespace defaults must be reconciled by the reviewed Flux namespace
+      bundle
   - expression: request.operation == 'DELETE' || (size(object.spec.limits) == 1 &&
-      object.spec.limits[0].type == 'Container' && size(object.spec.limits[0].default)
-      == 2 && string(object.spec.limits[0].default['cpu']) == '500m' && string(object.spec.limits[0].default['memory'])
-      == '512Mi' && size(object.spec.limits[0].defaultRequest) == 2 && string(object.spec.limits[0].defaultRequest['cpu'])
-      == '100m' && string(object.spec.limits[0].defaultRequest['memory']) == '128Mi'
-      && !has(object.spec.limits[0].max) && !has(object.spec.limits[0].min) && !has(object.spec.limits[0].maxLimitRequestRatio))
-    message: Namespace defaults must preserve the exact legacy specification
+      object.spec.limits[0].type == 'Container')
+    message: The reviewed defaults require one Container limit entry; CI verifies
+      Quantity maps
   - expression: request.operation != 'DELETE' || (namespaceObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/decommission'].orValue('')
       == 'approved' && request.userInfo.username in ['system:serviceaccount:flux-system:kustomize-controller','system:serviceaccount:kube-system:namespace-controller'])
     message: Default deletion requires reviewed namespace decommissioning
@@ -111,12 +118,14 @@ spec:
       == ''enabled'' && (request.operation == ''DELETE'' ? oldObject.metadata.name
       : object.metadata.name) == ''namespace-defaults'''
   validations:
-  - expression: request.operation == 'DELETE' || (size(object.spec.hard) == 6 && string(object.spec.hard['pods'])
-      == '20' && string(object.spec.hard['persistentvolumeclaims']) == '10' && string(object.spec.hard['requests.cpu'])
-      == '4' && string(object.spec.hard['requests.memory']) == '8Gi' && string(object.spec.hard['limits.cpu'])
-      == '8' && string(object.spec.hard['limits.memory']) == '16Gi' && !has(object.spec.scopes)
-      && !has(object.spec.scopeSelector))
-    message: Namespace defaults must preserve the exact legacy specification
+  - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
+      && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
+      == 'Flux' && object.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled' && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/name'].orValue('')
+      == 'namespace-' + namespaceObject.metadata.name && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/namespace'].orValue('')
+      == 'flux-system')
+    message: Namespace defaults must be reconciled by the reviewed Flux namespace
+      bundle
   - expression: request.operation != 'DELETE' || (namespaceObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/decommission'].orValue('')
       == 'approved' && request.userInfo.username in ['system:serviceaccount:flux-system:kustomize-controller','system:serviceaccount:kube-system:namespace-controller'])
     message: Default deletion requires reviewed namespace decommissioning
@@ -145,6 +154,14 @@ spec:
       == ''enabled'' && (request.operation == ''DELETE'' ? oldObject.metadata.name
       : object.metadata.name) == ''default-deny'''
   validations:
+  - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
+      && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
+      == 'Flux' && object.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled' && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/name'].orValue('')
+      == 'namespace-' + namespaceObject.metadata.name && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/namespace'].orValue('')
+      == 'flux-system')
+    message: Namespace defaults must be reconciled by the reviewed Flux namespace
+      bundle
   - expression: request.operation == 'DELETE' || (!has(object.spec.podSelector.matchLabels)
       && !has(object.spec.podSelector.matchExpressions) && size(object.spec.policyTypes)
       == 2 && 'Ingress' in object.spec.policyTypes && 'Egress' in object.spec.policyTypes

@@ -29,8 +29,11 @@ The [reviewed native admission safeguards](admission.yaml) activate in migration
 phase 02d while the temporary freeze remains. They restrict enrollment and
 Namespace lifecycle to the Flux kustomize-controller identity and expected Flux
 inventory labels, require owner/PSA/contract metadata, deny removal of enrollment,
-and preserve the three exact default specifications. Spec drift and steady-state
-default deletion are denied. Flux still repairs allowed metadata drift and
+and restrict default writes to the authenticated Flux identity. CI verifies
+exact Quantity-map specifications, which native CEL structural type projection
+does not expose. Native guards also validate accessible shapes and the complete
+NetworkPolicy spec. Manual default writes and steady-state deletion are denied.
+Flux repairs trusted-identity spec/metadata drift and
 recreates a deleted resource during an explicitly approved decommission test.
 No generator write RBAC is added. Native policies cannot inspect a Git commit or
 make a four-object transaction atomic: reviewed CI supplies bundle completeness,

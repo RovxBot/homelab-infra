@@ -12,7 +12,8 @@ The [reusable namespace base](../../infra/namespace-defaults/README.md) preserve
 all three legacy resource specifications. A complete four-object bundle and a
 separate Flux workload dependency are required. A label alone does not onboard a
 namespace. CI checks completeness/dependencies; native admission restricts
-identity, metadata, default specifications and destructive deletion. The empty
+identity, metadata, accessible shapes/network specification and destructive deletion;
+CI verifies the complete Quantity-map specifications. The empty
 legacy generator is retired only under proven native freeze, repeated complete
 zero inventories, observed orphan settings and explicit policy/queue absence.
 

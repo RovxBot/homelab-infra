@@ -1,0 +1,60 @@
+{
+  "status": "verified",
+  "scope": "filesystem only; production not contacted",
+  "stages": [
+    {
+      "patch": "00-protect-runner-namespaces.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "d1c86701d76a8b944035ce1b60b043f1cf2be9f5f3657b81f3ae901024de1bd6"
+    },
+    {
+      "patch": "01-overlap-cel-and-reporting.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "d02dd73a5747cfcfe345e7235503c843742d7bd3a8df61f67847fc143110f1f1"
+    },
+    {
+      "patch": "02a-freeze.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "476a795b3a90a83308472f3fb8391ed5c81342b16f6b6052d21b4ca7a494ef9d"
+    },
+    {
+      "patch": "02b-orphan-legacy-before-retirement.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "cb40941d5adbb85b76c6f5af5383a464c58d1b83a9352d4048a7f906775d271c"
+    },
+    {
+      "patch": "02c-retire-empty-legacy-generator.patch",
+      "status": "verified",
+      "legacy_objects": 11,
+      "render_sha256": "47082086dd6e0af2bd3205c3d3b406db56c3b340189f5b4eb5098c7e196a01f6"
+    },
+    {
+      "patch": "02d-qualify-flux-onboarding-contract.patch",
+      "status": "verified",
+      "legacy_objects": 11,
+      "render_sha256": "2e380de9eaefdf063b0290d16aad44d4f70d6ce69b64661e099893f22e85b99d"
+    },
+    {
+      "patch": "02e-thaw.patch",
+      "status": "verified",
+      "legacy_objects": 11,
+      "render_sha256": "7f04d6baae1b02d7b358238da2c5ba07715684ec2553727be7066b24234f3007"
+    },
+    {
+      "patch": "03-retire-legacy-after-acceptance.patch",
+      "status": "verified",
+      "legacy_objects": 0,
+      "render_sha256": "9324d4ffa75b6fc383e51b6c4d8c3b69fe774e2ad79ff17b4fda5cb161fc3525"
+    },
+    {
+      "patch": "04-qualified-upgrade-and-renovate.patch",
+      "status": "verified",
+      "legacy_objects": 0,
+      "render_sha256": "9324d4ffa75b6fc383e51b6c4d8c3b69fe774e2ad79ff17b4fda5cb161fc3525"
+    }
+  ]
+}

@@ -165,7 +165,8 @@ def run(flux, during=None):
     # Preventive spec guards and actual metadata drift correction are distinct.
     def drift():
         for kind, name in OUTPUTS.items():
-            k('annotate',kind,name,'-n',NS,'--overwrite',PRUNE+'=drift')
+            k('annotate',kind,name,'-n',NS,'--as',FLUX_USER,'--overwrite',PRUNE+'=drift')
+        k('patch','resourcequota','namespace-defaults','-n',NS,'--as',FLUX_USER,'--type=merge','-p','{"spec":{"hard":{"pods":"21"}}}')
     def repaired():
         return exact() and all(d['metadata'].get('annotations',{}).get(PRUNE)=='disabled' for d in snapshots())
     drift(); wait('periodic Flux drift correction',repaired)
@@ -174,7 +175,7 @@ def run(flux, during=None):
         k('rollout','status','deployment/'+controller,'-n','flux-system','--timeout=90s',timeout=100)
     drift(); wait('Flux restart recovery without namespace event',repaired)
     assert get('namespace',NS)['metadata']['uid']==uid
-    record('namespace-drift-and-flux-restart',status='verified',spec_drift='denied by native admission',metadata_drift='corrected from Git',bound_seconds=75)
+    record('namespace-drift-and-flux-restart',status='verified',untrusted_writes='denied by native admission',trusted_spec_and_metadata_drift='corrected from Git',bound_seconds=75)
     # An explicit isolated allow policy proves connectivity before removal.
     allow = dict(apiVersion='networking.k8s.io/v1',kind='NetworkPolicy',metadata=dict(name='positive-control',namespace=NS),spec=dict(podSelector={},policyTypes=['Ingress','Egress'],ingress=[{}],egress=[{}]))
     apply(allow)
@@ -192,11 +193,6 @@ def run(flux, during=None):
     # Steady-state deletion is denied; approved isolated deletion is repaired.
     denied = k('delete','resourcequota','namespace-defaults','-n',NS,'--dry-run=server',check=False)
     assert denied.returncode and 'flux-default-resourcequota' in denied.stderr
-    write_bundle(flux,decommission=True); flux.publish('reviewed-resource-deletion-rehearsal'); flux.reconcile(nsks,'deletion-approved')
-    for kind,name in OUTPUTS.items():
-        k('delete',kind,name,'-n',NS,'--as',FLUX_USER,'--wait=true')
-        wait('Flux recreates '+kind,exact)
-    write_bundle(flux); flux.publish('restore-steady-state'); flux.reconcile(nsks,'restore-steady-state')
     # Accidental Git removal and Kustomization deletion must preserve defaults.
     before = [d['metadata']['uid'] for d in snapshots()]
     write_bundle(flux,empty=True); flux.publish('accidental-source-removal'); flux.reconcile(nsks,'prune-protection')
@@ -205,14 +201,20 @@ def run(flux, during=None):
     assert exact() and get('namespace',NS)['metadata']['uid']==uid
     write_bundle(flux); flux.publish('rollback-source-removal'); flux.reconcile(nsks,'rollback-source-removal')
     assert before == [d['metadata']['uid'] for d in snapshots()]
-    record('namespace-prune-and-rollback',status='verified',resource_deletion_recreated=True,orphan_on_kustomization_delete=True,protected_uids_unchanged=True)
+    record('namespace-prune-and-rollback',status='verified',orphan_on_kustomization_delete=True,protected_uids_unchanged=True)
     # Remove consumers and observe emptiness before enabling destructive pruning.
     (workload/'kustomization.yaml').write_text(yaml.safe_dump(dict(apiVersion='kustomize.config.k8s.io/v1beta1',kind='Kustomization',resources=[])))
     flux.publish('decommission-remove-workloads'); flux.reconcile(appks,'decommission-workloads-pruned')
     k('delete','pods','--all','-n',NS,'--wait=true','--timeout=45s')
     assert not get('pods',ns=NS)['items'] and not get('persistentvolumeclaims',ns=NS)['items']
     assert not get('configmaps',ns=NS)['items'] or not k('get','configmap','workload-readiness-marker','-n',NS,'--ignore-not-found','-o','name').stdout.strip()
+    # Destructive recreation tests run only after all consumers/storage are absent.
+    write_bundle(flux,decommission=True); flux.publish('reviewed-resource-deletion-rehearsal'); flux.reconcile(nsks,'deletion-approved')
+    for kind,name in OUTPUTS.items():
+        k('delete',kind,name,'-n',NS,'--as',FLUX_USER,'--wait=true')
+        wait('Flux recreates '+kind,exact)
+    write_bundle(flux); flux.publish('restore-steady-state'); flux.reconcile(nsks,'restore-steady-state')
     write_bundle(flux,decommission=True,protected=False); flux.publish('reviewed-decommission'); flux.reconcile(nsks,'reviewed-decommission')
     write_bundle(flux,empty=True); flux.publish('decommission-prune'); flux.reconcile(nsks,'decommission-prune')
     wait('namespace decommission complete',lambda:not k('get','namespace',NS,'--ignore-not-found','-o','name').stdout.strip())
-    record('namespace-decommission',status='verified',consumers_removed_first=True,pvc_inventory_empty=True,namespace_pruned=True)
+    record('namespace-decommission',status='verified',consumers_removed_first=True,pvc_inventory_empty=True,resource_deletion_recreated=True,namespace_pruned=True)

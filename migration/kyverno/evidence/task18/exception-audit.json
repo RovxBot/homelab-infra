@@ -10,7 +10,7 @@
     "cloudflared.json": "12ed8f9ea1417dee77f9c3edd5fd91e9704b86e2d1ffac1db57843ae527409db",
     "homepage.json": "dbc2e95470771bc63d45f08be4e171572713f06942ae8f910d0f8214b0f4ebcf",
     "gpu-operator-helm.yaml": "16b9fd11ceb7ccaf522b77fe051d3c87bb682786f48969fa2d34fb41c977c11d",
-    "longhorn-system-helm.yaml": "7d7b2a67044c78ec0af94e2eb4cf8107685f130c641080ffea67709914eee5ca"
+    "longhorn-system-helm.yaml": "4fe6cd7e27c7303d36db0d224208488e001cff3ef1c39300d5bade2ecf71150f"
   },
   "exceptions": {
     "chart-managed-workloads": {
@@ -1035,5 +1035,6 @@
   "charts": {
     "longhorn": "1.13.0",
     "gpu-operator": "v26.7.2"
-  }
+  },
+  "helm_post_renderers_applied": true
 }

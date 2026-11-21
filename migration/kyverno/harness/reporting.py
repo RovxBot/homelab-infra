@@ -37,6 +37,7 @@ def policy_results(namespace, policy, uid=None):
 
 def run(version, engine):
     ns = "cel-reporting"
+    install_fixture_crd()
     apply(namespace(ns))
     if engine == "legacy":
         owner = load("infra/kyverno/policies/platform-pod-standards.yaml")[0]
@@ -219,7 +220,6 @@ def install_fixture_crd():
 
 def flux_boundaries(version, engine):
     """Real Audit/warning decisions, including the exact Longhorn conjunction."""
-    install_fixture_crd()
     users = ["longhorn-service-account", "adjacent-controller"]
     for name in users:
         apply(

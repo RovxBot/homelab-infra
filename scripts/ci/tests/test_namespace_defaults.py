@@ -47,6 +47,17 @@ class NamespaceBundleTests(unittest.TestCase):
         hr = {'apiVersion':'helm.toolkit.fluxcd.io/v2','kind':'HelmRelease','metadata':{'name':'probe','namespace':'flux-system'},'spec':{'targetNamespace':'namespace-example'}}
         self.assertTrue(self.errors(workloads=[hr]))
 
+    def test_ready_expression_cannot_bypass_namespace_readiness(self):
+        self.workload['spec']['dependsOn'][0]['readyExpr'] = 'true'
+        self.assertTrue(self.errors())
+
+    def test_controller_transform_and_reconcile_bypasses_fail(self):
+        ks = copy.deepcopy(self.ks); ks['spec']['postBuild'] = {'substitute': {'IGNORED':'true'}}
+        self.assertTrue(self.errors(ks=ks))
+        obj = next(d for d in self.docs if d['kind']=='ResourceQuota')
+        obj['metadata']['annotations']['kustomize.toolkit.fluxcd.io/ssa'] = 'IfNotPresent'
+        self.assertTrue(self.errors())
+
     def test_decommission_requires_consumers_absent(self):
         ns = next(d for d in self.docs if d['kind']=='Namespace')
         ns['metadata']['annotations'][contract.DECOMMISSION] = 'approved'

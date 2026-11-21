@@ -46,6 +46,10 @@ def check_bundle(docs, root=ROOT):
                 errors.append(f'{name}: {kind} lacks Flux contract labels')
             if not retiring and m.get('annotations', {}).get(PRUNE) != 'disabled':
                 errors.append(f'{name}: {kind} must be prune protected')
+        for obj in [ns] + [d for d in docs if d['metadata'].get('namespace') == name]:
+            options = obj['metadata'].get('annotations', {})
+            if options.get('kustomize.toolkit.fluxcd.io/ssa') in {'Ignore','IfNotPresent'} or options.get('kustomize.toolkit.fluxcd.io/reconcile') == 'disabled':
+                errors.append(f'{name}: Flux must continuously reconcile every bundle object')
     # Outputs cannot be enrolled without their Namespace in this reconciliation.
     enrolled = {d['metadata']['name'] for d in namespaces}
     for obj in docs:
@@ -70,6 +74,8 @@ def check_graph(entries, root=ROOT):
                 errors.append(f'{ns}: namespace Kustomization identity differs')
             if spec.get('wait') is not True or spec.get('prune') is not True or spec.get('deletionPolicy') != 'Orphan' or spec.get('suspend'):
                 errors.append(f'{ns}: namespace readiness/prune/orphan contract differs')
+            if any(spec.get(key) for key in ['postBuild','patches','images','components','namePrefix','nameSuffix','targetNamespace','serviceAccountName','kubeConfig','healthCheckExprs']):
+                errors.append(f'{ns}: put bundle transformations in the reviewed Kustomize source')
             if any(d['kind'] not in {'Namespace','LimitRange','ResourceQuota','NetworkPolicy'} for d in docs):
                 errors.append(f'{ns}: bundle must contain defaults only')
             if len(docs) != 4:
@@ -87,6 +93,8 @@ def check_graph(entries, root=ROOT):
                 errors.append(f'{ns}: remove consumers before decommissioning')
             if owners[ns] not in deps:
                 errors.append(f'{ns}: {ks["metadata"]["name"]} must depend on {owners[ns]}')
+            if any(d['name'] == owners[ns] and d.get('readyExpr') for d in ks['spec'].get('dependsOn', [])):
+                errors.append(f'{ns}: namespace dependency must retain the built-in readiness check')
     return sorted(set(errors))
 
 
