@@ -97,7 +97,11 @@ def ready(p):
             EVIDENCE
             / ("policy-status-" + p["kind"] + "-" + p["metadata"]["name"] + ".json")
         ).write_text(json.dumps(obj, indent=2) + "\n")
-        return status.get("ready") is True and all(
+        legacy_ready = any(
+            c["type"] == "Ready" and c["status"] == "True"
+            for c in status.get("conditions", [])
+        )
+        return (status.get("ready") is True or legacy_ready) and all(
             c["status"] == "True" for c in status.get("conditions", [])
         )
 
@@ -207,14 +211,37 @@ def install(version):
                 if component == "admissionController"
                 else values[component]["image"]
             )
-            target["digest"] = sig[0]["critical"]["image"]["docker-manifest-digest"]
+            target["tag"] = (
+                "v1.20.0@" + sig[0]["critical"]["image"]["docker-manifest-digest"]
+            )
         for target, image in [
             (values["admissionController"]["initContainer"]["image"], "kyvernopre"),
             (values["crds"]["migration"]["image"], "kyverno-cli"),
         ]:
-            target["digest"] = json.loads(
-                (WORK / f"trust/{image}.signature.json").read_text()
-            )[0]["critical"]["image"]["docker-manifest-digest"]
+            target["tag"] = (
+                "v1.20.0@"
+                + json.loads((WORK / f"trust/{image}.signature.json").read_text())[0][
+                    "critical"
+                ]["image"]["docker-manifest-digest"]
+            )
+        cli_digest = json.loads(
+            (WORK / "trust/kyverno-cli.signature.json").read_text()
+        )[0]["critical"]["image"]["docker-manifest-digest"]
+        ready_digest = json.loads(
+            (WORK / "trust/readiness-checker.signature.json").read_text()
+        )[0]["critical"]["image"]["docker-manifest-digest"]
+        values["global"] = {"image": {"registry": "ghcr.io"}}
+        values["upgrade"] = {
+            "legacyPolicyCheck": {
+                "image": {"registry": "ghcr.io", "tag": "v1.20.0@" + cli_digest}
+            }
+        }
+        values["webhooksCleanup"] = {
+            "image": {"registry": "ghcr.io", "tag": "v1.20.0@" + ready_digest}
+        }
+        values["test"] = {
+            "image": {"registry": "ghcr.io", "tag": "v1.20.0@" + ready_digest}
+        }
     vp = WORK / "values.yaml"
     vp.write_text(yaml.safe_dump(values))
     run(
@@ -237,8 +264,31 @@ def install(version):
         ],
         timeout=270,
     )
+    observed = [
+        dict(
+            pod=p["metadata"]["name"],
+            images=[
+                c["image"]
+                for c in p["spec"].get("initContainers", []) + p["spec"]["containers"]
+            ],
+            runtime_images=[
+                s.get("imageID", "")
+                for s in p.get("status", {}).get("containerStatuses", [])
+            ],
+        )
+        for p in get("pods", ns="kyverno")["items"]
+    ]
+    if version == "1.20.0":
+        assert all(
+            "@sha256:" in image for p in observed for image in p["images"]
+        ), observed
     record(
-        "install", status="verified", version=version, chart=chart, chart_sha256=digest
+        "install",
+        status="verified",
+        version=version,
+        chart=chart,
+        chart_sha256=digest,
+        images=observed,
     )
 
 
@@ -321,6 +371,22 @@ def governance(version):
             base["apiVersion"] = api
             base["metadata"]["name"] = "accountability-probe"
             cases = [("valid", base)]
+            url = copy.deepcopy(base)
+            url["metadata"]["annotations"].pop("github.cooked.beer/issue-create", None)
+            url["metadata"]["annotations"][
+                "github.cooked.beer/issue-url"
+            ] = "https://github.com/RovxBot/homelab-infra/issues/2133"
+            cases.append(("valid-issue-url", url))
+            invalid_url = copy.deepcopy(url)
+            invalid_url["metadata"]["annotations"][
+                "github.cooked.beer/issue-url"
+            ] = "https://example.invalid/issues/2133"
+            cases.append(("invalid-issue-url", invalid_url))
+            false_marker = copy.deepcopy(base)
+            false_marker["metadata"]["annotations"][
+                "github.cooked.beer/issue-create"
+            ] = "false"
+            cases.append(("false-issue-marker", false_marker))
             for field, container in [
                 (OWNER, "labels"),
                 ("kyverno.cooked.beer/reason", "annotations"),
@@ -336,7 +402,7 @@ def governance(version):
                     cases.append((field + "-" + mutation, d))
             for name, doc in cases:
                 result = admission(doc)
-                expected = mode == "original" or name == "valid"
+                expected = mode == "original" or name in ["valid", "valid-issue-url"]
                 assert result["allowed"] == expected, (
                     version,
                     mode,
@@ -365,7 +431,7 @@ def governance(version):
                 d["metadata"]["labels"] = doc["metadata"]["labels"]
                 d["metadata"]["annotations"] = doc["metadata"]["annotations"]
                 result = admission(d, "UPDATE")
-                expected = mode == "original" or name == "valid"
+                expected = mode == "original" or name in ["valid", "valid-issue-url"]
                 assert result["allowed"] == expected, (
                     version,
                     mode,
@@ -384,6 +450,49 @@ def governance(version):
                 )
             delete(base)
         if mode == "native":
+            # Native governance applies only to exception APIs. A stopped Kyverno
+            # cannot create a dependency for the controller's own Deployment.
+            k(
+                "scale",
+                "deployment/kyverno-admission-controller",
+                "-n",
+                "kyverno",
+                "--replicas=0",
+            )
+            wait(
+                "admission controller stops",
+                lambda: get("deployment", "kyverno-admission-controller", "kyverno")
+                .get("status", {})
+                .get("availableReplicas", 0)
+                == 0,
+            )
+            from corpus import workload
+
+            bootstrap = workload(name="kyverno-bootstrap-probe", ns="kyverno")
+            result = admission(bootstrap)
+            assert result["allowed"], result
+            record(
+                "native-governance-bootstrap",
+                status="verified",
+                version=version,
+                **result,
+            )
+            k(
+                "scale",
+                "deployment/kyverno-admission-controller",
+                "-n",
+                "kyverno",
+                "--replicas=1",
+            )
+            k(
+                "rollout",
+                "status",
+                "deployment/kyverno-admission-controller",
+                "-n",
+                "kyverno",
+                "--timeout=90s",
+                timeout=100,
+            )
             delete(native)
     if version == "1.19.2":
         delete(old)
@@ -399,17 +508,42 @@ def main():
     install("1.19.2")
     smoke()
     governance("1.19.2")
-    from equivalence import suite
+    from equivalence import suite, whole_runners
 
     suite("1.19.2", "legacy")
     suite("1.19.2", "cel")
+    whole_runners("1.19.2", "legacy")
+    whole_runners("1.19.2", "cel")
     from reporting import run as reports
 
-    reports("1.19.2", "legacy")
-    reports("1.19.2", "cel")
+    for engine in ["legacy", "cel"]:
+        try:
+            reports("1.19.2", engine)
+        except Exception as e:
+            record(
+                "reporting",
+                status="failed",
+                version="1.19.2",
+                engine=engine,
+                error=str(e),
+            )
     from generation import before_upgrade
 
-    generation_state = before_upgrade()
+    try:
+        generation_state = before_upgrade()
+    except Exception as e:
+        generation_state = {"passed": False, "error": str(e)}
+        record("generator", status="failed", error=str(e))
+        # Abandon this isolated fixture so the chart safety check can still gate
+        # a real upgrade and independent validation work can finish.
+        for kind in ["clusterpolicy", "generatingpolicy"]:
+            k(
+                "delete",
+                kind,
+                "platform-namespace-bootstrap",
+                "--ignore-not-found=true",
+                check=False,
+            )
     record("integration-baseline", status="verified")
     if os.environ.get("CANDIDATE_TRUST") != "success":
         record("candidate-upgrade", status="not run", reason="artifact trust failed")
@@ -418,7 +552,13 @@ def main():
     smoke()
     governance("1.20.0")
     suite("1.20.0", "cel")
-    reports("1.20.0", "cel")
+    whole_runners("1.20.0", "cel")
+    try:
+        reports("1.20.0", "cel")
+    except Exception as e:
+        record(
+            "reporting", status="failed", version="1.20.0", engine="cel", error=str(e)
+        )
     if generation_state["passed"]:
         from generation import after_upgrade
 

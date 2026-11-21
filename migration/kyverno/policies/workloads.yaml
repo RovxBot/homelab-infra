@@ -4,6 +4,10 @@ kind: ValidatingPolicy
 metadata:
   name: platform-pod-standards-require-owner-label
   annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
     migration.cooked.beer/source-policy: platform-pod-standards
     migration.cooked.beer/source-rule: require-owner-label
 spec:
@@ -55,13 +59,17 @@ spec:
   validations:
   - expression: '(object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('''')
       != '''''
-    message: require-owner-label
+    message: Workload pod templates must carry the homelab owner label.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-pod-standards-require-requests-and-limits
   annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
     migration.cooked.beer/source-policy: platform-pod-standards
     migration.cooked.beer/source-rule: require-requests-and-limits
 spec:
@@ -122,13 +130,17 @@ spec:
       c.?resources.?requests.orValue({})[?''cpu''].orValue('''') != '''' && c.?resources.?requests.orValue({})[?''memory''].orValue('''')
       != '''' && c.?resources.?limits.orValue({})[?''cpu''].orValue('''') != '''' && c.?resources.?limits.orValue({})[?''memory''].orValue('''')
       != '''')'
-    message: require-requests-and-limits
+    message: Containers in workload pod templates must define CPU and memory requests and limits.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-pod-standards-require-runtime-hardening
   annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
     migration.cooked.beer/source-policy: platform-pod-standards
     migration.cooked.beer/source-rule: require-runtime-hardening
 spec:
@@ -198,13 +210,18 @@ spec:
       && (c.?securityContext.?seccompProfile.?type.orValue('''') != '''' ? c.securityContext.seccompProfile.type
       : (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?securityContext.?seccompProfile.?type.orValue(''''))
       == ''RuntimeDefault'')'
-    message: require-runtime-hardening
+    message: Containers should run as non-root, disable privilege escalation, drop all capabilities, avoid privileged
+      mode, and use RuntimeDefault seccomp.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-pod-standards-disallow-host-network
   annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
     migration.cooked.beer/source-policy: platform-pod-standards
     migration.cooked.beer/source-rule: disallow-host-network
 spec:
@@ -254,13 +271,17 @@ spec:
       : object.spec.template).spec.?hostNetwork.orValue(false))'
   validations:
   - expression: '!(object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?hostNetwork.orValue(false)'
-    message: disallow-host-network
+    message: hostNetwork should only be used via an explicit exception.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-pod-standards-require-digest-pinned-images
   annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
     migration.cooked.beer/source-policy: platform-pod-standards
     migration.cooked.beer/source-rule: require-digest-pinned-images
 spec:
@@ -312,13 +333,17 @@ spec:
   validations:
   - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
       c.?image.orValue('''').contains(''@sha256:''))'
-    message: require-digest-pinned-images
+    message: Container images in workload pod templates should be pinned by digest.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-pod-standards-disallow-latest-tags
   annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
     migration.cooked.beer/source-policy: platform-pod-standards
     migration.cooked.beer/source-rule: disallow-latest-tags
 spec:
@@ -370,13 +395,17 @@ spec:
   validations:
   - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
       !c.?image.orValue('''').contains('':latest''))'
-    message: disallow-latest-tags
+    message: latest tags are not allowed without an explicit exception.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: platform-pod-standards-require-probes
   annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
     migration.cooked.beer/source-policy: platform-pod-standards
     migration.cooked.beer/source-rule: require-probes
 spec:
@@ -418,4 +447,4 @@ spec:
   validations:
   - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
       c.?ports.orValue([]).size() == 0 || (has(c.readinessProbe) && has(c.livenessProbe)))'
-    message: require-probes
+    message: Containers that expose ports should define readiness and liveness probes.

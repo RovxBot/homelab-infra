@@ -172,3 +172,55 @@ def suite(version, engine):
             differences=len(mismatches),
         )
     return output
+
+
+def whole_runners(version, engine):
+    """Re-use both existing runner acceptance suites with every rule active."""
+    from rehearse import run
+
+    for pool, path, namespace in [
+        ("core", "apps/gitea-runners/job-security.yaml", "gitea-jobs"),
+        (
+            "wowdecomp",
+            "apps/gitea-runners/wowdecomp/job-security.yaml",
+            "wowdecomp-ci-jobs",
+        ),
+    ]:
+        policies = (
+            load(path)
+            if engine == "legacy"
+            else [
+                p
+                for p in load("migration/kyverno/policies/runners.yaml")
+                if p["metadata"]["namespace"] == namespace
+            ]
+        )
+        try:
+            for p in policies:
+                apply(p)
+                ready(p)
+            time.sleep(2)
+            result = run(
+                [
+                    "python3",
+                    "ops/gitea/check-job-policy.py",
+                    "--server",
+                    "--pool",
+                    pool,
+                ],
+                check=False,
+                timeout=120,
+            )
+            (EVIDENCE / f"whole-runner-{version}-{engine}-{pool}.log").write_text(
+                result.stdout + result.stderr
+            )
+            record(
+                "whole-runner-admission",
+                status="verified" if result.returncode == 0 else "failed",
+                version=version,
+                engine=engine,
+                pool=pool,
+                cases=len(result.stdout.splitlines()),
+            )
+        finally:
+            delete(policies)

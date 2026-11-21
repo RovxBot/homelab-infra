@@ -34,4 +34,5 @@ for image in kyverno kyvernopre background-controller cleanup-controller reports
     --certificate-oidc-issuer "$issuer" "ghcr.io/kyverno/$image@$digest" \
     > ".work/cel/trust/$image.provenance.json" 2> ".work/cel/trust/$image.provenance.log"
 done
+python3 migration/kyverno/harness/trust-summary.py
 printf 'verified\n' > .work/cel/trust/status

@@ -4,6 +4,7 @@ kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-restricted-with-sanitizer-capability
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: restricted-with-sanitizer-capability
   namespace: gitea-jobs
@@ -75,6 +76,7 @@ kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-bound-job-environment
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: bound-job-environment
   namespace: gitea-jobs
@@ -121,13 +123,14 @@ spec:
       && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
       != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
       != ''))
-    message: bound-job-environment
+    message: Jobs require the pinned toolchain, no API token, no extra containers, and explicit resources.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-one-job-container
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: one-job-container
   namespace: gitea-jobs
@@ -165,13 +168,14 @@ spec:
   validations:
   - expression: object.spec.containers.size() == 1 && object.spec.?initContainers.orValue([]).size() == 0 && object.spec.?ephemeralContainers.orValue([]).size()
       == 0
-    message: one-job-container
+    message: Only the job container is allowed; no init or ephemeral containers.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-drop-all-and-only-allow-ptrace
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: drop-all-and-only-allow-ptrace
   namespace: gitea-jobs
@@ -209,13 +213,14 @@ spec:
   validations:
   - expression: object.spec.containers.all(c, 'ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a
       == 'SYS_PTRACE'))
-    message: drop-all-and-only-allow-ptrace
+    message: Drop ALL capabilities; only SYS_PTRACE can be added for LeakSanitizer.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-ptrace-only-in-sanitizer-jobs
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: ptrace-only-in-sanitizer-jobs
   namespace: gitea-jobs
@@ -253,13 +258,14 @@ spec:
   validations:
   - expression: (object.metadata.?labels.orValue({})[?"homelab.cooked.beer/sanitizer"].orValue('') == 'true') ||
       object.spec.containers.all(c, !('SYS_PTRACE' in c.?securityContext.?capabilities.?add.orValue([])))
-    message: ptrace-only-in-sanitizer-jobs
+    message: SYS_PTRACE requires the explicit sanitizer job label.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-ordinary-job-identity
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: ordinary-job-identity
   namespace: gitea-jobs
@@ -302,13 +308,14 @@ spec:
       (object.spec.?securityContext.?runAsUser.orValue(-1) == 1000 && object.spec.?securityContext.?runAsNonRoot.orValue(false)
       && object.spec.containers.exists(c,c.name == 'job' && c.?securityContext.?runAsNonRoot.orValue(false) && c.?securityContext.?runAsUser.orValue(1000)
       == 1000))
-    message: ordinary-job-identity
+    message: Ordinary jobs must run as the unprivileged build user.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-bounded-sanitizer-identity
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: bounded-sanitizer-identity
   namespace: gitea-jobs
@@ -352,13 +359,14 @@ spec:
       || object.spec.containers.exists(c,c.name == ''job'' && c.?securityContext.?runAsUser.orValue(-1) == 0 &&
       c.?securityContext.?runAsGroup.orValue(-1) == 0 && c.?securityContext.?runAsNonRoot.orValue(true) == false
       && ''SYS_PTRACE'' in c.?securityContext.?capabilities.?add.orValue([]) && ''ALL'' in c.?securityContext.?capabilities.?drop.orValue([]))'
-    message: bounded-sanitizer-identity
+    message: Sanitizer jobs use UID 0 solely to retain SYS_PTRACE; no other capabilities or host access.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: gitea-job-security-no-extra-job-credentials
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: gitea-job-security
     migration.cooked.beer/source-rule: no-extra-job-credentials
   namespace: gitea-jobs
@@ -393,13 +401,14 @@ spec:
       has(v.emptyDir) || has(v.secret))) || (object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret)))
   validations:
   - expression: object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret))
-    message: no-extra-job-credentials
+    message: Jobs may mount only bounded emptyDir volumes and runner-created Secrets.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: wowdecomp-linux-security-restricted-with-sanitizer-capability
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: wowdecomp-linux-security
     migration.cooked.beer/source-rule: restricted-with-sanitizer-capability
   namespace: wowdecomp-ci-jobs
@@ -471,6 +480,7 @@ kind: NamespacedValidatingPolicy
 metadata:
   name: wowdecomp-linux-security-bound-job-environment
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: wowdecomp-linux-security
     migration.cooked.beer/source-rule: bound-job-environment
   namespace: wowdecomp-ci-jobs
@@ -518,13 +528,14 @@ spec:
       && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
       != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
       != '')) && object.spec.?imagePullSecrets.orValue([]).exists(p,p.name == 'wowdecomp-toolchain-pull')
-    message: bound-job-environment
+    message: Jobs require the pinned toolchain, no API token, no extra containers, and explicit resources.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: wowdecomp-linux-security-one-job-container
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: wowdecomp-linux-security
     migration.cooked.beer/source-rule: one-job-container
   namespace: wowdecomp-ci-jobs
@@ -562,13 +573,14 @@ spec:
   validations:
   - expression: object.spec.containers.size() == 1 && object.spec.?initContainers.orValue([]).size() == 0 && object.spec.?ephemeralContainers.orValue([]).size()
       == 0
-    message: one-job-container
+    message: Only the job container is allowed; no init or ephemeral containers.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: wowdecomp-linux-security-bounded-toolchain-capabilities
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: wowdecomp-linux-security
     migration.cooked.beer/source-rule: bounded-toolchain-capabilities
   namespace: wowdecomp-ci-jobs
@@ -607,13 +619,14 @@ spec:
   validations:
   - expression: object.spec.containers.all(c, 'ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a
       in ['CHOWN','DAC_OVERRIDE','FOWNER','SETUID','SETGID','SYS_PTRACE']))
-    message: bounded-toolchain-capabilities
+    message: Only package installation and private-namespace LSan capabilities are allowed.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: wowdecomp-linux-security-no-extra-job-credentials
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: wowdecomp-linux-security
     migration.cooked.beer/source-rule: no-extra-job-credentials
   namespace: wowdecomp-ci-jobs
@@ -648,13 +661,14 @@ spec:
       has(v.emptyDir) || has(v.secret))) || (object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret)))
   validations:
   - expression: object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret))
-    message: no-extra-job-credentials
+    message: Only ephemeral volumes and runner-created Secrets are permitted.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: wowdecomp-linux-security-no-mounted-registry-credential
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: wowdecomp-linux-security
     migration.cooked.beer/source-rule: no-mounted-registry-credential
   namespace: wowdecomp-ci-jobs
@@ -690,13 +704,14 @@ spec:
       v.?secret.?secretName.orValue('') != 'wowdecomp-toolchain-pull'))
   validations:
   - expression: object.spec.?volumes.orValue([]).all(v, v.?secret.?secretName.orValue('') != 'wowdecomp-toolchain-pull')
-    message: no-mounted-registry-credential
+    message: The registry credential is for kubelet image pulls only.
 ---
 apiVersion: policies.kyverno.io/v1
 kind: NamespacedValidatingPolicy
 metadata:
   name: wowdecomp-linux-security-no-registry-credential-in-environment
   annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
     migration.cooked.beer/source-policy: wowdecomp-linux-security
     migration.cooked.beer/source-rule: no-registry-credential-in-environment
   namespace: wowdecomp-ci-jobs
@@ -735,4 +750,4 @@ spec:
   validations:
   - expression: object.spec.containers.all(c, c.?env.orValue([]).all(e, e.?valueFrom.?secretKeyRef.?name.orValue('')
       != 'wowdecomp-toolchain-pull') && c.?envFrom.orValue([]).all(e, e.?secretRef.?name.orValue('') != 'wowdecomp-toolchain-pull'))
-    message: no-registry-credential-in-environment
+    message: The registry credential cannot enter a job environment.

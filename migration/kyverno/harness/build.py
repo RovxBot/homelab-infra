@@ -15,6 +15,11 @@ OUT = ROOT / "migration/kyverno"
 OWNER = "homelab.cooked.beer/owner"
 SYSTEM = ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"]
 INDEX = []
+INVENTORY = json.loads((ROOT / "docs/kyverno/migration-inventory.json").read_text())
+SOURCES = {
+    p["name"]: yaml.safe_load((ROOT / p["path"]).read_text())
+    for p in INVENTORY["policies"]
+}
 
 
 def lit(x):
@@ -76,9 +81,13 @@ def policy(
     )
     if len(name) > 63:
         name = name[:63].rstrip("-")
+    original = SOURCES[source]
+    authored = next(rule for rule in original["spec"]["rules"] if rule["name"] == r)
+    message = authored["validate"].get("message", r)
     metadata = dict(
         name=name,
         annotations={
+            **original["metadata"].get("annotations", {}),
             "migration.cooked.beer/source-policy": source,
             "migration.cooked.beer/source-rule": r,
         },
@@ -99,7 +108,7 @@ def policy(
         ),
         matchConstraints=dict(resourceRules=rules),
         matchConditions=conditions or [],
-        validations=[dict(expression=substitute(predicate, "object"), message=r)],
+        validations=[dict(expression=substitute(predicate, "object"), message=message)],
     )
     if existing and not audit:
         # Legacy skips an Enforce rule only when both old and new fail that rule.

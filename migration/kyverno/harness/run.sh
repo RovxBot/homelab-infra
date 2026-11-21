@@ -45,4 +45,7 @@ kubectl --context "$REHEARSAL_CONTEXT" get --raw /version > .work/cel/evidence/k
 kubectl --context "$REHEARSAL_CONTEXT" apply --server-side -f clusters/home/flux-system/gotk-components.yaml
 kubectl --context "$REHEARSAL_CONTEXT" -n flux-system rollout status deployment/source-controller --timeout=120s
 kubectl --context "$REHEARSAL_CONTEXT" -n flux-system rollout status deployment/kustomize-controller --timeout=120s
+python3 scripts/ci/check_kyverno_migration_inventory.py
+python3 migration/kyverno/harness/build.py
+git diff --exit-code -- migration/kyverno/policies migration/kyverno/exceptions migration/kyverno/policy-map.json
 python3 -u migration/kyverno/harness/rehearse.py

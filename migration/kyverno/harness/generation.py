@@ -319,9 +319,7 @@ def freeze():
 
 def queue_drained():
     urs = get("updaterequests.kyverno.io")["items"]
-    return all(
-        u.get("status", {}).get("state") in ["Completed", "Skip", "Failed"] for u in urs
-    )
+    return all(u.get("status", {}).get("state") in ["Completed", "Skip"] for u in urs)
 
 
 def before_upgrade():
