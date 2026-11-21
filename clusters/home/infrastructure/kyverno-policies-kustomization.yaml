@@ -9,8 +9,112 @@ spec:
   path: ./infra/kyverno-policies
   prune: true
   dependsOn:
-    - name: infrastructure
+  - name: infrastructure
   sourceRef:
     kind: GitRepository
     name: flux-system
     namespace: flux-system
+  healthChecks:
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-pod-standards-require-owner-label
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-pod-standards-require-requests-and-limits
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-pod-standards-require-runtime-hardening
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-pod-standards-disallow-host-network
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-pod-standards-require-digest-pinned-images
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-pod-standards-disallow-latest-tags
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-pod-standards-require-probes
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-namespace-standards
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: platform-flux-guardrails
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-restricted-with-sanitizer-capability
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-bound-job-environment
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-one-job-container
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-drop-all-and-only-allow-ptrace
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-ptrace-only-in-sanitizer-jobs
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-ordinary-job-identity
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-bounded-sanitizer-identity
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: gitea-job-security-no-extra-job-credentials
+    namespace: gitea-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: wowdecomp-linux-security-restricted-with-sanitizer-capability
+    namespace: wowdecomp-ci-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: wowdecomp-linux-security-bound-job-environment
+    namespace: wowdecomp-ci-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: wowdecomp-linux-security-one-job-container
+    namespace: wowdecomp-ci-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: wowdecomp-linux-security-bounded-toolchain-capabilities
+    namespace: wowdecomp-ci-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: wowdecomp-linux-security-no-extra-job-credentials
+    namespace: wowdecomp-ci-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: wowdecomp-linux-security-no-mounted-registry-credential
+    namespace: wowdecomp-ci-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    name: wowdecomp-linux-security-no-registry-credential-in-environment
+    namespace: wowdecomp-ci-jobs
+  - apiVersion: policies.kyverno.io/v1
+    kind: MutatingPolicy
+    name: longhorn-csi-registrar-lifecycle
+  healthCheckExprs:
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    current: has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c,
+      c.status == 'True')
+  - apiVersion: policies.kyverno.io/v1
+    kind: NamespacedValidatingPolicy
+    current: has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c,
+      c.status == 'True')
+  - apiVersion: policies.kyverno.io/v1
+    kind: MutatingPolicy
+    current: has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c,
+      c.status == 'True')
