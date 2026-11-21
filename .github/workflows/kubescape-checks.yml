@@ -1,4 +1,4 @@
-name: Kubescape Staging Checks
+name: Kubescape Posture Checks
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 jobs:
-  suspended-stage:
+  qualify-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,20 +46,19 @@ jobs:
           echo "$tools_dir" >> "$GITHUB_PATH"
           python3 -m pip install --quiet pyyaml
 
-      - name: Test staging and preflight guards
+      - name: Test suspended and active preflight guards
         run: python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
 
-      - name: Verify strict preflight against the released chart
-        # Both modes require suspension and zero admission failures.
-        # Passing offline checks does not authorize activation.
+      - name: Qualify the declared release mode against the released chart
+        # Active mode additionally requires Flux health waiting. Both modes
+        # retain zero admission failures and a suspended recurring scheduler.
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
-        run: python3 scripts/ci/check_kubescape.py --base-ref "$BASE_REF" --expected-kyverno-version "$KYVERNO_EXPECTED_VERSION"
-
-      - name: Verify suspended staging against the released chart
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
-        run: python3 scripts/ci/check_kubescape.py --staged-review --base-ref "$BASE_REF" --expected-kyverno-version "$KYVERNO_EXPECTED_VERSION"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode=$(python3 -c 'import yaml; r=yaml.safe_load(open("infra/kubescape/helmrelease.yaml")); print("--staged-review" if r["spec"].get("suspend") is True else "--active-review")')
+          python3 scripts/ci/check_kubescape.py "$mode" --base-ref "$BASE_REF" --expected-kyverno-version "$KYVERNO_EXPECTED_VERSION"
 
       - name: Validate rendered workloads and Flux integration
         shell: bash

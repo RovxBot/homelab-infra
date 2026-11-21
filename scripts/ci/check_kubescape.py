@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Render the suspended Kubescape release and fail closed before activation.
+"""Qualify the staged or explicitly active posture-only Kubescape release.
 
 Requires Helm 3, Kustomize, the verified proposed Kyverno CLI and PyYAML. Never contacts a Kubernetes cluster.
-Both the default preflight and --staged-review require zero admission failures.
-Neither mode may unsuspend anything or allow policy exceptions.
+All modes require zero admission failures and a suspended scan scheduler.
+Active releases require --active-review and Flux health waiting.
 """
 
 import argparse
@@ -30,6 +30,8 @@ networkEventsStreaming runtimeDetection malwareDetection nodeProfileService
 admissionController httpDetection seccompProfileService sandboxSeccomp manageWorkloads
 syncSBOM agentRuntimePosture riskAcceptance remediation autoUpgrading prometheusExporter""".split())
 CERTGEN_NAMES = {"certgen-create", "certgen-patch"}
+APISERVICE = "v1beta1.spdx.softwarecomposition.kubescape.io"
+CANARY_NAMESPACE = "memos"
 CERTGEN_BUDGET = {"requests": {"cpu": "10m", "memory": "32Mi"},
                   "limits": {"cpu": "100m", "memory": "128Mi"}}
 WORKLOADS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}
@@ -39,9 +41,9 @@ def documents(text):
     return [d for d in yaml.safe_load_all(text) if isinstance(d, dict)]
 
 
-def check_release(release):
+def check_release(release, active=False):
     spec = release["spec"]
-    assert spec.get("suspend") is True, "HelmRelease must remain suspended"
+    assert spec.get("suspend") is (not active), "HelmRelease suspension does not match the explicit review mode"
     assert spec["chart"]["spec"]["version"] == VERSION, "chart version changed"
     values = spec["values"]
     caps = values["capabilities"]
@@ -75,7 +77,21 @@ def check_release(release):
     assert values["kubescape"]["skipUpdateCheck"] is True
     assert values["operator"]["triggerSecurityFramework"] is False
     assert values["operator"]["rulesUpdateConfig"]["enabled"] is False
-    assert values["includeNamespaces"] == "default", "canary scope expanded"
+    assert values["includeNamespaces"] == CANARY_NAMESPACE, "canary scope expanded"
+    assert values["defaultFrameworks"] == ["nsa"], "canary framework changed"
+    assert values["persistence"]["size"]["backingStorage"] == "5Gi"
+    assert values["persistence"]["accessMode"] == "ReadWriteOnce"
+    assert values["kubescapeScheduler"]["requestBody"] == {"commands": [{
+        "CommandName": "kubescapeScan", "args": {"scanV1": {
+            "targetType": "framework", "targetNames": ["nsa"],
+            "hostScanner": False, "keepLocal": True}}}]}, "canary request changed"
+
+
+def check_child(child, active):
+    spec = child["spec"]
+    assert spec.get("wait") is active, "Flux health waiting must match the review mode"
+    assert not spec.get("suspend"), "Kubescape child must reconcile"
+    assert spec["dependsOn"] == [{"name": "infrastructure"}, {"name": "kyverno-policies"}]
 
 
 def pod_template(resource):
@@ -148,6 +164,14 @@ def check_effective_config(resources):
                 "relevantImageVulnerabilitiesEnabled", "scanEmbeddedSBOMs", "storeFilteredSbom"):
         assert cloud[key] is False, f"effective {key} enabled"
     assert cloud["keepLocal"] is True and cloud["nodeAgent"] == "false"
+    assert cloud["defaultFrameworks"] == ["nsa"]
+    operator_config = json.loads(maps["operator"]["config.json"])
+    assert operator_config["includeNamespaces"] == CANARY_NAMESPACE
+    assert not operator_config["triggersecurityframework"]
+    assert json.loads(maps["kubescape-scheduler"]["request-body.json"]) == {
+        "commands": [{"CommandName": "kubescapeScan", "args": {"scanV1": {
+            "targetType": "framework", "targetNames": ["nsa"],
+            "hostScanner": False, "keepLocal": True}}}]}
     caps = json.loads(maps["ks-capabilities"]["capabilities"])
     for key in DISABLED:
         assert caps["capabilities"][key] == "disable", f"effective {key} enabled"
@@ -158,7 +182,7 @@ def check_effective_config(resources):
     env = {e["name"]: e.get("value") for e in pod_template(scanner)["spec"]["containers"][0]["env"]}
     for key, expected in {"KS_ENABLE_HOST_SCANNER": "false", "KS_DOWNLOAD_ARTIFACTS": "false",
                           "KS_SKIP_UPDATE_CHECK": "true", "KS_OFFLINE": "true",
-                          "KS_INCLUDE_NAMESPACES": "default"}.items():
+                          "KS_INCLUDE_NAMESPACES": CANARY_NAMESPACE}.items():
         assert env[key] == expected, f"unexpected scanner {key}"
     operator = next(r for r in resources if r["kind"] == "Deployment" and r["metadata"]["name"] == "operator")
     env = {e["name"]: e.get("value") for e in pod_template(operator)["spec"]["containers"][0]["env"]}
@@ -176,12 +200,14 @@ def inventory(resources):
             if (r["kind"], r["metadata"].get("namespace"), r["metadata"]["name"])
             == ("Deployment", "kubescape", "storage")
             for c in pod_template(r)["spec"].get("initContainers", [])},
+        "certificateAPIServiceRules": [r["rules"] for r in resources
+            if r["kind"] == "ClusterRole" and r["metadata"]["name"] == "storage-certgen-kubescape"],
         "admissionBlockers": findings(resources),
     }
 
 
 def check_post_render(raw, rendered):
-    """Allow exactly certgen budgets and the existing scheduler suspension."""
+    """Allow only certgen budgets, named APIService access and scheduler suspension."""
     def indexed(resources):
         result = {(r["apiVersion"], r["kind"], r["metadata"].get("namespace"), r["metadata"]["name"]): r
                   for r in resources}
@@ -205,7 +231,11 @@ def check_post_render(raw, rendered):
         assert not container.get("resources"), "chart now supplies certgen budgets; review the patch"
         container["resources"] = deepcopy(CERTGEN_BUDGET)
     expected[("batch/v1", "CronJob", "kubescape", "kubescape-scheduler")]["spec"]["suspend"] = True
-    assert indexed(rendered) == expected, "post-render changed fields outside certgen budgets/scheduler suspension"
+    certgen = expected[("rbac.authorization.k8s.io/v1", "ClusterRole", None, "storage-certgen-kubescape")]
+    assert certgen["rules"] == [{"apiGroups": ["apiregistration.k8s.io"],
+                                 "resources": ["apiservices"], "verbs": ["get", "patch"]}], "chart certgen RBAC changed"
+    certgen["rules"][0]["resourceNames"] = [APISERVICE]
+    assert indexed(rendered) == expected, "post-render changed fields outside qualified edits"
 
 
 def check_scope(changed_paths):
@@ -262,7 +292,9 @@ def check_admission(args, work, resources):
 
 def run(args):
     release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
-    check_release(release)
+    check_release(release, active=args.active_review)
+    child = yaml.safe_load((ROOT / "clusters/home/infrastructure/kubescape-kustomization.yaml").read_text())
+    check_child(child, active=args.active_review)
     if args.base_ref:
         changed = subprocess.check_output(["git", "diff", "--name-only", args.base_ref], cwd=ROOT, text=True)
         paths = changed.splitlines()
@@ -302,6 +334,8 @@ def run(args):
     print(f"verified: rendered {len(resources)} resources; inventory matches; optional components disabled")
     if args.staged_review and not errors:
         print("verified: suspended staging; zero admission failures; activation still requires separate review")
+    if args.active_review and not errors:
+        print("verified: active posture-only mode; Flux health waiting; scheduled scanning remains suspended")
     return 1 if errors else 0
 
 
@@ -313,7 +347,9 @@ def main():
     parser.add_argument("--expected-kyverno-version", required=True, help="Application version resolved and verified by trust.sh")
     parser.add_argument("--work-dir", type=Path, default=ROOT / ".work/kubescape-preflight")
     parser.add_argument("--base-ref", help="also verify this task did not modify Kyverno, Gatus or Cilium")
-    parser.add_argument("--staged-review", action="store_true", help="verify suspended staging with the same strict admission checks")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--staged-review", action="store_true", help="verify suspended staging with the same strict admission checks")
+    mode.add_argument("--active-review", action="store_true", help="qualify an active release with Flux health waiting and suspended scheduler")
     args = parser.parse_args()
     try:
         return run(args)

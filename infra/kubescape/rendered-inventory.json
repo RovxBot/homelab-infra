@@ -91,5 +91,24 @@
       }
     }
   },
+  "certificateAPIServiceRules": [
+    [
+      {
+        "apiGroups": [
+          "apiregistration.k8s.io"
+        ],
+        "resourceNames": [
+          "v1beta1.spdx.softwarecomposition.kubescape.io"
+        ],
+        "resources": [
+          "apiservices"
+        ],
+        "verbs": [
+          "get",
+          "patch"
+        ]
+      }
+    ]
+  ],
   "admissionBlockers": []
 }

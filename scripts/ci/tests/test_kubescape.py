@@ -1,4 +1,4 @@
-"""Safety regressions for the intentionally suspended Kubescape staging task."""
+"""Safety regressions for suspended and explicitly active Kubescape modes."""
 
 import copy
 import importlib.util
@@ -65,12 +65,15 @@ def corrected_resources(raw):
                 container["resources"] = copy.deepcopy(CHECK.CERTGEN_BUDGET)
         if resource["kind"] == "CronJob":
             resource["spec"]["suspend"] = True
+        if resource["kind"] == "ClusterRole" and resource["metadata"]["name"] == "storage-certgen-kubescape":
+            resource["rules"][0]["resourceNames"] = [CHECK.APISERVICE]
     return resources
 
 
 class StagedReleaseTests(unittest.TestCase):
     def setUp(self):
         self.release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
+        self.release["spec"]["suspend"] = True
 
     def test_suspended_stage_is_valid(self):
         CHECK.check_release(self.release)
@@ -78,8 +81,31 @@ class StagedReleaseTests(unittest.TestCase):
 
     def test_unsuspending_fails(self):
         self.release["spec"]["suspend"] = False
-        with self.assertRaisesRegex(AssertionError, "remain suspended"):
+        with self.assertRaisesRegex(AssertionError, "explicit review mode"):
             CHECK.check_release(self.release)
+
+    def test_active_mode_requires_explicit_unsuspension_and_health_waiting(self):
+        child = yaml.safe_load((ROOT / "clusters/home/infrastructure/kubescape-kustomization.yaml").read_text())
+        self.release["spec"]["suspend"] = False
+        CHECK.check_release(self.release, active=True)
+        CHECK.check_child(child, active=True)
+        for value in (True, None):
+            self.release["spec"]["suspend"] = value
+            with self.assertRaises(AssertionError):
+                CHECK.check_release(self.release, active=True)
+        for value in (False, None):
+            child["spec"]["wait"] = value
+            with self.assertRaisesRegex(AssertionError, "health waiting"):
+                CHECK.check_child(child, active=True)
+
+    def test_canary_scope_framework_and_request_are_fixed(self):
+        for key, value in (("includeNamespaces", ""), ("includeNamespaces", "default"),
+                           ("defaultFrameworks", ["all"]),
+                           ("kubescapeScheduler", {"requestBody": {"commands": []}})):
+            release = copy.deepcopy(self.release)
+            release["spec"]["values"][key] = value
+            with self.assertRaises(AssertionError):
+                CHECK.check_release(release)
 
     def test_dangerous_capabilities_cannot_be_enabled_or_implicit(self):
         for key in CHECK.DISABLED:
@@ -123,7 +149,7 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertEqual(cluster["resources"].count(child_path), 1)
         child = yaml.safe_load((ROOT / "clusters/home" / child_path).read_text())["spec"]
         self.assertEqual(child["path"], "./infra/kubescape")
-        self.assertFalse(child["wait"])
+        self.assertTrue(child["wait"])
         self.assertEqual(child["dependsOn"], [{"name": "infrastructure"}, {"name": "kyverno-policies"}])
         infrastructure = yaml.safe_load((ROOT / "clusters/home/infrastructure/kustomization.yaml").read_text())
         self.assertNotIn("../../../infra/kubescape", infrastructure["resources"])
@@ -259,6 +285,8 @@ class PostRenderTests(unittest.TestCase):
                 # Undo only the allowed edits, then compare every resource and field.
                 scheduler = next(r for r in effective if r["kind"] == "CronJob")
                 self.assertIs(scheduler["spec"].pop("suspend"), True)
+                certgen = next(r for r in effective if r["kind"] == "ClusterRole")
+                self.assertEqual(certgen["rules"][0].pop("resourceNames"), [CHECK.APISERVICE])
                 CHECK.pod_template(storage)["spec"]["initContainers"].sort(key=lambda c: c["name"])
                 CHECK.pod_template(raw[0])["spec"]["initContainers"].sort(key=lambda c: c["name"])
                 identity = lambda r: (r["kind"], r["metadata"].get("namespace", ""), r["metadata"]["name"])
@@ -297,15 +325,15 @@ class FailClosedPreflightTests(unittest.TestCase):
             f"Deployment/storage initContainers/{name}: missing CPU/memory requests/limits"
             for name in sorted(CHECK.CERTGEN_NAMES)])
 
-    def test_neither_preflight_mode_permits_an_unsuspended_release(self):
+    def test_suspended_preflight_modes_reject_an_unsuspended_release(self):
         release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
         for mode in (False, True):
             for value in (False, None):
                 with self.subTest(staged_review=mode, suspend=value):
                     release["spec"]["suspend"] = value
                     with mock.patch.object(CHECK.yaml, "safe_load", return_value=release):
-                        with self.assertRaisesRegex(AssertionError, "remain suspended"):
-                            CHECK.run(SimpleNamespace(staged_review=mode))
+                        with self.assertRaisesRegex(AssertionError, "explicit review mode"):
+                            CHECK.run(SimpleNamespace(staged_review=mode, active_review=False))
 
     def test_admission_rejects_failures_errors_skips_and_empty_evaluations(self):
         passing = {"apiVersion": "openreports.io/v1alpha1", "summary": {
