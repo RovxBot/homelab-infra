@@ -12,49 +12,49 @@
       "patch": "01-overlap-cel-and-reporting.patch",
       "status": "verified",
       "legacy_objects": 12,
-      "render_sha256": "d02dd73a5747cfcfe345e7235503c843742d7bd3a8df61f67847fc143110f1f1"
+      "render_sha256": "b3f6c2e79cf05e48cb9a6b0d6d9e327268c1d17adf456732b5c5351759a5b2c3"
     },
     {
       "patch": "02a-freeze.patch",
       "status": "verified",
       "legacy_objects": 12,
-      "render_sha256": "476a795b3a90a83308472f3fb8391ed5c81342b16f6b6052d21b4ca7a494ef9d"
+      "render_sha256": "fdfe2522fd0c312504de9d122592140f6f3df23285e4f1d9dd0e44f586cc838e"
     },
     {
       "patch": "02b-orphan-legacy-before-retirement.patch",
       "status": "verified",
       "legacy_objects": 12,
-      "render_sha256": "cb40941d5adbb85b76c6f5af5383a464c58d1b83a9352d4048a7f906775d271c"
+      "render_sha256": "44c1b31dd27c9cdb31cadf45ebe2ca4f6afa06dc09da97bc3bdf1d19c940e4a5"
     },
     {
       "patch": "02c-retire-empty-legacy-generator.patch",
       "status": "verified",
       "legacy_objects": 11,
-      "render_sha256": "47082086dd6e0af2bd3205c3d3b406db56c3b340189f5b4eb5098c7e196a01f6"
+      "render_sha256": "5e9e7991091144d858025c9105693794b3d82634db4a13e04217b3bedf45c72a"
     },
     {
       "patch": "02d-qualify-flux-onboarding-contract.patch",
       "status": "verified",
       "legacy_objects": 11,
-      "render_sha256": "8c4ee8691359d9ddfa6a1e09dd762c11e2be2376178ecce72fb4af98a76f488a"
+      "render_sha256": "e799bbb3bc13747de994c9a7e52717f7bbd9701295fb1edffe3001cc808c3e7f"
     },
     {
       "patch": "02e-thaw.patch",
       "status": "verified",
       "legacy_objects": 11,
-      "render_sha256": "a910963855ce9b7d457a754eafbb3380a46b04c453fc114ab5acfc72b7b92407"
+      "render_sha256": "ad4ddee46247703e232cb32628703a77efad7055d791bc46243c5baa96aa3c2d"
     },
     {
       "patch": "03-retire-legacy-after-acceptance.patch",
       "status": "verified",
       "legacy_objects": 0,
-      "render_sha256": "1193733fe7f6062cf0bf6abe60f2cda713fc8b05eae03af2fb9ef971bfd75160"
+      "render_sha256": "0e941b41dca5a63d8b8081c13b8266ada1e50deceb3284a737e6bcae59c2ed55"
     },
     {
       "patch": "04-qualified-upgrade-and-renovate.patch",
       "status": "verified",
       "legacy_objects": 0,
-      "render_sha256": "1193733fe7f6062cf0bf6abe60f2cda713fc8b05eae03af2fb9ef971bfd75160"
+      "render_sha256": "0e941b41dca5a63d8b8081c13b8266ada1e50deceb3284a737e6bcae59c2ed55"
     }
   ],
   "renovate_after_cap_removal": "verified"

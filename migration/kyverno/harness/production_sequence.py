@@ -17,13 +17,24 @@ def policies(engine):
 
 
 def check_policies(docs):
+    # Exception rule refs and match unions are unordered. Preserve every
+    # member/duplicate/field while comparing full scope.
+    def canonical(value):
+        if isinstance(value,dict):return {k:canonical(v) for k,v in value.items()}
+        if isinstance(value,list):return sorted((canonical(v) for v in value),key=lambda v:json.dumps(v,sort_keys=True))
+        return value
     for doc in docs:
         if doc['kind'] in ['ClusterPolicy','Policy','ValidatingPolicy','NamespacedValidatingPolicy','MutatingPolicy']:
             ready(doc)
         if doc['kind']=='PolicyException':
             live=get(doc['kind']+'.'+doc['apiVersion'].split('/')[0],doc['metadata']['name'],doc['metadata']['namespace'])
-            assert live['spec']==doc['spec']
-            assert live['metadata']['annotations']==doc['metadata']['annotations']
+            expected=dict(doc['spec'])
+            if doc['apiVersion'].startswith('policies.kyverno.io/'):
+                # The actual CRD defaults this reporting field on admission.
+                # Keep scope and every other field exact; reject other modes.
+                expected.setdefault('reportResult','skip')
+            assert canonical(live['spec'])==canonical(expected), (doc['apiVersion'],doc['metadata']['name'],live['spec'],expected)
+            assert live['metadata']['annotations']==doc['metadata']['annotations'], doc['metadata']['name']
 
 
 class RunnerContinuity:

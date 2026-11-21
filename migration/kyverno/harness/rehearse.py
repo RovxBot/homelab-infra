@@ -481,6 +481,14 @@ def governance(version):
                 "--timeout=90s",
                 timeout=100,
             )
+            # A ready Pod does not prove the service route has converged after
+            # the deliberate zero-replica bootstrap probe. Establish actual
+            # admission availability before starting strict decision tests.
+            probe = (load('infra/kyverno/exceptions/home-assistant.yaml')[0]
+                     if version == '1.19.2' else next(d for d in load('migration/kyverno/exceptions/exceptions.yaml') if d['metadata']['name']=='home-assistant'))
+            probe = copy.deepcopy(probe)
+            probe['metadata']['name'] = 'admission-readiness-probe'
+            wait('admission service resumes after bootstrap probe',lambda:k('create','--dry-run=server','-f','-',data=yaml.safe_dump(probe),check=False).returncode==0)
             delete(native)
     if version == "1.19.2":
         delete(old)
