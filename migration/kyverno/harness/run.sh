@@ -14,7 +14,7 @@ if test -e "$KUBECONFIG"; then echo 'Refusing to reuse kubeconfig' >&2; exit 2; 
 fetch() { curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 "$1" -o "$2"; }
 fetch https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-linux-amd64 .work/cel/bin/kind
 fetch https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-linux-amd64.sha256sum .work/cel/kind.sha256
-(cd .work/cel/bin && sha256sum -c ../kind.sha256)
+printf '%s  %s\n' "$(cut -d ' ' -f1 .work/cel/kind.sha256)" .work/cel/bin/kind | sha256sum -c -
 chmod +x .work/cel/bin/kind
 fetch https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz .work/cel/helm.tgz
 fetch https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz.sha256sum .work/cel/helm.sha256
