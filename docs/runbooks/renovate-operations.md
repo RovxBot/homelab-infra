@@ -65,7 +65,7 @@ they never approve merging or deploying.
 | Action, reusable workflow and hosted runner majors | Separate per dependency, shared across workflows using that dependency. |
 | CI language release lines | Gated groups per language, separating Node from Python. Home Assistant's regression workflow remains restricted to Python 3.14. |
 | Terraform providers, modules and CLI | Gated per dependency across roots. No directory-wide infrastructure group; embedded Docker images follow image policies. |
-| Longhorn, Kyverno, GPU Operator, snapshot-controller, Flux control components | Gated by component, including patches and digests; review API, CRD, RBAC and maintenance compatibility. Kyverno remains `<3.10.0`; Longhorn still requires its supported upgrade sequence and engine procedure. |
+| Longhorn, Kyverno, GPU Operator, snapshot-controller, Flux control components | Gated by component, including patches and digests; review API, CRD, RBAC and maintenance compatibility. Kyverno uses the proposed chart/application compatibility gate with a separate high-risk PR and no automerge; Longhorn still requires its supported upgrade sequence and engine procedure. |
 | Identity images (Vaultwarden, OAuth2 Proxy, Synapse, Element) | Isolated, gated per dependency, including patches and digests. |
 | OS/language/MySQL release lines | Gated by application or image-build context and package. Unrelated MySQL/Ubuntu environments do not share upgrade PRs. |
 | Home Assistant release lines | Gated `home-assistant` PR while #2021's AirTouch regression remains unresolved. Patches and compatible helper maintenance can batch. |

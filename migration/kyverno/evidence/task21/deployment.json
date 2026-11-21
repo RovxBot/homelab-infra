@@ -1,0 +1,113 @@
+{
+  "status": "verified",
+  "observed_at": "2026-11-21T22:43:55Z",
+  "production_revision": "b38ae3e3b6bbd132a448c5f43b70e210098892e5",
+  "deployed": {
+    "chart": "3.10.0",
+    "application": "1.20.0",
+    "chart_digest": "sha256:55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301",
+    "upgrade_pr": 2174
+  },
+  "qualification": {
+    "source_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44894792843",
+    "current_pr_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44954733914/attempts/2",
+    "four_mandatory_scenarios": "verified",
+    "mutation_retry": "isolated 1.19.2 setup connection refusal; failed jobs only retried; all passed",
+    "governance_fixture": "marker test independent of renewal tracking URL"
+  },
+  "acceptance": {
+    "post_retirement_checks": 95,
+    "post_upgrade_checks": 98,
+    "legacy_policy_and_exception_resources": 0,
+    "update_requests": 0,
+    "ready_cel_policies": 25,
+    "exceptions": 6,
+    "policy_exception_ready_condition": "not defined by released schema; admitted specs, references and behavior verified",
+    "retained_policy_exception_identities": 31,
+    "retained_namespace_identities_and_labels": 34,
+    "crd_uids_preserved": true,
+    "crd_served_stored_versions": "all match exact verified chart; every served API read",
+    "cel_storage_version": "v1beta1; v1 remains served",
+    "admission_replicas": "2/2 Ready",
+    "other_controllers": "1/1 Ready each",
+    "fail_closed": true,
+    "legacy_policy_check": true,
+    "acknowledgeLegacyPoliciesNotEnforced": false,
+    "hooks": [
+      {
+        "name": "kyverno-migrate-resources",
+        "last_run": {
+          "started_at": "2026-11-21T22:41:36.056476518Z",
+          "completed_at": "2026-11-21T22:42:22.142503745Z",
+          "phase": "Succeeded"
+        }
+      },
+      {
+        "name": "kyverno-check-legacy-policies",
+        "last_run": {
+          "started_at": "2026-11-21T22:39:33.619896605Z",
+          "completed_at": "2026-11-21T22:39:54.815488225Z",
+          "phase": "Succeeded"
+        }
+      }
+    ],
+    "continuous_runner_requests": 120,
+    "continuous_runner_failures": 0,
+    "both_full_runner_suites": "verified",
+    "cel_and_native_admission": "verified",
+    "longhorn_mutation": "verified",
+    "fresh_cel_audit_report": "verified; transient ConfigMap removed",
+    "issue_sync": {
+      "mode": "dry-run",
+      "create": [],
+      "close": []
+    },
+    "flux_kustomizations_ready": 27,
+    "nodes_ready": 8,
+    "longhorn_volumes_healthy": 44,
+    "critical_workloads": "verified",
+    "runtime_image_digests": "match retained verified image signature and provenance evidence"
+  },
+  "exceptions": {
+    "chart-managed-workloads": {
+      "expires_at": "2026-12-21",
+      "scope": "unchanged"
+    },
+    "gpu-operator-workloads": {
+      "expires_at": "2026-12-21",
+      "scope": "unchanged"
+    },
+    "home-assistant": {
+      "expires_at": "2027-02-28",
+      "scope": "unchanged"
+    },
+    "mutable-image-tags": {
+      "expires_at": "2026-12-21",
+      "scope": "unchanged"
+    },
+    "privileged-namespaces": {
+      "expires_at": "2026-12-21",
+      "scope": "unchanged"
+    },
+    "wotlk-latest-tag": {
+      "expires_at": "2026-12-05",
+      "scope": "unchanged"
+    }
+  },
+  "renovate": {
+    "temporary_cap": "removed in this change",
+    "separate_high_risk_prs": true,
+    "manual_review": true,
+    "automerge": false,
+    "version_aware_compatibility_and_artifact_verification": "retained"
+  },
+  "unchanged": {
+    "kubescape": "suspended",
+    "cilium_enforcement": "never",
+    "flux_namespace_defaults": "retained"
+  },
+  "remaining": {
+    "issue_2133": "open only for historical webhook timeout; cause unproven",
+    "pr_2158": "superseded; 1.19-specific proposal never deployed"
+  }
+}
