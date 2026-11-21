@@ -1,0 +1,894 @@
+# DRAFT: integration fixtures only; activation gates are not satisfied.
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-restricted-with-sanitizer-capability
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: restricted-with-sanitizer-capability
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || ((!oldObject.spec.?hostNetwork.orValue(false)
+      && !oldObject.spec.?hostPID.orValue(false) && !oldObject.spec.?hostIPC.orValue(false)) && ((oldObject.spec.?containers.orValue([])
+      + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c, !c.?securityContext.?privileged.orValue(false)))
+      && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?ports.orValue([]).all(p, p.?hostPort.orValue(0) == 0))) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?allowPrivilegeEscalation.orValue(true)
+      == false)) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || ('ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,
+      a == 'NET_BIND_SERVICE')))) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || c.?securityContext.?runAsNonRoot.orValue(oldObject.spec.?securityContext.?runAsNonRoot.orValue(false))))
+      && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || c.?securityContext.?runAsUser.orValue(oldObject.spec.?securityContext.?runAsUser.orValue(-1)) != 0)) &&
+      ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?securityContext.?seccompProfile.?type.orValue(oldObject.spec.?securityContext.?seccompProfile.?type.orValue(''))
+      in ['RuntimeDefault','Localhost'])) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default')
+      == 'Default')) && (oldObject.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
+      || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
+      && (oldObject.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
+      && (([oldObject.spec.?securityContext.orValue({})] + (oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost'])) && (oldObject.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
+      || oldObject.metadata.annotations[k] == 'runtime/default' || oldObject.metadata.annotations[k].startsWith('localhost/')))
+      && (([oldObject.spec.?securityContext.orValue({})] + (oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?seLinuxOptions.?type.orValue('')
+      in ['','container_t','container_init_t','container_kvm_t','container_engine_t'] && sc.?seLinuxOptions.?user.orValue('')
+      == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (oldObject.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([oldObject.spec.?securityContext.orValue({})] + (oldObject.spec.?containers.orValue([])
+      + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false)))) || ((!object.spec.?hostNetwork.orValue(false) && !object.spec.?hostPID.orValue(false)
+      && !object.spec.?hostIPC.orValue(false)) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, !c.?securityContext.?privileged.orValue(false))) &&
+      ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?ports.orValue([]).all(p, p.?hostPort.orValue(0) == 0))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?allowPrivilegeEscalation.orValue(true)
+      == false)) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || ('ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,
+      a == 'NET_BIND_SERVICE')))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || c.?securityContext.?runAsNonRoot.orValue(object.spec.?securityContext.?runAsNonRoot.orValue(false)))) &&
+      ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || c.?securityContext.?runAsUser.orValue(object.spec.?securityContext.?runAsUser.orValue(-1)) != 0)) && ((object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?seccompProfile.?type.orValue(object.spec.?securityContext.?seccompProfile.?type.orValue(''))
+      in ['RuntimeDefault','Localhost'])) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default') ==
+      'Default')) && (object.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
+      || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
+      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost'])) && (object.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
+      || object.metadata.annotations[k] == 'runtime/default' || object.metadata.annotations[k].startsWith('localhost/')))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?seLinuxOptions.?type.orValue('')
+      in ['','container_t','container_init_t','container_kvm_t','container_engine_t'] && sc.?seLinuxOptions.?user.orValue('')
+      == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (object.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false))))
+  validations:
+  - expression: (!object.spec.?hostNetwork.orValue(false) && !object.spec.?hostPID.orValue(false) && !object.spec.?hostIPC.orValue(false))
+      && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      !c.?securityContext.?privileged.orValue(false))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?ports.orValue([]).all(p, p.?hostPort.orValue(0)
+      == 0))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?securityContext.?allowPrivilegeEscalation.orValue(true) == false)) && ((object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c, c.image ==
+      "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4" || ('ALL'
+      in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,
+      a == 'NET_BIND_SERVICE')))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || c.?securityContext.?runAsNonRoot.orValue(object.spec.?securityContext.?runAsNonRoot.orValue(false)))) &&
+      ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      || c.?securityContext.?runAsUser.orValue(object.spec.?securityContext.?runAsUser.orValue(-1)) != 0)) && ((object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?seccompProfile.?type.orValue(object.spec.?securityContext.?seccompProfile.?type.orValue(''))
+      in ['RuntimeDefault','Localhost'])) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default') ==
+      'Default')) && (object.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
+      || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
+      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost'])) && (object.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
+      || object.metadata.annotations[k] == 'runtime/default' || object.metadata.annotations[k].startsWith('localhost/')))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?seLinuxOptions.?type.orValue('')
+      in ['','container_t','container_init_t','container_kvm_t','container_engine_t'] && sc.?seLinuxOptions.?user.orValue('')
+      == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (object.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false)))
+    message: restricted-with-sanitizer-capability
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-bound-job-environment
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: bound-job-environment
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('')
+      == 'sam' && oldObject.spec.?automountServiceAccountToken.orValue(true) == false && oldObject.spec.containers.exists(c,
+      c.name == 'job' && c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
+      != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
+      != ''))) || (object.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('') == 'sam' && object.spec.?automountServiceAccountToken.orValue(true)
+      == false && object.spec.containers.exists(c, c.name == 'job' && c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
+      != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
+      != '')))
+  validations:
+  - expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('') == 'sam' && object.spec.?automountServiceAccountToken.orValue(true)
+      == false && object.spec.containers.exists(c, c.name == 'job' && c.image == "ghcr.io/rovxbot/gitea-linux@sha256:ea3ec1b2c22a5ed4b224c6638dbb9af78cb8bc7bc3a902c8c369ee346df5aaa4"
+      && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
+      != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
+      != ''))
+    message: Jobs require the pinned toolchain, no API token, no extra containers, and explicit resources.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-one-job-container
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: one-job-container
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.size() == 1 &&
+      oldObject.spec.?initContainers.orValue([]).size() == 0 && oldObject.spec.?ephemeralContainers.orValue([]).size()
+      == 0) || (object.spec.containers.size() == 1 && object.spec.?initContainers.orValue([]).size() == 0 && object.spec.?ephemeralContainers.orValue([]).size()
+      == 0)
+  validations:
+  - expression: object.spec.containers.size() == 1 && object.spec.?initContainers.orValue([]).size() == 0 && object.spec.?ephemeralContainers.orValue([]).size()
+      == 0
+    message: Only the job container is allowed; no init or ephemeral containers.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-drop-all-and-only-allow-ptrace
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: drop-all-and-only-allow-ptrace
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.all(c, 'ALL' in
+      c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a
+      == 'SYS_PTRACE'))) || (object.spec.containers.all(c, 'ALL' in c.?securityContext.?capabilities.?drop.orValue([])
+      && c.?securityContext.?capabilities.?add.orValue([]).all(a,a == 'SYS_PTRACE')))
+  validations:
+  - expression: object.spec.containers.all(c, 'ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a
+      == 'SYS_PTRACE'))
+    message: Drop ALL capabilities; only SYS_PTRACE can be added for LeakSanitizer.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-ptrace-only-in-sanitizer-jobs
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: ptrace-only-in-sanitizer-jobs
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-sanitizer-precondition
+    expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/sanitizer"].orValue('') != 'true'
+  validations:
+  - expression: object.spec.containers.all(c, !('SYS_PTRACE' in c.?securityContext.?capabilities.?add.orValue([])))
+    message: SYS_PTRACE requires the explicit sanitizer job label.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-ordinary-job-identity
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: ordinary-job-identity
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-sanitizer-precondition
+    expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/sanitizer"].orValue('') != 'true'
+  validations:
+  - expression: (object.spec.?securityContext.?runAsUser.orValue(-1) == 1000 && object.spec.?securityContext.?runAsNonRoot.orValue(false)
+      && object.spec.containers.exists(c,c.name == 'job' && c.?securityContext.?runAsNonRoot.orValue(false) && c.?securityContext.?runAsUser.orValue(1000)
+      == 1000))
+    message: Ordinary jobs must run as the unprivileged build user.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-bounded-sanitizer-identity
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: bounded-sanitizer-identity
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-sanitizer-precondition
+    expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/sanitizer"].orValue('') == 'true'
+  validations:
+  - expression: object.spec.containers.exists(c,c.name == 'job' && c.?securityContext.?runAsUser.orValue(-1) ==
+      0 && c.?securityContext.?runAsGroup.orValue(-1) == 0 && c.?securityContext.?runAsNonRoot.orValue(true) ==
+      false && c.?securityContext.?capabilities.?add.orValue([]) == ['SYS_PTRACE'] && c.?securityContext.?capabilities.?drop.orValue([])
+      == ['ALL'])
+    message: Sanitizer jobs use UID 0 solely to retain SYS_PTRACE; no other capabilities or host access.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: gitea-job-security-no-extra-job-credentials
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: gitea-job-security
+    migration.cooked.beer/source-rule: no-extra-job-credentials
+  namespace: gitea-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.?volumes.orValue([]).all(v,
+      has(v.emptyDir) || has(v.secret))) || (object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret)))
+  validations:
+  - expression: object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret))
+    message: Jobs may mount only bounded emptyDir volumes and runner-created Secrets.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: wowdecomp-linux-security-restricted-with-sanitizer-capability
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: wowdecomp-linux-security
+    migration.cooked.beer/source-rule: restricted-with-sanitizer-capability
+  namespace: wowdecomp-ci-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || ((!oldObject.spec.?hostNetwork.orValue(false)
+      && !oldObject.spec.?hostPID.orValue(false) && !oldObject.spec.?hostIPC.orValue(false)) && ((oldObject.spec.?containers.orValue([])
+      + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c, !c.?securityContext.?privileged.orValue(false)))
+      && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?ports.orValue([]).all(p, p.?hostPort.orValue(0) == 0))) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?allowPrivilegeEscalation.orValue(true)
+      == false)) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || ('ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,
+      a == 'NET_BIND_SERVICE')))) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || c.?securityContext.?runAsNonRoot.orValue(oldObject.spec.?securityContext.?runAsNonRoot.orValue(false))))
+      && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || c.?securityContext.?runAsUser.orValue(oldObject.spec.?securityContext.?runAsUser.orValue(-1)) != 0)) &&
+      ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?securityContext.?seccompProfile.?type.orValue(oldObject.spec.?securityContext.?seccompProfile.?type.orValue(''))
+      in ['RuntimeDefault','Localhost'])) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default')
+      == 'Default')) && (oldObject.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
+      || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
+      && (oldObject.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
+      && (([oldObject.spec.?securityContext.orValue({})] + (oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost'])) && (oldObject.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
+      || oldObject.metadata.annotations[k] == 'runtime/default' || oldObject.metadata.annotations[k].startsWith('localhost/')))
+      && (([oldObject.spec.?securityContext.orValue({})] + (oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?seLinuxOptions.?type.orValue('')
+      in ['','container_t','container_init_t','container_kvm_t','container_engine_t'] && sc.?seLinuxOptions.?user.orValue('')
+      == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((oldObject.spec.?containers.orValue([]) + oldObject.spec.?initContainers.orValue([])
+      + oldObject.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (oldObject.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([oldObject.spec.?securityContext.orValue({})] + (oldObject.spec.?containers.orValue([])
+      + oldObject.spec.?initContainers.orValue([]) + oldObject.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false)))) || ((!object.spec.?hostNetwork.orValue(false) && !object.spec.?hostPID.orValue(false)
+      && !object.spec.?hostIPC.orValue(false)) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, !c.?securityContext.?privileged.orValue(false))) &&
+      ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?ports.orValue([]).all(p, p.?hostPort.orValue(0) == 0))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?allowPrivilegeEscalation.orValue(true)
+      == false)) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || ('ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,
+      a == 'NET_BIND_SERVICE')))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || c.?securityContext.?runAsNonRoot.orValue(object.spec.?securityContext.?runAsNonRoot.orValue(false)))) &&
+      ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || c.?securityContext.?runAsUser.orValue(object.spec.?securityContext.?runAsUser.orValue(-1)) != 0)) && ((object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?seccompProfile.?type.orValue(object.spec.?securityContext.?seccompProfile.?type.orValue(''))
+      in ['RuntimeDefault','Localhost'])) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default') ==
+      'Default')) && (object.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
+      || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
+      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost'])) && (object.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
+      || object.metadata.annotations[k] == 'runtime/default' || object.metadata.annotations[k].startsWith('localhost/')))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?seLinuxOptions.?type.orValue('')
+      in ['','container_t','container_init_t','container_kvm_t','container_engine_t'] && sc.?seLinuxOptions.?user.orValue('')
+      == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (object.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false))))
+  validations:
+  - expression: (!object.spec.?hostNetwork.orValue(false) && !object.spec.?hostPID.orValue(false) && !object.spec.?hostIPC.orValue(false))
+      && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      !c.?securityContext.?privileged.orValue(false))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?ports.orValue([]).all(p, p.?hostPort.orValue(0)
+      == 0))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.?securityContext.?allowPrivilegeEscalation.orValue(true) == false)) && ((object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c, c.image ==
+      "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || ('ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,
+      a == 'NET_BIND_SERVICE')))) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || c.?securityContext.?runAsNonRoot.orValue(object.spec.?securityContext.?runAsNonRoot.orValue(false)))) &&
+      ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c,
+      c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      || c.?securityContext.?runAsUser.orValue(object.spec.?securityContext.?runAsUser.orValue(-1)) != 0)) && ((object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?seccompProfile.?type.orValue(object.spec.?securityContext.?seccompProfile.?type.orValue(''))
+      in ['RuntimeDefault','Localhost'])) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, c.?securityContext.?procMount.orValue('Default') ==
+      'Default')) && (object.spec.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
+      || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret)))
+      && (object.spec.?securityContext.?sysctls.orValue([]).all(s, s.name in ['kernel.shm_rmid_forced','net.ipv4.ip_local_port_range','net.ipv4.tcp_syncookies','net.ipv4.ping_group_range','net.ipv4.ip_unprivileged_port_start','net.ipv4.ip_local_reserved_ports','net.ipv4.tcp_keepalive_time','net.ipv4.tcp_fin_timeout','net.ipv4.tcp_keepalive_intvl','net.ipv4.tcp_keepalive_probes','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem']))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?appArmorProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost'])) && (object.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
+      || object.metadata.annotations[k] == 'runtime/default' || object.metadata.annotations[k].startsWith('localhost/')))
+      && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc, sc.?seLinuxOptions.?type.orValue('')
+      in ['','container_t','container_init_t','container_kvm_t','container_engine_t'] && sc.?seLinuxOptions.?user.orValue('')
+      == '' && sc.?seLinuxOptions.?role.orValue('') == '')) && ((object.spec.?containers.orValue([]) + object.spec.?initContainers.orValue([])
+      + object.spec.?ephemeralContainers.orValue([])).all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == '') && [c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(p,
+      p.?httpGet.?host.orValue('') == '' && p.?tcpSocket.?host.orValue('') == ''))) && (object.spec.?securityContext.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost']) && (([object.spec.?securityContext.orValue({})] + (object.spec.?containers.orValue([])
+      + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])).map(c,c.?securityContext.orValue({}))).all(sc,
+      !sc.?windowsOptions.?hostProcess.orValue(false)))
+    message: restricted-with-sanitizer-capability
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: wowdecomp-linux-security-bound-job-environment
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: wowdecomp-linux-security
+    migration.cooked.beer/source-rule: bound-job-environment
+  namespace: wowdecomp-ci-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('')
+      == 'sam' && oldObject.spec.?automountServiceAccountToken.orValue(true) == false && oldObject.spec.containers.exists(c,
+      c.name == 'job' && c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
+      != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
+      != '')) && oldObject.spec.?imagePullSecrets.orValue([]).exists(p,p.name == 'wowdecomp-toolchain-pull')) ||
+      (object.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('') == 'sam' && object.spec.?automountServiceAccountToken.orValue(true)
+      == false && object.spec.containers.exists(c, c.name == 'job' && c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
+      != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
+      != '')) && object.spec.?imagePullSecrets.orValue([]).exists(p,p.name == 'wowdecomp-toolchain-pull'))
+  validations:
+  - expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('') == 'sam' && object.spec.?automountServiceAccountToken.orValue(true)
+      == false && object.spec.containers.exists(c, c.name == 'job' && c.image == "git.cooked.beer/github-dr/wowdecomp-linux-toolchain@sha256:900d148f45038f83e30f6f4bfe3e81f3d6527867239fae1066f9372ff882c812"
+      && (c.?resources.?requests.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?requests.orValue({})[?'memory'].orValue('')
+      != '' && c.?resources.?limits.orValue({})[?'cpu'].orValue('') != '' && c.?resources.?limits.orValue({})[?'memory'].orValue('')
+      != '')) && object.spec.?imagePullSecrets.orValue([]).exists(p,p.name == 'wowdecomp-toolchain-pull')
+    message: Jobs require the pinned toolchain, no API token, no extra containers, and explicit resources.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: wowdecomp-linux-security-one-job-container
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: wowdecomp-linux-security
+    migration.cooked.beer/source-rule: one-job-container
+  namespace: wowdecomp-ci-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.size() == 1 &&
+      oldObject.spec.?initContainers.orValue([]).size() == 0 && oldObject.spec.?ephemeralContainers.orValue([]).size()
+      == 0) || (object.spec.containers.size() == 1 && object.spec.?initContainers.orValue([]).size() == 0 && object.spec.?ephemeralContainers.orValue([]).size()
+      == 0)
+  validations:
+  - expression: object.spec.containers.size() == 1 && object.spec.?initContainers.orValue([]).size() == 0 && object.spec.?ephemeralContainers.orValue([]).size()
+      == 0
+    message: Only the job container is allowed; no init or ephemeral containers.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: wowdecomp-linux-security-bounded-toolchain-capabilities
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: wowdecomp-linux-security
+    migration.cooked.beer/source-rule: bounded-toolchain-capabilities
+  namespace: wowdecomp-ci-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.all(c, 'ALL' in
+      c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a
+      in ['CHOWN','DAC_OVERRIDE','FOWNER','SETUID','SETGID','SYS_PTRACE']))) || (object.spec.containers.all(c, 'ALL'
+      in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a
+      in ['CHOWN','DAC_OVERRIDE','FOWNER','SETUID','SETGID','SYS_PTRACE'])))
+  validations:
+  - expression: object.spec.containers.all(c, 'ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a
+      in ['CHOWN','DAC_OVERRIDE','FOWNER','SETUID','SETGID','SYS_PTRACE']))
+    message: Only package installation and private-namespace LSan capabilities are allowed.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: wowdecomp-linux-security-no-extra-job-credentials
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: wowdecomp-linux-security
+    migration.cooked.beer/source-rule: no-extra-job-credentials
+  namespace: wowdecomp-ci-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.?volumes.orValue([]).all(v,
+      has(v.emptyDir) || has(v.secret))) || (object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret)))
+  validations:
+  - expression: object.spec.?volumes.orValue([]).all(v, has(v.emptyDir) || has(v.secret))
+    message: Only ephemeral volumes and runner-created Secrets are permitted.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: wowdecomp-linux-security-no-mounted-registry-credential
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: wowdecomp-linux-security
+    migration.cooked.beer/source-rule: no-mounted-registry-credential
+  namespace: wowdecomp-ci-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.?volumes.orValue([]).all(v,
+      v.?secret.?secretName.orValue('') != 'wowdecomp-toolchain-pull')) || (object.spec.?volumes.orValue([]).all(v,
+      v.?secret.?secretName.orValue('') != 'wowdecomp-toolchain-pull'))
+  validations:
+  - expression: object.spec.?volumes.orValue([]).all(v, v.?secret.?secretName.orValue('') != 'wowdecomp-toolchain-pull')
+    message: The registry credential is for kubelet image pulls only.
+---
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: wowdecomp-linux-security-no-registry-credential-in-environment
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+    migration.cooked.beer/source-policy: wowdecomp-linux-security
+    migration.cooked.beer/source-rule: no-registry-credential-in-environment
+  namespace: wowdecomp-ci-jobs
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+  matchConditions:
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.spec.containers.all(c, c.?env.orValue([]).all(e,
+      e.?valueFrom.?secretKeyRef.?name.orValue('') != 'wowdecomp-toolchain-pull') && c.?envFrom.orValue([]).all(e,
+      e.?secretRef.?name.orValue('') != 'wowdecomp-toolchain-pull'))) || (object.spec.containers.all(c, c.?env.orValue([]).all(e,
+      e.?valueFrom.?secretKeyRef.?name.orValue('') != 'wowdecomp-toolchain-pull') && c.?envFrom.orValue([]).all(e,
+      e.?secretRef.?name.orValue('') != 'wowdecomp-toolchain-pull')))
+  validations:
+  - expression: object.spec.containers.all(c, c.?env.orValue([]).all(e, e.?valueFrom.?secretKeyRef.?name.orValue('')
+      != 'wowdecomp-toolchain-pull') && c.?envFrom.orValue([]).all(e, e.?secretRef.?name.orValue('') != 'wowdecomp-toolchain-pull'))
+    message: The registry credential cannot enter a job environment.

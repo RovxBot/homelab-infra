@@ -1,0 +1,19 @@
+{
+  "status": "verified",
+  "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+  "identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "images": {
+    "background-controller": "sha256:c72df38320a48fc9de10f9d23d087a117853bb08207b7f60f6d1e8457fb3ddb7",
+    "cleanup-controller": "sha256:0f9ce0c203561c52499e871a987ff987371f57385fcafe7af1a01dfd6db1feee",
+    "kyverno-cli": "sha256:bd2b8b7c9d550ecf04e0bacaf351adce2f82ce67fd3f291075edcee7f8ab4ab4",
+    "kyverno": "sha256:9de49c5416ea536f00a205527197ac048abdf32c5a75d633cd9afff8928f359d",
+    "kyvernopre": "sha256:339067e083430e0c97007541bef9cfdbac89bee13f7228772c77ae8aead14b8b",
+    "readiness-checker": "sha256:6079a30d75fe7ba868a5a7e5dfa71ee92a3a8bae97adcea1c8cfb1009280ee6c",
+    "reports-controller": "sha256:f54e3cc106fadb1a615d0ec11c42f741f51d3580a5f70dfbe7bd7ec58864ef03"
+  },
+  "blobs": {
+    "kyverno-3.10.0.tgz": "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301",
+    "kyverno-cli_v1.20.0_linux_x86_64.tar.gz": "06b8f3ca7b5626473be8fb4d343ad54ab84e317142766f72420e7d44b80942e2"
+  }
+}

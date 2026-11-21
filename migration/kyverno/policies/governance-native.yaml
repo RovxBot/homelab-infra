@@ -1,0 +1,37 @@
+# DRAFT: integration fixtures only; activation gates are not satisfied.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: policy-exception-accountability
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - kyverno.io
+      - policies.kyverno.io
+      apiVersions:
+      - '*'
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - policyexceptions
+  matchConditions:
+  - name: exception-namespace
+    expression: request.namespace == 'kyverno'
+  validations:
+  - expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('') != '' && object.metadata.?annotations.orValue({})[?"kyverno.cooked.beer/reason"].orValue('')
+      != '' && object.metadata.?annotations.orValue({})[?"kyverno.cooked.beer/expires-at"].orValue('') != '' &&
+      (object.metadata.?annotations.orValue({})[?"github.cooked.beer/issue-create"].orValue('') == 'true' || object.metadata.?annotations.orValue({})[?"github.cooked.beer/issue-url"].orValue('').matches('^https://github[.]com/.*/issues/.*$'))
+    message: Exceptions require owner, reason, expiry and issue tracking
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: policy-exception-accountability
+spec:
+  policyName: policy-exception-accountability
+  validationActions:
+  - Deny
+  - Audit

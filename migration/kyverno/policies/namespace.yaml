@@ -1,0 +1,58 @@
+# DRAFT: integration fixtures only; activation gates are not satisfied.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-namespace-standards
+  annotations:
+    policies.kyverno.io/title: Platform Namespace Standards
+    policies.kyverno.io/category: Governance
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Namespace
+    migration.cooked.beer/source-policy: platform-namespace-standards
+    migration.cooked.beer/source-rule: require-psa-and-owner-labels
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - namespaces
+  matchConditions:
+  - name: excluded-names
+    expression: '!(object.metadata.name in [''default'',''kube-node-lease'',''kube-public'',''kube-system'',''sops''])'
+  - name: legacy-existing-violation
+    expression: request.operation != 'UPDATE' || oldObject == null || (oldObject.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('')
+      != '' && oldObject.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/enforce"].orValue('') != '' &&
+      oldObject.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/enforce-version"].orValue('') != '' &&
+      oldObject.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/audit"].orValue('') != '' && oldObject.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/audit-version"].orValue('')
+      != '' && oldObject.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/warn"].orValue('') != '' && oldObject.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/warn-version"].orValue('')
+      != '') || (object.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('') != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/enforce"].orValue('')
+      != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/enforce-version"].orValue('') !=
+      '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/audit"].orValue('') != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/audit-version"].orValue('')
+      != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/warn"].orValue('') != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/warn-version"].orValue('')
+      != '')
+  validations:
+  - expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('') != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/enforce"].orValue('')
+      != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/enforce-version"].orValue('') !=
+      '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/audit"].orValue('') != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/audit-version"].orValue('')
+      != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/warn"].orValue('') != '' && object.metadata.?labels.orValue({})[?"pod-security.kubernetes.io/warn-version"].orValue('')
+      != ''
+    message: Namespaces must declare PSA labels and an explicit owner label.

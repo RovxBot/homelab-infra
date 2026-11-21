@@ -1,0 +1,17 @@
+{
+  "chart": "3.10.0",
+  "application": "1.20.0",
+  "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+  "chart_sha256": "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301",
+  "chart_signed": true,
+  "kubernetes_support": {
+    "source": "https://raw.githubusercontent.com/kyverno/website/main/src/content/docs/docs/installation/releases.md",
+    "document_sha256": "0e7267efd394fa8c43f37c96d623dfba42e25bc0ab6392e930ca3f16ef11fe67",
+    "release": "1.20",
+    "kubernetes_min_minor": 34,
+    "kubernetes_max_minor": 37,
+    "tested_minor": 34
+  },
+  "cli_sha256": "06b8f3ca7b5626473be8fb4d343ad54ab84e317142766f72420e7d44b80942e2",
+  "identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0"
+}

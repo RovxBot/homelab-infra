@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from policy_identity import canonical_identity
 
 
 IGNORED_FLUX_RENDER_PATHS = {
@@ -189,6 +190,39 @@ def write_documents(documents: list[dict[str, Any]], output_dir: Path) -> list[P
     return written
 
 
+def resource_batches(documents: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Evaluate every authored variant without duplicate fake-client identities.
+
+    Multiple Flux renders may contain the same Namespace or shared resource.
+    Newer CLIs reject duplicate identities in one fake client. Exact duplicates
+    need one evaluation; differing definitions must each be tested, rather than
+    choosing an arbitrary winner and potentially hiding a policy failure.
+    """
+    batches: list[list[dict[str, Any]]] = []
+    identities: list[set[tuple[str, str, str, str]]] = []
+    seen: set[str] = set()
+    for document in documents:
+        fingerprint = json.dumps(document, sort_keys=True)
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        metadata = document.get("metadata") or {}
+        api_version = document.get("apiVersion", "")
+        group = api_version.split("/", 1)[0] if "/" in api_version else ""
+        identity = (group, document.get("kind", ""),
+                    "" if document.get("kind") == "Namespace" else metadata.get("namespace", ""),
+                    metadata.get("name", ""))
+        for batch, keys in zip(batches, identities):
+            if identity not in keys:
+                batch.append(document)
+                keys.add(identity)
+                break
+        else:
+            batches.append([document])
+            identities.append({identity})
+    return batches
+
+
 def load_policy_reports(raw_output: str) -> list[dict[str, Any]]:
     # Kyverno 1.15 prints mutation diagnostics and rendered YAML alongside its
     # JSON reports, sometimes directly before an opening brace. Decode reports
@@ -269,16 +303,19 @@ def evaluate_resources(
             f"kyverno apply failed for {resource_dir.name}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
     if not result.stdout.strip():
-        return []
+        raise RuntimeError("Kyverno returned no policy report; collection is unknown")
 
     records: list[FailureRecord] = []
     reports = load_policy_reports(result.stdout)
     for report in reports:
         for item in report.get("results", []):
+            if item.get("result") == "error":
+                raise RuntimeError("Kyverno report contains an evaluation error")
             if item.get("result") != "fail":
                 continue
 
-            subjects = extract_result_subjects(item)
+            policy, rule = canonical_identity(item)
+            subjects = extract_result_subjects(item) or extract_result_subjects({"scope": report.get("scope")})
             if not subjects:
                 raise RuntimeError(
                     "Kyverno policy report failure result did not include a resource subject\n"
@@ -288,8 +325,8 @@ def evaluate_resources(
             for subject in subjects:
                 records.append(
                     FailureRecord(
-                        policy=str(item.get("policy", "unknown-policy")),
-                        rule=str(item.get("rule", "unknown-rule")),
+                        policy=policy,
+                        rule=rule,
                         kind=subject["kind"],
                         namespace=subject["namespace"],
                         name=subject["name"],
@@ -308,8 +345,11 @@ def collect_failures(repo_root: Path, cluster_root: Path, kyverno_bin: Path, wor
     render_paths = find_flux_render_paths(cluster_root)
     (work_dir / "render-paths.txt").write_text("\n".join(render_paths) + "\n", encoding="utf-8")
 
-    policy_documents = render_kustomization(repo_root, "infra/kyverno/policies")
-    exception_documents = render_kustomization(repo_root, "infra/kyverno/exceptions")
+    authored = render_kustomization(repo_root, "infra/kyverno-policies")
+    policy_documents = [d for d in authored if d.get("kind") in {"ClusterPolicy", "Policy", "ValidatingPolicy", "NamespacedValidatingPolicy"}]
+    exception_documents = [d for d in authored if d.get("kind") == "PolicyException"]
+    if not policy_documents:
+        raise RuntimeError("No authored validation policies; admission coverage is unknown")
 
     rendered_documents: list[dict[str, Any]] = []
     for render_path in render_paths:
@@ -336,20 +376,24 @@ def collect_failures(repo_root: Path, cluster_root: Path, kyverno_bin: Path, wor
 
     policy_dir = work_dir / "policies"
     exception_dir = work_dir / "exceptions"
-    resource_dir = work_dir / "resources"
     write_documents(policy_documents, policy_dir)
     exception_files = write_documents(exception_documents, exception_dir)
-    write_documents(filtered_documents, resource_dir)
 
     failures: dict[FailureKey, FailureRecord] = {}
-    for record in evaluate_resources(
-        kyverno_bin=kyverno_bin,
-        repo_root=repo_root,
-        policy_dir=policy_dir,
-        exception_files=exception_files,
-        resource_dir=resource_dir,
-    ):
-        failures[record.key()] = record
+    batches = resource_batches(filtered_documents)
+    if not batches:
+        raise RuntimeError("No rendered resources; policy coverage is unknown")
+    for index, batch in enumerate(batches):
+        resource_dir = work_dir / f"resources-{index:03d}"
+        write_documents(batch, resource_dir)
+        for record in evaluate_resources(
+            kyverno_bin=kyverno_bin,
+            repo_root=repo_root,
+            policy_dir=policy_dir,
+            exception_files=exception_files,
+            resource_dir=resource_dir,
+        ):
+            failures[record.key()] = record
 
     sorted_failures = [failures[key] for key in sorted(failures)]
     (work_dir / "actual-failures.json").write_text(

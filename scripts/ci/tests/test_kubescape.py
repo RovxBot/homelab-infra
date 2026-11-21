@@ -141,6 +141,15 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertEqual(patch["target"]["name"], "kubescape-scheduler")
         self.assertEqual(yaml.safe_load(patch["patch"]), [{"op": "add", "path": "/spec/suspend", "value": True}])
 
+    def test_scope_guard_still_applies_to_kubescape_infrastructure(self):
+        self.assertTrue(CHECK.scope_guard_required(["infra/kubescape/helmrelease.yaml", "infra/kyverno/helmrelease.yaml"]))
+        self.assertFalse(CHECK.scope_guard_required(["scripts/ci/check_kubescape.py", "infra/kyverno/helmrelease.yaml"]))
+
+    def test_mismatched_cli_is_rejected_before_admission_checks(self):
+        with mock.patch.object(CHECK.subprocess, "check_output", return_value="Version: 1.19.2\n"):
+            with self.assertRaisesRegex(AssertionError, "verified proposed release"):
+                CHECK.check_admission(SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.20.0"), Path("unused"), [])
+
     def test_scope_guard_rejects_kyverno_gatus_or_cilium_changes(self):
         protected = ["infra/kyverno/helmrelease.yaml", "infra/kyverno-policies/example.yaml",
                      "infra/observability/gatus-configmap.yaml", "infra/cilium/helmrelease.yaml"]
@@ -320,7 +329,24 @@ class FailClosedPreflightTests(unittest.TestCase):
                     with mock.patch.object(CHECK.subprocess, "check_output", return_value="Version: 1.19.2\n"), \
                          mock.patch.object(CHECK.subprocess, "run", return_value=evaluated):
                         with self.assertRaises(AssertionError):
-                            CHECK.check_admission(SimpleNamespace(kyverno="kyverno"), Path(directory), [])
+                            CHECK.check_admission(SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.19.2"), Path(directory), [])
+
+    def test_cel_admission_requires_its_complete_report(self):
+        for count in [27, 28]:
+            report = {"apiVersion": "openreports.io/v1alpha1", "summary": {
+                "pass": count, "fail": 0, "error": 0, "skip": 0, "warn": 0},
+                "results": [{"policy": "platform-pod-standards-require-owner-label", "rule": "validation",
+                             "result": "pass", "resources": [{"kind": "Deployment", "name": "storage"}]}] * count}
+            evaluated = SimpleNamespace(stdout=yaml.safe_dump(report), returncode=0)
+            with tempfile.TemporaryDirectory() as directory, \
+                 mock.patch.object(CHECK.subprocess, "check_output", return_value="Version: v1.20.0\n"), \
+                 mock.patch.object(CHECK.subprocess, "run", return_value=evaluated):
+                args = SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.20.0")
+                if count == 28:
+                    CHECK.check_admission(args, Path(directory), [])
+                else:
+                    with self.assertRaises(AssertionError):
+                        CHECK.check_admission(args, Path(directory), [])
 
     def test_unsuspended_scheduler_fails(self):
         workload = safe_workload()

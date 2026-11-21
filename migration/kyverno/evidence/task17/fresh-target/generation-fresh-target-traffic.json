@@ -1,0 +1,122 @@
+[
+  {
+    "observed_at": 1795247645.2097178,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247649.4327776,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247653.6321347,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247657.8356314,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247662.0387125,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247666.2410235,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247670.439467,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247674.6356232,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247678.832362,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247683.0317066,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247687.2312381,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247691.4250932,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247695.6210985,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247699.8127542,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247703.9947703,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247708.1811132,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247712.3626642,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247716.5447173,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247720.780537,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  },
+  {
+    "observed_at": 1795247724.9792302,
+    "ingress": false,
+    "egress": false,
+    "control": true
+  }
+]

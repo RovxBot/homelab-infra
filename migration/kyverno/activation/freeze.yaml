@@ -1,0 +1,31 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: freeze-namespace-bootstrap
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - namespaces
+  validations:
+  - expression: object.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      != 'enabled' && (oldObject == null || oldObject.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      != 'enabled')
+    message: Namespace bootstrap is frozen for the reviewed Kyverno migration
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: freeze-namespace-bootstrap
+spec:
+  policyName: freeze-namespace-bootstrap
+  validationActions:
+  - Deny

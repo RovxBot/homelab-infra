@@ -108,14 +108,20 @@ jobs:
           sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           kubeconform -v
 
+      - name: Validate complete namespace bundles and workload dependencies
+        run: |
+          python3 -m pip install PyYAML==6.0.3
+          python3 scripts/ci/check_namespace_defaults.py
+
       - name: Install Kyverno CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          KYVERNO_VERSION="1.15.2"
-          curl -fsSL "https://github.com/kyverno/kyverno/releases/download/v${KYVERNO_VERSION}/kyverno-cli_v${KYVERNO_VERSION}_linux_x86_64.tar.gz" -o /tmp/kyverno.tgz
-          tar -xzf /tmp/kyverno.tgz -C /tmp kyverno
-          sudo mv /tmp/kyverno /usr/local/bin/kyverno
+          python3 -m pip install PyYAML==6.0.3
+          TRUST_SCOPE=cli bash migration/kyverno/harness/trust.sh
+          sudo cp .work/cel/bin/kyverno /usr/local/bin/kyverno
           kyverno version
 
       - name: Validate rendered manifests
@@ -141,12 +147,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Keep the existing repository baseline CLI while testing the repair
-          # against the admission controller deployed by chart 3.9.2.
-          curl -fsSL https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_x86_64.tar.gz -o /tmp/kyverno-runtime.tgz
-          mkdir -p /tmp/kyverno-runtime
-          tar -xzf /tmp/kyverno-runtime.tgz -C /tmp/kyverno-runtime kyverno
-          python3 scripts/ci/test_platform_resources.py --kyverno /tmp/kyverno-runtime/kyverno
+          python3 scripts/ci/test_platform_resources.py --kyverno /usr/local/bin/kyverno
 
       - name: Run Kyverno baseline gate
         shell: bash
@@ -404,12 +405,37 @@ jobs:
       - name: Test effective Renovate policy and branch grouping
         run: npx --yes --package renovate@44.126.1 -c 'node --test .github/tests/renovate-policy.test.cjs'
 
+  kyverno-release-change:
+    runs-on: ubuntu-24.04
+    outputs:
+      changed: ${{ steps.release.outputs.changed }}
+      chart: ${{ steps.release.outputs.chart }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: python3 -m pip install PyYAML==6.0.3
+      - id: release
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/ci/kyverno_release_change.py
+
+  kyverno-compatibility:
+    needs: kyverno-release-change
+    if: needs.kyverno-release-change.outputs.changed == 'true'
+    uses: ./.github/workflows/kyverno-compatibility.yml # zizmor: ignore[self-repository] -- same-commit call; pinned actionlint lacks $/ syntax
+    with:
+      chart: ${{ needs.kyverno-release-change.outputs.chart }}
+
   repo-checks:
     # Always report the existing required name. A failed detector or selected
     # check must fail this gate; irrelevant jobs may safely be skipped.
     if: always()
     needs:
       - changes
+      - kyverno-release-change
+      - kyverno-compatibility
       - manifest-validation
       - public-edge
       - shell-syntax
@@ -432,7 +458,12 @@ jobs:
 
           results = json.loads(os.environ['CHECK_RESULTS'])
           failed = [name for name, job in results.items() if job['result'] not in {'success', 'skipped'}]
-          required = {'changes', 'gitleaks'}
+          required = {'changes', 'gitleaks', 'kyverno-release-change'}
+          release_changed = results['kyverno-release-change'].get('outputs', {}).get('changed')
+          if release_changed not in {'true', 'false'}:
+              sys.exit('Missing Kyverno release selection')
+          if release_changed == 'true':
+              required.add('kyverno-compatibility')
           selectors = {
               'manifests': ['manifest-validation'],
               'public_edge': ['public-edge'],

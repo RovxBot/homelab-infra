@@ -11,7 +11,8 @@ import tempfile
 import time
 import tracemalloc
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlsplit
 
 
@@ -626,7 +627,11 @@ class TransportTests(unittest.TestCase):
         for suffix, reason, budget in cases:
             with self.subTest(reason=reason), self.fake_kubectl(source + suffix):
                 reader = E.Reader("fixture", budget=budget)
-                with patch.object(E.time, "sleep") as sleep:
+                # Patch the collector's clock reference only. Patching the
+                # shared time module also intercepts subprocess.wait polling,
+                # which may legitimately sleep while reaping the failed child.
+                sleep = Mock()
+                with patch.object(E, "time", SimpleNamespace(monotonic=time.monotonic, sleep=sleep)):
                     result = E.apiserver_evidence(reader, True, 1)
                 observation = result["observations"][0]
                 self.assertEqual(observation["status"], "unavailable")

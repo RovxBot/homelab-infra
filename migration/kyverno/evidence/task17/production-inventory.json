@@ -1,0 +1,24 @@
+{
+  "status": "verified",
+  "namespace_count": 33,
+  "enabled_namespaces": 0,
+  "bootstrap_output_candidates": 0,
+  "update_requests": 0,
+  "resource_counts": {
+    "namespaces": 33,
+    "limitranges": 0,
+    "resourcequotas": 3,
+    "networkpolicies.networking.k8s.io": 25,
+    "updaterequests.kyverno.io": 0
+  },
+  "requirement": "all three counts must be zero; repeat under proven admission freeze",
+  "observed_at": "2026-11-21T08:17:35.193878+00:00",
+  "raw_sha256": {
+    "namespaces": "a99c0f66b7c8c40840859bcc98bb54e5b5e0602b60155732d10a2e33984f3756",
+    "limitranges": "7a779468a2dde976a9b896541df1e4ef805e813093bd5edb40ef1a6eea588edf",
+    "resourcequotas": "dab9a135c1bee43c7c295a43a1cb18906ee988effdf077eb8f379f8992275416",
+    "networkpolicies.networking.k8s.io": "9d62e8052c71ff86e098d28b2e676ec83b88bfa021c86e0affb06d49014bfa57",
+    "updaterequests.kyverno.io": "7a779468a2dde976a9b896541df1e4ef805e813093bd5edb40ef1a6eea588edf"
+  },
+  "read_only": true
+}

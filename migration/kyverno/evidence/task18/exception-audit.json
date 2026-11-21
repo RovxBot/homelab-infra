@@ -1,0 +1,1040 @@
+{
+  "status": "verified",
+  "read_only": true,
+  "method": "Kyverno 1.19.2 CLI; selected original rules, exact exception match scopes, no exceptions supplied; CREATE evaluation of current specs",
+  "input_sha256": {
+    "longhorn-system.json": "0466dfe99748199f61287afa72f9fda1b6565fd7b5768f6a407d6a57eb13d5f4",
+    "gpu-operator.json": "f3d916f7b4d4a558176d3c6a47773adb91fd61e609a1d68fcc0f2b15b584bbd0",
+    "wireguard.json": "5a3add6560b88e7044b9af46c66b170eaff177a77c128322a038b3c3dcfcb817",
+    "wotlk.json": "641b7e68fa1b77ba935b9106a43178b1fae5f5d9f752f0bdf1c6170e7ddefc14",
+    "cloudflared.json": "12ed8f9ea1417dee77f9c3edd5fd91e9704b86e2d1ffac1db57843ae527409db",
+    "homepage.json": "dbc2e95470771bc63d45f08be4e171572713f06942ae8f910d0f8214b0f4ebcf",
+    "gpu-operator-helm.yaml": "16b9fd11ceb7ccaf522b77fe051d3c87bb682786f48969fa2d34fb41c977c11d",
+    "longhorn-system-helm.yaml": "4fe6cd7e27c7303d36db0d224208488e001cff3ef1c39300d5bade2ecf71150f"
+  },
+  "exceptions": {
+    "chart-managed-workloads": {
+      "manifests": {
+        "evaluated": 1,
+        "violations": []
+      },
+      "helm": {
+        "evaluated": 7,
+        "violations": [
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-manager",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-driver-deployer",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-global-manager",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-ui",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-post-upgrade",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-pre-upgrade",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-uninstall",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          }
+        ]
+      },
+      "live": {
+        "evaluated": 13,
+        "violations": [
+          {
+            "kind": "CronJob",
+            "namespace": "longhorn-system",
+            "name": "default-weekly-system-backup",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "engine-image-ei-2f3240cb",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-csi-plugin",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-manager",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-attacher",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-provisioner",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-resizer",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-snapshotter",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-driver-deployer",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-global-manager",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-ui",
+            "rules": [
+              "require-owner-label",
+              "require-probes",
+              "require-requests-and-limits"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "default-weekly-system-backup-29911935",
+            "rules": [
+              "require-owner-label",
+              "require-requests-and-limits"
+            ]
+          }
+        ]
+      }
+    },
+    "gpu-operator-workloads": {
+      "manifests": {
+        "evaluated": 0,
+        "violations": []
+      },
+      "helm": {
+        "evaluated": 7,
+        "violations": [
+          {
+            "kind": "DaemonSet",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-node-feature-discovery-worker",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-node-feature-discovery-gc",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-node-feature-discovery-master",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-cleanup-gpucluster",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-node-feature-discovery-prune",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-upgrade-crd",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          }
+        ]
+      },
+      "live": {
+        "evaluated": 8,
+        "violations": [
+          {
+            "kind": "DaemonSet",
+            "namespace": "gpu-operator",
+            "name": "gpu-feature-discovery",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-node-feature-discovery-worker",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "gpu-operator",
+            "name": "nvidia-device-plugin-daemonset",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "gpu-operator",
+            "name": "nvidia-device-plugin-mps-control-daemon",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "gpu-operator",
+            "name": "nvidia-operator-validator",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-node-feature-discovery-gc",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "gpu-operator",
+            "name": "gpu-operator-node-feature-discovery-master",
+            "rules": [
+              "require-digest-pinned-images",
+              "require-owner-label",
+              "require-requests-and-limits",
+              "require-runtime-hardening"
+            ]
+          }
+        ]
+      }
+    },
+    "mutable-image-tags": {
+      "manifests": {
+        "evaluated": 15,
+        "violations": [
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract-mmaps",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-authserver",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-worldserver",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          }
+        ]
+      },
+      "helm": {
+        "evaluated": 7,
+        "violations": [
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-manager",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-driver-deployer",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-global-manager",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-ui",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-post-upgrade",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-pre-upgrade",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-uninstall",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          }
+        ]
+      },
+      "live": {
+        "evaluated": 29,
+        "violations": [
+          {
+            "kind": "CronJob",
+            "namespace": "longhorn-system",
+            "name": "default-weekly-system-backup",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract-mmaps",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "engine-image-ei-2f3240cb",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-csi-plugin",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-manager",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-attacher",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-provisioner",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-resizer",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-snapshotter",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-driver-deployer",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-global-manager",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-ui",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-authserver",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-worldserver",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "default-weekly-system-backup-29911935",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "wotlk",
+            "name": "wotlk-realm-upsert-once-1780716430",
+            "rules": [
+              "require-digest-pinned-images"
+            ]
+          }
+        ]
+      }
+    },
+    "privileged-namespaces": {
+      "manifests": {
+        "evaluated": 12,
+        "violations": [
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-ahbot-cleanup",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract-mmaps",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-db-bootstrap",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-realm-upsert",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-weekly-restart",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wireguard",
+            "name": "wireguard-client",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "grimguzzler-registration",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-authserver",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-worldserver",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "StatefulSet",
+            "namespace": "wotlk",
+            "name": "wotlk-mariadb",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          }
+        ]
+      },
+      "helm": {
+        "evaluated": 7,
+        "violations": [
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-manager",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-driver-deployer",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-global-manager",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-ui",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-post-upgrade",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-pre-upgrade",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "longhorn-uninstall",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          }
+        ]
+      },
+      "live": {
+        "evaluated": 26,
+        "violations": [
+          {
+            "kind": "CronJob",
+            "namespace": "longhorn-system",
+            "name": "default-weekly-system-backup",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-ahbot-cleanup",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-client-extract-mmaps",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-db-bootstrap",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-realm-upsert",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-weekly-restart",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "engine-image-ei-2f3240cb",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-csi-plugin",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "DaemonSet",
+            "namespace": "longhorn-system",
+            "name": "longhorn-manager",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-attacher",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-provisioner",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-resizer",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "csi-snapshotter",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-driver-deployer",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-global-manager",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "longhorn-system",
+            "name": "longhorn-ui",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wireguard",
+            "name": "wireguard-client",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "grimguzzler-registration",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-authserver",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Deployment",
+            "namespace": "wotlk",
+            "name": "wotlk-worldserver",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "longhorn-system",
+            "name": "default-weekly-system-backup-29911935",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "wotlk",
+            "name": "wotlk-realm-upsert-once-1780716430",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "wotlk",
+            "name": "wotlk-weekly-restart-29915340",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          },
+          {
+            "kind": "StatefulSet",
+            "namespace": "wotlk",
+            "name": "wotlk-mariadb",
+            "rules": [
+              "require-runtime-hardening"
+            ]
+          }
+        ]
+      }
+    },
+    "wotlk-latest-tag": {
+      "manifests": {
+        "evaluated": 1,
+        "violations": [
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-weekly-restart",
+            "rules": [
+              "disallow-latest-tags"
+            ]
+          }
+        ]
+      },
+      "helm": {
+        "evaluated": 0,
+        "violations": []
+      },
+      "live": {
+        "evaluated": 2,
+        "violations": [
+          {
+            "kind": "CronJob",
+            "namespace": "wotlk",
+            "name": "wotlk-weekly-restart",
+            "rules": [
+              "disallow-latest-tags"
+            ]
+          },
+          {
+            "kind": "Job",
+            "namespace": "wotlk",
+            "name": "wotlk-weekly-restart-29915340",
+            "rules": [
+              "disallow-latest-tags"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "observed_at": "2026-11-21T08:48:14.083025+00:00",
+  "charts": {
+    "longhorn": "1.13.0",
+    "gpu-operator": "v26.7.2"
+  },
+  "helm_post_renderers_applied": true
+}

@@ -1,0 +1,11 @@
+{
+  "baseline_log": "Evaluated 0 current failure(s) against 0 baseline entry(ies).\nKyverno baseline check passed.",
+  "suspended_preflight_legacy": "verified: Kyverno CLI 1.19.2: 27 passes, 0 failures/errors/skips; restricted Pod fields checked statically\nverified: rendered 47 resources; inventory matches; optional components disabled\nverified: suspended staging; zero admission failures; activation still requires separate review",
+  "suspended_preflight_cel": "verified: Kyverno CLI 1.20.0: 28 passes, 0 failures/errors/skips; restricted Pod fields checked statically\nverified: rendered 47 resources; inventory matches; optional components disabled\nverified: suspended staging; zero admission failures; activation still requires separate review",
+  "runner_cli_legacy": {
+    "core": 14,
+    "wow": 15
+  },
+  "ci_unit_tests": 78,
+  "production_changes": false
+}

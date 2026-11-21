@@ -1,0 +1,40 @@
+# DRAFT: integration fixtures only; activation gates are not satisfied.
+apiVersion: policies.kyverno.io/v1
+kind: GeneratingPolicy
+metadata:
+  name: platform-namespace-bootstrap
+spec:
+  evaluation:
+    synchronize:
+      enabled: true
+    generateExisting:
+      enabled: false
+    orphanDownstreamOnPolicyDelete:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - namespaces
+  matchConditions:
+  - name: bootstrap-label
+    expression: object.metadata.?labels.orValue({})[?"homelab.cooked.beer/bootstrap"].orValue('') == 'enabled'
+  - name: exclude-system
+    expression: '!(object.metadata.name in ["default", "flux-system", "kube-node-lease", "kube-public", "kube-system",
+      "kyverno"])'
+  generate:
+  - expression: 'generator.apply(object.metadata.name, [dyn({"metadata": {"labels": {"app.kubernetes.io/managed-by":
+      "kyverno", "homelab.cooked.beer/bootstrap": "enabled"}, "name": "default-container-limits"}, "spec": {"limits":
+      [{"type": "Container", "defaultRequest": {"cpu": "100m", "memory": "128Mi"}, "default": {"cpu": "500m", "memory":
+      "512Mi"}}]}, "apiVersion": "v1", "kind": "LimitRange"}), dyn({"metadata": {"labels": {"app.kubernetes.io/managed-by":
+      "kyverno", "homelab.cooked.beer/bootstrap": "enabled"}, "name": "namespace-defaults"}, "spec": {"hard": {"pods":
+      "20", "persistentvolumeclaims": "10", "requests.cpu": "4", "requests.memory": "8Gi", "limits.cpu": "8", "limits.memory":
+      "16Gi"}}, "apiVersion": "v1", "kind": "ResourceQuota"}), dyn({"metadata": {"labels": {"app.kubernetes.io/managed-by":
+      "kyverno", "homelab.cooked.beer/bootstrap": "enabled"}, "name": "default-deny"}, "spec": {"podSelector": {},
+      "policyTypes": ["Ingress", "Egress"]}, "apiVersion": "networking.k8s.io/v1", "kind": "NetworkPolicy"})])'
