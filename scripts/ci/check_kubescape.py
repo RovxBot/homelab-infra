@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Qualify the staged or explicitly active posture-only Kubescape release.
+"""Qualify the staged or explicitly active, manually triggered Kubescape release.
 
 Requires Helm 3, Kustomize, the verified proposed Kyverno CLI and PyYAML. Never contacts a Kubernetes cluster.
 All modes require zero admission failures and a suspended scan scheduler.
@@ -25,7 +25,7 @@ CHART_SHA256 = "be45f83398f28db8f2ff395e5d8ab411328041e9e2165a42e5fb92a4ba369079
 CHART_URL = ("https://github.com/kubescape/helm-charts/releases/download/"
              f"kubescape-operator-{VERSION}/kubescape-operator-{VERSION}.tgz")
 DISABLED = set("""continuousScan nodeScan nodeSbomGeneration scanEmbeddedSBOMs
-vulnerabilityScan relevancy vexGeneration runtimeObservability networkPolicyService
+relevancy vexGeneration runtimeObservability networkPolicyService
 networkEventsStreaming runtimeDetection malwareDetection nodeProfileService
 admissionController httpDetection seccompProfileService sandboxSeccomp manageWorkloads
 syncSBOM agentRuntimePosture riskAcceptance remediation autoUpgrading prometheusExporter""".split())
@@ -49,7 +49,7 @@ def check_release(release, active=False):
     caps = values["capabilities"]
     for key in DISABLED:
         assert caps.get(key) == "disable", f"capabilities.{key} must explicitly be disabled"
-    for key in ("operator", "configurationScan", "kubescapeOffline"):
+    for key in ("operator", "configurationScan", "vulnerabilityScan", "kubescapeOffline"):
         assert caps.get(key) == "enable", f"capabilities.{key} must be enabled"
     assert caps["seccompProfileBackend"] == "storage"
     assert values["certificates"]["strategy"] == "initContainer"
@@ -65,12 +65,12 @@ def check_release(release, active=False):
         assert values["global"]["networkPolicy"][key] is False
     for path in (("nodeAgent", "config", "hostSensor"), ("nodeAgent", "sbomScanner"),
                  ("nodeAgent", "autoscaler"), ("nodeAgent", "multipleDaemonSets"),
-                 ("nodeAgent", "gVisorStart"), ("grypeOfflineDB",), ("serviceScanConfig",)):
+                 ("nodeAgent", "gVisorStart"), ("kubevuln", "sbomScanner"), ("serviceScanConfig",)):
         item = values
         for part in path:
             item = item[part]
         assert item["enabled"] is False, f"{'.'.join(path)} must be disabled"
-    for component in ("kubescape", "operator", "storage", "kubescapeOpsTool"):
+    for component in ("kubescape", "operator", "storage", "kubescapeOpsTool", "kubevuln"):
         tag = values[component]["image"]["tag"]
         assert re.fullmatch(r"[0-9v][^@ :]*@sha256:[a-f0-9]{64}", tag), f"unpinned {component}"
     assert values["kubescape"]["downloadArtifacts"] is False
@@ -81,6 +81,17 @@ def check_release(release, active=False):
     assert values["defaultFrameworks"] == ["nsa"], "canary framework changed"
     assert values["persistence"]["size"]["backingStorage"] == "5Gi"
     assert values["persistence"]["accessMode"] == "ReadWriteOnce"
+    assert values["persistence"]["size"]["kubevuln"] == "10Gi"
+    db = values["grypeOfflineDB"]
+    assert db["enabled"] is True and db["image"]["tag"] == ""
+    assert re.fullmatch(r"sha256:[a-f0-9]{64}", db["image"]["sha"]), "unpinned DB mirror"
+    assert values["kubevuln"]["config"] == {
+        "grypeDbPersistence": True, "maxImageSize": 536870912,
+        "maxSBOMSize": 20971520, "scanTimeout": "5m", "cveMatchingMode": "off"}
+    assert values["kubevuln"]["env"] == [
+        {"name": "CA_MAX_VULN_SCAN_ROUTINES", "value": "1"},
+        {"name": "MAXQUEUEDEPTH", "value": "1"}]
+    assert values["kubevuln"]["tmpDirPersistence"]["enabled"] is False
     assert values["kubescapeScheduler"]["requestBody"] == {"commands": [{
         "CommandName": "kubescapeScan", "args": {"scanV1": {
             "targetType": "framework", "targetNames": ["nsa"],
@@ -117,7 +128,9 @@ def findings(resources):
         if kind not in WORKLOADS:
             continue
         if (kind, name) not in {("Deployment", "kubescape"), ("Deployment", "operator"),
-                                ("Deployment", "storage"), ("CronJob", "kubescape-scheduler")}:
+                                ("Deployment", "storage"), ("CronJob", "kubescape-scheduler"),
+                                ("Deployment", "kubevuln"), ("Deployment", "grype-offline-db"),
+                                ("CronJob", "kubevuln-scheduler")}:
             errors.append(f"{identity}: unexpected workload")
         if kind == "CronJob" and resource["spec"].get("suspend") is not True:
             errors.append(f"{identity}: scheduled scanning is active")
@@ -160,10 +173,13 @@ def findings(resources):
 def check_effective_config(resources):
     maps = {r["metadata"]["name"]: r["data"] for r in resources if r["kind"] == "ConfigMap"}
     cloud = json.loads(maps["ks-cloud-config"]["clusterData"])
-    for key in ("serviceDiscovery", "imageVulnerabilitiesScanningEnabled", "continuousPostureScan",
+    for key in ("serviceDiscovery", "continuousPostureScan",
                 "relevantImageVulnerabilitiesEnabled", "scanEmbeddedSBOMs", "storeFilteredSbom"):
         assert cloud[key] is False, f"effective {key} enabled"
     assert cloud["keepLocal"] is True and cloud["nodeAgent"] == "false"
+    assert cloud["imageVulnerabilitiesScanningEnabled"] is True
+    assert cloud["listingURL"] == "http://grype-offline-db:80/databases"
+    assert cloud["cveMatchingMode"] == "off"
     assert cloud["defaultFrameworks"] == ["nsa"]
     operator_config = json.loads(maps["operator"]["config.json"])
     assert operator_config["includeNamespaces"] == CANARY_NAMESPACE
@@ -173,6 +189,7 @@ def check_effective_config(resources):
             "targetType": "framework", "targetNames": ["nsa"],
             "hostScanner": False, "keepLocal": True}}}]}
     caps = json.loads(maps["ks-capabilities"]["capabilities"])
+    assert caps["capabilities"]["vulnerabilityScan"] == "enable"
     for key in DISABLED:
         assert caps["capabilities"][key] == "disable", f"effective {key} enabled"
     for key in ("nodeAgent", "sbomScanner", "kubevuln", "kubevulnScheduler", "synchronizer",
@@ -187,6 +204,15 @@ def check_effective_config(resources):
     operator = next(r for r in resources if r["kind"] == "Deployment" and r["metadata"]["name"] == "operator")
     env = {e["name"]: e.get("value") for e in pod_template(operator)["spec"]["containers"][0]["env"]}
     assert env["KS_SKIP_UPDATE_CHECK"] == "true" and env["WORKERCONCURRENCY"] == "1"
+    # Only operator consumes ks-capabilities. Keep its automatic Pod/SBOM/Profile
+    # watchers off; manual requests go directly to authenticated Kubevuln.
+    assert caps["components"]["kubescape"]["enabled"] is True
+    for name in ("kubescape-scheduler", "kubevuln-scheduler"):
+        job = next(r for r in resources if r["kind"] == "CronJob" and r["metadata"]["name"] == name)
+        assert job["spec"].get("suspend") is True
+    for name in ("kubescape-storage", "kubescape-kubevuln"):
+        pvc = next(r for r in resources if r["kind"] == "PersistentVolumeClaim" and r["metadata"]["name"] == name)
+        assert pvc["metadata"]["annotations"]["helm.sh/resource-policy"] == "keep"
 
 
 def inventory(resources):
@@ -207,7 +233,7 @@ def inventory(resources):
 
 
 def check_post_render(raw, rendered):
-    """Allow only certgen budgets, named APIService access and scheduler suspension."""
+    """Compare every field, allowing only the reviewed manual-only additions."""
     def indexed(resources):
         result = {(r["apiVersion"], r["kind"], r["metadata"].get("namespace"), r["metadata"]["name"]): r
                   for r in resources}
@@ -231,6 +257,21 @@ def check_post_render(raw, rendered):
         assert not container.get("resources"), "chart now supplies certgen budgets; review the patch"
         container["resources"] = deepcopy(CERTGEN_BUDGET)
     expected[("batch/v1", "CronJob", "kubescape", "kubescape-scheduler")]["spec"]["suspend"] = True
+    if ("batch/v1", "CronJob", "kubescape", "kubevuln-scheduler") in expected:
+        expected[("batch/v1", "CronJob", "kubescape", "kubevuln-scheduler")]["spec"]["suspend"] = True
+        caps = expected[("v1", "ConfigMap", "kubescape", "ks-capabilities")]["data"]
+        data = json.loads(caps["capabilities"])
+        for key in ("kubevuln", "kubevulnScheduler"):
+            assert data["components"][key]["enabled"] is True
+            data["components"][key]["enabled"] = False
+        caps["capabilities"] = json.dumps(data, separators=(",", ":"))
+        for name in ("kubescape-storage", "kubescape-kubevuln"):
+            pvc = expected[("v1", "PersistentVolumeClaim", "kubescape", name)]
+            pvc["metadata"].setdefault("annotations", {})["helm.sh/resource-policy"] = "keep"
+        operator_role = expected[("rbac.authorization.k8s.io/v1", "Role", "kubescape", "operator")]
+        assert operator_role["rules"][1] == {"apiGroups": [""], "resources": ["secrets"],
+            "verbs": ["create", "get", "update", "watch", "list", "patch", "delete"]}
+        del operator_role["rules"][1]
     certgen = expected[("rbac.authorization.k8s.io/v1", "ClusterRole", None, "storage-certgen-kubescape")]
     assert certgen["rules"] == [{"apiGroups": ["apiregistration.k8s.io"],
                                  "resources": ["apiservices"], "verbs": ["get", "patch"]}], "chart certgen RBAC changed"
@@ -276,7 +317,7 @@ def check_admission(args, work, resources):
     assert not failures, failures
     # CEL explicitly passes the non-service probe guard for the rendered Job;
     # the legacy engine omits that rule result. All other decisions agree.
-    expected_passes = 28 if cel else 27
+    expected_passes = 48 if cel else 46
     assert report["summary"] == {"pass": expected_passes, "fail": 0, "error": 0, "skip": 0, "warn": 0}, report["summary"]
     assert len(report["results"]) == expected_passes and all(r["result"] == "pass" for r in report["results"]), report["summary"]
     assert evaluated.returncode == 0, "Kyverno exit code contradicts its report"
@@ -331,11 +372,11 @@ def run(args):
     errors = result["admissionBlockers"]
     for error in errors:
         print(f"failed: {error}")
-    print(f"verified: rendered {len(resources)} resources; inventory matches; optional components disabled")
+    print(f"verified: rendered {len(resources)} resources; inventory matches; automatic image routing disabled")
     if args.staged_review and not errors:
         print("verified: suspended staging; zero admission failures; activation still requires separate review")
     if args.active_review and not errors:
-        print("verified: active posture-only mode; Flux health waiting; scheduled scanning remains suspended")
+        print("verified: active manual assessment mode; Flux health waiting; both scan schedulers suspended")
     return 1 if errors else 0
 
 

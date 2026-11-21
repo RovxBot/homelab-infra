@@ -1,4 +1,4 @@
-name: Kubescape Posture Checks
+name: Kubescape Assessment Checks
 
 on:
   pull_request:
