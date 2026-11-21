@@ -505,6 +505,37 @@ def governance(version):
         delete(old)
 
 
+def prepare_reporting_rbac():
+    user = "system:serviceaccount:kyverno:kyverno-reports-controller"
+
+    def can_read():
+        return (
+            k(
+                "auth",
+                "can-i",
+                "get",
+                "pods",
+                "--subresource=ephemeralcontainers",
+                "--as",
+                user,
+                check=False,
+            ).stdout.strip()
+            == "yes"
+        )
+
+    before = can_read()
+    apply(load("migration/kyverno/policies/reporting-rbac.yaml"))
+    wait("aggregate explicit runner reporting permission", can_read)
+    record(
+        "runner-reporting-rbac",
+        status="verified",
+        before=before,
+        after=can_read(),
+        resource="pods/ephemeralcontainers",
+        verbs=["get", "list", "watch"],
+    )
+
+
 def main():
     assert os.environ.get("REHEARSAL_CONTEXT") == CONTEXT
     config = json.loads(k("config", "view", "--minify", "-o", "json").stdout)
@@ -518,6 +549,7 @@ def main():
     from equivalence import suite, whole_runners
 
     suite("1.19.2", "legacy")
+    prepare_reporting_rbac()
     suite("1.19.2", "cel")
     whole_runners("1.19.2", "legacy")
     whole_runners("1.19.2", "cel")

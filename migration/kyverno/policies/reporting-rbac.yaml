@@ -1,0 +1,13 @@
+# DRAFT: integration fixture only; activation gates are not satisfied.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-cel-runner-reporting
+  labels:
+    rbac.kyverno.io/aggregate-to-reports-controller: "true"
+  annotations:
+    migration.cooked.beer/reason: CEL runner policies explicitly match the legacy ephemeral-container admission route.
+rules:
+  - apiGroups: [""]
+    resources: [pods/ephemeralcontainers]
+    verbs: [get, list, watch]
