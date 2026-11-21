@@ -13,9 +13,12 @@
     "chart": "3.9.2",
     "application": "1.19.2",
     "legacy_generator": "retired",
-    "temporary_enrollment_freeze": "active",
-    "last_verified_revision": "1e3794777290949f0292c625d121939bace8f4ce",
-    "permanent_safeguards": "active under freeze"
+    "temporary_enrollment_freeze": "removed after permanent safeguards acceptance",
+    "last_verified_revision": "6163ccafdbcad617e00e752eaaa18206fbd84752",
+    "permanent_safeguards": "active",
+    "explicit_new_flux_namespaces": [
+      "policy-check"
+    ]
   },
   "merged": [
     {
@@ -62,6 +65,11 @@
       "pr": 2171,
       "phase": "02d",
       "commit": "1e3794777290949f0292c625d121939bace8f4ce"
+    },
+    {
+      "pr": 2172,
+      "phase": "02e",
+      "commit": "6163ccafdbcad617e00e752eaaa18206fbd84752"
     }
   ],
   "acceptance": {
@@ -127,6 +135,18 @@
         0,
         0
       ]
+    },
+    "02e": {
+      "status": "verified",
+      "checks": 141,
+      "api_servers": 3,
+      "complete_flux_enrollment_allowed": true,
+      "label_only_enrollment_denied": true,
+      "complete_bundle_owned_resources": 4,
+      "dependent_marker": "Ready",
+      "live_orphan_check": "verified",
+      "orphan_negative_controls": 4,
+      "native_default_write_delete_checks": 30
     }
   },
   "reporting": {
