@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onboarding-acceptance
+  labels:
+    homelab.cooked.beer/owner: platform
+data:
+  purpose: Verifies that the dependent reconciliation runs after the complete namespace bundle is Ready.
