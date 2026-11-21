@@ -373,6 +373,8 @@ def governance(version):
             base = copy.deepcopy(base)
             base["apiVersion"] = api
             base["metadata"]["name"] = "accountability-probe"
+            # Test marker accountability independently of renewed tracking URLs.
+            base["metadata"]["annotations"].pop("github.cooked.beer/issue-url", None)
             cases = [("valid", base)]
             url = copy.deepcopy(base)
             url["metadata"]["annotations"].pop("github.cooked.beer/issue-create", None)
