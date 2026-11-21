@@ -109,6 +109,8 @@ jobs:
           kubeconform -v
 
       - name: Install Kyverno CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -417,7 +419,7 @@ jobs:
   kyverno-compatibility:
     needs: kyverno-release-change
     if: needs.kyverno-release-change.outputs.changed == 'true'
-    uses: ./.github/workflows/kyverno-compatibility.yml
+    uses: ./.github/workflows/kyverno-compatibility.yml # zizmor: ignore[self-repository] -- same-commit call; pinned actionlint lacks $/ syntax
     with:
       chart: ${{ needs.kyverno-release-change.outputs.chart }}
 

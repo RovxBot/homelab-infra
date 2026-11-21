@@ -100,6 +100,8 @@ data:
                                                                      'ptrace-only-in-sanitizer-jobs'),
      'gitea-jobs/gitea-job-security-restricted-with-sanitizer-capability': ('gitea-job-security',
                                                                             'restricted-with-sanitizer-capability'),
+     'longhorn-csi-registrar-lifecycle': ('longhorn-csi-registrar-lifecycle',
+                                          'use-native-registrar-shutdown'),
      'platform-flux-guardrails': ('platform-flux-guardrails',
                                   'audit-manual-edits-to-flux-managed-resources'),
      'platform-namespace-standards': ('platform-namespace-standards', 'require-psa-and-owner-labels'),
@@ -149,8 +151,13 @@ data:
         rule = result.get("rule") or ""
         source = result.get("source", "")
         mapped = POLICY_IDENTITIES.get(policy)
-        if mapped and (source != "kyverno" or rule in {"", "validation"}):
-            if rule not in {"", "validation", mapped[1]}:
+        if source == "KyvernoGeneratingPolicy" and policy == "platform-namespace-bootstrap":
+            if rule not in {"", "generation", "exception", policy}:
+                raise ValueError("Unrecognized generator report rule: " + rule)
+            return policy, "generation"
+        if mapped and (source != "kyverno" or rule in {"", "validation", "mutation", "evaluation", "exception"}):
+            allowed = {"", "mutation", "evaluation", "exception", mapped[1]} if policy == "longhorn-csi-registrar-lifecycle" else {"", "validation", "exception", mapped[1]}
+            if rule not in allowed:
                 raise ValueError("Unrecognized CEL validation rule: " + rule)
             return mapped
         if source not in {"", "kyverno"}:
@@ -303,6 +310,15 @@ data:
         return api_request(url, method="PATCH", payload={"state": "closed"}, headers=github_headers())
 
 
+    def incident_key(key):
+        # One CEL generator evaluates the three original rules together. Use a
+        # family only for incident correlation. Never reinterpret a CEL pass as
+        # a pass for each original rule or close their history on absence.
+        if key and key[0] == "platform-namespace-bootstrap":
+            return (key[0], "bootstrap", *key[2:])
+        return key
+
+
     def main():
         try:
             failures, passes, unknown = load_observations()
@@ -314,16 +330,18 @@ data:
         except (ValueError, OSError, KeyError, TypeError) as error:
             print(json.dumps({"status": "unknown", "reason": type(error).__name__, "writes": 0}))
             return 1
-        keys = {issue_key(title) for title in existing}
+        keys = {incident_key(issue_key(title)) for title in existing}
+        failed_families = {incident_key(key) for key in failures}
+        unknown_families = {incident_key(key) for key in unknown}
         creates = [title for title, failure in desired.items()
-                   if (failure["policy"], failure["rule"], failure["kind"], failure["namespace"], failure["name"]) not in keys]
+                   if incident_key((failure["policy"], failure["rule"], failure["kind"], failure["namespace"], failure["name"])) not in keys]
         closes = []
         now = datetime.now(timezone.utc)
         for title, issue in existing.items():
             key = issue_key(title)
             observed = passes.get(key)
             created = parse_result_time({}, issue.get("created_at"))
-            if (key and key not in failures and key not in unknown and observed and created
+            if (key and incident_key(key) not in failed_families and incident_key(key) not in unknown_families and observed and created
                     and created < observed <= now and (now-observed).total_seconds() <= 900):
                 closes.append(title)
         if not DRY_RUN:

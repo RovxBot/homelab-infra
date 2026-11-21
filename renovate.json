@@ -529,6 +529,20 @@
         "infra/cilium/ocirepository.yaml"
       ],
       "enabled": false
+    },
+    {
+      "description": "Kyverno remains a separate high-risk admission PR, including compatible patches; no automerge.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchPackageNames": [
+        "kyverno"
+      ],
+      "groupName": "kyverno",
+      "groupSlug": null,
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "separateMajorMinor": false
     }
   ]
 }

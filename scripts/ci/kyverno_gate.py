@@ -312,8 +312,11 @@ def collect_failures(repo_root: Path, cluster_root: Path, kyverno_bin: Path, wor
     render_paths = find_flux_render_paths(cluster_root)
     (work_dir / "render-paths.txt").write_text("\n".join(render_paths) + "\n", encoding="utf-8")
 
-    policy_documents = render_kustomization(repo_root, "infra/kyverno/policies")
-    exception_documents = render_kustomization(repo_root, "infra/kyverno/exceptions")
+    authored = render_kustomization(repo_root, "infra/kyverno-policies")
+    policy_documents = [d for d in authored if d.get("kind") in {"ClusterPolicy", "Policy", "ValidatingPolicy", "NamespacedValidatingPolicy"}]
+    exception_documents = [d for d in authored if d.get("kind") == "PolicyException"]
+    if not policy_documents:
+        raise RuntimeError("No authored validation policies; admission coverage is unknown")
 
     rendered_documents: list[dict[str, Any]] = []
     for render_path in render_paths:

@@ -2,6 +2,8 @@
 """Exercise the actual Kyverno policy with allowed and dangerous job pods."""
 import argparse
 import copy
+import json
+import re
 import pathlib
 import subprocess
 import tempfile
@@ -65,12 +67,30 @@ for name in rejected:
 with tempfile.TemporaryDirectory() as directory:
     path = pathlib.Path(directory) / 'pod.yaml'
     policy_path = pool_root / 'job-security.yaml'
+    if not args.server:
+        version = subprocess.check_output([args.kyverno,'version'],text=True)
+        match=re.search(r'^Version: v?(\d+)\.(\d+)\.(\d+)$',version,re.MULTILINE)
+        assert match, 'Unknown executed Kyverno version'
+        if tuple(map(int,match.groups())) >= (1,20,0):
+            policies=[d for d in yaml.safe_load_all((root/'migration/kyverno/policies/runners.yaml').read_text()) if d['metadata']['namespace']==config['kubernetes']['namespace']]
+            policy_path=pathlib.Path(directory)/'policies.yaml'
+            policy_path.write_text(yaml.safe_dump_all(policies))
     for name, candidate, allowed in cases:
         path.write_text(yaml.safe_dump(candidate))
         command = ['kubectl', 'create', '--dry-run=server', '-f', str(path)] if args.server else [
             args.kyverno, 'apply', str(policy_path), '--resource', str(path),
-            '--warn-no-pass', '--warn-exit-code', '2']
+            '--policy-report','--output-format','json', '--warn-no-pass', '--warn-exit-code', '2']
         result = subprocess.run(command, capture_output=True, text=True)
+        if not args.server:
+            sys_path=str(root/'scripts/ci')
+            import sys
+            sys.path.insert(0,sys_path)
+            from kyverno_gate import load_policy_reports
+            reports=load_policy_reports(result.stdout)
+            findings=[row for report in reports for row in report.get('results',[])]
+            assert findings and not any(row.get('result')=='error' for row in findings), result.stdout+result.stderr
+            assert any(row.get('result') in {'pass','fail'} for row in findings), 'No evaluated runner controls'
+            assert (not any(row.get('result')=='fail' for row in findings)) == allowed, name+result.stdout
         if (result.returncode == 0) != allowed:
             raise SystemExit(name + ' returned an unexpected policy result:\n' + result.stdout + result.stderr)
         print(name + ': ' + ('allowed' if allowed else 'denied'))

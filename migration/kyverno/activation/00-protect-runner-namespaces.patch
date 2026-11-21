@@ -1,0 +1,20 @@
+--- a/apps/gitea-runners/namespaces.yaml
++++ b/apps/gitea-runners/namespaces.yaml
+@@ -18,6 +18,7 @@
+ metadata:
+   name: gitea-jobs
+   annotations:
++    kustomize.toolkit.fluxcd.io/prune: disabled
+     # Namespaced Kyverno policy enforces restricted PSS with one image-bound
+     # SYS_PTRACE allowance for LeakSanitizer. No host namespace or privileged pods.
+     homelab.cooked.beer/security-policy: gitea-job-security
+--- a/apps/gitea-runners/wowdecomp/resources.yaml
++++ b/apps/gitea-runners/wowdecomp/resources.yaml
+@@ -3,6 +3,7 @@
+ metadata:
+   name: wowdecomp-ci-jobs
+   annotations:
++    kustomize.toolkit.fluxcd.io/prune: disabled
+     homelab.cooked.beer/security-policy: wowdecomp-linux-security
+   labels:
+     homelab.cooked.beer/owner: sam

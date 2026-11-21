@@ -6,11 +6,18 @@ on:
       chart:
         type: string
         required: true
+      scenarios:
+        type: string
+        default: ''
       reuse_validation:
         type: boolean
         default: false
   workflow_dispatch:
     inputs:
+      scenarios:
+        description: JSON diagnostic array; blank runs full qualification
+        type: string
+        default: ''
       chart:
         description: Exact proposed chart; blank reads the proposed HelmRelease
         type: string
@@ -24,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [empty-upgraded, fresh-target, adopted, mutation, validation]
+        scenario: ${{ fromJSON(inputs.scenarios || '["empty-upgraded", "fresh-target", "adopted", "mutation", "validation"]') }}
     # Adoption is diagnostic; the selected production path requires emptiness.
     continue-on-error: ${{ matrix.scenario == 'adopted' }}
     runs-on: ubuntu-24.04
@@ -37,6 +44,7 @@ jobs:
       - name: Verify proposed release artifacts
         env:
           KYVERNO_CANDIDATE_CHART: ${{ inputs.chart }}
+          GH_TOKEN: ${{ github.token }}
         run: bash migration/kyverno/harness/trust.sh
       - name: Test the verified pair in an isolated enforcing CNI
         env:
@@ -69,4 +77,12 @@ jobs:
       - name: Require every mandatory generator and mutation job
         env:
           CONTRACT_RESULT: ${{ needs.contracts.result }}
-        run: test "$CONTRACT_RESULT" = success
+          REQUESTED_SCENARIOS: ${{ inputs.scenarios }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          required = {'empty-upgraded', 'fresh-target', 'mutation', 'validation'}
+          requested = json.loads(os.environ['REQUESTED_SCENARIOS']) if os.environ['REQUESTED_SCENARIOS'] else required
+          assert required <= set(requested), 'Diagnostic subset cannot qualify deployment'
+          assert os.environ['CONTRACT_RESULT'] == 'success', 'Mandatory contracts failed or skipped'
+          PY

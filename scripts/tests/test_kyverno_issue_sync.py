@@ -60,7 +60,7 @@ class ReportMigrationTests(unittest.TestCase):
             self.assertEqual(len(self.h['load_failures']()),1)
 
     def test_exception_skip_preserves_incident(self):
-        self.issue();self.reports=[self.report({**self.cel,'result':'skip','properties':{'exception':'home-assistant'}})]
+        self.issue();self.reports=[self.report({**self.cel,'result':'skip','rule':'exception','properties':{'exception':'home-assistant'}})]
         self.assertEqual(self.invoke(),0);self.assertEqual(self.writes,[])
 
     def test_young_failure_does_not_close_old_incident(self):
@@ -108,6 +108,27 @@ class ReportMigrationTests(unittest.TestCase):
         h={'__name__':'test_sync'};exec(compile('\n'.join(l[4:] for l in source.splitlines()),'sync.py','exec'),h)
         self.h['list_kubernetes_resource']=type(h['list_kubernetes_resource'])(h['list_kubernetes_resource'].__code__,self.h)
         self.assertEqual(len(self.h['list_kubernetes_resource']('/reports')['items']),2)
+
+    def test_mutation_report_rule_variants(self):
+        for rule in ['', 'mutation', 'evaluation', 'exception']:
+            self.assertEqual(self.h['canonical_identity'](dict(source='KyvernoMutatingPolicy',policy='longhorn-csi-registrar-lifecycle',rule=rule)),('longhorn-csi-registrar-lifecycle','use-native-registrar-shutdown'))
+
+    def test_generator_findings_preserve_history_without_duplicate_incidents(self):
+        self.scope=dict(kind='Namespace',name='enrolled')
+        title='[kyverno] platform-namespace-bootstrap/generate-limitrange on Namespace cluster/enrolled'
+        self.issues={title:dict(title=title,url='github/issues/41',created_at=(self.now-timedelta(days=3)).isoformat())}
+        self.reports=[self.report({**self.cel,'source':'KyvernoGeneratingPolicy','policy':'platform-namespace-bootstrap','rule':'platform-namespace-bootstrap'})]
+        self.assertEqual(self.invoke(),0);self.assertEqual(self.writes,[])
+        self.reports[0]['results'][0].update(result='pass',timestamp=self.now.isoformat())
+        self.assertEqual(self.invoke(),0);self.assertEqual(self.writes,[])
+
+    def test_committed_live_reports_keep_the_original_policy_rule_pairs(self):
+        import json
+        rows=[json.loads(line) for line in (ROOT/'migration/kyverno/evidence/admission-results.jsonl').read_text().splitlines()]
+        for row in rows:
+            if row['name'] in ['background-report','flux-audit-report']:
+                for finding in row['results']:
+                    self.assertIn(self.h['canonical_identity'](finding),[('platform-pod-standards','require-owner-label'),('platform-flux-guardrails','audit-manual-edits-to-flux-managed-resources')])
 
     def test_rbac_reads_reports_without_policy_or_secret_privileges(self):
         import yaml

@@ -16,6 +16,17 @@ def inventory():
     assert summary['status']=='verified', summary
 
 
+def report_access(version):
+    apply(load('infra/kyverno/automation/github-issue-sync-rbac.yaml'))
+    user='system:serviceaccount:kyverno:kyverno-github-issue-sync'
+    for kind in ['policyreports.wgpolicyk8s.io','clusterpolicyreports.wgpolicyk8s.io']:
+        k('get',kind,'-A','--as',user)
+    for kind in ['secrets','policyexceptions.kyverno.io','policyexceptions.policies.kyverno.io']:
+        result=k('get',kind,'-A','--as',user,check=False)
+        assert result.returncode and 'Forbidden' in result.stderr, result.stderr
+    record('report-rbac',status='verified',version=version)
+
+
 def correct(ns):
     rows=snapshot(ns)
     legacy=load('infra/kyverno/policies/platform-namespace-bootstrap.yaml')[0]
@@ -140,6 +151,7 @@ def main():
     ns='generation-existing' if scenario=='adopted' else 'generation-'+scenario
     apply(namespace(ns))
     install('1.19.2' if scenario!='fresh-target' else os.environ.get('KYVERNO_TARGET_VERSION','1.20.0'))
+    report_access('1.19.2' if scenario!='fresh-target' else os.environ['KYVERNO_TARGET_VERSION'])
     diag=Diagnostics(ns);diag.start()
     traffic=None
     try:
@@ -162,10 +174,23 @@ def main():
                 enroll(ns)
                 traffic.start()
                 diag.snapshot('initial-output')
-                restart(diag,'fresh-baseline' if scenario=='empty-upgraded' else 'fresh-target')
+                if scenario=='empty-upgraded':
+                    try:
+                        restart(diag,'fresh-baseline')
+                    except Exception as error:
+                        record('generator-restart-drift',status='failed',stage='fresh-baseline',error=str(error))
+                        # Retain the failure. A real trigger update is a distinct
+                        # diagnostic, never a successful restart recovery claim.
+                        k('annotate','namespace',ns,'--overwrite','rehearsal.cooked.beer/recovery=trigger-update')
+                        wait('explicit trigger event repairs baseline drift',lambda:correct(ns))
+                        diag.snapshot('baseline-explicit-trigger-recovery')
+                        record('trigger-event-recovery',status='verified',namespace=ns)
+                else:
+                    restart(diag,'fresh-target')
                 if scenario=='empty-upgraded':
                     diag.snapshot('before-upgrade')
-                    install(os.environ.get('KYVERNO_TARGET_VERSION','1.20.0'))
+                    install(os.environ['KYVERNO_TARGET_VERSION'])
+                    report_access(os.environ['KYVERNO_TARGET_VERSION'])
                     restart(diag,'upgraded-target')
                 traffic.stop();traffic=None
                 lifecycle(flux,diag)

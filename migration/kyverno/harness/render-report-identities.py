@@ -11,6 +11,7 @@ identities={((r.get('namespace','')+'/') if r.get('namespace') else '')+r['name'
 # Namespaced live reports use ns/name. Also retain bare names emitted by the CLI.
 for row in rows:
     identities.setdefault(row['name'],(row['source_policy'],row['source_rule']))
+identities['longhorn-csi-registrar-lifecycle']=('longhorn-csi-registrar-lifecycle','use-native-registrar-shutdown')
 text='POLICY_IDENTITIES = '+pprint.pformat(identities,width=100,sort_dicts=True)
 p=root/'infra/kyverno/automation/github-issue-sync-configmap.yaml'
 s=p.read_text()

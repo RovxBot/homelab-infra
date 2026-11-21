@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import re
 import tarfile
@@ -14,7 +15,10 @@ ROOT=Path(__file__).resolve().parents[3]
 
 
 def fetch(url):
-    with urllib.request.urlopen(url,timeout=30) as response:
+    headers={}
+    if url.startswith('https://api.github.com/') and os.environ.get('GH_TOKEN'):
+        headers['Authorization']='Bearer '+os.environ['GH_TOKEN']
+    with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=30) as response:
         return response.read()
 
 
@@ -33,6 +37,7 @@ def resolve(chart, folder):
         meta=yaml.safe_load(archive.extractfile('kyverno/Chart.yaml').read())
     version=str(meta['appVersion']).removeprefix('v')
     assert re.fullmatch(r'\d+\.\d+\.\d+',version), 'Stable application required'
+    assert version.split('.')[0] == '1', 'Application major change requires a reviewed migration contract'
     assert version==str(entry['appVersion']).removeprefix('v') and str(meta['version'])==chart
     release=json.loads(fetch('https://api.github.com/repos/kyverno/kyverno/releases/tags/v'+version))
     assert not release['draft'] and not release['prerelease']
@@ -48,11 +53,26 @@ def resolve(chart, folder):
     if not historical:
         assert chart_name in assets and chart_name+'.sigstore.json' in assets, 'Signed chart release assets required'
         assert assets[chart_name]['digest']=='sha256:'+digest
+    proposed=yaml.safe_load((ROOT/'infra/kyverno/helmrelease.yaml').read_text())['spec']['values']
+    upgrade=proposed.get('upgrade',{})
+    assert upgrade.get('legacyPolicyCheck',{}).get('enabled',True) is True
+    assert upgrade.get('acknowledgeLegacyPoliciesNotEnforced',False) is False
+    # A proposed image override must never be replaced by another release's
+    # verified image while pretending to test the proposal.
+    def check_images(obj):
+        if not isinstance(obj,dict): return
+        for key,value in obj.items():
+            if key=='image' and isinstance(value,dict):
+                assert not any(value.get(k) for k in ['tag','digest','repository']), 'Explicit image overrides require reviewed digest binding'
+                assert value.get('registry','ghcr.io')=='ghcr.io', 'Unexpected image registry'
+            check_images(value)
+    check_images(proposed)
     folder.mkdir(parents=True,exist_ok=True)
     (folder/chart_name).write_bytes(blob)
+    workflow='release.yaml' if historical else 'release-publish.yaml'
     result=dict(chart=chart,application=version,source_commit=source,chart_sha256=digest,
                 chart_signed=not historical, cli_sha256=assets[cli]['digest'].removeprefix('sha256:'),
-                identity=f'https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v{version}')
+                identity=f'https://github.com/kyverno/kyverno/.github/workflows/{workflow}@refs/tags/v{version}')
     (folder/'target.json').write_text(json.dumps(result,indent=2)+'\n')
     return result
 

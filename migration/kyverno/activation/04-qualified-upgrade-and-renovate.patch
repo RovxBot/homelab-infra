@@ -1,0 +1,62 @@
+--- a/infra/kyverno/helmrelease.yaml
++++ b/infra/kyverno/helmrelease.yaml
+@@ -8,7 +8,7 @@
+   chart:
+     spec:
+       chart: kyverno
+-      version: 3.9.2
++      version: 3.10.0
+       sourceRef:
+         kind: HelmRepository
+         name: kyverno
+@@ -96,3 +96,9 @@
+       policyExceptions:
+         enabled: true
+         namespace: kyverno
++    upgrade:
++      legacyPolicyCheck:
++        enabled: true
++        image:
++          registry: ghcr.io
++      acknowledgeLegacyPoliciesNotEnforced: false
+--- a/renovate.json
++++ b/renovate.json
+@@ -439,16 +439,6 @@
+       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+))?(?:-(?:alpha|beta|rc)(?<prerelease>\\d+))?$"
+     },
+     {
+-      "description": "Keep Kyverno on the last legacy-policy-compatible chart until the CEL policy and PolicyException migration is complete.",
+-      "matchManagers": [
+-        "flux"
+-      ],
+-      "matchPackageNames": [
+-        "kyverno"
+-      ],
+-      "allowedVersions": "<3.10.0"
+-    },
+-    {
+       "description": "Only stable, coordinated Immich release tags are eligible; CI rejects mismatched server and machine-learning versions. Keep public Docker discovery enabled.",
+       "matchDatasources": [
+         "docker"
+--- a/.github/tests/renovate-policy.test.cjs
++++ b/.github/tests/renovate-policy.test.cjs
+@@ -274,7 +274,7 @@
+ 
+ test('versioning exceptions and compatibility caps survive classification', async () => {
+   const kyverno = await effective(update('kyverno', 'infra/kyverno/helmrelease.yaml', 'minor', { manager: 'flux', datasource: 'helm' }));
+-  assert.equal(kyverno.allowedVersions, '<3.10.0');
++  assert.equal(kyverno.allowedVersions, undefined);
+   assert.equal(kyverno.automerge, false);
+   assert.equal(kyverno.dependencyDashboardApproval, true);
+   assert.equal(kyverno.groupName, 'kyverno');
+--- a/docs/runbooks/renovate-operations.md
++++ b/docs/runbooks/renovate-operations.md
+@@ -65,7 +65,7 @@
+ | Action, reusable workflow and hosted runner majors | Separate per dependency, shared across workflows using that dependency. |
+ | CI language release lines | Gated groups per language, separating Node from Python. Home Assistant's regression workflow remains restricted to Python 3.14. |
+ | Terraform providers, modules and CLI | Gated per dependency across roots. No directory-wide infrastructure group; embedded Docker images follow image policies. |
+-| Longhorn, Kyverno, GPU Operator, snapshot-controller, Flux control components | Gated by component, including patches and digests; review API, CRD, RBAC and maintenance compatibility. Kyverno remains `<3.10.0`; Longhorn still requires its supported upgrade sequence and engine procedure. |
++| Longhorn, Kyverno, GPU Operator, snapshot-controller, Flux control components | Gated by component, including patches and digests; review API, CRD, RBAC and maintenance compatibility. Kyverno uses the proposed chart/application compatibility gate with a separate high-risk PR and no automerge; Longhorn still requires its supported upgrade sequence and engine procedure. |
+ | Identity images (Vaultwarden, OAuth2 Proxy, Synapse, Element) | Isolated, gated per dependency, including patches and digests. |
+ | OS/language/MySQL release lines | Gated by application or image-build context and package. Unrelated MySQL/Ubuntu environments do not share upgrade PRs. |
+ | Home Assistant release lines | Gated `home-assistant` PR while #2021's AirTouch regression remains unresolved. Patches and compatible helper maintenance can batch. |

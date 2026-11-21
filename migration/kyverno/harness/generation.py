@@ -2,9 +2,7 @@
 
 import copy
 import json
-import pathlib
 import subprocess
-import threading
 import time
 import yaml
 import urllib.parse
@@ -281,7 +279,7 @@ class Watch:
             status="verified",
             namespace=self.ns,
             events=len(events),
-            limitation="API object continuity; kindnet does not enforce NetworkPolicy traffic",
+            limitation="API object continuity only; separate traffic probes are required for network enforcement",
         )
 
 
@@ -463,99 +461,3 @@ def before_upgrade():
                 delete(locks)
     return state
 
-
-def after_upgrade(state):
-    ns = "generation-existing"
-    before = snapshot(ns)
-    assert [r["uid"] for r in before] == [
-        r["uid"] for r in state["initial"]
-    ], "Upgrade changed output identity"
-    k("rollout", "restart", "deployment/kyverno-background-controller", "-n", "kyverno")
-    k(
-        "rollout",
-        "status",
-        "deployment/kyverno-background-controller",
-        "-n",
-        "kyverno",
-        "--timeout=90s",
-        timeout=100,
-    )
-    k(
-        "patch",
-        "resourcequota",
-        "namespace-defaults",
-        "-n",
-        ns,
-        "--type=merge",
-        "-p",
-        '{"spec":{"hard":{"pods":"21"}}}',
-    )
-    wait("post-upgrade drift correction", lambda: correct(ns))
-    assert [r["uid"] for r in snapshot(ns)] == [r["uid"] for r in before]
-    record(
-        "generator-upgrade-restart", status="verified", version="1.20.0", namespace=ns
-    )
-    # Empty-output case: freeze prevents new trigger admission while legacy is
-    # absent. This fixture creates no workloads; a workload admission hold
-    # and global empty-set cutover remain unqualified.
-    # existing generated deny objects stay continuously present during transfer.
-    empty = "generation-empty"
-    apply(namespace(empty))
-    assert not get("networkpolicies", ns=empty)["items"]
-    trigger = get("namespaces", empty)
-    trigger["metadata"]["labels"]["homelab.cooked.beer/bootstrap"] = "enabled"
-    apply(trigger)
-    wait("CEL empty outputs", lambda: correct(empty))
-    record(
-        "generator-empty-create",
-        status="verified",
-        namespace=empty,
-        outputs=snapshot(empty),
-    )
-    gp = load("migration/kyverno/policies/generator.yaml")[0]
-    watcher = Watch(ns)
-    watcher.start()
-    locks = freeze()
-    try:
-        with Flux() as flux:
-            orphan = copy.deepcopy(gp)
-            orphan["spec"]["evaluation"]["orphanDownstreamOnPolicyDelete"][
-                "enabled"
-            ] = True
-            flux.commit([orphan], "cel-orphan-before-rollback")
-            flux.commit([], "prune-cel-before-downgrade")
-            assert not get("generatingpolicies")["items"]
-            from rehearse import install
-
-            install("1.19.2")
-            legacy = load("infra/kyverno/policies/platform-namespace-bootstrap.yaml")[0]
-            flux.commit([legacy], "restore-legacy-after-downgrade")
-            ready(legacy)
-            thaw(locks, ns)
-            locks = []
-            k(
-                "annotate",
-                "namespace",
-                ns,
-                "--overwrite",
-                "rehearsal.cooked.beer/trigger=rollback",
-            )
-            k(
-                "patch",
-                "limitrange",
-                "default-container-limits",
-                "-n",
-                ns,
-                "--type=json",
-                "-p",
-                '[{"op":"replace","path":"/spec/limits/0/default/cpu","value":"600m"}]',
-            )
-            wait("legacy rollback drift repair", lambda: correct(ns), 45)
-            assert [r["uid"] for r in snapshot(ns)] == [r["uid"] for r in before]
-            record("generator-rollback", status="verified", namespace=ns)
-    except Exception as e:
-        record("generator-rollback", status="failed", error=str(e))
-    finally:
-        watcher.stop()
-        if locks:
-            delete(locks)
