@@ -3,6 +3,7 @@ kind: Namespace
 metadata:
   name: wowdecomp-ci-jobs
   annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
     homelab.cooked.beer/security-policy: wowdecomp-linux-security
   labels:
     homelab.cooked.beer/owner: sam
