@@ -54,6 +54,15 @@ spec:
             (request.resource.group != "coordination.k8s.io" ||
             request.resource.resource != "leases" ||
             request.namespace != "kube-node-lease")
+        # These two CREATE resources already bypass resource-policy evaluation
+        # via resourceFilters. Avoid the redundant nested admission dependency
+        # during generate-policy permission checks; retain all other matching.
+        - name: exclude-filtered-access-review-creates
+          expression: >-
+            !(request.operation == "CREATE" &&
+            request.resource.group == "authorization.k8s.io" &&
+            request.resource.resource in
+            ["subjectaccessreviews", "selfsubjectaccessreviews"])
       resourceFiltersExcludeNamespaces:
         - kyverno
         - flux-system

@@ -1,0 +1,66 @@
+name: Kyverno SAR Exclusion Checks
+
+on:
+  pull_request:
+    paths:
+      - infra/kyverno/helmrelease.yaml
+      - infra/kyverno/policies/platform-flux-guardrails.yaml
+      - infra/kyverno/policies/platform-namespace-standards.yaml
+      - scripts/ci/test_kyverno_sar_exclusion.py
+      - scripts/ci/kyverno-sar-tests/**
+      - .github/workflows/kyverno-sar-checks.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-admission:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proposed configuration and tests
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout deployed Kyverno source for test overlays
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: kyverno/kyverno
+          ref: e63308f1e16c05cd009ac4864be6ec25c66b49be # v1.19.2
+          path: .work/kyverno-sar-source
+          persist-credentials: false
+
+      - name: Install pinned offline test tools and chart
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_tools="${RUNNER_TEMP}/kyverno-sar-tools"
+          mkdir -p "$test_tools"
+          cd "$test_tools"
+          curl -fsSL https://go.dev/dl/go1.26.9.linux-amd64.tar.gz -o go.tgz
+          curl -fsSL https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz -o helm.tgz
+          curl -fsSL https://kyverno.github.io/kyverno/kyverno-3.9.2.tgz -o chart.tgz
+          curl -fsSL https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_x86_64.tar.gz -o kyverno.tgz
+          sha256sum --check <<'CHECKSUMS'
+          42d158b4d8f7b61ac0a830567c940a86098fb7aac52e467a5ebec03ef5cc2f8d  go.tgz
+          a7f81ce08007091b86d8bd696eb4d86b8d0f2e1b9f6c714be62f82f96a594496  helm.tgz
+          f6fe7184544d5e2ee33a77808c09e67aa603ce6560cc197038fde31d727c861e  chart.tgz
+          357eaf1df8bc24ddd5a73979fadeaae6a032e8710f11af264229756e4956bf4a  kyverno.tgz
+          CHECKSUMS
+          tar -xzf go.tgz
+          tar -xzf helm.tgz
+          mkdir chart
+          tar -xzf chart.tgz -C chart
+          tar -xzf kyverno.tgz kyverno
+          echo "$test_tools/go/bin" >> "$GITHUB_PATH"
+          echo "$test_tools/linux-amd64" >> "$GITHUB_PATH"
+          echo "SAR_TEST_TOOLS=$test_tools" >> "$GITHUB_ENV"
+          python3 -m pip install --quiet pyyaml
+
+      - name: Verify Kubernetes 1.34 semantics and Kyverno reconciliation
+        run: |
+          python3 scripts/ci/test_kyverno_sar_exclusion.py \
+            --kyverno-source .work/kyverno-sar-source \
+            --chart "$SAR_TEST_TOOLS/chart/kyverno" \
+            --kyverno "$SAR_TEST_TOOLS/kyverno"
