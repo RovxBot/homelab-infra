@@ -8,6 +8,7 @@ import copy
 import json
 import time
 import yaml
+import fnmatch
 from corpus import cases
 from rehearse import (
     ROOT,
@@ -23,6 +24,28 @@ from rehearse import (
     record,
     k,
 )
+
+
+def excepted(inventory, source, rule, doc):
+    for ex in inventory["exceptions"]:
+        if not any(
+            r["policyName"] == source and rule in r["ruleNames"]
+            for r in ex["legacy_policy_refs"]
+        ):
+            continue
+        for branch in ex["match"]["any"]:
+            scope = branch["resources"]
+            actual = {
+                "names": doc["metadata"]["name"],
+                "namespaces": doc["metadata"].get("namespace", ""),
+                "kinds": doc["kind"],
+            }
+            if all(
+                any(fnmatch.fnmatchcase(actual[k], pattern) for pattern in patterns)
+                for k, patterns in scope.items()
+            ):
+                return True
+    return False
 
 
 def suite(version, engine):
@@ -146,6 +169,18 @@ def suite(version, engine):
                         pass
                 result = admission(doc, operation, check_policy=False)
                 output[key + "::" + name] = result
+                if name == "valid":
+                    assert result["allowed"], result
+                if name.startswith("exception-"):
+                    not_matched = item["source_rule"] == "require-probes" and doc[
+                        "kind"
+                    ] not in ["Deployment", "StatefulSet", "DaemonSet"]
+                    expected = not_matched or excepted(
+                        inventory, item["source_policy"], item["source_rule"], doc
+                    )
+                    assert result["allowed"] == expected, dict(
+                        rule=key, case=name, expected=expected, result=result
+                    )
             for name, doc in updates:
                 output[key + "::UPDATE-" + name] = admission(
                     doc, "UPDATE", check_policy=False
@@ -236,22 +271,28 @@ def whole_runners(version, engine):
         )
         from corpus import runner
 
-        live_pod = runner(pool)
+        live_pod = runner("wow" if pool == "wowdecomp" else "core")
         live_pod["metadata"]["name"] = "ephemeral-probe"
         live_pod["spec"]["nodeName"] = "rehearsal-unscheduled"
-        apply(live_pod)
-        ephem = copy.deepcopy(get("pods", "ephemeral-probe", namespace))
-        debug = copy.deepcopy(ephem["spec"]["containers"][0])
-        debug.pop("resources", None)
-        debug["name"] = "debug"
-        debug["targetContainerName"] = "job"
-        ephem["spec"]["ephemeralContainers"] = [debug]
-        endpoint = f"/api/v1/namespaces/{namespace}/pods/ephemeral-probe/ephemeralcontainers?dryRun=All"
-        control = k(
-            "replace", "--raw", endpoint, "-f", "-", data=json.dumps(ephem), check=False
-        )
-        assert control.returncode == 0, control.stderr
         try:
+            apply(live_pod)
+            ephem = copy.deepcopy(get("pods", "ephemeral-probe", namespace))
+            debug = copy.deepcopy(ephem["spec"]["containers"][0])
+            debug.pop("resources", None)
+            debug["name"] = "debug"
+            debug["targetContainerName"] = "job"
+            ephem["spec"]["ephemeralContainers"] = [debug]
+            endpoint = f"/api/v1/namespaces/{namespace}/pods/ephemeral-probe/ephemeralcontainers?dryRun=All"
+            control = k(
+                "replace",
+                "--raw",
+                endpoint,
+                "-f",
+                "-",
+                data=json.dumps(ephem),
+                check=False,
+            )
+            assert control.returncode == 0, control.stderr
             for p in policies:
                 apply(p)
                 ready(p)
@@ -298,6 +339,15 @@ def whole_runners(version, engine):
                 engine=engine,
                 pool=pool,
                 stderr=denied.stderr,
+            )
+        except Exception as e:
+            record(
+                "whole-runner-admission",
+                status="failed",
+                version=version,
+                engine=engine,
+                pool=pool,
+                error=str(e),
             )
         finally:
             delete(policies)

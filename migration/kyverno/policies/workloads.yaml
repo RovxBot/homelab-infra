@@ -14,7 +14,6 @@ spec:
   failurePolicy: Fail
   validationActions:
   - Deny
-  - Warn
   evaluation:
     admission:
       enabled: true
@@ -76,7 +75,6 @@ spec:
   failurePolicy: Fail
   validationActions:
   - Deny
-  - Warn
   evaluation:
     admission:
       enabled: true
@@ -147,7 +145,6 @@ spec:
   failurePolicy: Fail
   validationActions:
   - Deny
-  - Warn
   evaluation:
     admission:
       enabled: true
@@ -228,7 +225,6 @@ spec:
   failurePolicy: Fail
   validationActions:
   - Deny
-  - Warn
   evaluation:
     admission:
       enabled: true
@@ -288,7 +284,6 @@ spec:
   failurePolicy: Fail
   validationActions:
   - Deny
-  - Warn
   evaluation:
     admission:
       enabled: true
@@ -350,7 +345,6 @@ spec:
   failurePolicy: Fail
   validationActions:
   - Deny
-  - Warn
   evaluation:
     admission:
       enabled: true
@@ -412,7 +406,6 @@ spec:
   failurePolicy: Fail
   validationActions:
   - Deny
-  - Warn
   evaluation:
     admission:
       enabled: true

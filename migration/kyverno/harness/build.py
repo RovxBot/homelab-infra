@@ -70,7 +70,6 @@ def policy(
     ns="",
     conditions=None,
     background=True,
-    warning=True,
     existing=True,
     audit=False,
 ):
@@ -94,11 +93,10 @@ def policy(
     )
     if ns:
         metadata["namespace"] = ns
+    # Legacy Enforce denials emit no warning; its Audit guardrail does.
     spec = dict(
         failurePolicy="Fail",
-        validationActions=(
-            ["Audit", "Warn"] if audit else ["Deny", "Warn"] if warning else ["Deny"]
-        ),
+        validationActions=(["Audit", "Warn"] if audit else ["Deny"]),
         evaluation=dict(
             admission=dict(enabled=True), background=dict(enabled=background)
         ),
@@ -112,7 +110,7 @@ def policy(
     )
     if existing and not audit:
         # Legacy skips an Enforce rule only when both old and new fail that rule.
-        # PSS uses a distinct handler and does not implement that exception.
+        # PSS implements the same old/new failure exemption in its own handler.
         spec["matchConditions"].append(
             dict(
                 name="legacy-existing-violation",
@@ -302,10 +300,30 @@ def main():
                     "drop-all-and-only-allow-ptrace": "o.spec.containers.all(c, 'ALL' in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(a,a == 'SYS_PTRACE'))",
                     "ptrace-only-in-sanitizer-jobs": f"({san}) || o.spec.containers.all(c, !('SYS_PTRACE' in c.?securityContext.?capabilities.?add.orValue([])))",
                     "ordinary-job-identity": f"({san}) || (o.spec.?securityContext.?runAsUser.orValue(-1) == 1000 && o.spec.?securityContext.?runAsNonRoot.orValue(false) && o.spec.containers.exists(c,c.name == 'job' && c.?securityContext.?runAsNonRoot.orValue(false) && c.?securityContext.?runAsUser.orValue(1000) == 1000))",
-                    "bounded-sanitizer-identity": f"!({san}) || o.spec.containers.exists(c,c.name == 'job' && c.?securityContext.?runAsUser.orValue(-1) == 0 && c.?securityContext.?runAsGroup.orValue(-1) == 0 && c.?securityContext.?runAsNonRoot.orValue(true) == false && 'SYS_PTRACE' in c.?securityContext.?capabilities.?add.orValue([]) && 'ALL' in c.?securityContext.?capabilities.?drop.orValue([]))",
+                    "bounded-sanitizer-identity": f"!({san}) || o.spec.containers.exists(c,c.name == 'job' && c.?securityContext.?runAsUser.orValue(-1) == 0 && c.?securityContext.?runAsGroup.orValue(-1) == 0 && c.?securityContext.?runAsNonRoot.orValue(true) == false && c.?securityContext.?capabilities.?add.orValue([]) == ['SYS_PTRACE'] && c.?securityContext.?capabilities.?drop.orValue([]) == ['ALL'])",
                 }
             )
         for r in legacy["spec"]["rules"]:
+            conditions = []
+            if source == "gitea-job-security" and r["name"] in [
+                "ptrace-only-in-sanitizer-jobs",
+                "ordinary-job-identity",
+                "bounded-sanitizer-identity",
+            ]:
+                sanitizer = label("object", "homelab.cooked.beer/sanitizer")
+                positive = r["name"] == "bounded-sanitizer-identity"
+                conditions = [
+                    dict(
+                        name="legacy-sanitizer-precondition",
+                        expression=sanitizer
+                        + (" == " if positive else " != ")
+                        + "'true'",
+                    )
+                ]
+                # The guard above carries the precondition. Admission tests show
+                # legacy does not exempt pre-existing failures of these 3 rules.
+                marker = " || "
+                common[r["name"]] = common[r["name"]].split(marker, 1)[1]
             runners.append(
                 policy(
                     source,
@@ -313,8 +331,13 @@ def main():
                     common[r["name"]],
                     [rule(["pods", "pods/ephemeralcontainers"], [""])],
                     ns=ns,
-                    warning=False,
-                    existing=r["name"] != "restricted-with-sanitizer-capability",
+                    conditions=conditions,
+                    existing=r["name"]
+                    not in [
+                        "ptrace-only-in-sanitizer-jobs",
+                        "ordinary-job-identity",
+                        "bounded-sanitizer-identity",
+                    ],
                 )
             )
     emit("policies/runners.yaml", runners)

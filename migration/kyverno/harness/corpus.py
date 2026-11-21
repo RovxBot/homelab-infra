@@ -6,6 +6,10 @@ from rehearse import ROOT, OWNER, labels, namespace
 
 
 def change(obj, path, value=None, remove=False):
+    if path == ["spec", "volumes"] and not remove:
+        # Keep referenced baseline volumes so admission failures test the policy,
+        # rather than an unrelated missing-volumeMount validation error.
+        value = copy.deepcopy(obj["spec"].get("volumes", [])) + value
     d = copy.deepcopy(obj)
     p = d
     for key in path[:-1]:
@@ -219,6 +223,12 @@ def cases(source, r):
             ("cloudflared", "cloudflared", "Deployment"),
             ("homepage", "homepage-assets", "StatefulSet"),
             ("homepage", "adjacent", "StatefulSet"),
+            ("cloudflared", "homepage-assets", "Deployment"),
+            ("homepage", "cloudflared", "StatefulSet"),
+            ("homepage", "pod-report", "CronJob"),
+            ("cloudflared", "pod-report", "Job"),
+            ("cel-tests", "cloudflared", "Deployment"),
+            ("wotlk", "wotlk-weekly-restart", "Deployment"),
         ]:
             d = workload(kind, name, ns)
             p = (
@@ -226,11 +236,12 @@ def cases(source, r):
                 if kind == "CronJob"
                 else d["spec"]["template"]
             )
-            p["metadata"]["labels"] = {}
+            p["metadata"]["labels"].pop(OWNER, None)
             p["spec"]["hostNetwork"] = True
             p["spec"]["containers"][0]["image"] = "repo:latest"
             p["spec"]["containers"][0].pop("resources")
             p["spec"]["containers"][0]["securityContext"] = {}
+            p["spec"]["containers"][0]["ports"] = [{"containerPort": 80}]
             rows.append(("exception-" + ns + "-" + name + "-" + kind, d))
         return rows
     pool = "wow" if source.startswith("wow") else "core"

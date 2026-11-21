@@ -40,7 +40,7 @@ def run(version, engine):
         owner = load("migration/kyverno/policies/workloads.yaml")[0]
         flux = load("migration/kyverno/policies/flux.yaml")[0]
     bad = workload(name="pre-existing-violation", ns=ns)
-    bad["spec"]["template"]["metadata"]["labels"] = {}
+    bad["spec"]["template"]["metadata"]["labels"].pop(OWNER)
     apply(bad)
     apply(owner)
     ready(owner)
@@ -74,7 +74,7 @@ def run(version, engine):
         good = workload(name="new-violation", ns=ns)
         apply(good)
         obj = get("deployment", "new-violation", ns)
-        obj["spec"]["template"]["metadata"]["labels"] = {}
+        obj["spec"]["template"]["metadata"]["labels"].pop(OWNER)
         result = admission(obj, "UPDATE")
         assert not result["allowed"], result
         record(
