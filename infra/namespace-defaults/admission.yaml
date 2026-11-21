@@ -1,0 +1,218 @@
+# Review-only until phase 02d. Quantity-map equality is checked by rendered
+# bundle CI; native guards restrict authenticated writers and accessible shapes.
+# Contract-only malformed enrollment can prove the permanent guard under freeze.
+# Namespace selection uses namespaceSelector, not namespaceObject in matchConditions.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: flux-namespace-enrollment
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - namespaces
+  variables:
+  - name: target
+    expression: 'request.operation == ''DELETE'' ? oldObject : object'
+  - name: enrolled
+    expression: (variables.target.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled') || (variables.target.metadata.?annotations.orValue({})[?'homelab.cooked.beer/namespace-contract'].orValue('')
+      == 'flux-v1') || (oldObject != null && ((oldObject.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled') || (oldObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/namespace-contract'].orValue('')
+      == 'flux-v1')))
+  validations:
+  - expression: '!variables.enrolled || (request.userInfo.username == ''system:serviceaccount:flux-system:kustomize-controller'')'
+    message: Bootstrap enrollment and lifecycle require the Flux kustomize-controller
+      identity
+  - expression: '!variables.enrolled || (variables.target.metadata.?labels.orValue({})[?''homelab.cooked.beer/bootstrap''].orValue('''')
+      == ''enabled'')'
+    message: Enrollment cannot be removed; decommission the complete bundle
+  - expression: '!variables.enrolled || (!(variables.target.metadata.name in [''default'',''flux-system'',''kube-node-lease'',''kube-public'',''kube-system'',''kyverno'']))'
+    message: System namespaces cannot enroll
+  - expression: '!variables.enrolled || (variables.target.metadata.?annotations.orValue({})[?''homelab.cooked.beer/namespace-contract''].orValue('''')
+      == ''flux-v1'' && variables.target.metadata.?labels.orValue({})[?''app.kubernetes.io/managed-by''].orValue('''')
+      == ''Flux'' && variables.target.metadata.?labels.orValue({})[?''kustomize.toolkit.fluxcd.io/name''].orValue('''')
+      == ''namespace-'' + variables.target.metadata.name && variables.target.metadata.?labels.orValue({})[?''kustomize.toolkit.fluxcd.io/namespace''].orValue('''')
+      == ''flux-system'')'
+    message: Label-only bootstrap is unsupported; use a reviewed complete Flux namespace
+      bundle
+  - expression: '!variables.enrolled || ([''homelab.cooked.beer/owner'',''pod-security.kubernetes.io/enforce'',''pod-security.kubernetes.io/enforce-version'',''pod-security.kubernetes.io/audit'',''pod-security.kubernetes.io/audit-version'',''pod-security.kubernetes.io/warn'',''pod-security.kubernetes.io/warn-version''].all(k,
+      k in variables.target.metadata.labels && variables.target.metadata.labels[k]
+      != ''''))'
+    message: Owner and all six PSA labels are required
+  - expression: '!variables.enrolled || (variables.target.metadata.?annotations.orValue({})[?''kustomize.toolkit.fluxcd.io/prune''].orValue('''')
+      == ''disabled'' || variables.target.metadata.?annotations.orValue({})[?''homelab.cooked.beer/decommission''].orValue('''')
+      == ''approved'')'
+    message: Prune protection requires a separate reviewed decommission phase
+  - expression: '!variables.enrolled || (request.operation != ''DELETE'' || variables.target.metadata.?annotations.orValue({})[?''homelab.cooked.beer/decommission''].orValue('''')
+      == ''approved'')'
+    message: Remove workloads and approve decommissioning before Namespace deletion
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: flux-default-limitrange
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - limitranges
+    namespaceSelector:
+      matchLabels:
+        homelab.cooked.beer/bootstrap: enabled
+  matchConditions:
+  - name: enrolled-default
+    expression: '(request.operation == ''DELETE'' ? oldObject.metadata.name : object.metadata.name)
+      == ''default-container-limits'''
+  validations:
+  - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
+      && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
+      == 'Flux' && object.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled' && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/name'].orValue('')
+      == 'namespace-' + namespaceObject.metadata.name && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/namespace'].orValue('')
+      == 'flux-system')
+    message: Namespace defaults must be reconciled by the reviewed Flux namespace
+      bundle
+  - expression: request.operation == 'DELETE' || (size(object.spec.limits) == 1 &&
+      object.spec.limits[0].type == 'Container')
+    message: The reviewed defaults require one Container limit entry; CI verifies
+      Quantity maps
+  - expression: request.operation != 'DELETE' || (namespaceObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/decommission'].orValue('')
+      == 'approved' && request.userInfo.username in ['system:serviceaccount:flux-system:kustomize-controller','system:serviceaccount:kube-system:namespace-controller'])
+    message: Default deletion requires reviewed namespace decommissioning
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: flux-default-resourcequota
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - resourcequotas
+    namespaceSelector:
+      matchLabels:
+        homelab.cooked.beer/bootstrap: enabled
+  matchConditions:
+  - name: enrolled-default
+    expression: '(request.operation == ''DELETE'' ? oldObject.metadata.name : object.metadata.name)
+      == ''namespace-defaults'''
+  validations:
+  - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
+      && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
+      == 'Flux' && object.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled' && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/name'].orValue('')
+      == 'namespace-' + namespaceObject.metadata.name && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/namespace'].orValue('')
+      == 'flux-system')
+    message: Namespace defaults must be reconciled by the reviewed Flux namespace
+      bundle
+  - expression: request.operation != 'DELETE' || (namespaceObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/decommission'].orValue('')
+      == 'approved' && request.userInfo.username in ['system:serviceaccount:flux-system:kustomize-controller','system:serviceaccount:kube-system:namespace-controller'])
+    message: Default deletion requires reviewed namespace decommissioning
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: flux-default-networkpolicy
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - networking.k8s.io
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - networkpolicies
+    namespaceSelector:
+      matchLabels:
+        homelab.cooked.beer/bootstrap: enabled
+  matchConditions:
+  - name: enrolled-default
+    expression: '(request.operation == ''DELETE'' ? oldObject.metadata.name : object.metadata.name)
+      == ''default-deny'''
+  validations:
+  - expression: request.operation == 'DELETE' || (request.userInfo.username == 'system:serviceaccount:flux-system:kustomize-controller'
+      && object.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('')
+      == 'Flux' && object.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled' && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/name'].orValue('')
+      == 'namespace-' + namespaceObject.metadata.name && object.metadata.?labels.orValue({})[?'kustomize.toolkit.fluxcd.io/namespace'].orValue('')
+      == 'flux-system')
+    message: Namespace defaults must be reconciled by the reviewed Flux namespace
+      bundle
+  - expression: request.operation == 'DELETE' || (!has(object.spec.podSelector.matchLabels)
+      && !has(object.spec.podSelector.matchExpressions) && size(object.spec.policyTypes)
+      == 2 && 'Ingress' in object.spec.policyTypes && 'Egress' in object.spec.policyTypes
+      && (!has(object.spec.ingress) || size(object.spec.ingress) == 0) && (!has(object.spec.egress)
+      || size(object.spec.egress) == 0))
+    message: Namespace defaults must preserve the exact legacy specification
+  - expression: request.operation != 'DELETE' || (namespaceObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/decommission'].orValue('')
+      == 'approved' && request.userInfo.username in ['system:serviceaccount:flux-system:kustomize-controller','system:serviceaccount:kube-system:namespace-controller'])
+    message: Default deletion requires reviewed namespace decommissioning
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: flux-namespace-enrollment
+spec:
+  policyName: flux-namespace-enrollment
+  validationActions:
+  - Deny
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: flux-default-limitrange
+spec:
+  policyName: flux-default-limitrange
+  validationActions:
+  - Deny
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: flux-default-resourcequota
+spec:
+  policyName: flux-default-resourcequota
+  validationActions:
+  - Deny
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: flux-default-networkpolicy
+spec:
+  policyName: flux-default-networkpolicy
+  validationActions:
+  - Deny

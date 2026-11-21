@@ -1,0 +1,271 @@
+--- a/apps/gitea-runners/namespaces.yaml
++++ b/apps/gitea-runners/namespaces.yaml
+@@ -1,36 +1,3 @@
+-apiVersion: v1
+-kind: Namespace
+-metadata:
+-  name: gitea-runners
+-  annotations:
+-    kustomize.toolkit.fluxcd.io/prune: disabled
+-  labels:
+-    homelab.cooked.beer/owner: sam
+-    pod-security.kubernetes.io/enforce: restricted
+-    pod-security.kubernetes.io/enforce-version: latest
+-    pod-security.kubernetes.io/audit: restricted
+-    pod-security.kubernetes.io/audit-version: latest
+-    pod-security.kubernetes.io/warn: restricted
+-    pod-security.kubernetes.io/warn-version: latest
+----
+-apiVersion: v1
+-kind: Namespace
+-metadata:
+-  name: gitea-jobs
+-  annotations:
+-    kustomize.toolkit.fluxcd.io/prune: disabled
+-    # Namespaced Kyverno policy enforces restricted PSS with one image-bound
+-    # SYS_PTRACE allowance for LeakSanitizer. No host namespace or privileged pods.
+-    homelab.cooked.beer/security-policy: gitea-job-security
+-  labels:
+-    homelab.cooked.beer/owner: sam
+-    pod-security.kubernetes.io/enforce: privileged
+-    pod-security.kubernetes.io/enforce-version: latest
+-    pod-security.kubernetes.io/audit: restricted
+-    pod-security.kubernetes.io/audit-version: latest
+-    pod-security.kubernetes.io/warn: restricted
+-    pod-security.kubernetes.io/warn-version: latest
+----
+ apiVersion: v1
+ kind: ResourceQuota
+ metadata:
+--- a/apps/gitea-runners/wowdecomp/resources.yaml
++++ b/apps/gitea-runners/wowdecomp/resources.yaml
+@@ -1,19 +1,3 @@
+-apiVersion: v1
+-kind: Namespace
+-metadata:
+-  name: wowdecomp-ci-jobs
+-  annotations:
+-    kustomize.toolkit.fluxcd.io/prune: disabled
+-    homelab.cooked.beer/security-policy: wowdecomp-linux-security
+-  labels:
+-    homelab.cooked.beer/owner: sam
+-    pod-security.kubernetes.io/enforce: privileged
+-    pod-security.kubernetes.io/enforce-version: latest
+-    pod-security.kubernetes.io/audit: restricted
+-    pod-security.kubernetes.io/audit-version: latest
+-    pod-security.kubernetes.io/warn: restricted
+-    pod-security.kubernetes.io/warn-version: latest
+----
+ apiVersion: v1
+ kind: ResourceQuota
+ metadata:
+--- /dev/null
++++ b/infra/kyverno/runner-namespaces.yaml
+@@ -0,0 +1,46 @@
++apiVersion: v1
++kind: Namespace
++metadata:
++  name: gitea-runners
++  annotations:
++    kustomize.toolkit.fluxcd.io/prune: disabled
++  labels:
++    homelab.cooked.beer/owner: sam
++    pod-security.kubernetes.io/enforce: restricted
++    pod-security.kubernetes.io/enforce-version: latest
++    pod-security.kubernetes.io/audit: restricted
++    pod-security.kubernetes.io/audit-version: latest
++    pod-security.kubernetes.io/warn: restricted
++    pod-security.kubernetes.io/warn-version: latest
++---
++apiVersion: v1
++kind: Namespace
++metadata:
++  name: gitea-jobs
++  annotations:
++    kustomize.toolkit.fluxcd.io/prune: disabled
++    homelab.cooked.beer/security-policy: gitea-job-security
++  labels:
++    homelab.cooked.beer/owner: sam
++    pod-security.kubernetes.io/enforce: privileged
++    pod-security.kubernetes.io/enforce-version: latest
++    pod-security.kubernetes.io/audit: restricted
++    pod-security.kubernetes.io/audit-version: latest
++    pod-security.kubernetes.io/warn: restricted
++    pod-security.kubernetes.io/warn-version: latest
++---
++apiVersion: v1
++kind: Namespace
++metadata:
++  name: wowdecomp-ci-jobs
++  annotations:
++    kustomize.toolkit.fluxcd.io/prune: disabled
++    homelab.cooked.beer/security-policy: wowdecomp-linux-security
++  labels:
++    homelab.cooked.beer/owner: sam
++    pod-security.kubernetes.io/enforce: privileged
++    pod-security.kubernetes.io/enforce-version: latest
++    pod-security.kubernetes.io/audit: restricted
++    pod-security.kubernetes.io/audit-version: latest
++    pod-security.kubernetes.io/warn: restricted
++    pod-security.kubernetes.io/warn-version: latest
+--- a/infra/kyverno/kustomization.yaml
++++ b/infra/kyverno/kustomization.yaml
+@@ -1,6 +1,7 @@
+ apiVersion: kustomize.config.k8s.io/v1beta1
+ kind: Kustomization
+ resources:
+-  - namespace.yaml
+-  - helmrepository.yaml
+-  - helmrelease.yaml
++- namespace.yaml
++- helmrepository.yaml
++- helmrelease.yaml
++- runner-namespaces.yaml
+--- a/infra/kyverno-policies/kustomization.yaml
++++ b/infra/kyverno-policies/kustomization.yaml
+@@ -1,6 +1,14 @@
+ apiVersion: kustomize.config.k8s.io/v1beta1
+ kind: Kustomization
+ resources:
+-  - ../kyverno/policies
+-  - ../kyverno/exceptions
+-  - ../kyverno/automation
++- ../kyverno/policies
++- ../kyverno/exceptions
++- ../kyverno/automation
++- ../../migration/kyverno/policies/workloads.yaml
++- ../../migration/kyverno/policies/namespace.yaml
++- ../../migration/kyverno/policies/flux.yaml
++- ../../migration/kyverno/policies/runners.yaml
++- ../../migration/kyverno/policies/governance-native.yaml
++- ../../migration/kyverno/policies/mutation.yaml
++- ../../migration/kyverno/policies/reporting-rbac.yaml
++- ../../migration/kyverno/exceptions/exceptions.yaml
+--- a/clusters/home/infrastructure/kyverno-policies-kustomization.yaml
++++ b/clusters/home/infrastructure/kyverno-policies-kustomization.yaml
+@@ -9,8 +9,112 @@
+   path: ./infra/kyverno-policies
+   prune: true
+   dependsOn:
+-    - name: infrastructure
++  - name: infrastructure
+   sourceRef:
+     kind: GitRepository
+     name: flux-system
+     namespace: flux-system
++  healthChecks:
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-pod-standards-require-owner-label
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-pod-standards-require-requests-and-limits
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-pod-standards-require-runtime-hardening
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-pod-standards-disallow-host-network
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-pod-standards-require-digest-pinned-images
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-pod-standards-disallow-latest-tags
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-pod-standards-require-probes
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-namespace-standards
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    name: platform-flux-guardrails
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-restricted-with-sanitizer-capability
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-bound-job-environment
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-one-job-container
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-drop-all-and-only-allow-ptrace
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-ptrace-only-in-sanitizer-jobs
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-ordinary-job-identity
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-bounded-sanitizer-identity
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: gitea-job-security-no-extra-job-credentials
++    namespace: gitea-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: wowdecomp-linux-security-restricted-with-sanitizer-capability
++    namespace: wowdecomp-ci-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: wowdecomp-linux-security-bound-job-environment
++    namespace: wowdecomp-ci-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: wowdecomp-linux-security-one-job-container
++    namespace: wowdecomp-ci-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: wowdecomp-linux-security-bounded-toolchain-capabilities
++    namespace: wowdecomp-ci-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: wowdecomp-linux-security-no-extra-job-credentials
++    namespace: wowdecomp-ci-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: wowdecomp-linux-security-no-mounted-registry-credential
++    namespace: wowdecomp-ci-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    name: wowdecomp-linux-security-no-registry-credential-in-environment
++    namespace: wowdecomp-ci-jobs
++  - apiVersion: policies.kyverno.io/v1
++    kind: MutatingPolicy
++    name: longhorn-csi-registrar-lifecycle
++  healthCheckExprs:
++  - apiVersion: policies.kyverno.io/v1
++    kind: ValidatingPolicy
++    current: has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c,
++      c.status == 'True')
++  - apiVersion: policies.kyverno.io/v1
++    kind: NamespacedValidatingPolicy
++    current: has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c,
++      c.status == 'True')
++  - apiVersion: policies.kyverno.io/v1
++    kind: MutatingPolicy
++    current: has(status.conditionStatus) && status.conditionStatus.ready && status.conditionStatus.conditions.all(c,
++      c.status == 'True')
+--- a/clusters/home/apps/gitea-runners-kustomization.yaml
++++ b/clusters/home/apps/gitea-runners-kustomization.yaml
+@@ -10,7 +10,8 @@
+   wait: true
+   timeout: 10m
+   dependsOn:
+-    - name: apps-gitea
++  - name: apps-gitea
++  - name: kyverno-policies
+   sourceRef:
+     kind: GitRepository
+     name: flux-system

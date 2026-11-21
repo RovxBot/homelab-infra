@@ -23,6 +23,8 @@ MANIFEST_CHECK_PATHS = {
     "scripts/ci/tests/test_immich_versions.py",
     "scripts/ci/check_secret_refs.py",
     "scripts/ci/check_python_helpers.py",
+    "scripts/ci/check_namespace_defaults.py",
+    "scripts/ci/tests/test_namespace_defaults.py",
     "scripts/ci/kyverno_gate.py",
     "scripts/longhorn-retire-backup-history.py",
     "scripts/longhorn-upgrade-engines.py",
@@ -38,6 +40,7 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
     flags = {
         "manifests": full or any(
             path.startswith(("apps/", "infra/", "clusters/", "secrets/", "ops/gitea/"))
+            or path.startswith("migration/kyverno/namespace-example/")
             or path in MANIFEST_CHECK_PATHS
             for path in paths
         ),

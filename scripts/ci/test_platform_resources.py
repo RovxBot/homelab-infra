@@ -2,6 +2,7 @@
 """Exercise resource budgets with the real Kyverno CLI and production exceptions."""
 import argparse
 import copy
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,6 +14,17 @@ POLICY = ROOT / 'infra/kyverno/policies/platform-pod-standards.yaml'
 
 
 def run(kyverno, policy=POLICY):
+    version = subprocess.check_output([kyverno, 'version'], text=True)
+    match = re.search(r'^Version: v?(\d+)\.(\d+)\.(\d+)$', version, re.MULTILINE)
+    assert match, 'Unknown executed Kyverno version'
+    cel = tuple(map(int,match.groups())) >= (1,20,0)
+    if cel:
+        docs=list(yaml.safe_load_all((ROOT/'migration/kyverno/policies/workloads.yaml').read_text()))
+        chosen=next(d for d in docs if d['metadata']['name']=='platform-pod-standards-require-requests-and-limits')
+        exception_docs=[d for d in yaml.safe_load_all((ROOT/'migration/kyverno/exceptions/exceptions.yaml').read_text()) if d['metadata']['name'] in ['chart-managed-workloads','home-assistant']]
+    else:
+        chosen=yaml.safe_load(Path(policy).read_text())
+        exception_docs=[yaml.safe_load((ROOT/f'infra/kyverno/exceptions/{name}.yaml').read_text()) for name in ['chart-managed-workloads','home-assistant']]
     resources, results = [], []
     for kind in ('Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob'):
         for where in ('containers', 'initContainers'):
@@ -64,10 +76,11 @@ def run(kyverno, policy=POLICY):
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory)
         (path / 'resources.yaml').write_text(yaml.safe_dump_all(resources))
-        (path / 'policy.yaml').write_text(Path(policy).read_text())
-        (path / 'exceptions.yaml').write_text(yaml.safe_dump_all([
-            yaml.safe_load((ROOT / f'infra/kyverno/exceptions/{name}.yaml').read_text())
-            for name in ('chart-managed-workloads', 'home-assistant')]))
+        (path / 'policy.yaml').write_text(yaml.safe_dump(chosen))
+        if cel:
+            for row in results:
+                row.update(policy=chosen['metadata']['name'], rule='validation')
+        (path / 'exceptions.yaml').write_text(yaml.safe_dump_all(exception_docs))
         (path / 'kyverno-test.yaml').write_text(yaml.safe_dump({
             'apiVersion': 'cli.kyverno.io/v1alpha1', 'kind': 'Test', 'metadata': {'name': 'resource-budgets'},
             'policies': ['policy.yaml'], 'resources': ['resources.yaml'],

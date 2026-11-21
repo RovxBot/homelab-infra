@@ -10,7 +10,8 @@ spec:
   wait: true
   timeout: 10m
   dependsOn:
-    - name: apps-gitea
+  - name: apps-gitea
+  - name: kyverno-policies
   sourceRef:
     kind: GitRepository
     name: flux-system

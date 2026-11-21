@@ -25,6 +25,8 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned render and validation tools
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -35,8 +37,10 @@ jobs:
           mv "$tools_dir/linux-amd64/helm" "$tools_dir/helm"
           curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz -o "$tools_dir/kustomize.tgz"
           tar -xzf "$tools_dir/kustomize.tgz" -C "$tools_dir" kustomize
-          curl -fsSL https://github.com/kyverno/kyverno/releases/download/v1.19.2/kyverno-cli_v1.19.2_linux_x86_64.tar.gz -o "$tools_dir/kyverno.tgz"
-          tar -xzf "$tools_dir/kyverno.tgz" -C "$tools_dir" kyverno
+          python3 -m pip install PyYAML==6.0.3
+          TRUST_SCOPE=cli bash migration/kyverno/harness/trust.sh
+          cp .work/cel/bin/kyverno "$tools_dir/kyverno"
+          echo "KYVERNO_EXPECTED_VERSION=$(jq -er .application .work/cel/trust/target.json)" >> "$GITHUB_ENV"
           curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz -o "$tools_dir/kubeconform.tgz"
           tar -xzf "$tools_dir/kubeconform.tgz" -C "$tools_dir" kubeconform
           echo "$tools_dir" >> "$GITHUB_PATH"
@@ -50,12 +54,12 @@ jobs:
         # Passing offline checks does not authorize activation.
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
-        run: python3 scripts/ci/check_kubescape.py --base-ref "$BASE_REF"
+        run: python3 scripts/ci/check_kubescape.py --base-ref "$BASE_REF" --expected-kyverno-version "$KYVERNO_EXPECTED_VERSION"
 
       - name: Verify suspended staging against the released chart
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
-        run: python3 scripts/ci/check_kubescape.py --staged-review --base-ref "$BASE_REF"
+        run: python3 scripts/ci/check_kubescape.py --staged-review --base-ref "$BASE_REF" --expected-kyverno-version "$KYVERNO_EXPECTED_VERSION"
 
       - name: Validate rendered workloads and Flux integration
         shell: bash

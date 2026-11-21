@@ -1,0 +1,16 @@
+--- a/infra/kyverno/policies/kustomization.yaml
++++ b/infra/kyverno/policies/kustomization.yaml
+@@ -5,13 +5,4 @@
+ - platform-pod-standards.yaml
+ - policy-exception-accountability.yaml
+ - platform-flux-guardrails.yaml
+-- platform-namespace-bootstrap.yaml
+ - longhorn-csi-registrar-lifecycle.yaml
+-patches:
+-- target:
+-    kind: ClusterPolicy
+-    name: platform-namespace-bootstrap
+-  patch: "- op: add\n  path: /spec/rules/0/generate/orphanDownstreamOnPolicyDelete\n\
+-    \  value: true\n- op: add\n  path: /spec/rules/1/generate/orphanDownstreamOnPolicyDelete\n\
+-    \  value: true\n- op: add\n  path: /spec/rules/2/generate/orphanDownstreamOnPolicyDelete\n\
+-    \  value: true\n"

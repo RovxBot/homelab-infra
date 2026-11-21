@@ -1,0 +1,97 @@
+{
+  "status": "preflight only; deployment not qualified",
+  "date": "2026-11-21",
+  "base_commit": "2951cb17177c69e2f394bb55bb4ebf64cf8d39bb",
+  "candidate": {
+    "chart": "3.10.0",
+    "app": "v1.20.0",
+    "release_url": "https://github.com/kyverno/kyverno/releases/tag/v1.20.0",
+    "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+    "chart_sha256": "55961392dc0821eb367323f0e9585c061dd4407ef7ada921bd56ea1642c2a301",
+    "linux_x86_64_cli_archive_sha256": "06b8f3ca7b5626473be8fb4d343ad54ab84e317142766f72420e7d44b80942e2",
+    "checksums": "verified",
+    "signature_verification": "unavailable: Sigstore TUF trust service unreachable",
+    "expected_identity": "https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0",
+    "expected_issuer": "https://token.actions.githubusercontent.com",
+    "verifier": {
+      "name": "cosign",
+      "version": "v3.1.4",
+      "binary_sha256": "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa",
+      "bootstrap_verification": "GitHub release asset digest; no independent signature verification claimed"
+    }
+  },
+  "live_snapshot": {
+    "observed_at": "2026-11-21T00:34:42Z",
+    "legacy_clusterpolicies": 6,
+    "legacy_namespaced_policies": 2,
+    "legacy_policyexceptions": 6,
+    "cel_policies_and_exceptions": 0,
+    "update_requests": 0,
+    "bootstrap_labelled_namespaces": 0,
+    "all_bootstrap_resource_kinds_inspected": 28,
+    "bootstrap_target_names_found": 0,
+    "generation_or_kyverno_management_labels_found": 0,
+    "admission_replicas_ready": 2,
+    "resource_and_policy_webhooks": "Fail, 10s",
+    "helmrelease_ready": true,
+    "kyverno_policies_flux_ready": false,
+    "kyverno_policies_flux_reason": "policy-validation webhook timeout",
+    "governance_admission": "not qualified; kyverno namespace excluded by resource webhook; no native ValidatingAdmissionPolicy or bindings"
+  },
+  "tests": [
+    {
+      "name": "generation-source-current",
+      "status": "verified",
+      "source_commit": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+      "log_sha256": "3912f793283275383e5d9bc55cc874a00cb9c62d6003ff1488d9d8c2511192f3",
+      "limitation": "source/fake-client unit tests; not a Kubernetes/Flux migration rehearsal"
+    },
+    {
+      "name": "generation-source-target",
+      "status": "verified",
+      "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+      "log_sha256": "c7af582be7aaea7e241113c12928f93873c8755fbde649b56e0c903a2b31024a",
+      "limitation": "source/fake-client unit tests; not a Kubernetes/Flux migration rehearsal"
+    },
+    {
+      "name": "old-object-validation-source-current",
+      "status": "verified",
+      "source_commit": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+      "log_sha256": "b7469b3fed89cc585717eea405d9c439c514b32082daf27ae043508b37988d35",
+      "limitation": "source/fake-client unit tests; not a Kubernetes/Flux migration rehearsal"
+    },
+    {
+      "name": "config-webhook-gpol-validation-source-target",
+      "status": "verified",
+      "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+      "log_sha256": "a58febb31065d48e2a3ba1942884178934419ae0f55a387b2e50f64fd05ce8ba",
+      "limitation": "source/fake-client unit tests; not a Kubernetes/Flux migration rehearsal"
+    },
+    {
+      "name": "gpol-watcher-source-target",
+      "status": "verified",
+      "source_commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+      "log_sha256": "395f35358bec25c2217eddbe55501055b415e7de2e31e2060ce3c809088a006d",
+      "limitation": "source/fake-client unit tests; not a Kubernetes/Flux migration rehearsal"
+    }
+  ],
+  "inventory_check": "verified: 8 policies, 29 rules, 6 exceptions; 11 coverage/negative tests passed",
+  "policy_equivalence": "not run",
+  "generator_full_lifecycle_handoff": "not run",
+  "psa_migration_rehearsal": "not run",
+  "deployment_or_merge": "not performed",
+  "renovate_unpin": "not performed",
+  "repository_python_tests": {
+    "ci": 64,
+    "operational": 231,
+    "skipped": 0
+  },
+  "report_inventory_followup": {
+    "policyreports": 261,
+    "clusterpolicyreports": 70,
+    "globalcontextentries": 0,
+    "ephemeralreports": 0,
+    "clusterephemeralreports": 0,
+    "limitation": "transient read-only counts; no policy behavior conclusion"
+  }
+}

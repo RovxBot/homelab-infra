@@ -1,0 +1,1067 @@
+{
+  "schema_version": 1,
+  "status": "preflight only; no deployable CEL resources or qualified upgrade",
+  "base_commit": "2951cb17177c69e2f394bb55bb4ebf64cf8d39bb",
+  "observed_at": "2026-11-21T00:34:42Z",
+  "policies": [
+    {
+      "path": "infra/kyverno/policies/longhorn-csi-registrar-lifecycle.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "ClusterPolicy",
+      "namespace": "",
+      "name": "longhorn-csi-registrar-lifecycle",
+      "contract_sha256": "b3318e6fbac90f300bde4df79aa28c9c38aa4b4144bae0432c4f65cb59169090",
+      "rules": [
+        {
+          "name": "use-native-registrar-shutdown",
+          "action": "mutate",
+          "enforcement": "not applicable",
+          "background": false,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "MutatingPolicy",
+            "namespace": "",
+            "name": "longhorn-csi-registrar-lifecycle"
+          },
+          "test_cases": [
+            "exact DaemonSet/namespace/container zero",
+            "six image spellings",
+            "command[0] /bin/sh",
+            "adjacent identities unchanged",
+            "absent lifecycle/preStop/exec/command safe"
+          ],
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/policies/platform-flux-guardrails.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "ClusterPolicy",
+      "namespace": "",
+      "name": "platform-flux-guardrails",
+      "contract_sha256": "d571e849545fa9f430d13725b213eed8ec9a1c3e1e0c437759d84816df65f8c2",
+      "rules": [
+        {
+          "name": "audit-manual-edits-to-flux-managed-resources",
+          "action": "validate",
+          "enforcement": "Audit",
+          "background": false,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-flux-guardrails"
+          },
+          "test_cases": [
+            "manual CREATE/UPDATE/DELETE Audit and warning",
+            "DELETE oldObject",
+            "two Flux identities",
+            "absent label",
+            "excluded kinds/namespaces",
+            "exact Longhorn SA+BackupTarget+namespace",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/policies/platform-namespace-bootstrap.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "ClusterPolicy",
+      "namespace": "",
+      "name": "platform-namespace-bootstrap",
+      "contract_sha256": "92ed0ff123f1b4e0d04c08499663e11cff9b44f57c375ce77fcb1055b921d736",
+      "rules": [
+        {
+          "name": "generate-default-limitrange",
+          "action": "generate",
+          "enforcement": "not applicable",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "GeneratingPolicy",
+            "namespace": "",
+            "name": "platform-namespace-bootstrap"
+          },
+          "test_cases": [
+            "exact name/content and quantities",
+            "namespace selector/system exclusions",
+            "downstream/trigger/policy update/delete",
+            "restart and rollback",
+            "UID continuity"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "generate-default-resourcequota",
+          "action": "generate",
+          "enforcement": "not applicable",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "GeneratingPolicy",
+            "namespace": "",
+            "name": "platform-namespace-bootstrap"
+          },
+          "test_cases": [
+            "exact name/content and quantities",
+            "namespace selector/system exclusions",
+            "downstream/trigger/policy update/delete",
+            "restart and rollback",
+            "UID continuity"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "generate-default-networkpolicy",
+          "action": "generate",
+          "enforcement": "not applicable",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "GeneratingPolicy",
+            "namespace": "",
+            "name": "platform-namespace-bootstrap"
+          },
+          "test_cases": [
+            "exact ingress+egress default-deny with empty selector",
+            "namespace exclusions",
+            "drift repair",
+            "downstream/trigger/policy update/delete",
+            "UID and continuous deny"
+          ],
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/policies/platform-namespace-standards.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "ClusterPolicy",
+      "namespace": "",
+      "name": "platform-namespace-standards",
+      "contract_sha256": "399d3871ee3f16de5a4162db3cd3c888d6433d28724ee451119a0696a6e891b7",
+      "rules": [
+        {
+          "name": "require-psa-and-owner-labels",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-namespace-standards"
+          },
+          "test_cases": [
+            "all seven labels present",
+            "each missing/empty",
+            "five excluded namespaces",
+            "CREATE/UPDATE/background",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/policies/platform-pod-standards.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "ClusterPolicy",
+      "namespace": "",
+      "name": "platform-pod-standards",
+      "contract_sha256": "ef39e3d1357b01719a13b3383706cafae4fb394cdf81351fafa03e290e883a36",
+      "rules": [
+        {
+          "name": "require-owner-label",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-pod-standards-require-owner-label"
+          },
+          "test_cases": [
+            "regular and CronJob templates",
+            "absent/empty owner",
+            "missing alternate template path",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "require-requests-and-limits",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-pod-standards-require-requests-and-limits"
+          },
+          "test_cases": [
+            "all four quantities individually absent",
+            "requests/limits/resources absent",
+            "regular and init containers",
+            "optional initContainers absent",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "require-runtime-hardening",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-pod-standards-require-runtime-hardening"
+          },
+          "test_cases": [
+            "each hardening control individually invalid",
+            "pod/container inheritance",
+            "explicit false",
+            "init containers",
+            "optional fields absent",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "disallow-host-network",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-pod-standards-disallow-host-network"
+          },
+          "test_cases": [
+            "absent/false/true",
+            "regular and CronJob alternate anyPattern paths",
+            "exception boundaries",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "require-digest-pinned-images",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-pod-standards-require-digest-pinned-images"
+          },
+          "test_cases": [
+            "digest/tag/missing image",
+            "literal @sha256: semantics",
+            "regular versus init-container legacy coverage",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "disallow-latest-tags",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-pod-standards-disallow-latest-tags"
+          },
+          "test_cases": [
+            "latest/latest-suffix/ordinary tag/digest/missing",
+            "CronJob and Job prefix exception",
+            "init-container legacy coverage",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "require-probes",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "platform-pod-standards-require-probes"
+          },
+          "test_cases": [
+            "ports absent/empty/nonempty",
+            "both probes and each absent",
+            "Deployment/StatefulSet/DaemonSet versus Job/CronJob",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/policies/policy-exception-accountability.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "ClusterPolicy",
+      "namespace": "",
+      "name": "policy-exception-accountability",
+      "contract_sha256": "c532744b7d900d897da03a3e5ff3b24023fe597dd247da2dcb8f58a6d91485f0",
+      "rules": [
+        {
+          "name": "require-owner-reason-expiry-and-issue-tracking",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "ValidatingPolicy",
+            "namespace": "",
+            "name": "policy-exception-accountability"
+          },
+          "test_cases": [
+            "each field absent/empty",
+            "issue URL versus true marker",
+            "expired nonempty date",
+            "both exception APIs",
+            "actual admission in kyverno",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "path": "apps/gitea-runners/job-security.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "Policy",
+      "namespace": "gitea-jobs",
+      "name": "gitea-job-security",
+      "contract_sha256": "d199e9076d088f885838d0f6d140f3750719b17decb3d1c853865c5ac1bc9215",
+      "rules": [
+        {
+          "name": "restricted-with-sanitizer-capability",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "every Kubernetes 1.34 restricted control",
+            "pinned-image-specific exclusions",
+            "native privileged PSA enforcement and restricted audit/warn",
+            "host access/privilege/seccomp/AppArmor/SELinux/sysctls/ports/volumes",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "bound-job-environment",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "exact sam owner/job name/pinned image",
+            "token false",
+            "each budget missing",
+            "wowdecomp imagePullSecrets",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "one-job-container",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "one regular container",
+            "optional init/ephemeral arrays absent or empty",
+            "extra containers denied",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "drop-all-and-only-allow-ptrace",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "ALL drop required",
+            "SYS_PTRACE only add",
+            "missing/empty capability lists",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "ptrace-only-in-sanitizer-jobs",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "SYS_PTRACE with true sanitizer label",
+            "missing/false label denies",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "ordinary-job-identity",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "pod UID 1000 and nonroot true",
+            "job nonroot and optional UID 1000",
+            "other UID denies",
+            "missing optional UID",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "bounded-sanitizer-identity",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "true sanitizer label",
+            "job UID/GID 0/nonroot false",
+            "SYS_PTRACE/ALL exactly",
+            "additional capabilities denied",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "no-extra-job-credentials",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "gitea-jobs",
+            "name": "gitea-job-security"
+          },
+          "test_cases": [
+            "emptyDir/runner Secret allowed",
+            "other volume types denied",
+            "optional volumes absent",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        }
+      ]
+    },
+    {
+      "path": "apps/gitea-runners/wowdecomp/job-security.yaml",
+      "apiVersion": "kyverno.io/v1",
+      "kind": "Policy",
+      "namespace": "wowdecomp-ci-jobs",
+      "name": "wowdecomp-linux-security",
+      "contract_sha256": "f99aa14d6ea3d1e36f9fb683a0d3c71276578548dbfd9d9f8ada843e35fdf2a5",
+      "rules": [
+        {
+          "name": "restricted-with-sanitizer-capability",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "wowdecomp-ci-jobs",
+            "name": "wowdecomp-linux-security"
+          },
+          "test_cases": [
+            "every Kubernetes 1.34 restricted control",
+            "pinned-image-specific exclusions",
+            "native privileged PSA enforcement and restricted audit/warn",
+            "host access/privilege/seccomp/AppArmor/SELinux/sysctls/ports/volumes",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "bound-job-environment",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "wowdecomp-ci-jobs",
+            "name": "wowdecomp-linux-security"
+          },
+          "test_cases": [
+            "exact sam owner/job name/pinned image",
+            "token false",
+            "each budget missing",
+            "wowdecomp imagePullSecrets",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "one-job-container",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "wowdecomp-ci-jobs",
+            "name": "wowdecomp-linux-security"
+          },
+          "test_cases": [
+            "one regular container",
+            "optional init/ephemeral arrays absent or empty",
+            "extra containers denied",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "bounded-toolchain-capabilities",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "wowdecomp-ci-jobs",
+            "name": "wowdecomp-linux-security"
+          },
+          "test_cases": [
+            "ALL drop",
+            "only CHOWN/DAC_OVERRIDE/FOWNER/SETUID/SETGID/SYS_PTRACE",
+            "extra capability denied",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "no-extra-job-credentials",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "wowdecomp-ci-jobs",
+            "name": "wowdecomp-linux-security"
+          },
+          "test_cases": [
+            "emptyDir/runner Secret allowed",
+            "other volume types denied",
+            "optional volumes absent",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "no-mounted-registry-credential",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "wowdecomp-ci-jobs",
+            "name": "wowdecomp-linux-security"
+          },
+          "test_cases": [
+            "registry credential secret volume denies",
+            "other Secret allowed",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        },
+        {
+          "name": "no-registry-credential-in-environment",
+          "action": "validate",
+          "enforcement": "Enforce",
+          "background": true,
+          "target": {
+            "apiVersion": "policies.kyverno.io/v1",
+            "kind": "NamespacedValidatingPolicy",
+            "namespace": "wowdecomp-ci-jobs",
+            "name": "wowdecomp-linux-security"
+          },
+          "test_cases": [
+            "registry secretKeyRef/envFrom denied",
+            "other Secret and absent optional env fields allowed",
+            "excluded namespaces and applicable exception positives/negatives; CREATE/UPDATE existing violations; background result"
+          ],
+          "status": "not run"
+        }
+      ]
+    }
+  ],
+  "exceptions": [
+    {
+      "path": "infra/kyverno/exceptions/chart-managed-workloads.yaml",
+      "apiVersion": "kyverno.io/v2",
+      "kind": "PolicyException",
+      "namespace": "kyverno",
+      "name": "chart-managed-workloads",
+      "contract_sha256": "fe716bfd07ebb66ffeac2a9e65e77500530f72a81bb7541b54a6c64c6c05c35f",
+      "legacy_policy_refs": [
+        {
+          "policyName": "platform-pod-standards",
+          "ruleNames": [
+            "require-requests-and-limits",
+            "require-owner-label",
+            "require-probes"
+          ]
+        }
+      ],
+      "match": {
+        "any": [
+          {
+            "resources": {
+              "kinds": [
+                "Pod",
+                "Deployment",
+                "StatefulSet",
+                "DaemonSet",
+                "Job",
+                "CronJob"
+              ],
+              "namespaces": [
+                "longhorn-system"
+              ]
+            }
+          }
+        ]
+      },
+      "governance": {
+        "labels": {
+          "homelab.cooked.beer/owner": "platform"
+        },
+        "annotations": {
+          "kyverno.cooked.beer/reason": "Helm-managed platform namespaces do not expose consistent workload owner labels, service probes, or resource budgets.",
+          "kyverno.cooked.beer/expires-at": "2026-12-21",
+          "github.cooked.beer/issue-create": "true",
+          "github.cooked.beer/issue-url": "https://github.com/RovxBot/homelab-infra/issues/2133"
+        }
+      },
+      "test_cases": [
+        "all match.any branches retain OR and internal AND/cartesian semantics",
+        "positive exception skips only named targets; adjacent name/kind/namespace remains enforced",
+        "owner/reason/expiry/issue marker retained; missing governance denied"
+      ],
+      "status": "not run",
+      "target_policy_refs": [
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-owner-label"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-probes"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-requests-and-limits"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/exceptions/gpu-operator-workloads.yaml",
+      "apiVersion": "kyverno.io/v2",
+      "kind": "PolicyException",
+      "namespace": "kyverno",
+      "name": "gpu-operator-workloads",
+      "contract_sha256": "c5e1cd9760f2ed75612e9c5effd0d24f0b4eb9557b5413aae62e0dfc594c6d3e",
+      "legacy_policy_refs": [
+        {
+          "policyName": "platform-pod-standards",
+          "ruleNames": [
+            "require-owner-label",
+            "require-requests-and-limits",
+            "require-runtime-hardening",
+            "disallow-host-network",
+            "require-digest-pinned-images",
+            "require-probes"
+          ]
+        }
+      ],
+      "match": {
+        "any": [
+          {
+            "resources": {
+              "kinds": [
+                "Pod",
+                "Deployment",
+                "StatefulSet",
+                "DaemonSet",
+                "Job",
+                "CronJob"
+              ],
+              "namespaces": [
+                "gpu-operator"
+              ]
+            }
+          }
+        ]
+      },
+      "governance": {
+        "labels": {
+          "homelab.cooked.beer/owner": "platform"
+        },
+        "annotations": {
+          "kyverno.cooked.beer/reason": "NVIDIA GPU Operator and Node Feature Discovery need host-level hardware access; Talos remains the provider of the driver and container toolkit.",
+          "kyverno.cooked.beer/expires-at": "2026-12-21",
+          "github.cooked.beer/issue-create": "true",
+          "github.cooked.beer/issue-url": "https://github.com/RovxBot/homelab-infra/issues/2133"
+        }
+      },
+      "test_cases": [
+        "all match.any branches retain OR and internal AND/cartesian semantics",
+        "positive exception skips only named targets; adjacent name/kind/namespace remains enforced",
+        "owner/reason/expiry/issue marker retained; missing governance denied"
+      ],
+      "status": "not run",
+      "target_policy_refs": [
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-disallow-host-network"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-digest-pinned-images"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-owner-label"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-probes"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-requests-and-limits"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-runtime-hardening"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/exceptions/home-assistant.yaml",
+      "apiVersion": "kyverno.io/v2",
+      "kind": "PolicyException",
+      "namespace": "kyverno",
+      "name": "home-assistant",
+      "contract_sha256": "00a3d2fe12b66f84e501428b736cc40ee8628c94acc2166428afe6e96fc7def3",
+      "legacy_policy_refs": [
+        {
+          "policyName": "platform-pod-standards",
+          "ruleNames": [
+            "disallow-host-network",
+            "require-runtime-hardening"
+          ]
+        }
+      ],
+      "match": {
+        "any": [
+          {
+            "resources": {
+              "kinds": [
+                "Deployment"
+              ],
+              "names": [
+                "home-assistant"
+              ],
+              "namespaces": [
+                "home-assistant"
+              ]
+            }
+          }
+        ]
+      },
+      "governance": {
+        "labels": {
+          "homelab.cooked.beer/owner": "platform"
+        },
+        "annotations": {
+          "kyverno.cooked.beer/reason": "Home Assistant Container requires host networking for LAN multicast discovery and its upstream S6 init process currently starts as UID 0. The Deployment still drops all Linux capabilities, disallows privilege escalation, and uses RuntimeDefault seccomp.",
+          "kyverno.cooked.beer/expires-at": "2027-02-28",
+          "github.cooked.beer/issue-create": "true"
+        }
+      },
+      "test_cases": [
+        "all match.any branches retain OR and internal AND/cartesian semantics",
+        "positive exception skips only named targets; adjacent name/kind/namespace remains enforced",
+        "owner/reason/expiry/issue marker retained; missing governance denied"
+      ],
+      "status": "not run",
+      "target_policy_refs": [
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-disallow-host-network"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-runtime-hardening"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/exceptions/mutable-image-tags.yaml",
+      "apiVersion": "kyverno.io/v2",
+      "kind": "PolicyException",
+      "namespace": "kyverno",
+      "name": "mutable-image-tags",
+      "contract_sha256": "cdfb4b869f5fa6efb1d3f64c05cab903aeba17ecd14f24bf0418099ab0d595ad",
+      "legacy_policy_refs": [
+        {
+          "policyName": "platform-pod-standards",
+          "ruleNames": [
+            "require-digest-pinned-images"
+          ]
+        }
+      ],
+      "match": {
+        "any": [
+          {
+            "resources": {
+              "namespaces": [
+                "longhorn-system",
+                "wireguard",
+                "wotlk"
+              ]
+            }
+          },
+          {
+            "resources": {
+              "kinds": [
+                "Deployment",
+                "CronJob",
+                "StatefulSet"
+              ],
+              "names": [
+                "cloudflared",
+                "grimguzzler-registration",
+                "homepage-assets",
+                "pod-report"
+              ],
+              "namespaces": [
+                "cloudflared",
+                "homepage",
+                "wotlk"
+              ]
+            }
+          }
+        ]
+      },
+      "governance": {
+        "labels": {
+          "homelab.cooked.beer/owner": "platform"
+        },
+        "annotations": {
+          "kyverno.cooked.beer/reason": "Selected workloads still rely on tag-based updates or upstream-managed image tags.",
+          "kyverno.cooked.beer/expires-at": "2026-12-21",
+          "github.cooked.beer/issue-create": "true",
+          "github.cooked.beer/issue-url": "https://github.com/RovxBot/homelab-infra/issues/2133"
+        }
+      },
+      "test_cases": [
+        "all match.any branches retain OR and internal AND/cartesian semantics",
+        "positive exception skips only named targets; adjacent name/kind/namespace remains enforced",
+        "owner/reason/expiry/issue marker retained; missing governance denied"
+      ],
+      "status": "not run",
+      "target_policy_refs": [
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-digest-pinned-images"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/exceptions/privileged-namespaces.yaml",
+      "apiVersion": "kyverno.io/v2",
+      "kind": "PolicyException",
+      "namespace": "kyverno",
+      "name": "privileged-namespaces",
+      "contract_sha256": "d28676d694ee0d5ecc1824d44d3e2f75960a2bfcb2f3b270537d76146fa669ea",
+      "legacy_policy_refs": [
+        {
+          "policyName": "platform-pod-standards",
+          "ruleNames": [
+            "require-runtime-hardening",
+            "disallow-host-network"
+          ]
+        }
+      ],
+      "match": {
+        "any": [
+          {
+            "resources": {
+              "namespaces": [
+                "longhorn-system",
+                "wireguard",
+                "wotlk"
+              ]
+            }
+          }
+        ]
+      },
+      "governance": {
+        "labels": {
+          "homelab.cooked.beer/owner": "platform"
+        },
+        "annotations": {
+          "kyverno.cooked.beer/reason": "Certain namespaces run storage, networking, or game workloads that need privileged runtime behavior.",
+          "kyverno.cooked.beer/expires-at": "2026-12-21",
+          "github.cooked.beer/issue-create": "true",
+          "github.cooked.beer/issue-url": "https://github.com/RovxBot/homelab-infra/issues/2133"
+        }
+      },
+      "test_cases": [
+        "all match.any branches retain OR and internal AND/cartesian semantics",
+        "positive exception skips only named targets; adjacent name/kind/namespace remains enforced",
+        "owner/reason/expiry/issue marker retained; missing governance denied"
+      ],
+      "status": "not run",
+      "target_policy_refs": [
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-disallow-host-network"
+        },
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-require-runtime-hardening"
+        }
+      ]
+    },
+    {
+      "path": "infra/kyverno/exceptions/wotlk-latest-tag.yaml",
+      "apiVersion": "kyverno.io/v2",
+      "kind": "PolicyException",
+      "namespace": "kyverno",
+      "name": "wotlk-latest-tag",
+      "contract_sha256": "a8ee29775694eb87972b877fe43cdde3ef730cb731ecfb5a0c50fc848785536b",
+      "legacy_policy_refs": [
+        {
+          "policyName": "platform-pod-standards",
+          "ruleNames": [
+            "disallow-latest-tags"
+          ]
+        }
+      ],
+      "match": {
+        "any": [
+          {
+            "resources": {
+              "kinds": [
+                "CronJob"
+              ],
+              "names": [
+                "wotlk-weekly-restart"
+              ],
+              "namespaces": [
+                "wotlk"
+              ]
+            }
+          },
+          {
+            "resources": {
+              "kinds": [
+                "Job"
+              ],
+              "names": [
+                "wotlk-weekly-restart*"
+              ],
+              "namespaces": [
+                "wotlk"
+              ]
+            }
+          }
+        ]
+      },
+      "governance": {
+        "labels": {
+          "homelab.cooked.beer/owner": "platform"
+        },
+        "annotations": {
+          "kyverno.cooked.beer/reason": "The weekly WotLK restart job intentionally tracks the latest built image tag.",
+          "kyverno.cooked.beer/expires-at": "2026-12-05",
+          "github.cooked.beer/issue-create": "true",
+          "github.cooked.beer/issue-url": "https://github.com/RovxBot/homelab-infra/issues/2133"
+        }
+      },
+      "test_cases": [
+        "all match.any branches retain OR and internal AND/cartesian semantics",
+        "positive exception skips only named targets; adjacent name/kind/namespace remains enforced",
+        "owner/reason/expiry/issue marker retained; missing governance denied"
+      ],
+      "status": "not run",
+      "target_policy_refs": [
+        {
+          "kind": "ValidatingPolicy",
+          "name": "platform-pod-standards-disallow-latest-tags"
+        }
+      ]
+    }
+  ],
+  "maintenance_review": "Task 20, 22 November 2026: metadata-only bounded renewal of five exceptions; original spec/match and policy targets unchanged. Historical snapshot remains in #2159."
+}

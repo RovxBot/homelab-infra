@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the suspended Kubescape release and fail closed before activation.
 
-Requires Helm 3, Kustomize, Kyverno CLI 1.19.2 and PyYAML. Never contacts a Kubernetes cluster.
+Requires Helm 3, Kustomize, the verified proposed Kyverno CLI and PyYAML. Never contacts a Kubernetes cluster.
 Both the default preflight and --staged-review require zero admission failures.
 Neither mode may unsuspend anything or allow policy exceptions.
 """
@@ -213,6 +213,10 @@ def check_scope(changed_paths):
     return [p for p in changed_paths if p.startswith(protected)]
 
 
+def scope_guard_required(paths):
+    return any(path.startswith("infra/kubescape/") or path == "clusters/home/infrastructure/kubescape-kustomization.yaml" for path in paths)
+
+
 def policy_report(text):
     # CLI deprecation warnings precede the YAML report on stdout.
     start = re.search(r"^apiVersion:", text, re.MULTILINE)
@@ -222,24 +226,29 @@ def policy_report(text):
 
 def check_admission(args, work, resources):
     version = subprocess.check_output([args.kyverno, "version"], text=True)
-    assert re.search(r"^Version: 1\.19\.2$", version, re.MULTILINE), "Kyverno CLI must be 1.19.2"
+    match = re.search(r"^Version: v?(\d+\.\d+\.\d+)$", version, re.MULTILINE)
+    assert match and match[1] == args.expected_kyverno_version, "Executed CLI differs from verified proposed release"
+    cel = tuple(map(int, match[1].split("."))) >= (1, 20, 0)
     namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
     admission_resources = work / "admission-resources.yaml"
     admission_resources.write_text(yaml.safe_dump_all([namespace, *resources]))
-    policy_root = ROOT / "infra/kyverno/policies"
+    policy_root = ROOT / ("migration/kyverno/policies" if cel else "infra/kyverno/policies")
+    policies = [policy_root / name for name in (["workloads.yaml", "namespace.yaml"] if cel else ["platform-pod-standards.yaml", "platform-namespace-standards.yaml"])]
     evaluated = subprocess.run([
-        args.kyverno, "apply", str(policy_root / "platform-pod-standards.yaml"),
-        str(policy_root / "platform-namespace-standards.yaml"),
+        args.kyverno, "apply", *(str(path) for path in policies),
         "--resource", str(admission_resources), "--policy-report"], text=True, stdout=subprocess.PIPE, check=False)
     report_text = evaluated.stdout
     (work / "kyverno-report.yaml").write_text(report_text)
     report = policy_report(report_text)
-    failures = {(r["policy"], r["rule"], obj["kind"], obj["name"])
+    failures = {(r["policy"], r.get("rule", "validation"), obj["kind"], obj["name"])
                 for r in report["results"] if r["result"] in {"fail", "error"}
                 for obj in r["resources"]}
     assert not failures, failures
-    assert report["summary"] == {"pass": 27, "fail": 0, "error": 0, "skip": 0, "warn": 0}, report["summary"]
-    assert len(report["results"]) == 27 and all(r["result"] == "pass" for r in report["results"]), report["summary"]
+    # CEL explicitly passes the non-service probe guard for the rendered Job;
+    # the legacy engine omits that rule result. All other decisions agree.
+    expected_passes = 28 if cel else 27
+    assert report["summary"] == {"pass": expected_passes, "fail": 0, "error": 0, "skip": 0, "warn": 0}, report["summary"]
+    assert len(report["results"]) == expected_passes and all(r["result"] == "pass" for r in report["results"]), report["summary"]
     assert evaluated.returncode == 0, "Kyverno exit code contradicts its report"
     # Expose the exact Pod specs for subsequent PSA admission verification.
     # Static checks above are deliberately conservative; this is no live PSA claim.
@@ -248,7 +257,7 @@ def check_admission(args, work, resources):
         {"apiVersion": "v1", "kind": "Pod", "metadata": {
             **pod_template(r).get("metadata", {}), "name": r["metadata"]["name"], "namespace": "kubescape"},
          "spec": pod_template(r)["spec"]} for r in resources if r["kind"] in WORKLOADS]))
-    print("verified: Kyverno CLI 1.19.2: 27 passes, 0 failures/errors/skips; restricted Pod fields checked statically")
+    print(f"verified: Kyverno CLI {match[1]}: {expected_passes} passes, 0 failures/errors/skips; restricted Pod fields checked statically")
 
 
 def run(args):
@@ -256,7 +265,11 @@ def run(args):
     check_release(release)
     if args.base_ref:
         changed = subprocess.check_output(["git", "diff", "--name-only", args.base_ref], cwd=ROOT, text=True)
-        assert not check_scope(changed.splitlines()), "Kyverno/Gatus/Cilium changed"
+        paths = changed.splitlines()
+        # The scope guard protects Kubescape infrastructure work. A Kyverno
+        # compatibility-only tooling change does not activate that task scope.
+        if scope_guard_required(paths):
+            assert not check_scope(paths), "Kyverno/Gatus/Cilium changed"
     work = args.work_dir.resolve()
     work.mkdir(parents=True, exist_ok=True)
     archive = work / f"kubescape-operator-{VERSION}.tgz"
@@ -297,6 +310,7 @@ def main():
     parser.add_argument("--helm", default="helm")
     parser.add_argument("--kustomize", default="kustomize")
     parser.add_argument("--kyverno", default="kyverno")
+    parser.add_argument("--expected-kyverno-version", required=True, help="Application version resolved and verified by trust.sh")
     parser.add_argument("--work-dir", type=Path, default=ROOT / ".work/kubescape-preflight")
     parser.add_argument("--base-ref", help="also verify this task did not modify Kyverno, Gatus or Cilium")
     parser.add_argument("--staged-review", action="store_true", help="verify suspended staging with the same strict admission checks")

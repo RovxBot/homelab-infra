@@ -1,0 +1,34 @@
+{
+  "status": "verified",
+  "run": "https://github.com/RovxBot/homelab-infra/actions/runs/44894792843",
+  "qualified_commit": "3e42e03d8335a8f4ec9e8302778ede4386d77a38",
+  "chart": "3.10.0",
+  "application": "1.20.0",
+  "scenarios": [
+    {
+      "scenario": "mutation",
+      "status": "verified",
+      "results_sha256": "218708be069a8f7ca44c1778b0314a960a6808dbcaeab5b01bb09566db192b48",
+      "verified_records": 6
+    },
+    {
+      "scenario": "namespace-lifecycle",
+      "status": "verified",
+      "results_sha256": "0ac5d2bff6ec1cdeb50e1f0a05777bb68ecfc4f676628a0e3e4706c7c90f5572",
+      "verified_records": 38
+    },
+    {
+      "scenario": "production-sequence",
+      "status": "verified",
+      "results_sha256": "c9bc88987e0273d65463a6e964a9845bbaab615c7b3ebb70687742e5b7083f64",
+      "verified_records": 75
+    },
+    {
+      "scenario": "validation",
+      "status": "verified",
+      "results_sha256": "1dff78fdc9ee84351d174ad06ddd68f470ef2adea12d0b0e2a5b86c2a32f5782",
+      "verified_records": 305
+    }
+  ],
+  "production_acceptance": "not run; isolated qualification only"
+}

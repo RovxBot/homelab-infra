@@ -1,0 +1,61 @@
+{
+  "status": "verified",
+  "scope": "filesystem only; production not contacted",
+  "stages": [
+    {
+      "patch": "00-protect-runner-namespaces-and-admission-drain.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "d1c86701d76a8b944035ce1b60b043f1cf2be9f5f3657b81f3ae901024de1bd6"
+    },
+    {
+      "patch": "01-overlap-cel-and-reporting.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "b3f6c2e79cf05e48cb9a6b0d6d9e327268c1d17adf456732b5c5351759a5b2c3"
+    },
+    {
+      "patch": "02a-freeze.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "fdfe2522fd0c312504de9d122592140f6f3df23285e4f1d9dd0e44f586cc838e"
+    },
+    {
+      "patch": "02b-orphan-legacy-before-retirement.patch",
+      "status": "verified",
+      "legacy_objects": 12,
+      "render_sha256": "44c1b31dd27c9cdb31cadf45ebe2ca4f6afa06dc09da97bc3bdf1d19c940e4a5"
+    },
+    {
+      "patch": "02c-retire-empty-legacy-generator.patch",
+      "status": "verified",
+      "legacy_objects": 11,
+      "render_sha256": "5e9e7991091144d858025c9105693794b3d82634db4a13e04217b3bedf45c72a"
+    },
+    {
+      "patch": "02d-qualify-flux-onboarding-contract.patch",
+      "status": "verified",
+      "legacy_objects": 11,
+      "render_sha256": "e799bbb3bc13747de994c9a7e52717f7bbd9701295fb1edffe3001cc808c3e7f"
+    },
+    {
+      "patch": "02e-thaw.patch",
+      "status": "verified",
+      "legacy_objects": 11,
+      "render_sha256": "ad4ddee46247703e232cb32628703a77efad7055d791bc46243c5baa96aa3c2d"
+    },
+    {
+      "patch": "03-retire-legacy-after-acceptance.patch",
+      "status": "verified",
+      "legacy_objects": 0,
+      "render_sha256": "0e941b41dca5a63d8b8081c13b8266ada1e50deceb3284a737e6bcae59c2ed55"
+    },
+    {
+      "patch": "04-qualified-upgrade-and-renovate.patch",
+      "status": "verified",
+      "legacy_objects": 0,
+      "render_sha256": "0e941b41dca5a63d8b8081c13b8266ada1e50deceb3284a737e6bcae59c2ed55"
+    }
+  ],
+  "renovate_after_cap_removal": "verified"
+}

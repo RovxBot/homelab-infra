@@ -1,0 +1,170 @@
+[
+  {
+    "source_policy": "platform-namespace-standards",
+    "source_rule": "require-psa-and-owner-labels",
+    "name": "platform-namespace-standards",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-pod-standards",
+    "source_rule": "require-owner-label",
+    "name": "platform-pod-standards-require-owner-label",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-pod-standards",
+    "source_rule": "require-requests-and-limits",
+    "name": "platform-pod-standards-require-requests-and-limits",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-pod-standards",
+    "source_rule": "require-runtime-hardening",
+    "name": "platform-pod-standards-require-runtime-hardening",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-pod-standards",
+    "source_rule": "disallow-host-network",
+    "name": "platform-pod-standards-disallow-host-network",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-pod-standards",
+    "source_rule": "require-digest-pinned-images",
+    "name": "platform-pod-standards-require-digest-pinned-images",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-pod-standards",
+    "source_rule": "disallow-latest-tags",
+    "name": "platform-pod-standards-disallow-latest-tags",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-pod-standards",
+    "source_rule": "require-probes",
+    "name": "platform-pod-standards-require-probes",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "platform-flux-guardrails",
+    "source_rule": "audit-manual-edits-to-flux-managed-resources",
+    "name": "platform-flux-guardrails",
+    "kind": "ValidatingPolicy",
+    "namespace": ""
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "restricted-with-sanitizer-capability",
+    "name": "gitea-job-security-restricted-with-sanitizer-capability",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "bound-job-environment",
+    "name": "gitea-job-security-bound-job-environment",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "one-job-container",
+    "name": "gitea-job-security-one-job-container",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "drop-all-and-only-allow-ptrace",
+    "name": "gitea-job-security-drop-all-and-only-allow-ptrace",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "ptrace-only-in-sanitizer-jobs",
+    "name": "gitea-job-security-ptrace-only-in-sanitizer-jobs",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "ordinary-job-identity",
+    "name": "gitea-job-security-ordinary-job-identity",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "bounded-sanitizer-identity",
+    "name": "gitea-job-security-bounded-sanitizer-identity",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "gitea-job-security",
+    "source_rule": "no-extra-job-credentials",
+    "name": "gitea-job-security-no-extra-job-credentials",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "gitea-jobs"
+  },
+  {
+    "source_policy": "wowdecomp-linux-security",
+    "source_rule": "restricted-with-sanitizer-capability",
+    "name": "wowdecomp-linux-security-restricted-with-sanitizer-capability",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "wowdecomp-ci-jobs"
+  },
+  {
+    "source_policy": "wowdecomp-linux-security",
+    "source_rule": "bound-job-environment",
+    "name": "wowdecomp-linux-security-bound-job-environment",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "wowdecomp-ci-jobs"
+  },
+  {
+    "source_policy": "wowdecomp-linux-security",
+    "source_rule": "one-job-container",
+    "name": "wowdecomp-linux-security-one-job-container",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "wowdecomp-ci-jobs"
+  },
+  {
+    "source_policy": "wowdecomp-linux-security",
+    "source_rule": "bounded-toolchain-capabilities",
+    "name": "wowdecomp-linux-security-bounded-toolchain-capabilities",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "wowdecomp-ci-jobs"
+  },
+  {
+    "source_policy": "wowdecomp-linux-security",
+    "source_rule": "no-extra-job-credentials",
+    "name": "wowdecomp-linux-security-no-extra-job-credentials",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "wowdecomp-ci-jobs"
+  },
+  {
+    "source_policy": "wowdecomp-linux-security",
+    "source_rule": "no-mounted-registry-credential",
+    "name": "wowdecomp-linux-security-no-mounted-registry-credential",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "wowdecomp-ci-jobs"
+  },
+  {
+    "source_policy": "wowdecomp-linux-security",
+    "source_rule": "no-registry-credential-in-environment",
+    "name": "wowdecomp-linux-security-no-registry-credential-in-environment",
+    "kind": "NamespacedValidatingPolicy",
+    "namespace": "wowdecomp-ci-jobs"
+  }
+]

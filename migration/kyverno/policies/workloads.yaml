@@ -1,0 +1,443 @@
+# DRAFT: integration fixtures only; activation gates are not satisfied.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-pod-standards-require-owner-label
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    migration.cooked.beer/source-policy: platform-pod-standards
+    migration.cooked.beer/source-rule: require-owner-label
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  matchConditions:
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: legacy-existing-violation
+    expression: 'request.operation != ''UPDATE'' || oldObject == null || ((oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('''') != '''')
+      || ((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('''')
+      != '''')'
+  validations:
+  - expression: '(object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).metadata.?labels.orValue({})[?"homelab.cooked.beer/owner"].orValue('''')
+      != '''''
+    message: Workload pod templates must carry the homelab owner label.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-pod-standards-require-requests-and-limits
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    migration.cooked.beer/source-policy: platform-pod-standards
+    migration.cooked.beer/source-rule: require-requests-and-limits
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  matchConditions:
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: legacy-existing-violation
+    expression: 'request.operation != ''UPDATE'' || oldObject == null || (((oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?containers.orValue([]) + (oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?initContainers.orValue([])).all(c, c.?resources.?requests.orValue({})[?''cpu''].orValue('''')
+      != '''' && c.?resources.?requests.orValue({})[?''memory''].orValue('''') != '''' && c.?resources.?limits.orValue({})[?''cpu''].orValue('''')
+      != '''' && c.?resources.?limits.orValue({})[?''memory''].orValue('''') != '''')) || (((object.kind == ''CronJob''
+      ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([]) + (object.kind
+      == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?initContainers.orValue([])).all(c,
+      c.?resources.?requests.orValue({})[?''cpu''].orValue('''') != '''' && c.?resources.?requests.orValue({})[?''memory''].orValue('''')
+      != '''' && c.?resources.?limits.orValue({})[?''cpu''].orValue('''') != '''' && c.?resources.?limits.orValue({})[?''memory''].orValue('''')
+      != ''''))'
+  validations:
+  - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])
+      + (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?initContainers.orValue([])).all(c,
+      c.?resources.?requests.orValue({})[?''cpu''].orValue('''') != '''' && c.?resources.?requests.orValue({})[?''memory''].orValue('''')
+      != '''' && c.?resources.?limits.orValue({})[?''cpu''].orValue('''') != '''' && c.?resources.?limits.orValue({})[?''memory''].orValue('''')
+      != '''')'
+    message: Containers in workload pod templates must define CPU and memory requests and limits.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-pod-standards-require-runtime-hardening
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    migration.cooked.beer/source-policy: platform-pod-standards
+    migration.cooked.beer/source-rule: require-runtime-hardening
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  matchConditions:
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: legacy-existing-violation
+    expression: 'request.operation != ''UPDATE'' || oldObject == null || (((oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?containers.orValue([]) + (oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?initContainers.orValue([])).all(c, (c.?securityContext.?runAsNonRoot.orValue(false)
+      || (oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template : oldObject.spec.template).spec.?securityContext.?runAsNonRoot.orValue(false))
+      && c.?securityContext.?allowPrivilegeEscalation.orValue(true) == false && !c.?securityContext.?privileged.orValue(false)
+      && ''ALL'' in c.?securityContext.?capabilities.?drop.orValue([]) && (c.?securityContext.?seccompProfile.?type.orValue('''')
+      != '''' ? c.securityContext.seccompProfile.type : (oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?securityContext.?seccompProfile.?type.orValue('''')) == ''RuntimeDefault''))
+      || (((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])
+      + (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?initContainers.orValue([])).all(c,
+      (c.?securityContext.?runAsNonRoot.orValue(false) || (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template
+      : object.spec.template).spec.?securityContext.?runAsNonRoot.orValue(false)) && c.?securityContext.?allowPrivilegeEscalation.orValue(true)
+      == false && !c.?securityContext.?privileged.orValue(false) && ''ALL'' in c.?securityContext.?capabilities.?drop.orValue([])
+      && (c.?securityContext.?seccompProfile.?type.orValue('''') != '''' ? c.securityContext.seccompProfile.type
+      : (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?securityContext.?seccompProfile.?type.orValue(''''))
+      == ''RuntimeDefault''))'
+  validations:
+  - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])
+      + (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?initContainers.orValue([])).all(c,
+      (c.?securityContext.?runAsNonRoot.orValue(false) || (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template
+      : object.spec.template).spec.?securityContext.?runAsNonRoot.orValue(false)) && c.?securityContext.?allowPrivilegeEscalation.orValue(true)
+      == false && !c.?securityContext.?privileged.orValue(false) && ''ALL'' in c.?securityContext.?capabilities.?drop.orValue([])
+      && (c.?securityContext.?seccompProfile.?type.orValue('''') != '''' ? c.securityContext.seccompProfile.type
+      : (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?securityContext.?seccompProfile.?type.orValue(''''))
+      == ''RuntimeDefault'')'
+    message: Containers should run as non-root, disable privilege escalation, drop all capabilities, avoid privileged
+      mode, and use RuntimeDefault seccomp.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-pod-standards-disallow-host-network
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    migration.cooked.beer/source-policy: platform-pod-standards
+    migration.cooked.beer/source-rule: disallow-host-network
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  matchConditions:
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: legacy-existing-violation
+    expression: 'request.operation != ''UPDATE'' || oldObject == null || (!(oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?hostNetwork.orValue(false)) || (!(object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template
+      : object.spec.template).spec.?hostNetwork.orValue(false))'
+  validations:
+  - expression: '!(object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?hostNetwork.orValue(false)'
+    message: hostNetwork should only be used via an explicit exception.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-pod-standards-require-digest-pinned-images
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    migration.cooked.beer/source-policy: platform-pod-standards
+    migration.cooked.beer/source-rule: require-digest-pinned-images
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  matchConditions:
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: legacy-existing-violation
+    expression: 'request.operation != ''UPDATE'' || oldObject == null || (((oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?containers.orValue([])).all(c, c.?image.orValue('''').contains(''@sha256:'')))
+      || (((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
+      c.?image.orValue('''').contains(''@sha256:'')))'
+  validations:
+  - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
+      c.?image.orValue('''').contains(''@sha256:''))'
+    message: Container images in workload pod templates should be pinned by digest.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-pod-standards-disallow-latest-tags
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    migration.cooked.beer/source-policy: platform-pod-standards
+    migration.cooked.beer/source-rule: disallow-latest-tags
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  matchConditions:
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: legacy-existing-violation
+    expression: 'request.operation != ''UPDATE'' || oldObject == null || (((oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?containers.orValue([])).all(c, !c.?image.orValue('''').contains('':latest'')))
+      || (((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
+      !c.?image.orValue('''').contains('':latest'')))'
+  validations:
+  - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
+      !c.?image.orValue('''').contains('':latest''))'
+    message: latest tags are not allowed without an explicit exception.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-pod-standards-require-probes
+  annotations:
+    policies.kyverno.io/title: Platform Pod Standards
+    policies.kyverno.io/category: Security, Operations
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    migration.cooked.beer/source-policy: platform-pod-standards
+    migration.cooked.beer/source-rule: require-probes
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+  matchConditions:
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: legacy-existing-violation
+    expression: 'request.operation != ''UPDATE'' || oldObject == null || (((oldObject.kind == ''CronJob'' ? oldObject.spec.jobTemplate.spec.template
+      : oldObject.spec.template).spec.?containers.orValue([])).all(c, c.?ports.orValue([]).size() == 0 || (has(c.readinessProbe)
+      && has(c.livenessProbe)))) || (((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
+      c.?ports.orValue([]).size() == 0 || (has(c.readinessProbe) && has(c.livenessProbe))))'
+  validations:
+  - expression: '((object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template : object.spec.template).spec.?containers.orValue([])).all(c,
+      c.?ports.orValue([]).size() == 0 || (has(c.readinessProbe) && has(c.livenessProbe)))'
+    message: Containers that expose ports should define readiness and liveness probes.

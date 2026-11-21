@@ -1,0 +1,14 @@
+{
+  "longhorn": {
+    "chart": "1.13.0",
+    "committed_values_equal_live": true,
+    "committed_post_renderers_equal_live": true,
+    "sha256": "49a55ce810c63e54b01cbeb00d02b6695654ccca464c81e25888c7ff2fb0eb05"
+  },
+  "gpu-operator": {
+    "chart": "v26.7.2",
+    "committed_values_equal_live": true,
+    "committed_post_renderers_equal_live": true,
+    "sha256": "a2ae3d0c53c5bd1c9889ec1657f3dd231ad0222523e9714ebfe745e0aafd1fde"
+  }
+}
