@@ -60,6 +60,8 @@ spec:
       replicas: 1
       image:
         registry: ghcr.io
+      podAnnotations:
+        migration.cooked.beer/namespace-generator-retired: 'true'
     cleanupController:
       replicas: 1
       image:
