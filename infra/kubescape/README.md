@@ -5,8 +5,8 @@ Production activation qualification: 22 November 2026, from main `ac958cb5`.
 The release is active through the dedicated Flux child Kustomization, with
 health waiting enabled. **The posture CronJob stays suspended.** Only one
 manual NSA canary is authorized; recurring scans require separate acceptance.
-Actual deployment and canary evidence is recorded on the tracking issue and
-in the production baseline once the assessment completes.
+Actual deployment, canary findings, measured consumption and coverage limits
+are recorded in the [production baseline](production-baseline.md) and tracking issue.
 
 ## Bounded configuration
 
@@ -110,6 +110,7 @@ kubectl -n kubescape logs job/kubescape-canary-001
 kubectl -n kubescape get operatorcommands.kubescape.io -o yaml
 kubectl -n memos get workloadconfigurationscans.spdx.softwarecomposition.kubescape.io -o json
 kubectl -n memos get workloadconfigurationscansummaries.spdx.softwarecomposition.kubescape.io -o json
+kubectl -n memos get workloadconfigurationscansummaries deployment-memos -o json
 ```
 
 Job completion proves command submission only. Require the created command's
@@ -118,6 +119,13 @@ with Memos namespace, workload identity, scan time, NSA coverage and evaluated
 passes/findings. Correlate command GUID and times with logs. Record unsupported
 checks separately; empty, missing, stale and incomplete scans must never count
 as clean. Keep raw reports locally; publish only summarized evidence.
+
+The production canary established that list responses omit control details and
+return zero severities even for failing workloads. **GET each summary by name**
+to read actual controls/severities. Full WorkloadConfigurationScan objects were
+not emitted by this configuration; named WorkloadConfigurationScanSummary GETs
+provide persisted evaluated passes and failures. OperatorCommand completion
+precedes the asynchronous scan: require fresh nonempty named summaries as well.
 
 Gatus follow-up should independently check component readiness/APIService and
 scan completion/freshness through an authenticated collector with read-only
