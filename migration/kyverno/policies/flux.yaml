@@ -1,0 +1,48 @@
+# DRAFT: integration fixtures only; activation gates are not satisfied.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: platform-flux-guardrails
+  annotations:
+    migration.cooked.beer/source-policy: platform-flux-guardrails
+    migration.cooked.beer/source-rule: audit-manual-edits-to-flux-managed-resources
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Audit
+  - Warn
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - '*'
+      apiVersions:
+      - '*'
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - '*'
+  matchConditions:
+  - name: has-flux-label
+    expression: '''kustomize.toolkit.fluxcd.io/name'' in (object == null ? oldObject : object).metadata.?labels.orValue({})'
+  - name: excluded-namespaces
+    expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
+  - name: excluded-kinds
+    expression: '!((object == null ? oldObject : object).kind in [''Endpoints'',''EndpointSlice'',''PolicyReport'',''ClusterPolicyReport''])'
+  - name: longhorn-controller
+    expression: '!(request.resource.group == ''longhorn.io'' && request.resource.resource == ''backuptargets'' &&
+      request.namespace == ''longhorn-system'' && request.userInfo.username == ''system:serviceaccount:longhorn-system:longhorn-service-account'')'
+  validations:
+  - expression: request.userInfo.username in ['system:serviceaccount:flux-system:helm-controller','system:serviceaccount:flux-system:kustomize-controller']
+    message: audit-manual-edits-to-flux-managed-resources

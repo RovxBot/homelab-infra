@@ -1,0 +1,146 @@
+# DRAFT: integration fixtures only; activation gates are not satisfied.
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: chart-managed-workloads
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: Helm-managed platform namespaces do not expose consistent workload owner labels,
+      service probes, or resource budgets.
+    kyverno.cooked.beer/expires-at: '2026-08-31'
+    github.cooked.beer/issue-create: 'true'
+spec:
+  policyRefs:
+  - name: platform-pod-standards-require-owner-label
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-require-requests-and-limits
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-require-probes
+    kind: ValidatingPolicy
+  matchConditions:
+  - name: legacy-scope
+    expression: ((object.kind == "Pod" || object.kind == "Deployment" || object.kind == "StatefulSet" || object.kind
+      == "DaemonSet" || object.kind == "Job" || object.kind == "CronJob") && (request.namespace == "longhorn-system"))
+---
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: gpu-operator-workloads
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: NVIDIA GPU Operator and Node Feature Discovery need host-level hardware access;
+      Talos remains the provider of the driver and container toolkit.
+    kyverno.cooked.beer/expires-at: '2026-10-31'
+    github.cooked.beer/issue-create: 'true'
+spec:
+  policyRefs:
+  - name: platform-pod-standards-require-owner-label
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-require-requests-and-limits
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-require-runtime-hardening
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-disallow-host-network
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-require-digest-pinned-images
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-require-probes
+    kind: ValidatingPolicy
+  matchConditions:
+  - name: legacy-scope
+    expression: ((object.kind == "Pod" || object.kind == "Deployment" || object.kind == "StatefulSet" || object.kind
+      == "DaemonSet" || object.kind == "Job" || object.kind == "CronJob") && (request.namespace == "gpu-operator"))
+---
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: home-assistant
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: Home Assistant Container requires host networking for LAN multicast discovery and
+      its upstream S6 init process currently starts as UID 0. The Deployment still drops all Linux capabilities,
+      disallows privilege escalation, and uses RuntimeDefault seccomp.
+    kyverno.cooked.beer/expires-at: '2027-02-28'
+    github.cooked.beer/issue-create: 'true'
+spec:
+  policyRefs:
+  - name: platform-pod-standards-require-runtime-hardening
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-disallow-host-network
+    kind: ValidatingPolicy
+  matchConditions:
+  - name: legacy-scope
+    expression: ((object.kind == "Deployment") && (request.namespace == "home-assistant") && (object.metadata.name
+      == "home-assistant"))
+---
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: mutable-image-tags
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: Selected workloads still rely on tag-based updates or upstream-managed image tags.
+    kyverno.cooked.beer/expires-at: '2026-08-31'
+    github.cooked.beer/issue-create: 'true'
+spec:
+  policyRefs:
+  - name: platform-pod-standards-require-digest-pinned-images
+    kind: ValidatingPolicy
+  matchConditions:
+  - name: legacy-scope
+    expression: ((request.namespace == "longhorn-system" || request.namespace == "wireguard" || request.namespace
+      == "wotlk")) || ((object.kind == "Deployment" || object.kind == "CronJob" || object.kind == "StatefulSet")
+      && (request.namespace == "cloudflared" || request.namespace == "homepage" || request.namespace == "wotlk")
+      && (object.metadata.name == "cloudflared" || object.metadata.name == "grimguzzler-registration" || object.metadata.name
+      == "homepage-assets" || object.metadata.name == "pod-report"))
+---
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: privileged-namespaces
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: Certain namespaces run storage, networking, or game workloads that need privileged
+      runtime behavior.
+    kyverno.cooked.beer/expires-at: '2026-08-31'
+    github.cooked.beer/issue-create: 'true'
+spec:
+  policyRefs:
+  - name: platform-pod-standards-require-runtime-hardening
+    kind: ValidatingPolicy
+  - name: platform-pod-standards-disallow-host-network
+    kind: ValidatingPolicy
+  matchConditions:
+  - name: legacy-scope
+    expression: ((request.namespace == "longhorn-system" || request.namespace == "wireguard" || request.namespace
+      == "wotlk"))
+---
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: wotlk-latest-tag
+  namespace: kyverno
+  labels:
+    homelab.cooked.beer/owner: platform
+  annotations:
+    kyverno.cooked.beer/reason: The weekly WotLK restart job intentionally tracks the latest built image tag.
+    kyverno.cooked.beer/expires-at: '2026-08-31'
+    github.cooked.beer/issue-create: 'true'
+spec:
+  policyRefs:
+  - name: platform-pod-standards-disallow-latest-tags
+    kind: ValidatingPolicy
+  matchConditions:
+  - name: legacy-scope
+    expression: ((object.kind == "CronJob") && (request.namespace == "wotlk") && (object.metadata.name == "wotlk-weekly-restart"))
+      || ((object.kind == "Job") && (request.namespace == "wotlk") && (object.metadata.name.startsWith("wotlk-weekly-restart")))

@@ -16,15 +16,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  artifact-trust:
+  rehearsal:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Verify official trust, release identity, signatures and provenance
+        id: trust
+        continue-on-error: true
         run: bash migration/kyverno/harness/trust.sh
+      - name: Install test dependencies
+        run: python3 -m pip install PyYAML==6.0.3
+      - name: Rehearse in a disposable Kubernetes cluster
+        env:
+          CANDIDATE_TRUST: ${{ steps.trust.outcome }}
+        run: timeout 1500 bash migration/kyverno/harness/run.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
@@ -33,4 +41,8 @@ jobs:
             .work/cel/trust/*.json
             .work/cel/trust/*.log
             .work/cel/trust/status
+            .work/cel/evidence/**
           retention-days: 14
+      - name: Retain artifact trust gate
+        if: always() && steps.trust.outcome != 'success'
+        run: exit 1

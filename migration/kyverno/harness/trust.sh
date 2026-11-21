@@ -10,7 +10,7 @@ chmod +x .work/cel/bin/cosign
 # Use a fresh official TUF root, never a workstation mirror or cached trust store.
 export XDG_CACHE_HOME="$PWD/.work/cel/trust/cache"
 mkdir -p "$XDG_CACHE_HOME"
-fetch https://tuf-repo-cdn.sigstore.dev/root.json .work/cel/trust/official-root.json
+fetch https://tuf-repo-cdn.sigstore.dev/15.root.json .work/cel/trust/official-root.json
 issuer=https://token.actions.githubusercontent.com
 identity=https://github.com/kyverno/kyverno/.github/workflows/release-publish.yaml@refs/tags/v1.20.0
 base=https://github.com/kyverno/kyverno/releases/download/v1.20.0
