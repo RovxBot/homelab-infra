@@ -1,8 +1,7 @@
 # Review-only until phase 02d. Quantity-map equality is checked by rendered
-# bundle CI: native structural CEL projection omits those fields. Native guards
-# restrict the authenticated writer and enforce the accessible shape/network spec.
-# Namespace selection uses namespaceSelector: namespaceObject is unavailable in
-# matchConditions, but available in validations.
+# bundle CI; native guards restrict authenticated writers and accessible shapes.
+# Contract-only malformed enrollment can prove the permanent guard under freeze.
+# Namespace selection uses namespaceSelector, not namespaceObject in matchConditions.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -25,9 +24,11 @@ spec:
   - name: target
     expression: 'request.operation == ''DELETE'' ? oldObject : object'
   - name: enrolled
-    expression: variables.target.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
-      == 'enabled' || (oldObject != null && oldObject.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
-      == 'enabled')
+    expression: (variables.target.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled') || (variables.target.metadata.?annotations.orValue({})[?'homelab.cooked.beer/namespace-contract'].orValue('')
+      == 'flux-v1') || (oldObject != null && ((oldObject.metadata.?labels.orValue({})[?'homelab.cooked.beer/bootstrap'].orValue('')
+      == 'enabled') || (oldObject.metadata.?annotations.orValue({})[?'homelab.cooked.beer/namespace-contract'].orValue('')
+      == 'flux-v1')))
   validations:
   - expression: '!variables.enrolled || (request.userInfo.username == ''system:serviceaccount:flux-system:kustomize-controller'')'
     message: Bootstrap enrollment and lifecycle require the Flux kustomize-controller

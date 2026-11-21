@@ -20,10 +20,12 @@ def expected(root=ROOT):
 
 def check_bundle(docs, root=ROOT):
     errors = []
-    namespaces = [d for d in docs if d['kind'] == 'Namespace' and d['metadata'].get('labels', {}).get(LABEL) == 'enabled']
+    namespaces = [d for d in docs if d['kind'] == 'Namespace' and (d['metadata'].get('labels', {}).get(LABEL) == 'enabled' or d['metadata'].get('annotations', {}).get(CONTRACT) == 'flux-v1')]
     wants = expected(root)
     for ns in namespaces:
         meta = ns['metadata']; name = meta['name']; labels = meta.get('labels', {}); annotations = meta.get('annotations', {})
+        if labels.get(LABEL) != 'enabled':
+            errors.append(f'{name}: contract intent requires the bootstrap marker')
         if name in RESERVED or name == 'namespace-placeholder':
             errors.append(f'{name}: reserved or unsubstituted namespace')
         if labels.get('app.kubernetes.io/managed-by') != 'Flux' or annotations.get(CONTRACT) != 'flux-v1':

@@ -64,8 +64,20 @@ def empty_retirement(flux):
             live_guard = get(guard['kind'],guard['metadata']['name'])
             (EVIDENCE/('native-'+guard['metadata']['name']+'.json')).write_text(json.dumps(live_guard,indent=2)+'\n')
             assert not live_guard['status']['typeChecking'].get('expressionWarnings'), live_guard['status']
+    # The freeze allows contract-only requests without the bootstrap label.
+    # Their denial therefore proves the permanent binding independently.
+    probe = next(d for d in bundle() if d['kind']=='Namespace')
+    probe['metadata']['labels'].update({'kustomize.toolkit.fluxcd.io/name':'namespace-'+NS,'kustomize.toolkit.fluxcd.io/namespace':'flux-system'})
+    malformed = copy.deepcopy(probe)
+    malformed['metadata']['labels'].pop('homelab.cooked.beer/bootstrap')
+    def permanent_active():
+        result = admission(malformed,user=FLUX_USER,check_policy=False)
+        return not result['allowed'] and 'flux-namespace-enrollment' in result['stderr']
+    wait('permanent guard proven independently under freeze',permanent_active)
+    record('permanent-guard-before-thaw',status='verified',probe='contract-only intent; temporary freeze does not match')
     inventory('safeguards-ready-before-thaw')
     flux.commit(guards, 'replace-freeze-with-gitops-contract')
+    wait('complete Flux enrollment allowed after freeze cache removal',lambda:admission(probe,user=FLUX_USER,check_policy=False)['allowed'])
     record('legacy-generator-retirement', status='verified', ownership_transfer=False, cel_generator_activated=False, empty_rollback='verified')
     return guards
 

@@ -20,6 +20,35 @@ def module(name):
     obj=importlib.util.module_from_spec(spec);spec.loader.exec_module(obj);return obj
 
 
+class AdmissionConflictTests(unittest.TestCase):
+    def fixture(self):
+        return dict(apiVersion='apps/v1',kind='Deployment',metadata=dict(name='probe',namespace='isolated',resourceVersion='1'),spec=dict(replicas=0))
+
+    def test_update_conflict_refreshes_only_version(self):
+        rehearsal=module('rehearse');doc=self.fixture()
+        conflict=subprocess.CompletedProcess([],1,'','Error from server (Conflict): object modified')
+        allowed=subprocess.CompletedProcess([],0,'{}','')
+        with patch.object(rehearsal,'k',side_effect=[conflict,allowed]) as invoke,patch.object(rehearsal,'get',return_value=dict(metadata=dict(resourceVersion='2'))),patch.object(rehearsal.time,'sleep'):
+            self.assertTrue(rehearsal.admission(doc,'UPDATE',check_policy=False)['allowed'])
+        submitted=yaml.safe_load(invoke.call_args.kwargs['data'])
+        self.assertEqual(submitted,{**doc,'metadata':{**doc['metadata'],'resourceVersion':'2'}})
+        self.assertEqual(doc['metadata']['resourceVersion'],'1')
+
+    def test_exhausted_conflict_is_never_a_denial(self):
+        rehearsal=module('rehearse')
+        conflict=subprocess.CompletedProcess([],1,'','Error from server (Conflict): object modified')
+        with patch.object(rehearsal,'k',return_value=conflict),patch.object(rehearsal,'get',return_value=dict(metadata=dict(resourceVersion='2'))),patch.object(rehearsal.time,'sleep'):
+            with self.assertRaisesRegex(AssertionError,'not a policy decision'):
+                rehearsal.admission(self.fixture(),'UPDATE',check_policy=False)
+
+    def test_actual_policy_denial_is_not_retried(self):
+        rehearsal=module('rehearse')
+        denied=subprocess.CompletedProcess([],1,'','admission webhook kyverno denied the request')
+        with patch.object(rehearsal,'k',return_value=denied) as invoke:
+            self.assertFalse(rehearsal.admission(self.fixture(),'UPDATE')['allowed'])
+        self.assertEqual(invoke.call_count,1)
+
+
 class EmptyStateGateTests(unittest.TestCase):
     def test_unavailable_runner_probe_cannot_qualify_continuity(self):
         sys.path.insert(0,str(ROOT/'migration/kyverno/harness'))

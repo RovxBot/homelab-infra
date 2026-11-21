@@ -294,7 +294,18 @@ def admission(doc, operation="CREATE", check_policy=True, user=None):
     ]
     if user:
         args += ["--as", user]
-    p = k(*args, data=yaml.safe_dump(doc), check=False)
+    for attempt in range(4):
+        p = k(*args, data=yaml.safe_dump(doc), check=False)
+        if operation != "UPDATE" or "(Conflict)" not in p.stderr or not p.returncode:
+            break
+        if attempt == 3:
+            raise AssertionError("Optimistic concurrency failure is not a policy decision: " + p.stderr)
+        # Controller status writes may race dry-run UPDATE fixtures. Keep the
+        # intended object unchanged except for its current resourceVersion.
+        current = get(doc["kind"], doc["metadata"]["name"], doc["metadata"].get("namespace", ""))
+        doc = copy.deepcopy(doc)
+        doc["metadata"]["resourceVersion"] = current["metadata"]["resourceVersion"]
+        time.sleep(0.1)
     allowed = p.returncode == 0
     if (
         not allowed

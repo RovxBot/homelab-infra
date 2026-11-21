@@ -35,6 +35,11 @@ class NamespaceBundleTests(unittest.TestCase):
                 target['spec'] = {}
             self.assertTrue(self.errors(bad), obj['kind'])
 
+    def test_contract_only_partial_enrollment_fails(self):
+        ns=next(d for d in self.docs if d['kind']=='Namespace')
+        ns['metadata']['labels'].pop(contract.LABEL)
+        self.assertTrue(self.errors())
+
     def test_missing_dependency_and_unsafe_prune_fail(self):
         self.workload['spec'].pop('dependsOn')
         self.assertTrue(self.errors())
