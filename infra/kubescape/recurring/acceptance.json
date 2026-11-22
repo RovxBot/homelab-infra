@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-11-22T06:19:33Z",
+  "scope": "Memos-only production template qualification before second-cohort review",
+  "initialMemosVulnerability": {
+    "state": "healthy",
+    "mode": "manual-production-template",
+    "job": "kubescape/assessment-vulnerability-acceptance-002",
+    "requestID": "recurring-6bf5b7f70a294d268cb7ca618f5aa967",
+    "reportCreatedAt": "2026-11-22T05:02:57Z",
+    "imageDigest": "sha256:5dcd6e6b973a55b964f2fe2ccdaa33319463ab448a23404ebb5d2acbd19299ba",
+    "databaseArchiveSha256": "921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+    "jobCompletedAt": "2026-11-22T05:03:04Z",
+    "matches": 7,
+    "distinctAdvisories": 5,
+    "evidence": "https://github.com/RovxBot/homelab-infra/issues/2135#issuecomment-7074646631"
+  },
+  "initialMemosPosture": {
+    "state": "healthy",
+    "mode": "manual-production-template",
+    "job": "kubescape/assessment-posture-acceptance-001",
+    "scanID": "b1c25214-ac95-4c04-bdf4-5d6e77f1fc43",
+    "jobCompletedAt": "2026-11-22T05:25:44Z",
+    "createdAt": "2026-11-22T05:25:40.852260Z",
+    "persistedSummaries": 24,
+    "nativeControls": {
+      "Passed": 18,
+      "Failed": 3,
+      "ActionRequired": 5
+    },
+    "reportedControlsBeforeFix": {
+      "Passed": 15,
+      "Failed": 3,
+      "NotEvaluated": 8
+    },
+    "correctedStatusAggregationCommit": "fc968fbf078330a447ef6d6b3a04ccc41366d2eb",
+    "evidence": "https://github.com/RovxBot/homelab-infra/issues/2135#issuecomment-7074762889"
+  },
+  "secondCohort": {
+    "identity": "homepage/Deployment/homepage-assets/nginx",
+    "imageDigest": "sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e",
+    "deployedImage": "nginxinc/nginx-unprivileged:1.31-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e",
+    "readyReplicas": 1,
+    "verified": "2026-11-22T06:19:33Z",
+    "mechanism": "Sequential under existing PVC flock, 0 client retries, existing resource gates",
+    "assessmentState": "not_yet_run",
+    "notes": "Second image selected only; scanner run and new saved-report attribution are not yet qualified. No claim of unattended coverage."
+  },
+  "stillOutstanding": [
+    "First unattended vulnerability and posture cycle",
+    "Second-image fresh matching and attributed persisted summary",
+    "Resource sampling and physical storage after cohort expansion",
+    "Runtime status ConfigMap Flux ownership/guardrail warning",
+    "GitHub Wiki operations update"
+  ],
+  "restrictions": [
+    "Do not widen scanner concurrency or queues",
+    "Keep chart schedulers suspended",
+    "No admission/Kyverno/Cilium changes in cohort PR",
+    "No scan remediations or extra PVCs"
+  ]
+}
