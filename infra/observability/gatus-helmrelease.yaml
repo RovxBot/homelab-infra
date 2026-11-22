@@ -220,6 +220,18 @@ spec:
               failure-threshold: 3
               success-threshold: 20
               send-on-resolved: true
+        - name: kubescape-assessments
+          group: cluster
+          url: http://pod-report.homepage.svc.cluster.local:80/kubescape-health.json
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+            - "[BODY].status == healthy"
+            - "[BODY].vulnerability.evidenceAgeSeconds <= 259200"
+            - "[BODY].posture.evidenceAgeSeconds <= 93600"
+            # pod-report readiness removes endpoints after five minutes without a report.
+          alerts:
+            - type: github
         - name: cloudflared-metrics
           group: cluster
           url: http://cloudflared-metrics.cloudflared.svc.cluster.local:2000/metrics

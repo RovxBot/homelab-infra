@@ -24,7 +24,9 @@ IMAGE = "quay.io/kubescape/grype-offline-db"
 REGISTRY = "https://quay.io/v2/kubescape/grype-offline-db/"
 PUBLISHER = "https://grype.anchore.io/databases/v6/latest.json"
 PUBLISHERS = (PUBLISHER, "https://toolbox-data.anchore.io/grype/databases/v6/latest.json")
-MAX_AGE_HOURS = 72
+MAX_AGE_HOURS = 72  # New proposals must still be recent.
+DATABASE_FRESH_HOURS = 7 * 24
+DATABASE_MAXIMUM_HOURS = 14 * 24
 SCHEMAS = {"v6.1.10"}  # Qualified with Grype 0.121.0. Changes require review.
 MARGIN = 512 * 1024**2
 MAX_DATABASE = 5 * 1024**3
@@ -90,8 +92,15 @@ def metadata(document, now=None):
     name = document.get("path", "")
     require(bool(re.fullmatch(r"vulnerability-db_v6\.[0-9]+\.[0-9]+_[A-Za-z0-9_:.-]+\.tar\.zst", name)),
             "invalid_archive_path")
-    require(age_hours(document.get("built"), now) <= MAX_AGE_HOURS, "stale_database")
+    age_hours(document.get("built"), now)  # Validate the timestamp independently of age policy.
     return document
+
+
+def database_freshness(built, now=None):
+    age = age_hours(built, now)
+    return {"ageHours": round(age, 6),
+            "state": "fresh" if age <= DATABASE_FRESH_HOURS else "grace" if age <= DATABASE_MAXIMUM_HOURS else "expired",
+            "freshHours": DATABASE_FRESH_HOURS, "maximumAgeHours": DATABASE_MAXIMUM_HOURS}
 
 
 def publisher_match(mirror, publisher, now=None):
@@ -116,6 +125,7 @@ def publisher_metadata():
         try:
             body, _ = get_bytes(url, accept="application/json")
             document = metadata(json.loads(body))
+            require(age_hours(document["built"]) <= MAX_AGE_HOURS, "stale_database")
             return document, {"status": "verified", "method": "independent-publisher-https-metadata",
                               "url": url, "retrievedAt": stamp(utcnow()),
                               "documentSHA256": digest_bytes(body), "document": document,
@@ -285,6 +295,7 @@ def qualify(reference, work):
     result = verify_image(reference, work)
     publisher, evidence = publisher_metadata()
     publisher_match(result["metadata"], publisher)
+    require(age_hours(result["metadata"]["built"]) <= MAX_AGE_HOURS, "stale_database")
     result["publisher"] = evidence
     result["state"] = "verified"
     return result

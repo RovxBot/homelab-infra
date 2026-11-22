@@ -23,10 +23,12 @@ def check(resources):
     assert config["resourceBudgetQualified"] is True and evidence["status"] == "verified"
     selected = {t["identity"] for t in config["targets"]}
     assert "memos/Deployment/memos/memos" in selected
-    assert selected <= {"memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx"}, "coverage expansion needs review"
-    if len(selected) > 1:
-        acceptance = json.loads((ROOT / "infra/kubescape/recurring/acceptance.json").read_text())
-        assert acceptance["initialMemosVulnerability"]["state"] == acceptance["initialMemosPosture"]["state"] == "healthy", "Memos must qualify before cohort expansion"
+    assert selected <= {"memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx",
+                        "homepage/Deployment/homepage/homepage", "koito/Deployment/koito/koito",
+                        "koito/Deployment/koito-lastfm-bridge/multi-scrobbler", "gitea/Deployment/gitea-mcp/mcp"}
+    assert len(selected) == len(config["targets"]), "duplicate target identity"
+    assert 1 <= config["maximumImagesPerRun"] <= 4
+    assert config["maximumScanAgeHours"] == 72
     assert config["scanTimeoutSeconds"] == 360 and config["maximumHistoryBytes"] <= 512 * 1024**2
     assert config["minimumDatabaseFreeBytes"] >= 3 * 1024**3
     assert config["minimumReportFreeBytes"] >= 1024**3

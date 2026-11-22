@@ -295,7 +295,25 @@ def check_post_render(raw, rendered):
 
 def check_scope(changed_paths):
     protected = ("infra/kyverno/", "infra/kyverno-policies/", "infra/observability/", "infra/cilium/")
-    return [p for p in changed_paths if p.startswith(protected)]
+    return [p for p in changed_paths if p.startswith(protected) and p != "infra/observability/gatus-helmrelease.yaml"]
+
+
+def check_assessment_alert(before, after):
+    """Only the explicitly requested Gatus endpoint may change with this rollout."""
+    expected = {"name": "kubescape-assessments", "group": "cluster",
+                "url": "http://pod-report.homepage.svc.cluster.local:80/kubescape-health.json",
+                "interval": "1m", "conditions": ["[STATUS] == 200", "[BODY].status == healthy",
+                    "[BODY].vulnerability.evidenceAgeSeconds <= 259200", "[BODY].posture.evidenceAgeSeconds <= 93600"],
+                "alerts": [{"type": "github"}]}
+    before, after = json.loads(json.dumps(before)), json.loads(json.dumps(after))
+    for document in (before, after):
+        endpoints = document["spec"]["values"]["config"]["endpoints"]
+        matching = [e for e in endpoints if e["name"] == expected["name"]]
+        assert len(matching) <= 1
+        if matching:
+            assert matching[0] == expected, "assessment alert differs"
+            endpoints.remove(matching[0])
+    assert before == after, "Gatus changed outside the assessment endpoint"
 
 
 def scope_guard_required(paths):
@@ -364,7 +382,11 @@ def run(args):
         # The scope guard protects Kubescape infrastructure work. A Kyverno
         # compatibility-only tooling change does not activate that task scope.
         if scope_guard_required(paths):
-            assert not check_scope(paths), "Kyverno/Gatus/Cilium changed"
+            assert not check_scope(paths), "Protected infrastructure changed"
+            alert_path = "infra/observability/gatus-helmrelease.yaml"
+            if alert_path in paths:
+                before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + alert_path], cwd=ROOT))
+                check_assessment_alert(before, yaml.safe_load((ROOT / alert_path).read_text()))
     work = args.work_dir.resolve()
     work.mkdir(parents=True, exist_ok=True)
     archive = work / f"kubescape-operator-{VERSION}.tgz"
@@ -409,7 +431,7 @@ def main():
     parser.add_argument("--kyverno", default="kyverno")
     parser.add_argument("--expected-kyverno-version", required=True, help="Application version resolved and verified by trust.sh")
     parser.add_argument("--work-dir", type=Path, default=ROOT / ".work/kubescape-preflight")
-    parser.add_argument("--base-ref", help="also verify this task did not modify Kyverno, Gatus or Cilium")
+    parser.add_argument("--base-ref", help="verify protected infrastructure and the scoped assessment alert")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--staged-review", action="store_true", help="verify suspended staging with the same strict admission checks")
     mode.add_argument("--active-review", action="store_true", help="qualify an active release with Flux health waiting and suspended scheduler")

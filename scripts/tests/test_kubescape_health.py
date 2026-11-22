@@ -1,0 +1,91 @@
+"""Run pod-report's actual assessment health function with bounded API fixtures."""
+from datetime import datetime, timedelta, timezone
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+NOW = datetime(2026, 11, 22, 8, tzinfo=timezone.utc)
+
+
+def stamp(hours):
+    return (NOW - timedelta(hours=hours)).isoformat().replace('+00:00', 'Z')
+
+
+class AssessmentHealthTests(unittest.TestCase):
+    def health(self, values=None, error=False):
+        source = yaml.safe_load((ROOT / 'infra/pod-report/deployment.yaml').read_text())
+        source = source['spec']['template']['spec']['containers'][0]['args'][0]
+        source = source.split('while true; do', 1)[0]
+        # Load the deployed functions; no cluster health or inventory calls run.
+        source = source[source.index('assessment_health() {'):]
+        with tempfile.TemporaryDirectory() as path:
+            root = Path(path)
+            kubectl = root / 'kubectl'
+            kubectl.write_text('#!/bin/sh\nprintf "%s" "$ASSESSMENT_FIXTURE"\nexit "$ASSESSMENT_ERROR"\n')
+            kubectl.chmod(0o755)
+            date = root / 'date'
+            date.write_text('''#!/usr/bin/env python3
+from datetime import datetime, timezone
+import sys
+try:
+    args = sys.argv[1:]
+    value = datetime.fromisoformat(args[args.index('-d') + 1].replace('Z', '+00:00')) if '-d' in args else datetime.fromtimestamp(1795334400, timezone.utc)
+    print(int(value.timestamp()) if args[-1] == '+%s' else value.strftime('%Y-%m-%dT%H:%M:%SZ'))
+except Exception:
+    sys.exit(1)
+''')
+            date.chmod(0o755)
+            values = values or [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
+            result = subprocess.run(['sh', '-c', 'set -eu\n' + source.replace('/work/', str(root) + '/') + '\nassessment_health\n'],
+                                    env=dict(os.environ, PATH=str(root) + ':' + os.environ['PATH'],
+                                             ASSESSMENT_FIXTURE='|'.join(values), ASSESSMENT_ERROR=str(int(error))),
+                                    text=True, capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads((root / 'kubescape-health.json').read_text())
+
+    def test_recent_success_ages_and_grace_are_reported(self):
+        result = self.health([stamp(24), stamp(24), 'failed', 'healthy', stamp(9 * 24)])
+        self.assertEqual(result['status'], 'healthy')
+        self.assertEqual(result['vulnerability']['evidenceAgeSeconds'], 86400)
+        self.assertEqual(result['vulnerability']['lastAttemptState'], 'failed')
+        self.assertEqual(result['databaseFreshness'], 'grace')
+        self.assertEqual(result['database']['evidenceAgeSeconds'], 9 * 86400)
+
+    def test_modes_expire_independently_and_future_is_unknown(self):
+        for values, mode, state in [
+            ([stamp(73), stamp(24), 'healthy', 'healthy', stamp(24)], 'vulnerability', 'stale'),
+            ([stamp(24), stamp(27), 'healthy', 'healthy', stamp(24)], 'posture', 'stale'),
+            ([stamp(-1), stamp(24), 'healthy', 'healthy', stamp(24)], 'vulnerability', 'unknown'),
+            ([stamp(24), stamp(24), 'healthy', 'healthy', stamp(15 * 24)], 'database', 'stale'),
+        ]:
+            with self.subTest(mode=mode, state=state):
+                result = self.health(values)
+                self.assertEqual(result['status'], state)
+                self.assertEqual(result[mode]['state'], state)
+
+    def test_missing_failed_and_untrusted_api_data_stays_minimal(self):
+        for error in (False, True):
+            result = self.health(['raw-vulnerability-secret', '', 'unsafe', '', 'invalid'], error)
+            self.assertEqual(result['status'], 'unknown')
+            self.assertIsNone(result['vulnerability']['evidenceAgeSeconds'])
+            self.assertNotIn('raw-vulnerability-secret', json.dumps(result))
+            self.assertNotIn('unsafe', json.dumps(result))
+
+    def test_reader_can_get_only_the_named_status_configmap(self):
+        resources = list(yaml.safe_load_all((ROOT / 'infra/kubescape/recurring/rbac.yaml').read_text()))
+        role = next(r for r in resources if r['kind'] == 'Role' and r['metadata']['name'] == 'pod-report-assessment-status')
+        self.assertEqual(role['metadata']['namespace'], 'kubescape')
+        self.assertEqual(role['rules'], [{'apiGroups': [''], 'resources': ['configmaps'],
+                                         'resourceNames': ['kubescape-assessment-status'], 'verbs': ['get']}])
+        binding = next(r for r in resources if r['kind'] == 'RoleBinding' and r['metadata']['name'] == role['metadata']['name'])
+        self.assertEqual(binding['subjects'], [{'kind': 'ServiceAccount', 'name': 'pod-report', 'namespace': 'homepage'}])
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -2,7 +2,7 @@ name: Grype Database Refresh
 
 on:
   schedule:
-    - cron: "19 7 * * *"
+    - cron: "19 18 * * 0" # Monday 04:49 ACDT / 03:49 ACST, before daily assessments.
   workflow_dispatch:
 
 permissions:
