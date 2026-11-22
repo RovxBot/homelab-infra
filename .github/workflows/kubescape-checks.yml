@@ -64,6 +64,15 @@ jobs:
           if ! git diff --quiet "$BASE_REF" -- infra/kubescape/grype-database.json; then
             digest=$(python3 -c 'import json; print(json.load(open("infra/kubescape/grype-database.json"))["indexDigest"])')
             python3 scripts/grype_db.py --reference "$digest" --output .work/grype-db/ci-verification.json
+            python3 - <<'PY'
+          import json
+          actual = json.load(open('.work/grype-db/ci-verification.json'))
+          locked = json.load(open('infra/kubescape/grype-database.json'))
+          for field in ('image', 'indexDigest', 'manifestDigest', 'configDigest',
+                        'layers', 'metadata', 'database', 'storage'):
+              assert actual[field] == locked[field], f'Locked database evidence differs: {field}'
+          assert actual['publisher']['document'] == locked['publisher']['document']
+          PY
           fi
 
       - name: Preserve independent database verification
