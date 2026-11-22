@@ -212,6 +212,18 @@ def main():
             name="excluded-kinds",
             expression="!((request.operation == 'DELETE' ? oldObject : object).kind in ['Endpoints','EndpointSlice','PolicyReport','ClusterPolicyReport'])",
         ),
+        # Exactly one runtime-only ConfigMap updater, without disabling the
+        # Flux audit for other users, resource names or operations.
+        dict(
+            name="kubescape-assessment-status-writer",
+            expression=(
+                "!(request.operation == 'UPDATE' && request.resource.group == '' "
+                "&& request.resource.version == 'v1' && request.resource.resource == 'configmaps' "
+                "&& request.?namespace.orValue('') == 'kubescape' "
+                "&& request.name == 'kubescape-assessment-status' "
+                "&& request.userInfo.username == 'system:serviceaccount:kubescape:kubescape-assessment')"
+            ),
+        ),
         dict(
             name="longhorn-controller",
             expression="!(request.resource.group == 'longhorn.io' && request.resource.version == 'v1beta2' && request.resource.resource == 'backuptargets' && request.namespace == 'longhorn-system' && request.userInfo.username == 'system:serviceaccount:longhorn-system:longhorn-service-account')",
