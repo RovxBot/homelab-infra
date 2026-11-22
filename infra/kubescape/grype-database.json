@@ -1,4 +1,9 @@
 {
+  "ciVerification": {
+    "headSHA": "ea0267cb493aba6a7e850b4ee3d7b5758e59d23f",
+    "status": "verified",
+    "url": "https://github.com/RovxBot/homelab-infra/actions/runs/44980981144"
+  },
   "configDigest": "sha256:44e3d16236386cfc1bac9ee59bd9a5fa2e13f3f9da4ff27d8e3f1d720377afc2",
   "database": {
     "archiveBytes": 205876366,
@@ -52,7 +57,6 @@
     }
   },
   "publisher": {
-    "canonicalDocumentSHA256": "sha256:719d5f88f9a0065a6e7bfca51ab238a0c466e5984497efc1740ad8ddcc0c4682",
     "document": {
       "built": "2026-11-21T06:20:06Z",
       "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
@@ -60,11 +64,12 @@
       "schemaVersion": "v6.1.10",
       "status": "active"
     },
-    "limitation": "Workstation direct publisher HTTPS refused; independent web-tool retrieval. PR CI must independently repeat direct HTTPS verification.",
-    "method": "independent-publisher-web-tool",
-    "retrievedAt": "2026-11-22T03:20:35.982484Z",
+    "documentSHA256": "sha256:ec1a87e065ac91ed232a7afdd3e0dbdd5cb15a697c5de9b69107d10b5ead3f68",
+    "method": "independent-publisher-https-metadata",
+    "retrievedAt": "2026-11-22T03:31:27.484923Z",
     "signature": "not established",
     "status": "verified",
+    "unavailableEndpoints": [],
     "url": "https://grype.anchore.io/databases/v6/latest.json"
   },
   "registryIntegrity": "verified",
