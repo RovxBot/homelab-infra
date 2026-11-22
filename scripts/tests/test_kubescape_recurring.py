@@ -39,6 +39,9 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(state({**record, "createdAt": R.db.stamp(NOW - timedelta(hours=27))}), "stale")
         self.assertEqual(state({**record, "lastAttempt": {"state": "failed"}}), "failed")
         self.assertEqual(state({**record, "lastAttempt": {"state": "unknown"}}), "unknown")
+        failed = {**record, "lastAttempt": {"state": "failed"}}
+        inventory = R.coverage([copy.deepcopy(current)], {R.row_key(current): failed}, config, NOW)
+        self.assertEqual(inventory["rows"][0]["scanAgeHours"], 1.0)
         self.assertEqual(state(record, {**current, "workload": "other"}), "deliberately_excluded")
         self.assertEqual(state({}, {**current, "runningDigest": None}), "unsupported")
         changed = {**record, "database": {**EXPECTED["metadata"], "checksum": "sha256:" + "0" * 64}}
@@ -183,6 +186,55 @@ class FailureTests(unittest.TestCase):
 
 class SubmissionTests(unittest.TestCase):
     """Drive the actual POST/poll/report path, including ambiguous acceptance."""
+    def test_full_production_path_requires_actual_result_then_deduplicates(self):
+        fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
+        current = row()
+        report, sbom = fixture["report"], fixture["sbom"]
+        for obj in (report, sbom):
+            obj["metadata"].update(name=R.client.REPORT)
+            obj["metadata"]["annotations"]["kubescape.io/image-id"] = current["runningDigest"]
+        api = mock.Mock()
+        api.items.return_value = [report]
+        summary = {"metadata": {"annotations": {
+            "kubescape.io/image-id": current["runningDigest"],
+            "kubescape.io/workload-container-name": "memos",
+            "kubescape.io/wlid": "wlid://cluster-home/namespace-memos/deployment-memos"}},
+            "spec": {"vulnerabilitiesRef": {"all": {"name": R.client.REPORT}}}}
+        def get(base, resource, *args, **kwargs):
+            return copy.deepcopy(summary if resource == "vulnerabilitymanifestsummaries" else sbom if resource == "sbomsyfts" else report)
+        api.get.side_effect = get
+        api.call.return_value = {"metadata": {"name": "kubescape-assessment-status"}, "data": {}}
+        posted = []
+        def service(component, path, value=None):
+            if value is not None:
+                posted.append(value)
+                self.assertIs(value["args"]["forceRescan"], True)
+                report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(NOW)
+                return {"accepted": True}
+            return {"state": "succeeded", "phase": "completed", "startedAt": R.db.stamp(NOW), "finishedAt": R.db.stamp(NOW + timedelta(seconds=1))}
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW), \
+                mock.patch.object(R, "workload_rows", return_value=[current]), mock.patch.object(R, "service", side_effect=service), \
+                mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "engine-uid"}}):
+            history = Path(path)
+            config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+            runner = R.Runner(api, config, EXPECTED, history, "vulnerability")
+            with mock.patch.object(runner, "preflight", return_value={}), \
+                    mock.patch.object(runner, "audit", return_value={"podUID": "engine-uid"}), \
+                    mock.patch.object(runner, "gate"), mock.patch.object(runner, "observe"), mock.patch("builtins.print"):
+                self.assertEqual(runner.run(), 0)
+            self.assertEqual(runner.result["state"], "healthy")
+            self.assertEqual(len(posted), 1)
+            self.assertFalse((history / "inflight.json").exists())
+            stored = json.loads((history / "records.json").read_text())
+            self.assertEqual(stored[R.row_key(current)]["createdAt"], R.db.stamp(NOW))
+            self.assertEqual(json.loads((history / "coverage.json").read_text())["rows"][0]["assessmentState"], "healthy")
+            self.assertTrue(list(runner.work.glob("previous-*.json.gz")))
+            duplicate = R.Runner(api, config, EXPECTED, history, "vulnerability")
+            with mock.patch("builtins.print"):
+                self.assertEqual(duplicate.run(), 4)
+            self.assertEqual(duplicate.result["reasons"], ["duplicate_execution"])
+            self.assertEqual(len(posted), 1)
+
     def test_terminal_failure_does_not_resubmit_or_clear_intent(self):
         self.submission_case("failed", "scan_failed")
 
@@ -229,6 +281,21 @@ class SubmissionTests(unittest.TestCase):
 
 
 class PrerequisiteTests(unittest.TestCase):
+    def test_storage_timestamp_precision_preserves_new_and_rejects_cached_results(self):
+        fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
+        report, sbom = fixture["report"], fixture["sbom"]
+        old = copy.deepcopy(report)
+        report["spec"]["metadata"]["report"]["createdAt"] = "2026-11-22T04:37:22Z"
+        result = R.check_report(report, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", old)
+        self.assertEqual(result["createdAt"], "2026-11-22T04:37:22Z")
+        with self.assertRaisesRegex(R.db.Rejected, "report_not_new"):
+            R.check_report(old, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", old)
+        with self.assertRaisesRegex(R.db.Rejected, "report_not_new"):
+            R.check_report(report, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", report)
+        sbom["spec"]["syft"]["source"]["metadata"]["config"] = "YWx0ZXJlZA=="
+        with self.assertRaisesRegex(R.db.Rejected, "sbom_identity_invalid"):
+            R.check_report(report, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", old)
+
     def test_list_items_inherit_kind_from_kubernetes_list(self):
         api = R.API(local=True)
         with mock.patch.object(api, "get", return_value={"kind": "DeploymentList", "items": [{"metadata": {"name": "example"}}]}):

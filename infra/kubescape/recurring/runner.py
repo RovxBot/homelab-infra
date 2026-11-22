@@ -203,6 +203,16 @@ def coverage(rows, records, config, now=None):
         row.update(lastSuccessfulScan=record.get("createdAt"), database=record.get("database"),
                    scanAgeHours=None, severities=record.get("severities"), fixesAvailable=record.get("fixesAvailable"),
                    assessmentState="never_scanned", exclusionReason=None, lastAttempt=record.get("lastAttempt"))
+        current, invalid = False, False
+        if record.get("createdAt"):
+            try:
+                age = db.age_hours(record["createdAt"], now)
+                row["scanAgeHours"] = round(age, 4)
+                current = (age <= config["maximumScanAgeHours"]
+                    and db.age_hours(record["database"]["built"], now) <= 72
+                    and record["database"]["checksum"] == config["databaseChecksum"])
+            except (db.Rejected, KeyError):
+                invalid = True
         if target_key(row) not in selected:
             row.update(assessmentState="deliberately_excluded", exclusionReason="Outside the reviewed initial cohorts; critical infrastructure and other workloads await qualification")
         elif not row["runningDigest"] or row["containerType"] != "containers":
@@ -210,14 +220,7 @@ def coverage(rows, records, config, now=None):
         elif record.get("lastAttempt", {}).get("state") in {"failed", "unknown"}:
             row["assessmentState"] = record["lastAttempt"]["state"]
         elif record.get("createdAt"):
-            try:
-                age = db.age_hours(record["createdAt"], now)
-                row["scanAgeHours"] = round(age, 4)
-                row["assessmentState"] = "healthy" if (age <= config["maximumScanAgeHours"]
-                    and db.age_hours(record["database"]["built"], now) <= 72
-                    and record["database"]["checksum"] == config["databaseChecksum"]) else "stale"
-            except (db.Rejected, KeyError):
-                row["assessmentState"] = "unknown"
+            row["assessmentState"] = "unknown" if invalid else "healthy" if current else "stale"
     return {"schemaVersion": 1, "generatedAt": db.stamp(now),
             "validUntil": db.stamp(now + timedelta(hours=26)), "rows": rows,
             "counts": dict(Counter(r["assessmentState"] for r in rows)),
@@ -228,7 +231,9 @@ def check_report(report, sbom, row, expected, started, previous=None):
     db.require(report["metadata"].get("annotations", {}).get("kubescape.io/status") == "ready", "report_incomplete")
     spec = report["spec"]
     created = spec["metadata"]["report"]["createdAt"]
-    db.require(db.timestamp(created) >= db.timestamp(started), "report_not_new")
+    # Storage's metav1.Time serializes whole seconds; request time is fractional.
+    # The previous report timestamp must still differ, independently of rounding.
+    db.require(db.timestamp(created) >= db.timestamp(started).replace(microsecond=0), "report_not_new")
     db.require(previous is None or created != previous["spec"]["metadata"]["report"]["createdAt"], "report_not_new")
     db.require(isinstance(spec["payload"].get("matches"), list), "report_incomplete")
     descriptor = spec["payload"]["descriptor"]["db"]

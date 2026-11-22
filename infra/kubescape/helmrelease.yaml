@@ -263,8 +263,8 @@ spec:
       podAnnotations:
         homelab.cooked.beer/grype-index: sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449
       image:
-        repository: quay.io/kubescape/kubevuln
-        tag: v0.3.578@sha256:925ced171a8d262e95ea72c04b0ebfec43d9128dbe4d875e783b80df56e54416
+        repository: ghcr.io/rovxbot/kubevuln
+        tag: 65ab8b472ec2685fc0c14032717a584dc99f2ff7@sha256:c97020711ba19a215f19f1858a846b2962584fd4e0b7afcb9272d7da915569b2
       resources:
         requests:
           cpu: 300m
