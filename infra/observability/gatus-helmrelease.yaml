@@ -232,9 +232,6 @@ spec:
             # pod-report readiness removes endpoints after five minutes without a report.
           alerts:
             - type: github
-              failure-threshold: 3
-              success-threshold: 3
-              send-on-resolved: true
         - name: cloudflared-metrics
           group: cluster
           url: http://cloudflared-metrics.cloudflared.svc.cluster.local:2000/metrics
