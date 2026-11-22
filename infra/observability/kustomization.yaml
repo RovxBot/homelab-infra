@@ -5,4 +5,5 @@ resources:
   - gatus-helmrepository.yaml
   - gatus-helmrelease.yaml
   - gatus-github-issue-sync-configmap.yaml
+  - gatus-github-issue-sync-rbac.yaml
   - gatus-github-issue-sync-cronjob.yaml
