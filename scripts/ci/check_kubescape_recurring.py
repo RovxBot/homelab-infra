@@ -34,6 +34,19 @@ def check(resources):
     bundle = json.loads((ROOT / "infra/kubescape/recurring/client-bundle.json").read_text())
     for name, source in bundle.items():
         assert source == (ROOT / "scripts" / name).read_text(), "supported client bundle differs"
+    release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
+    engine_image = release["spec"]["values"]["kubevuln"]["image"]
+    if engine_image["repository"] != "quay.io/kubescape/kubevuln":
+        import hashlib
+        proof_root = ROOT / "infra/kubescape/recurring/scanner"
+        proof = json.loads((proof_root / "build-evidence.json").read_text())
+        assert proof["status"] == "verified"
+        assert engine_image["repository"] == "ghcr.io/rovxbot/kubevuln"
+        assert proof["image"] == engine_image["repository"] + "@" + engine_image["tag"].split("@")[-1]
+        assert proof["upstreamCommit"] == "45d265e3b46af4d7fc1c896ecc22a93915f2d6fe"
+        assert set(proof["inputs"]) == {"Dockerfile", "force-rescan.patch", "force_rescan_test.go"}
+        for name, digest in proof["inputs"].items():
+            assert hashlib.sha256((proof_root / name).read_bytes()).hexdigest() == digest, name
     for job in jobs:
         spec = job["spec"]
         assert spec["concurrencyPolicy"] == "Forbid" and spec["timeZone"] == "Etc/UTC"

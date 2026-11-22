@@ -1,5 +1,11 @@
 # Verified Grype database maintenance
 
+Current recurring execution and the opt-in fresh-matching scanner are described
+in the [recurring runbook](recurring/README.md). The Task 24 observations below
+remain historical acceptance evidence. Before a future DB replacement, suspend
+both new assessment CronJobs through GitOps and wait for active scans to finish;
+include retained assessment history in free-space qualification.
+
 Tracking [#2135](https://github.com/RovxBot/homelab-infra/issues/2135) remains open.
 The [original canary](image-assessment.md) and its JSON evidence remain the
 comparison baseline. Chart 1.42.0, Grype 0.121.0, Syft 1.55.0, the 10Gi database

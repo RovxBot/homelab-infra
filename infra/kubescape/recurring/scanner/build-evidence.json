@@ -1,0 +1,18 @@
+{
+  "status": "verified",
+  "image": "ghcr.io/rovxbot/kubevuln@sha256:c97020711ba19a215f19f1858a846b2962584fd4e0b7afcb9272d7da915569b2",
+  "sourceCommit": "65ab8b472ec2685fc0c14032717a584dc99f2ff7",
+  "upstreamCommit": "45d265e3b46af4d7fc1c896ecc22a93915f2d6fe",
+  "upstreamArchiveSHA256": "1d805eca4b3a2075214ba39bb2cdf5d6bd588626f11cd4b7be1d8b9420cc1058",
+  "buildRun": "https://github.com/RovxBot/homelab-infra/actions/runs/44986327441",
+  "inputs": {
+    "Dockerfile": "1c31a47911e30e738a64f6e6b9bf86c570c39b1fc799e6879f3087956232a318",
+    "force-rescan.patch": "44800960dd444a635bc1ee3e5e5e3906e317ea0053308da7c1260f376bb8f287",
+    "force_rescan_test.go": "87028194612899665268696a0f62619be0ccb0c7e7ebba979bd023f41b9c6cd3"
+  },
+  "tests": "Actual Go service regressions: typed bool force, unchanged defaults, unchanged DB new matching, report identity and timestamp preservation",
+  "anonymousRegistryRetrieval": "verified HTTP 200 after anonymous token exchange",
+  "independentSignature": "not established",
+  "runtimeBase": "quay.io/kubescape/kubevuln:v0.3.578@sha256:925ced171a8d262e95ea72c04b0ebfec43d9128dbe4d875e783b80df56e54416",
+  "change": "Replace only /usr/bin/kubevuln with the tested opt-in fresh-matching binary"
+}

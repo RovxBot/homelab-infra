@@ -1,0 +1,31 @@
+{
+  "status": "failed",
+  "reason": "report_not_new",
+  "implementationPR": "https://github.com/RovxBot/homelab-infra/pull/2185",
+  "deploymentCommit": "66258f6071ac4d98ffdc5351516705344bb6c944",
+  "fluxReadyAt": "2026-11-22T04:36:22Z",
+  "executionType": "manually_triggered_production_CronJob_template",
+  "kubernetesJob": "assessment-vulnerability-acceptance",
+  "runID": "vulnerability-20261122043641-b316e2",
+  "request": {
+    "jobID": "recurring-d48b11cb618543039eaa28903cd6c670",
+    "enginePodUID": "14713298-f922-4ab9-ae36-15400e57557b",
+    "submittedAt": "2026-11-22T04:37:22.261402Z",
+    "terminalState": "succeeded",
+    "phase": "completed",
+    "startedAt": "2026-11-22T04:37:22.289531466Z",
+    "finishedAt": "2026-11-22T04:37:22.373712834Z"
+  },
+  "persistedReportCreatedAt": "2026-11-22T03:51:18Z",
+  "cacheHitIsNotAFreshEvaluation": true,
+  "clientExitCode": 4,
+  "requestFenceRetained": true,
+  "historyExportJob": "assessment-history-export-001",
+  "resourceAndStoragePrerequisites": "verified",
+  "automaticRetries": 0,
+  "reportsDeleted": 0,
+  "databaseCacheCleared": false,
+  "coverageExpanded": false,
+  "unattendedExecutionObserved": false,
+  "correctiveAction": "Add a tested opt-in authenticated fresh-matching branch to the exact qualified scanner source, preserving cached SBOMs and persisted report identity; pin its tested immutable build through GitOps. Recover the known terminal request fence only after the old process is gone, preserving its evidence."
+}

@@ -203,6 +203,16 @@ def coverage(rows, records, config, now=None):
         row.update(lastSuccessfulScan=record.get("createdAt"), database=record.get("database"),
                    scanAgeHours=None, severities=record.get("severities"), fixesAvailable=record.get("fixesAvailable"),
                    assessmentState="never_scanned", exclusionReason=None, lastAttempt=record.get("lastAttempt"))
+        current, invalid = False, False
+        if record.get("createdAt"):
+            try:
+                age = db.age_hours(record["createdAt"], now)
+                row["scanAgeHours"] = round(age, 4)
+                current = (age <= config["maximumScanAgeHours"]
+                    and db.age_hours(record["database"]["built"], now) <= 72
+                    and record["database"]["checksum"] == config["databaseChecksum"])
+            except (db.Rejected, KeyError):
+                invalid = True
         if target_key(row) not in selected:
             row.update(assessmentState="deliberately_excluded", exclusionReason="Outside the reviewed initial cohorts; critical infrastructure and other workloads await qualification")
         elif not row["runningDigest"] or row["containerType"] != "containers":
@@ -210,14 +220,7 @@ def coverage(rows, records, config, now=None):
         elif record.get("lastAttempt", {}).get("state") in {"failed", "unknown"}:
             row["assessmentState"] = record["lastAttempt"]["state"]
         elif record.get("createdAt"):
-            try:
-                age = db.age_hours(record["createdAt"], now)
-                row["scanAgeHours"] = round(age, 4)
-                row["assessmentState"] = "healthy" if (age <= config["maximumScanAgeHours"]
-                    and db.age_hours(record["database"]["built"], now) <= 72
-                    and record["database"]["checksum"] == config["databaseChecksum"]) else "stale"
-            except (db.Rejected, KeyError):
-                row["assessmentState"] = "unknown"
+            row["assessmentState"] = "unknown" if invalid else "healthy" if current else "stale"
     return {"schemaVersion": 1, "generatedAt": db.stamp(now),
             "validUntil": db.stamp(now + timedelta(hours=26)), "rows": rows,
             "counts": dict(Counter(r["assessmentState"] for r in rows)),
@@ -228,7 +231,9 @@ def check_report(report, sbom, row, expected, started, previous=None):
     db.require(report["metadata"].get("annotations", {}).get("kubescape.io/status") == "ready", "report_incomplete")
     spec = report["spec"]
     created = spec["metadata"]["report"]["createdAt"]
-    db.require(db.timestamp(created) >= db.timestamp(started), "report_not_new")
+    # Storage's metav1.Time serializes whole seconds; request time is fractional.
+    # The previous report timestamp must still differ, independently of rounding.
+    db.require(db.timestamp(created) >= db.timestamp(started).replace(microsecond=0), "report_not_new")
     db.require(previous is None or created != previous["spec"]["metadata"]["report"]["createdAt"], "report_not_new")
     db.require(isinstance(spec["payload"].get("matches"), list), "report_incomplete")
     descriptor = spec["payload"]["descriptor"]["db"]
@@ -380,7 +385,7 @@ class Runner:
                 if condition["type"] in {"MemoryPressure", "DiskPressure", "PIDPressure"}:
                     db.require(condition["status"] == "False", "node_resource_pressure")
         for pod in self.api.items(CORE, "pods"):
-            if pod["metadata"]["namespace"] in {"gitea-runners", "gitea"} and pod["status"].get("phase") in {"Running", "Pending"}:
+            if pod["metadata"]["namespace"] in {"gitea-runners", "gitea", "gitea-jobs", "wowdecomp-ci-jobs"} and pod["status"].get("phase") in {"Running", "Pending"}:
                 db.require(not any(owner["kind"] == "Job" for owner in pod["metadata"].get("ownerReferences", [])), "ci_build_active")
         node_metrics = self.api.items("/apis/metrics.k8s.io/v1beta1", "nodes")
         nodes = {n["metadata"]["name"]: n for n in self.api.items(CORE, "nodes")}
@@ -517,7 +522,7 @@ class Runner:
         started = db.stamp(db.utcnow())
         payload = {"imageTag": row["runningDigest"], "imageHash": row["runningDigest"], "jobID": job,
                    "wlid": f"wlid://cluster-home/namespace-{row['namespace']}/deployment-{row['workload']}",
-                   "containerName": row["container"], "args": {"platform": "linux/amd64"}}
+                   "containerName": row["container"], "args": {"platform": "linux/amd64", "forceRescan": True}}
         atomic(self.history / "inflight.json", {"jobID": job, "enginePodUID": audit["podUID"], "workload": row, "submittedAt": started})
         self.save("request-" + job, payload)
         # POST is never retried, including a lost HTTP response.

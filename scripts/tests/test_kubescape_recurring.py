@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -38,6 +39,9 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(state({**record, "createdAt": R.db.stamp(NOW - timedelta(hours=27))}), "stale")
         self.assertEqual(state({**record, "lastAttempt": {"state": "failed"}}), "failed")
         self.assertEqual(state({**record, "lastAttempt": {"state": "unknown"}}), "unknown")
+        failed = {**record, "lastAttempt": {"state": "failed"}}
+        inventory = R.coverage([copy.deepcopy(current)], {R.row_key(current): failed}, config, NOW)
+        self.assertEqual(inventory["rows"][0]["scanAgeHours"], 1.0)
         self.assertEqual(state(record, {**current, "workload": "other"}), "deliberately_excluded")
         self.assertEqual(state({}, {**current, "runningDigest": None}), "unsupported")
         changed = {**record, "database": {**EXPECTED["metadata"], "checksum": "sha256:" + "0" * 64}}
@@ -182,6 +186,55 @@ class FailureTests(unittest.TestCase):
 
 class SubmissionTests(unittest.TestCase):
     """Drive the actual POST/poll/report path, including ambiguous acceptance."""
+    def test_full_production_path_requires_actual_result_then_deduplicates(self):
+        fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
+        current = row()
+        report, sbom = fixture["report"], fixture["sbom"]
+        for obj in (report, sbom):
+            obj["metadata"].update(name=R.client.REPORT)
+            obj["metadata"]["annotations"]["kubescape.io/image-id"] = current["runningDigest"]
+        api = mock.Mock()
+        api.items.return_value = [report]
+        summary = {"metadata": {"annotations": {
+            "kubescape.io/image-id": current["runningDigest"],
+            "kubescape.io/workload-container-name": "memos",
+            "kubescape.io/wlid": "wlid://cluster-home/namespace-memos/deployment-memos"}},
+            "spec": {"vulnerabilitiesRef": {"all": {"name": R.client.REPORT}}}}
+        def get(base, resource, *args, **kwargs):
+            return copy.deepcopy(summary if resource == "vulnerabilitymanifestsummaries" else sbom if resource == "sbomsyfts" else report)
+        api.get.side_effect = get
+        api.call.return_value = {"metadata": {"name": "kubescape-assessment-status"}, "data": {}}
+        posted = []
+        def service(component, path, value=None):
+            if value is not None:
+                posted.append(value)
+                self.assertIs(value["args"]["forceRescan"], True)
+                report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(NOW)
+                return {"accepted": True}
+            return {"state": "succeeded", "phase": "completed", "startedAt": R.db.stamp(NOW), "finishedAt": R.db.stamp(NOW + timedelta(seconds=1))}
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW), \
+                mock.patch.object(R, "workload_rows", return_value=[current]), mock.patch.object(R, "service", side_effect=service), \
+                mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "engine-uid"}}):
+            history = Path(path)
+            config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+            runner = R.Runner(api, config, EXPECTED, history, "vulnerability")
+            with mock.patch.object(runner, "preflight", return_value={}), \
+                    mock.patch.object(runner, "audit", return_value={"podUID": "engine-uid"}), \
+                    mock.patch.object(runner, "gate"), mock.patch.object(runner, "observe"), mock.patch("builtins.print"):
+                self.assertEqual(runner.run(), 0)
+            self.assertEqual(runner.result["state"], "healthy")
+            self.assertEqual(len(posted), 1)
+            self.assertFalse((history / "inflight.json").exists())
+            stored = json.loads((history / "records.json").read_text())
+            self.assertEqual(stored[R.row_key(current)]["createdAt"], R.db.stamp(NOW))
+            self.assertEqual(json.loads((history / "coverage.json").read_text())["rows"][0]["assessmentState"], "healthy")
+            self.assertTrue(list(runner.work.glob("previous-*.json.gz")))
+            duplicate = R.Runner(api, config, EXPECTED, history, "vulnerability")
+            with mock.patch("builtins.print"):
+                self.assertEqual(duplicate.run(), 4)
+            self.assertEqual(duplicate.result["reasons"], ["duplicate_execution"])
+            self.assertEqual(len(posted), 1)
+
     def test_terminal_failure_does_not_resubmit_or_clear_intent(self):
         self.submission_case("failed", "scan_failed")
 
@@ -225,6 +278,61 @@ class SubmissionTests(unittest.TestCase):
             self.assertEqual(runner.result["assessments"], [])
             if lost:
                 self.assertEqual(requests[1][1], "/v1/scanStatus/" + intent["jobID"])
+
+
+class PrerequisiteTests(unittest.TestCase):
+    def test_storage_timestamp_precision_preserves_new_and_rejects_cached_results(self):
+        fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
+        report, sbom = fixture["report"], fixture["sbom"]
+        old = copy.deepcopy(report)
+        report["spec"]["metadata"]["report"]["createdAt"] = "2026-11-22T04:37:22Z"
+        result = R.check_report(report, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", old)
+        self.assertEqual(result["createdAt"], "2026-11-22T04:37:22Z")
+        with self.assertRaisesRegex(R.db.Rejected, "report_not_new"):
+            R.check_report(old, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", old)
+        with self.assertRaisesRegex(R.db.Rejected, "report_not_new"):
+            R.check_report(report, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", report)
+        sbom["spec"]["syft"]["source"]["metadata"]["config"] = "YWx0ZXJlZA=="
+        with self.assertRaisesRegex(R.db.Rejected, "sbom_identity_invalid"):
+            R.check_report(report, sbom, row(), EXPECTED, "2026-11-22T04:37:22.261402Z", old)
+
+    def test_list_items_inherit_kind_from_kubernetes_list(self):
+        api = R.API(local=True)
+        with mock.patch.object(api, "get", return_value={"kind": "DeploymentList", "items": [{"metadata": {"name": "example"}}]}):
+            self.assertEqual(api.items(R.APPS, "deployments")[0]["kind"], "Deployment")
+
+    def test_actual_preflight_rejects_refresh_low_space_and_memory(self):
+        for failure in ("database_refresh_in_progress", "database_pvc_low_space", "memory_budget_exhausted"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as path:
+                api = mock.Mock()
+                release = {"metadata": {"generation": 3}, "spec": {"values": {"grypeOfflineDB": {"image": {"sha": EXPECTED["indexDigest"]}}}},
+                           "status": {"observedGeneration": 2 if failure == "database_refresh_in_progress" else 3,
+                                      "conditions": [{"type": "Ready", "status": "True", "observedGeneration": 3}]}}
+                api.get.return_value = release
+                api.items.return_value = [{"metadata": {"name": "engine"}, "timestamp": R.db.stamp(NOW),
+                                           "containers": [{"name": "kubevuln", "usage": {"cpu": "1m", "memory": "3Gi"}}]}]
+                config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+                runner = R.Runner(api, config, EXPECTED, Path(path), "vulnerability")
+                free = 1024**3 if failure == "database_pvc_low_space" else 6 * 1024**3
+                with mock.patch.object(R.db, "utcnow", return_value=NOW), \
+                        mock.patch.object(R, "component_pod", return_value={"metadata": {"name": "engine", "uid": "engine-uid"}}), \
+                        mock.patch.object(R.os, "statvfs", return_value=SimpleNamespace(f_bavail=free, f_frsize=1)):
+                    with self.assertRaisesRegex(R.db.Rejected, failure):
+                        runner.preflight()
+
+    def test_actual_physical_disk_gate_includes_retained_allocations(self):
+        with tempfile.TemporaryDirectory() as path:
+            api = mock.Mock()
+            api.get.return_value = {"status": {"phase": "Bound"}, "spec": {"volumeName": "volume"}}
+            volume = {"metadata": {"name": "volume"}, "status": {"robustness": "healthy"}}
+            replicas = [{"metadata": {"name": str(i)}, "spec": {"volumeName": "volume", "nodeID": "node", "diskID": "disk"},
+                         "status": {"currentState": "running"}} for i in range(3)]
+            node = {"metadata": {"name": "node"}, "status": {"diskStatus": {"disk": {
+                "diskUUID": "disk", "storageAvailable": 9 * 1024**3, "storageMaximum": 100 * 1024**3}}}}
+            api.items.side_effect = [ [volume], replicas, [node] ]
+            runner = R.Runner(api, CONFIG, EXPECTED, Path(path), "vulnerability")
+            with self.assertRaisesRegex(R.db.Rejected, "replica_disk_low_space"):
+                runner.storage_gate()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,102 @@
+# Reviewed one-shot recovery after the pinned patched engine is Ready.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: assessment-acknowledge-task25-first-request
+  namespace: kubescape
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+        kubescape.io/ignore: 'true'
+        app.kubernetes.io/name: kubescape-assessment
+    spec:
+      serviceAccountName: kubescape-assessment
+      automountServiceAccountToken: true
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: kubevuln
+            topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: acknowledge
+        image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+        command:
+        - python3
+        - -B
+        - -c
+        - |
+          import fcntl,gzip,json,os,ssl,urllib.request
+          from pathlib import Path
+          root=Path('/history')
+          with (root/'assessment.lock').open('a') as lock:
+           fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+           request=json.loads((root/'inflight.json').read_text())
+           job='recurring-d48b11cb618543039eaa28903cd6c670'
+           old_uid='14713298-f922-4ab9-ae36-15400e57557b'
+           assert request['jobID']==job and request['enginePodUID']==old_uid
+           terminal=json.loads(gzip.decompress((root/'vulnerability-20261122043641-b316e2'/('terminal-'+job+'.json.gz')).read_bytes()))
+           assert terminal['jobID']==job and terminal['state']=='succeeded' and terminal['phase']=='completed'
+           token=Path('/var/run/secrets/kubernetes.io/serviceaccount/token').read_text().strip()
+           context=ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
+           def get(path):
+            req=urllib.request.Request('https://kubernetes.default.svc'+path,headers={'Authorization':'Bearer '+token})
+            with urllib.request.urlopen(req,context=context,timeout=20) as r: return json.load(r)
+           pods=get('/api/v1/namespaces/kubescape/pods')['items']
+           assert all(p['metadata']['uid']!=old_uid for p in pods), 'old engine process still exists'
+           engines=[p for p in pods if p['metadata'].get('labels',{}).get('app.kubernetes.io/component')=='kubevuln' and not p['metadata'].get('deletionTimestamp')]
+           assert len(engines)==1 and any(c['type']=='Ready' and c['status']=='True' for c in engines[0]['status']['conditions'])
+           release=get('/apis/helm.toolkit.fluxcd.io/v2/namespaces/kubescape/helmreleases/kubescape')
+           image=release['spec']['values']['kubevuln']['image']
+           assert image['repository']=='ghcr.io/rovxbot/kubevuln' and '@sha256:' in image['tag']
+           assert engines[0]['spec']['containers'][0]['image']==image['repository']+':'+image['tag']
+           assert engines[0]['status']['containerStatuses'][0]['imageID'].split('@')[-1]==image['tag'].split('@')[-1]
+           destination=root/'recovered-task25-first-request.json'
+           assert not destination.exists()
+           (root/'inflight.json').rename(destination)
+           fd=os.open(root,os.O_DIRECTORY)
+           try: os.fsync(fd)
+           finally: os.close(fd)
+           print(json.dumps({'state':'verified','recoveredRequest':job,'terminalState':terminal['state'],'oldProcessAbsent':True,'newEnginePodUID':engines[0]['metadata']['uid'],'preservedFence':destination.name}))
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+            ephemeral-storage: 64Mi
+          limits:
+            cpu: 300m
+            memory: 256Mi
+            ephemeral-storage: 128Mi
+        volumeMounts:
+        - name: history
+          mountPath: /history
+          subPath: assessments
+      volumes:
+      - name: history
+        persistentVolumeClaim:
+          claimName: kubescape-kubevuln

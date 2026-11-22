@@ -2,8 +2,14 @@
 
 Tracking [#2135](https://github.com/RovxBot/homelab-infra/issues/2135) stays open.
 The two new CronJobs wrap the existing verified client. Both chart CronJobs
-remain suspended; chart, scanner images, image watchers, preventive controls
+remain suspended; chart, image watchers, preventive controls
 and PVC sizes are unchanged.
+
+The original scanner's same-image/database cache cannot satisfy fresh recurring
+matching. The [small opt-in scanner extension](scanner/README.md) preserves
+default callers and SBOM reuse while performing actual matching for this client.
+Its tested immutable image replaces only the engine binary. The failed original
+execution remains in [first-execution-evidence.json](first-execution-evidence.json).
 
 ## Qualified budget
 
