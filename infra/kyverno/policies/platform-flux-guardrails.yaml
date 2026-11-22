@@ -40,6 +40,17 @@ spec:
                 - kube-public
                 - kube-system
                 - kyverno
+          # The restricted assessment Job updates one runtime status ConfigMap.
+          # This is NOT a general exception for manual edits to Flux resources.
+          - resources:
+              kinds: [ConfigMap]
+              names: [kubescape-assessment-status]
+              namespaces: [kubescape]
+              operations: [UPDATE]
+            subjects:
+              - kind: ServiceAccount
+                name: kubescape-assessment
+                namespace: kubescape
           # Longhorn continuously reconciles the Flux-managed BackupTarget and
           # writes its controller metadata/status. Exempt only that controller
           # on that one resource; human/manual changes remain audited.
