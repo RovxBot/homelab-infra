@@ -1,0 +1,512 @@
+{
+  "status": "verified",
+  "asOf": "2026-11-22T03:51:21.861666Z",
+  "implementationPR": "https://github.com/RovxBot/homelab-infra/pull/2182",
+  "deploymentCommit": "b9de87b31450917482fc8a9680ff2ea3be05d8e5",
+  "trackingIssue": "https://github.com/RovxBot/homelab-infra/issues/2135",
+  "chartVersion": "1.42.0",
+  "helmRevision": 3,
+  "originalBaseline": {
+    "evidence": "image-canary-evidence.json",
+    "databaseBuilt": "2026-11-20T06:21:00Z",
+    "archiveChecksum": "sha256:6866d1685025e6001d422fb4be59f26feebacb151b3ff77b012d999e12b9af24"
+  },
+  "database": {
+    "expected": {
+      "built": "2026-11-21T06:20:06Z",
+      "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+      "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+      "schemaVersion": "v6.1.10",
+      "status": "active"
+    },
+    "image": "quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+    "runtimeMirrorImageID": "quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+    "publisherVerification": {
+      "document": {
+        "built": "2026-11-21T06:20:06Z",
+        "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+        "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+        "schemaVersion": "v6.1.10",
+        "status": "active"
+      },
+      "documentSHA256": "sha256:ec1a87e065ac91ed232a7afdd3e0dbdd5cb15a697c5de9b69107d10b5ead3f68",
+      "method": "independent-publisher-https-metadata",
+      "retrievedAt": "2026-11-22T03:31:27.484923Z",
+      "signature": "not established",
+      "status": "verified",
+      "unavailableEndpoints": [],
+      "url": "https://grype.anchore.io/databases/v6/latest.json"
+    },
+    "cacheAudit": {
+      "checkedAt": "2026-11-22T03:50:46.643633Z",
+      "checksum": {
+        "built": "2026-11-21T06:20:06Z",
+        "from": "http://grype-offline-db:80/databases/v6/vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst?checksum=sha256%3A921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+        "path": "/cache/db/6/vulnerability.db",
+        "schemaVersion": "v6.1.10",
+        "valid": true
+      },
+      "job": "grype-cache-audit-20261122035011",
+      "podUID": "14713298-f922-4ab9-ae36-15400e57557b",
+      "sqlite": {
+        "built": "2026-11-21T06:20:06Z",
+        "bytes": 3545145344,
+        "filesystem": {
+          "availableBytes": 6902054912,
+          "capacityBytes": 10464022528,
+          "usedBytes": 3545190400
+        },
+        "import": {
+          "client_version": "v6.1.10",
+          "digest": "xxh64:07e73b3fb17ecd25",
+          "source": "http://grype-offline-db:80/databases/v6/vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst?checksum=sha256%3A921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5"
+        },
+        "metadataReadable": true,
+        "schemaVersion": "v6.1.10",
+        "sha256": "sha256:aaceea30e7446b2a365d171916ef3fbcaf719e194e0062c97c9ce2b4f0ccdfd8"
+      }
+    },
+    "diagnostics": {
+      "cveDBVersion": "921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+      "cveScannerVersion": "v0.121.0-matching-off",
+      "queueDepth": 0,
+      "riskAcceptanceEnabled": false,
+      "sbomCreatorVersion": "v1.55.0",
+      "scanMode": "in-process",
+      "scanTimeout": "5m0s",
+      "scannerReadinessTimeout": "1m0s",
+      "storageEnabled": true
+    }
+  },
+  "freshnessBeforeRescan": {
+    "assessmentTrustworthy": false,
+    "canAssess": true,
+    "checkedAt": "2026-11-22T03:51:11.351898Z",
+    "databaseAgeHours": 21.518153,
+    "databaseState": "healthy",
+    "expectedImage": "quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+    "integrity": "verified",
+    "lastSuccessfulAssessmentTime": "2026-11-21T23:50:54Z",
+    "loaded": {
+      "archiveChecksum": "921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+      "built": "2026-11-21T06:20:06Z",
+      "schemaVersion": "v6.1.10",
+      "sqliteSHA256": "sha256:aaceea30e7446b2a365d171916ef3fbcaf719e194e0062c97c9ce2b4f0ccdfd8"
+    },
+    "maximumDatabaseAgeHours": 72,
+    "reasons": [
+      "assessment_previous_database"
+    ],
+    "state": "unknown"
+  },
+  "freshnessAfterRescan": {
+    "assessmentTrustworthy": true,
+    "canAssess": true,
+    "checkedAt": "2026-11-22T03:51:21.937324Z",
+    "databaseAgeHours": 21.521094,
+    "databaseState": "healthy",
+    "expectedImage": "quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+    "integrity": "verified",
+    "lastSuccessfulAssessmentTime": "2026-11-22T03:51:18Z",
+    "loaded": {
+      "archiveChecksum": "921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+      "built": "2026-11-21T06:20:06Z",
+      "schemaVersion": "v6.1.10",
+      "sqliteSHA256": "sha256:aaceea30e7446b2a365d171916ef3fbcaf719e194e0062c97c9ce2b4f0ccdfd8"
+    },
+    "maximumDatabaseAgeHours": 72,
+    "reasons": [],
+    "state": "healthy"
+  },
+  "scan": {
+    "request": {
+      "args": {
+        "platform": "linux/amd64"
+      },
+      "containerName": "memos",
+      "imageHash": "docker.io/neosmemo/memos@sha256:5dcd6e6b973a55b964f2fe2ccdaa33319463ab448a23404ebb5d2acbd19299ba",
+      "imageTag": "docker.io/neosmemo/memos@sha256:5dcd6e6b973a55b964f2fe2ccdaa33319463ab448a23404ebb5d2acbd19299ba",
+      "jobID": "memos-db-refresh-20261122035111",
+      "wlid": "wlid://cluster-home/namespace-memos/deployment-memos"
+    },
+    "terminalStatus": {
+      "acceptedAt": "2026-11-22T03:51:11.69735708Z",
+      "endpoint": "scanCVE",
+      "finishedAt": "2026-11-22T03:51:18.31659333Z",
+      "jobID": "memos-db-refresh-20261122035111",
+      "phase": "completed",
+      "startedAt": "2026-11-22T03:51:11.69746019Z",
+      "state": "succeeded",
+      "updatedAt": "2026-11-22T03:51:18.31659333Z"
+    },
+    "durationSeconds": 6.619133,
+    "workload": {
+      "deploymentUID": "1e1e25ca-4b09-4d6e-98f5-afd3540fc866",
+      "imageID": "docker.io/neosmemo/memos@sha256:5dcd6e6b973a55b964f2fe2ccdaa33319463ab448a23404ebb5d2acbd19299ba",
+      "namespaceUID": "3eb9baf6-0f47-46ab-9d4e-c089f59d0953",
+      "podUID": "84bb6780-6883-4dd2-8acd-40b16d02488d"
+    },
+    "database": {
+      "built": "2026-11-21T06:20:06Z",
+      "from": "http://grype-offline-db:80/databases/v6/vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst?checksum=sha256%3A921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+      "path": "/home/nonroot/.cache/grype/db/6/vulnerability.db",
+      "schemaVersion": "v6.1.10",
+      "valid": true
+    },
+    "vulnerabilityReportTime": "2026-11-22T03:51:18Z",
+    "sbomReportTime": "2026-11-21T23:50:44Z",
+    "sbomReusedForUnchangedImage": true,
+    "imageManifestDigest": "sha256:cc2e0a1a1e518c7578955a6a86f3745bf859736b944200acbc0da61e79659288",
+    "imageConfigDigest": "sha256:4beb9fab55f04357e2d37a15331a696b62743807b9fc1ee6438776492d518be1",
+    "embeddedManifestConfigHashesVerified": true,
+    "stableImageScanID": "651a63b86be994e4cff4cc696ac9ae87fcf1ebc66d7c1213b54d2fd546b15ce6",
+    "packageArtifacts": 115,
+    "packageAdvisoryMatches": 7,
+    "distinctAdvisoryIDs": 5,
+    "findings": [
+      {
+        "advisory": "CVE-2026-4738",
+        "severity": "Critical",
+        "package": "zlib",
+        "installed": "1.3.2-r1",
+        "fix": {
+          "state": "fixed",
+          "versions": [
+            "1.4-r0"
+          ]
+        }
+      },
+      {
+        "advisory": "CVE-2026-128085",
+        "severity": "Medium",
+        "package": "go.opentelemetry.io/otel/trace",
+        "installed": "v1.45.0",
+        "fix": {
+          "state": "fixed",
+          "versions": [
+            "1.47.0"
+          ]
+        }
+      },
+      {
+        "advisory": "CVE-2025-60876",
+        "severity": "Medium",
+        "package": "busybox",
+        "installed": "1.37.0-r14",
+        "fix": {
+          "state": "",
+          "versions": null
+        }
+      },
+      {
+        "advisory": "CVE-2025-60876",
+        "severity": "Medium",
+        "package": "busybox-binsh",
+        "installed": "1.37.0-r14",
+        "fix": {
+          "state": "",
+          "versions": null
+        }
+      },
+      {
+        "advisory": "CVE-2025-60876",
+        "severity": "Medium",
+        "package": "ssl_client",
+        "installed": "1.37.0-r14",
+        "fix": {
+          "state": "",
+          "versions": null
+        }
+      },
+      {
+        "advisory": "CVE-2023-36308",
+        "severity": "Low",
+        "package": "github.com/disintegration/imaging",
+        "installed": "v1.6.2",
+        "fix": {
+          "state": "not-fixed",
+          "versions": null
+        }
+      },
+      {
+        "advisory": "GO-2026-5932",
+        "severity": "Unknown",
+        "package": "golang.org/x/crypto",
+        "installed": "v0.58.0",
+        "fix": {
+          "state": "fixed",
+          "versions": [
+            "0.58.1-0.20261009181718-2f1f834330b2"
+          ]
+        }
+      }
+    ],
+    "persistedObjects": [
+      {
+        "kind": "vulnerabilitymanifests",
+        "namespace": "kubescape",
+        "name": "docker.io-neosmemo-memos-sha256-5dcd6e6b973a55b964f2fe2ccdaa33319463ab448a23404ebb5d2acbd19299ba-9299ba",
+        "previousSpecSHA256": "e20f20eca8b686d6e16d43a682ab6e7e1c895221c8138d11f9969a383f224ed3",
+        "newSpecSHA256": "32f9acab20a82cedb619f74e1982c7b2a1444d9df836718683045b74b8e3a88d",
+        "rereadVerified": true
+      },
+      {
+        "kind": "sbomsyfts",
+        "namespace": "kubescape",
+        "name": "docker.io-neosmemo-memos-sha256-5dcd6e6b973a55b964f2fe2ccdaa33319463ab448a23404ebb5d2acbd19299ba-9299ba",
+        "previousSpecSHA256": "4351b2b19baf15308d24607f7e1bd4884d7e0e4d2bad9742329b894f72566bc0",
+        "newSpecSHA256": "4351b2b19baf15308d24607f7e1bd4884d7e0e4d2bad9742329b894f72566bc0",
+        "rereadVerified": true
+      }
+    ],
+    "canonicalHashFormat": "SHA-256 of UTF-8 json.dumps(object.spec, sort_keys=True, separators=(comma, colon))"
+  },
+  "rollout": {
+    "upgradeStartedAt": "2026-11-22T03:42:31Z",
+    "engineDatabaseLoadStartedAt": "2026-11-22T03:43:05Z",
+    "databaseLoadFinishedAt": "2026-11-22T03:49:01Z",
+    "databaseLoadSeconds": 356.0,
+    "helmReadyAt": "2026-11-22T03:49:10Z",
+    "strategy": "Recreate",
+    "sameEngineNode": "metal4",
+    "startupInitExitCode": 0,
+    "newMirrorAndEngineRestarts": 0,
+    "pvcUIDsPreserved": true,
+    "expectedReadinessWarningsOnly": true
+  },
+  "resources": {
+    "sampleIntervalSeconds": 10,
+    "rolloutWindow": {
+      "kubevuln": {
+        "maxCPUMillicores": 801.59,
+        "maxWorkingMemoryBytes": 1091268608
+      },
+      "grype-offline-db": {
+        "maxCPUMillicores": 14.742,
+        "maxWorkingMemoryBytes": 876544
+      },
+      "kubescape": {
+        "maxCPUMillicores": 1.297,
+        "maxWorkingMemoryBytes": 27582464
+      },
+      "operator": {
+        "maxCPUMillicores": 2.301,
+        "maxWorkingMemoryBytes": 19451904
+      },
+      "storage": {
+        "maxCPUMillicores": 7.523,
+        "maxWorkingMemoryBytes": 50294784
+      }
+    },
+    "scanWindow": {
+      "kubevuln": {
+        "maxCPUMillicores": 0.506,
+        "maxWorkingMemoryBytes": 954019840
+      },
+      "grype-offline-db": {
+        "maxCPUMillicores": 1.305,
+        "maxWorkingMemoryBytes": 417792
+      },
+      "kubescape": {
+        "maxCPUMillicores": 1.169,
+        "maxWorkingMemoryBytes": 27058176
+      },
+      "operator": {
+        "maxCPUMillicores": 1.71,
+        "maxWorkingMemoryBytes": 18927616
+      },
+      "storage": {
+        "maxCPUMillicores": 7.339,
+        "maxWorkingMemoryBytes": 50262016
+      }
+    },
+    "kubeletSamples": {
+      "maxEngineCgroupUsageBytes": 3220697088,
+      "maxEngineWorkingSetBytes": 1091358720,
+      "maxDatabasePVCUsedBytes": 7072632832,
+      "minDatabasePVCFreeBytes": 3374612480,
+      "maxTmpBytes": 205881344,
+      "maxEphemeralBytes": 205893632
+    },
+    "note": "Observed sampled maxima, not instantaneous peak guarantees. Cgroup usage includes reclaimable filesystem cache."
+  },
+  "storage": {
+    "replacementRequiredFreeBytes": 6338427164,
+    "beforeFilesystem": {
+      "availableBytes": 6919675904,
+      "capacityBytes": 10464022528,
+      "usedBytes": 3527569408
+    },
+    "afterFilesystem": {
+      "availableBytes": 6902054912,
+      "capacityBytes": 10464022528,
+      "usedBytes": 3545190400
+    },
+    "databaseLogicalSize": "10Gi",
+    "reportsLogicalSize": "5Gi",
+    "replicasPerVolume": 3,
+    "databaseLonghornAllocatedBytesPerReplicaBefore": 3766988800,
+    "databaseLonghornAllocatedBytesPerReplicaAfter": 7313797120,
+    "reportsLonghornAllocatedBytesPerReplicaAfter": 154898432,
+    "bothVolumesHealthy": true,
+    "recoverySnapshots": [
+      {
+        "name": "task24-pre-refresh-db-20261122",
+        "volume": "pvc-1ecfeee0-c8ad-4fcc-9df8-3795b08f3b0f",
+        "readyToUse": true,
+        "created": "2026-11-22T03:27:26Z"
+      },
+      {
+        "name": "task24-pre-refresh-reports-20261122",
+        "volume": "pvc-a35b8bc2-007e-4802-af4d-f4950b1ba168",
+        "readyToUse": true,
+        "created": "2026-11-22T03:27:26Z"
+      }
+    ],
+    "restoreTest": "not run; snapshots and retained exports verified; no PVC deletion, recreation or cache clearing"
+  },
+  "automation": {
+    "workflow": ".github/workflows/grype-database-refresh.yml",
+    "scheduleUTC": "19 7 * * *",
+    "manualQualificationRun": "https://github.com/RovxBot/homelab-infra/actions/runs/44981809543",
+    "result": "verified no-op: changed=false; no database refresh needed; zero updater PRs created",
+    "branch": "ci/grype-database-refresh",
+    "automaticMerge": false,
+    "clusterCredentials": false,
+    "publicationCredential": "existing WORKFLOW_PR_TOKEN in final publication step only"
+  },
+  "ci": {
+    "repository": "https://github.com/RovxBot/homelab-infra/actions/runs/44981422987",
+    "kubescape": "https://github.com/RovxBot/homelab-infra/actions/runs/44981422953",
+    "finalHead": "19ef747ea112f975e13159d41f33a82c5f292dc7",
+    "status": "success",
+    "focusedVerifierAndFreshnessTests": 20,
+    "kubescapeGuardTests": 30,
+    "renderedObjects": 61,
+    "kyvernoPasses": 48,
+    "schemaValid": 56,
+    "schemaSkippedCRDs": 5,
+    "schemaErrors": 0,
+    "serverSideChartAndPSADryRun": "verified"
+  },
+  "failureTests": {
+    "source": "unit-test fixtures; not production observations",
+    "testNow": "2026-11-22T04:00:00Z",
+    "states": {
+      "healthy": {
+        "state": "healthy",
+        "databaseState": "healthy",
+        "canAssess": true,
+        "assessmentTrustworthy": true,
+        "checkedAt": "2026-11-22T04:00:00Z",
+        "maximumDatabaseAgeHours": 72,
+        "reasons": [],
+        "integrity": "verified",
+        "lastSuccessfulAssessmentTime": "2026-11-22T03:59:00Z",
+        "expectedImage": "quay.io/kubescape/grype-offline-db@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "loaded": {
+          "archiveChecksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "built": "2026-11-21T06:20:06Z",
+          "schemaVersion": "v6.1.10",
+          "sqliteSHA256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "databaseAgeHours": 21.665
+      },
+      "stale": {
+        "state": "stale",
+        "databaseState": "stale",
+        "canAssess": false,
+        "assessmentTrustworthy": false,
+        "checkedAt": "2026-11-22T04:00:00Z",
+        "maximumDatabaseAgeHours": 72,
+        "reasons": [
+          "stale_database"
+        ],
+        "integrity": "unknown",
+        "lastSuccessfulAssessmentTime": "2026-11-22T03:59:00Z",
+        "expectedImage": "quay.io/kubescape/grype-offline-db@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "loaded": {
+          "archiveChecksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "built": "2026-11-19T03:59:59Z",
+          "schemaVersion": "v6.1.10",
+          "sqliteSHA256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "databaseAgeHours": 72.000278
+      },
+      "unknown": {
+        "state": "unknown",
+        "databaseState": "unknown",
+        "canAssess": false,
+        "assessmentTrustworthy": false,
+        "checkedAt": "2026-11-22T04:00:00Z",
+        "maximumDatabaseAgeHours": 72,
+        "reasons": [
+          "unverified_provenance"
+        ],
+        "integrity": "unknown",
+        "lastSuccessfulAssessmentTime": "2026-11-22T03:59:00Z",
+        "expectedImage": "quay.io/kubescape/grype-offline-db@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "loaded": {
+          "archiveChecksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "built": "2026-11-21T06:20:06Z",
+          "schemaVersion": "v6.1.10",
+          "sqliteSHA256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "databaseAgeHours": 21.665
+      },
+      "failed": {
+        "state": "failed",
+        "databaseState": "failed",
+        "canAssess": false,
+        "assessmentTrustworthy": false,
+        "checkedAt": "2026-11-22T04:00:00Z",
+        "maximumDatabaseAgeHours": 72,
+        "reasons": [
+          "cache_integrity_failed"
+        ],
+        "integrity": "unknown",
+        "lastSuccessfulAssessmentTime": "2026-11-22T03:59:00Z",
+        "expectedImage": "quay.io/kubescape/grype-offline-db@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "loaded": {
+          "archiveChecksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "built": "2026-11-21T06:20:06Z",
+          "schemaVersion": "v6.1.10",
+          "sqliteSHA256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "databaseAgeHours": 21.665
+      }
+    }
+  },
+  "preservation": {
+    "postureSpecSHA256": "3e6900e1237d0260f76d1cdff4fdf52a75c8f99d25934e3387938432c74e7d96",
+    "posturePreserved": true,
+    "originalNamedObjectsPreservedBeforeRescan": true,
+    "oldFullObjectsExportedBeforeOverwrite": true,
+    "oldEvidenceFileUnchanged": true,
+    "kyvernoDeploymentAndPolicySpecsPreserved": true,
+    "admissionWebhookSpecsPreserved": true,
+    "psaLabelsPreserved": true,
+    "ciliumConfigPreserved": true,
+    "memosDeploymentUIDAndSpecPreserved": true,
+    "readyFluxKustomizations": 27,
+    "readyHelmReleases": 7,
+    "giteaWotlkCiliumKyvernoLonghornWorkloadsReady": true,
+    "existingPodRestartIncreases": 0,
+    "newFailedExistingPods": 0,
+    "bothCronJobsSuspendedWithoutScheduledRuns": true,
+    "operatorImageRoutingEnabled": false,
+    "sbomVulnerabilityManifestSummaryCounts": [
+      1,
+      1,
+      1
+    ]
+  },
+  "limitations": [
+    "Evidence is a point-in-time assessment, not ongoing workload coverage.",
+    "No independent OCI signature established; publisher linkage uses separately retrieved Anchore HTTPS metadata and matching content hashes.",
+    "The supported client enforces freshness. The underlying Kubevuln API is not claimed to block stale scans.",
+    "Full SQLite quick_check passed before deployment. The live audit validates stored xxh64, SHA-256 and metadata; initial exhaustive live quick_check attempts were stopped due to excessive random-read latency.",
+    "Recovery snapshots are ready; a destructive restore was not performed.",
+    "Existing Longhorn disk scheduling pressure on metal4/metal5/metal7 was present before this task. Target replica disks had sufficient physical headroom; no unrelated disk cleanup was performed."
+  ]
+}
