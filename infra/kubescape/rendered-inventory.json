@@ -1,4 +1,41 @@
 {
+  "databaseImage": "quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+  "databaseRolloutIndex": "sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+  "databaseStartupGate": {
+    "command": [
+      "sh",
+      "-ec",
+      "for attempt in $(seq 1 60); do if wget -T 5 -q -O /tmp/grype-mirror-latest.json http://grype-offline-db:80/databases/v6/latest.json && cmp -s /tmp/grype-mirror-latest.json /www/databases/v6/latest.json; then exit 0; fi; sleep 2; done; exit 1"
+    ],
+    "image": "quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+    "name": "wait-for-verified-mirror",
+    "resources": {
+      "limits": {
+        "cpu": "100m",
+        "memory": "128Mi"
+      },
+      "requests": {
+        "cpu": "10m",
+        "memory": "32Mi"
+      }
+    },
+    "securityContext": {
+      "allowPrivilegeEscalation": false,
+      "capabilities": {
+        "drop": [
+          "ALL"
+        ]
+      },
+      "readOnlyRootFilesystem": true,
+      "runAsNonRoot": true
+    },
+    "volumeMounts": [
+      {
+        "mountPath": "/tmp",
+        "name": "tmp-dir"
+      }
+    ]
+  },
   "chart": {
     "version": "1.42.0",
     "url": "https://github.com/kubescape/helm-charts/releases/download/kubescape-operator-1.42.0/kubescape-operator-1.42.0.tgz",

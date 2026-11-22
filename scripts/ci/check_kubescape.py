@@ -20,6 +20,8 @@ import urllib.request
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+from grype_db import mirror_init
 VERSION = "1.42.0"
 CHART_SHA256 = "be45f83398f28db8f2ff395e5d8ab411328041e9e2165a42e5fb92a4ba369079"
 CHART_URL = ("https://github.com/kubescape/helm-charts/releases/download/"
@@ -85,6 +87,7 @@ def check_release(release, active=False):
     db = values["grypeOfflineDB"]
     assert db["enabled"] is True and db["image"]["tag"] == ""
     assert re.fullmatch(r"sha256:[a-f0-9]{64}", db["image"]["sha"]), "unpinned DB mirror"
+    assert values["kubevuln"]["podAnnotations"]["homelab.cooked.beer/grype-index"] == db["image"]["sha"], "DB change must roll the RWO engine"
     assert values["kubevuln"]["config"] == {
         "grypeDbPersistence": True, "maxImageSize": 536870912,
         "maxSBOMSize": 20971520, "scanTimeout": "5m", "cveMatchingMode": "off"}
@@ -217,6 +220,12 @@ def check_effective_config(resources):
 
 def inventory(resources):
     return {
+        "databaseImage": next((pod_template(r)["spec"]["containers"][0]["image"] for r in resources
+                               if r["kind"] == "Deployment" and r["metadata"]["name"] == "grype-offline-db"), None),
+        "databaseRolloutIndex": next((pod_template(r)["metadata"]["annotations"]["homelab.cooked.beer/grype-index"]
+                                      for r in resources if r["kind"] == "Deployment" and r["metadata"]["name"] == "kubevuln"), None),
+        "databaseStartupGate": next((pod_template(r)["spec"]["initContainers"][0]
+                                     for r in resources if r["kind"] == "Deployment" and r["metadata"]["name"] == "kubevuln"), None),
         "chart": {"version": VERSION, "url": CHART_URL, "sha256": CHART_SHA256, "kubernetes": "1.34.0"},
         "counts": dict(sorted(Counter(r["kind"] for r in resources).items())),
         "resources": sorted(f"{r['kind']}/{r['metadata'].get('namespace', '-')}/{r['metadata']['name']}"
@@ -258,6 +267,11 @@ def check_post_render(raw, rendered):
         container["resources"] = deepcopy(CERTGEN_BUDGET)
     expected[("batch/v1", "CronJob", "kubescape", "kubescape-scheduler")]["spec"]["suspend"] = True
     if ("batch/v1", "CronJob", "kubescape", "kubevuln-scheduler") in expected:
+        engine = expected[("apps/v1", "Deployment", "kubescape", "kubevuln")]
+        mirror = expected[("apps/v1", "Deployment", "kubescape", "grype-offline-db")]
+        assert not pod_template(engine)["spec"].get("initContainers"), "chart now supplies DB initialization; review patch"
+        pod_template(engine)["spec"]["initContainers"] = [mirror_init(pod_template(mirror)["spec"]["containers"][0]["image"])]
+        assert engine["spec"]["strategy"] == {"type": "Recreate"}, "RWO engine must not surge"
         expected[("batch/v1", "CronJob", "kubescape", "kubevuln-scheduler")]["spec"]["suspend"] = True
         caps = expected[("v1", "ConfigMap", "kubescape", "ks-capabilities")]["data"]
         data = json.loads(caps["capabilities"])
@@ -334,6 +348,14 @@ def check_admission(args, work, resources):
 def run(args):
     release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
     check_release(release, active=args.active_review)
+    lock = json.loads((ROOT / "infra/kubescape/grype-database.json").read_text())
+    assert lock["state"] == lock["publisher"]["status"] == "verified", "DB provenance not independently verified"
+    assert lock["indexDigest"] == release["spec"]["values"]["grypeOfflineDB"]["image"]["sha"], "DB proof differs from GitOps"
+    assert lock["image"] == "quay.io/kubescape/grype-offline-db@" + lock["indexDigest"]
+    assert lock["metadata"] == lock["publisher"]["document"], "publisher identity mismatch"
+    assert lock["database"]["built"] == lock["metadata"]["built"]
+    assert lock["database"]["schemaVersion"] == lock["metadata"]["schemaVersion"] == "v6.1.10"
+    assert lock["database"]["quickCheck"] == "ok"
     child = yaml.safe_load((ROOT / "clusters/home/infrastructure/kubescape-kustomization.yaml").read_text())
     check_child(child, active=args.active_review)
     if args.base_ref:

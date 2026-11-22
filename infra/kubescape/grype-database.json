@@ -1,0 +1,86 @@
+{
+  "ciVerification": {
+    "headSHA": "ea0267cb493aba6a7e850b4ee3d7b5758e59d23f",
+    "status": "verified",
+    "url": "https://github.com/RovxBot/homelab-infra/actions/runs/44980981144"
+  },
+  "configDigest": "sha256:44e3d16236386cfc1bac9ee59bd9a5fa2e13f3f9da4ff27d8e3f1d720377afc2",
+  "database": {
+    "archiveBytes": 205876366,
+    "built": "2026-11-21T06:20:06Z",
+    "bytes": 2694901760,
+    "quickCheck": "ok",
+    "schemaVersion": "v6.1.10",
+    "sha256": "sha256:00d6882518ecbf31bdc8d8816006072f510a6b6b7b9a040efea4ef057bebbf35"
+  },
+  "image": "quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+  "indexDigest": "sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449",
+  "layers": [
+    {
+      "digest": "sha256:37bb94b0940bd40749eced2b83080d1b9912f281ac499a7247e4ce7c385792cc",
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 2226163
+    },
+    {
+      "digest": "sha256:eeae3060617a7edf63fcbb8f67cfa5c0a1b1d46a28407d7cbd49eee2ecdbfe57",
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 694
+    },
+    {
+      "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 32
+    },
+    {
+      "digest": "sha256:ab49254b4e7c68ba3160826fc3319398a9dae3c55db7762551793684ecf7e86d",
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "size": 200560842
+    }
+  ],
+  "manifestDigest": "sha256:4c842c6af8d1f5af7f790dba4b02b39d3e61b358e5796fccc1c06cf9d7e4a7ff",
+  "metadata": {
+    "built": "2026-11-21T06:20:06Z",
+    "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+    "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+    "schemaVersion": "v6.1.10",
+    "status": "active"
+  },
+  "platform": "linux/amd64",
+  "previous": {
+    "indexDigest": "sha256:9dd3b2eb49d80612866cfb13f7da0038fe9e3d4108784881de9a7b554a29815a",
+    "metadata": {
+      "built": "2026-11-20T06:21:00Z",
+      "checksum": "sha256:6866d1685025e6001d422fb4be59f26feebacb151b3ff77b012d999e12b9af24",
+      "path": "vulnerability-db_v6.1.10_2026-11-20T00:20:17Z_1795155660.tar.zst",
+      "schemaVersion": "v6.1.10",
+      "status": "active"
+    }
+  },
+  "publisher": {
+    "document": {
+      "built": "2026-11-21T06:20:06Z",
+      "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+      "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+      "schemaVersion": "v6.1.10",
+      "status": "active"
+    },
+    "documentSHA256": "sha256:ec1a87e065ac91ed232a7afdd3e0dbdd5cb15a697c5de9b69107d10b5ead3f68",
+    "method": "independent-publisher-https-metadata",
+    "retrievedAt": "2026-11-22T03:31:27.484923Z",
+    "signature": "not established",
+    "status": "verified",
+    "unavailableEndpoints": [],
+    "url": "https://grype.anchore.io/databases/v6/latest.json"
+  },
+  "registryIntegrity": "verified",
+  "state": "verified",
+  "storage": {
+    "archiveTemporaryBudgetBytes": 411752732,
+    "databaseBytes": 2694901760,
+    "hydratedBudgetBytes": 4042352640,
+    "marginBytes": 536870912,
+    "requiredFreeBytes": 6338427164,
+    "sqliteTemporaryBudgetBytes": 1347450880
+  },
+  "verifiedAt": "2026-11-22T03:20:35.982419Z"
+}
