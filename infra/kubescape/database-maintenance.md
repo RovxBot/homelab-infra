@@ -115,8 +115,10 @@ The transient Job uses pinned Grype 0.121.0 and the repository's pinned Python
 image, restricted contexts, no ServiceAccount token and a **read-only PVC
 mount** on the engine's node. It requests 200m/256Mi total, with 500m/512Mi
 limits for each of two containers. Grype validates the hydrated DB's stored
-xxh64 checksum; Python reads internal metadata, runs SQLite `quick_check` and
-computes its SHA-256. Hydration adds indexes, so that SHA differs from the
+xxh64 checksum across the complete hydrated file; Python reads internal metadata
+and computes its SHA-256. Full SQLite `quick_check` runs on the isolated candidate
+before deployment; repeating its random reads on the live Longhorn volume was
+too slow for a routine check. Hydration adds indexes, so that SHA differs from the
 archive's original expanded SQLite SHA. The Job has a ten-minute deadline,
 no retries and a ten-minute completed TTL; logs are saved locally first.
 

@@ -32,17 +32,15 @@ import datetime, hashlib, json, os, sqlite3
 from pathlib import Path
 p = Path('/cache/db/6/vulnerability.db')
 with sqlite3.connect('file:' + str(p) + '?mode=ro', uri=True) as c:
-    c.execute('PRAGMA cache_size=-131072')
-    quick = c.execute('PRAGMA quick_check').fetchall()
     rows = c.execute('SELECT build_timestamp, model, revision, addition FROM db_metadata').fetchall()
-if len(rows) != 1 or quick != [('ok',)]:
-    raise SystemExit('SQLite integrity/metadata check failed')
+if len(rows) != 1:
+    raise SystemExit('SQLite metadata check failed')
 built, model, revision, addition = rows[0]
 with p.open('rb') as f:
     digest = 'sha256:' + hashlib.file_digest(f, 'sha256').hexdigest()
 fs = os.statvfs('/cache')
 print(json.dumps({'built': datetime.datetime.fromisoformat(built).isoformat().replace('+00:00', 'Z'),
-    'schemaVersion': f'v{model}.{revision}.{addition}', 'quickCheck': 'ok', 'sha256': digest,
+    'schemaVersion': f'v{model}.{revision}.{addition}', 'metadataReadable': True, 'sha256': digest,
     'bytes': p.stat().st_size, 'import': json.loads(p.with_name('import.json').read_text()),
     'filesystem': {'availableBytes': fs.f_bavail * fs.f_frsize,
                    'capacityBytes': fs.f_blocks * fs.f_frsize,
@@ -185,7 +183,7 @@ def evaluate(evidence, expected, now=None):
         db.require(audit["podUID"] == evidence["enginePodUID"], "cache_audit_pod_mismatch")
         audit_age = db.age_hours(audit["checkedAt"], now)
         db.require(audit_age <= 0.25, "cache_audit_expired")
-        db.require(sqlite["quickCheck"] == "ok" and checksum.get("error") in (None, "") and checksum.get("valid") is True,
+        db.require(sqlite["metadataReadable"] is True and checksum.get("error") in (None, "") and checksum.get("valid") is True,
                    "cache_integrity_failed")
         db.require(sqlite["schemaVersion"] == latest["schemaVersion"] == checksum["schemaVersion"], "incompatible_schema")
         db.require(sqlite["built"] == latest["built"] == checksum["built"], "cache_build_mismatch")

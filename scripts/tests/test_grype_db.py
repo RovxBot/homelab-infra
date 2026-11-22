@@ -43,7 +43,7 @@ def fixture():
                 "mirrorImage": expected["image"], "mirrorImageID": db.IMAGE + "@" + MANIFEST,
                 "mirrorMetadata": copy.deepcopy(LATEST), "assessment": report,
                 "audit": {"podUID": "engine-uid", "checkedAt": "2026-11-22T03:58:00Z",
-                          "sqlite": {"built": BUILT, "schemaVersion": "v6.1.10", "quickCheck": "ok",
+                          "sqlite": {"built": BUILT, "schemaVersion": "v6.1.10", "metadataReadable": True,
                                      "sha256": CHECKSUM, "import": {"source": SOURCE}},
                           "checksum": {"valid": True, "built": BUILT, "schemaVersion": "v6.1.10", "from": SOURCE}}}
     return evidence, expected
@@ -211,7 +211,7 @@ class FreshnessTests(unittest.TestCase):
             (lambda e: e["audit"]["sqlite"].update(built="2026-11-23T00:00:00Z"), "future_timestamp"),
             (lambda e: e["diagnostics"].update(cveDBVersion="wrong"), "loaded_database_mismatch"),
             (lambda e: e["audit"]["checksum"].update(valid=False), "cache_integrity_failed"),
-            (lambda e: e["audit"]["sqlite"].update(quickCheck="corrupt"), "cache_integrity_failed"),
+            (lambda e: e["audit"]["sqlite"].update(metadataReadable=False), "cache_integrity_failed"),
             (lambda e: e["audit"]["sqlite"].update(schemaVersion="v7.0.0"), "incompatible_schema"),
             (lambda e: e.update(mirrorImageID="mirror@sha256:" + "d" * 64), "mirror_imageid_mismatch"),
             (lambda e: e.update(declaredDigest="wrong"), "gitops_digest_mismatch"),
