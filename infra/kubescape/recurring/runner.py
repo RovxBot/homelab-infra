@@ -263,23 +263,31 @@ def check_posture(result, summaries, started):
     controls = []
     for framework in frameworks:
         values = framework.get("controls", {})
-        controls.extend(values.values() if isinstance(values, dict) else values)
+        db.require(isinstance(values, (dict, list)), "posture_controls_invalid")
+        for key, control in (values.items() if isinstance(values, dict) else enumerate(values)):
+            controls.append((key, control))
     db.require(bool(controls), "posture_controls_empty")
     statuses = Counter()
-    for control in controls:
-        info = control.get("statusInfo", {})
-        substatus = info.get("subStatus", "")
-        status = control.get("status", info.get("status", {}))
+    not_evaluated = []
+    incomplete_coverage = []
+    for key, control in controls:
+        db.require(isinstance(control, dict), "posture_controls_invalid")
+        info = control.get("statusInfo") or {}
+        db.require(isinstance(info, dict), "posture_status_invalid")
+        # Kubescape v4.0.20: StatusInfo is authoritative; top-level status is
+        # a compatibility fallback. Its printer counts skipped as Action Required.
+        status = info.get("status") or control.get("status")
         status = status.get("status") if isinstance(status, dict) else status
-        status = str(status).lower().replace(" ", "")
-        translated = {"passed": "Passed", "failed": "Failed", "actionrequired": "Action Required",
-                      "skipped": "Not Evaluated", "notimplemented": "Not Evaluated", "irrelevant": "Not Evaluated"}
-        category = translated.get(status, "Not Evaluated")
-        if substatus in {"notEvaluated", "incompleteCoverage", "irrelevant"}:
-            category = "Not Evaluated"
-        elif substatus in {"requires review", "manual review", "configuration", "integration"} and status != "failed":
-            category = "Action Required"
-        statuses[category] += 1
+        translated = {"passed": "Passed", "failed": "Failed",
+                      "skipped": "Action Required", "actionRequired": "Action Required"}
+        db.require(isinstance(status, str) and status in translated, "posture_status_unrecognised")
+        statuses[translated[status]] += 1
+        substatus = info.get("subStatus", "")
+        identifier = control.get("controlID") or (key if isinstance(key, str) else None)
+        if substatus == "notEvaluated":
+            not_evaluated.append(identifier)
+        elif substatus == "incompleteCoverage":
+            incomplete_coverage.append(identifier)
     db.require(statuses["Passed"] + statuses["Failed"] > 0, "posture_not_evaluated")
     db.require(bool(summaries), "posture_reports_missing")
     for summary in summaries:
@@ -288,6 +296,9 @@ def check_posture(result, summaries, started):
     db.require(any(s["metadata"].get("namespace") == "memos" and s["metadata"]["name"] == "deployment-memos" for s in summaries), "posture_memos_missing")
     db.require(any(s["metadata"].get("namespace") == NS for s in summaries), "posture_shared_rbac_missing")
     return {"framework": "nsa", "controls": dict(statuses), "storedSummaries": len(summaries),
+            "coverage": {"notEvaluatedControls": len(not_evaluated), "notEvaluatedControlIDs": not_evaluated,
+                         "incompleteCoverageControls": len(incomplete_coverage),
+                         "incompleteCoverageControlIDs": incomplete_coverage},
             "limitations": ["Host/cloud checks remain unsupported or Action Required; no host collector", "Intentional RBAC exceptions retained; no remediation"]}
 
 
