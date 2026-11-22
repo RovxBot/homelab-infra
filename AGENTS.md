@@ -52,6 +52,25 @@ This is a **short route map**, not a checklist of files to read. The repository 
 - Renovate normally batches routine patches/digests for Monday; higher-risk changes are reviewed separately. No automatic merging or unrelated version churn.
 - Never claim a check passed, a release is Ready or an assessment is fresh without evidence. Distinguish simulation, CI, manual canary and unattended production behaviour.
 
+## Division of labour — conserve Codex usage
+
+**Codex is the implementation agent, not the default investigation agent.** Tasks are normally scoped by ChatGPT after independent review. Start from the supplied issue, PR, paths and acceptance criteria; do not repeat completed research without a specific contradiction, missing prerequisite or safety concern.
+
+| Work | Default owner |
+| --- | --- |
+| Kubernetes diagnostics, logs, GitHub issue triage and evidence collection | ChatGPT |
+| Vulnerability/advisory research, architecture options, implementation planning | ChatGPT |
+| Independent PR review and production acceptance evidence | ChatGPT |
+| Code, manifests, tests and approved GitOps implementation/deployment | Codex |
+| Focused implementation tests | Codex |
+| Broader repository CI validation | GitHub Actions |
+| Human-facing operational documentation | GitHub Wiki; the agent delivering the accepted change updates its relevant pages |
+
+- Treat supplied findings as **scoping inputs, not unverified proof**. Inspect the smallest relevant source/code and check safety-critical assumptions before making changes. If the task conflicts with live code or requires new evidence, report the exact discrepancy and smallest next action rather than launching broad discovery.
+- Don't duplicate ChatGPT's issue investigation, cluster log review, architecture comparison or advisory triage simply to fill a response. Investigate further when **explicitly assigned** or when needed to implement safely.
+- Prefer producing one focused PR and a concise handoff. Leave general diagnostics, CI waiting, cross-project research and acceptance review to their respective owners unless the task explicitly delegates them to Codex.
+- This role split does **not** override security gates, required validation, necessary implementation debugging, or the user’s explicit task instructions. It also does not automatically grant ChatGPT write access to the cluster or Wiki.
+
 ## Efficient implementation and tests
 
 1. Scope the edit to the specified issue and smallest owning component. Prefer one coherent PR; do not opportunistically refactor other systems.
