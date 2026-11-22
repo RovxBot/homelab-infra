@@ -16,6 +16,8 @@ SPEC = importlib.util.spec_from_file_location("recurring", ROOT / "infra/kubesca
 R = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(R)
 CONFIG = json.loads((ROOT / "infra/kubescape/recurring/config.json").read_text())
+# The pre-expansion single-Memos scenarios remain independent of the live cohort.
+CANARY_CONFIG = {**CONFIG, "targets": CONFIG["targets"][:1]}
 EXPECTED = json.loads((ROOT / "infra/kubescape/grype-database.json").read_text())
 NOW = datetime(2026, 11, 22, 5, tzinfo=timezone.utc)
 
@@ -57,6 +59,25 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(inventory["rows"][0]["assessmentState"], "never_scanned")
 
 
+    def test_reviewed_second_cohort_is_selected_sequentially(self):
+        self.assertEqual([target["identity"] for target in CONFIG["targets"]],
+                         ["memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx"])
+        home = {**row(), "namespace": "homepage", "workload": "homepage-assets",
+                "container": "nginx", "workloadUID": "homepage-uid",
+                "podUIDs": ["homepage-pod"], "runningDigest":
+                "docker.io/nginxinc/nginx-unprivileged@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e"}
+        config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+        selected = R.targets([row(), home], config)
+        self.assertEqual([r["workload"] for r in selected], ["memos", "homepage-assets"])
+        statuses = R.coverage([row(), home], {}, config, NOW)["rows"]
+        self.assertEqual({r["workload"]: r["assessmentState"] for r in statuses},
+                         {"memos": "never_scanned", "homepage-assets": "never_scanned"})
+        for changed in ({**home, "ready": False}, {**home, "runningDigest": None}):
+            with self.assertRaisesRegex(R.db.Rejected, "workload_not_ready"):
+                R.targets([row(), changed], config)
+        with self.assertRaisesRegex(R.db.Rejected, "workload_not_ready"):
+            R.targets([row()], config)
+
 class SchedulingTests(unittest.TestCase):
     def test_duplicate_process_fails_without_queueing(self):
         with tempfile.TemporaryDirectory() as path:
@@ -69,7 +90,7 @@ class SchedulingTests(unittest.TestCase):
 
     def test_uncertain_request_checks_existing_id_and_never_posts(self):
         with tempfile.TemporaryDirectory() as path:
-            runner = R.Runner(mock.Mock(), CONFIG, EXPECTED, Path(path), "vulnerability")
+            runner = R.Runner(mock.Mock(), CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
             R.atomic(Path(path) / "inflight.json", {"jobID": "existing-request"})
             with mock.patch.object(R, "service", return_value={"state": "succeeded"}) as call:
                 with self.assertRaisesRegex(R.db.Rejected, "uncertain_previous_request"):
@@ -79,7 +100,7 @@ class SchedulingTests(unittest.TestCase):
 
     def test_fenced_posture_lost_response_cannot_resubmit(self):
         with tempfile.TemporaryDirectory() as path:
-            runner = R.Runner(mock.Mock(), CONFIG, EXPECTED, Path(path), "posture")
+            runner = R.Runner(mock.Mock(), CANARY_CONFIG, EXPECTED, Path(path), "posture")
             R.atomic(Path(path) / "inflight.json", {"mode": "posture"})
             with mock.patch.object(R, "service") as call:
                 with self.assertRaisesRegex(R.db.Rejected, "uncertain_previous_request"):
@@ -90,7 +111,7 @@ class SchedulingTests(unittest.TestCase):
 class FailureTests(unittest.TestCase):
     def run_failure(self, reason, state="failed"):
         with tempfile.TemporaryDirectory() as path:
-            runner = R.Runner(mock.Mock(), CONFIG, EXPECTED, Path(path), "vulnerability")
+            runner = R.Runner(mock.Mock(), CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
             with mock.patch.object(R, "workload_rows", return_value=[row()]), mock.patch.object(runner, "publish"), \
                     mock.patch.object(runner, "preflight", side_effect=R.db.Rejected(reason)), mock.patch.object(runner, "audit") as audit:
                 self.assertNotEqual(runner.run(), 0)
@@ -116,7 +137,7 @@ class FailureTests(unittest.TestCase):
 
     def test_storage_api_unavailable(self):
         with tempfile.TemporaryDirectory() as path:
-            runner = R.Runner(mock.Mock(), CONFIG, EXPECTED, Path(path), "vulnerability")
+            runner = R.Runner(mock.Mock(), CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
             with mock.patch.object(R, "workload_rows", return_value=[row()]), mock.patch.object(runner, "publish"), \
                     mock.patch.object(runner, "preflight", side_effect=R.APIError(503)):
                 self.assertEqual(runner.run(), 3)
@@ -130,7 +151,7 @@ class FailureTests(unittest.TestCase):
     def test_failed_timeout_missing_report_and_changed_image_keep_fence(self):
         for case in ("scan_failed", "scan_timeout", "report_missing", "workload_image_changed", "engine_restarted"):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as path:
-                runner = R.Runner(mock.Mock(), CONFIG, EXPECTED, Path(path), "vulnerability")
+                runner = R.Runner(mock.Mock(), CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
                 def fail(*_):
                     R.atomic(Path(path) / "inflight.json", {"jobID": "submitted"})
                     raise R.db.Rejected(case)
@@ -260,7 +281,7 @@ class SubmissionTests(unittest.TestCase):
                 mock.patch.object(R, "workload_rows", return_value=[current]), mock.patch.object(R, "service", side_effect=service), \
                 mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "engine-uid"}}):
             history = Path(path)
-            config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+            config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
             runner = R.Runner(api, config, EXPECTED, history, "vulnerability")
             with mock.patch.object(runner, "preflight", return_value={}), \
                     mock.patch.object(runner, "audit", return_value={"podUID": "engine-uid"}), \
@@ -298,7 +319,7 @@ class SubmissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as path:
             api = mock.Mock()
             api.items.return_value = []  # No full report/SBOM persisted.
-            runner = R.Runner(api, CONFIG, EXPECTED, Path(path), "vulnerability")
+            runner = R.Runner(api, CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
             requests = []
             def service(component, endpoint, value=None):
                 requests.append((component, endpoint, value))
@@ -374,7 +395,7 @@ class PrerequisiteTests(unittest.TestCase):
             node = {"metadata": {"name": "node"}, "status": {"diskStatus": {"disk": {
                 "diskUUID": "disk", "storageAvailable": 9 * 1024**3, "storageMaximum": 100 * 1024**3}}}}
             api.items.side_effect = [ [volume], replicas, [node] ]
-            runner = R.Runner(api, CONFIG, EXPECTED, Path(path), "vulnerability")
+            runner = R.Runner(api, CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
             with self.assertRaisesRegex(R.db.Rejected, "replica_disk_low_space"):
                 runner.storage_gate()
 
