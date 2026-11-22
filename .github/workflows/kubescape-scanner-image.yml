@@ -1,0 +1,51 @@
+name: Kubescape Bounded Scanner Image
+on:
+  pull_request:
+    paths:
+      - infra/kubescape/recurring/scanner/**
+      - .github/workflows/kubescape-scanner-image.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kubescape-scanner-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Fetch the exact qualified scanner source
+        working-directory: infra/kubescape/recurring/scanner
+        run: |
+          curl --fail --location --retry 2 https://github.com/kubescape/kubevuln/archive/45d265e3b46af4d7fc1c896ecc22a93915f2d6fe.tar.gz --output /tmp/kubevuln.tar.gz
+          echo '1d805eca4b3a2075214ba39bb2cdf5d6bd588626f11cd4b7be1d8b9420cc1058  /tmp/kubevuln.tar.gz' | sha256sum --check --strict
+          mkdir upstream
+          tar -xzf /tmp/kubevuln.tar.gz --strip-components=1 -C upstream
+          patch --fuzz=0 --dry-run -p1 -d upstream < force-rescan.patch
+          patch --fuzz=0 -p1 -d upstream < force-rescan.patch
+      - name: Build and test the bounded scanner extension
+        env:
+          REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: docker build --tag "ghcr.io/rovxbot/kubevuln:${REVISION}" infra/kubescape/recurring/scanner
+      - name: Publish the tested same-repository artifact
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+          docker push "ghcr.io/rovxbot/kubevuln:${REVISION}"
+          docker inspect "ghcr.io/rovxbot/kubevuln:${REVISION}" --format '{{index .RepoDigests 0}}' > scanner-image-digest.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          name: kubescape-scanner-image
+          path: scanner-image-digest.txt

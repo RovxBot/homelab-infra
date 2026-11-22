@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -225,6 +226,46 @@ class SubmissionTests(unittest.TestCase):
             self.assertEqual(runner.result["assessments"], [])
             if lost:
                 self.assertEqual(requests[1][1], "/v1/scanStatus/" + intent["jobID"])
+
+
+class PrerequisiteTests(unittest.TestCase):
+    def test_list_items_inherit_kind_from_kubernetes_list(self):
+        api = R.API(local=True)
+        with mock.patch.object(api, "get", return_value={"kind": "DeploymentList", "items": [{"metadata": {"name": "example"}}]}):
+            self.assertEqual(api.items(R.APPS, "deployments")[0]["kind"], "Deployment")
+
+    def test_actual_preflight_rejects_refresh_low_space_and_memory(self):
+        for failure in ("database_refresh_in_progress", "database_pvc_low_space", "memory_budget_exhausted"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as path:
+                api = mock.Mock()
+                release = {"metadata": {"generation": 3}, "spec": {"values": {"grypeOfflineDB": {"image": {"sha": EXPECTED["indexDigest"]}}}},
+                           "status": {"observedGeneration": 2 if failure == "database_refresh_in_progress" else 3,
+                                      "conditions": [{"type": "Ready", "status": "True", "observedGeneration": 3}]}}
+                api.get.return_value = release
+                api.items.return_value = [{"metadata": {"name": "engine"}, "timestamp": R.db.stamp(NOW),
+                                           "containers": [{"name": "kubevuln", "usage": {"cpu": "1m", "memory": "3Gi"}}]}]
+                config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+                runner = R.Runner(api, config, EXPECTED, Path(path), "vulnerability")
+                free = 1024**3 if failure == "database_pvc_low_space" else 6 * 1024**3
+                with mock.patch.object(R.db, "utcnow", return_value=NOW), \
+                        mock.patch.object(R, "component_pod", return_value={"metadata": {"name": "engine", "uid": "engine-uid"}}), \
+                        mock.patch.object(R.os, "statvfs", return_value=SimpleNamespace(f_bavail=free, f_frsize=1)):
+                    with self.assertRaisesRegex(R.db.Rejected, failure):
+                        runner.preflight()
+
+    def test_actual_physical_disk_gate_includes_retained_allocations(self):
+        with tempfile.TemporaryDirectory() as path:
+            api = mock.Mock()
+            api.get.return_value = {"status": {"phase": "Bound"}, "spec": {"volumeName": "volume"}}
+            volume = {"metadata": {"name": "volume"}, "status": {"robustness": "healthy"}}
+            replicas = [{"metadata": {"name": str(i)}, "spec": {"volumeName": "volume", "nodeID": "node", "diskID": "disk"},
+                         "status": {"currentState": "running"}} for i in range(3)]
+            node = {"metadata": {"name": "node"}, "status": {"diskStatus": {"disk": {
+                "diskUUID": "disk", "storageAvailable": 9 * 1024**3, "storageMaximum": 100 * 1024**3}}}}
+            api.items.side_effect = [ [volume], replicas, [node] ]
+            runner = R.Runner(api, CONFIG, EXPECTED, Path(path), "vulnerability")
+            with self.assertRaisesRegex(R.db.Rejected, "replica_disk_low_space"):
+                runner.storage_gate()
 
 
 if __name__ == "__main__":

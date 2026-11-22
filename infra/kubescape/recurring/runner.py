@@ -380,7 +380,7 @@ class Runner:
                 if condition["type"] in {"MemoryPressure", "DiskPressure", "PIDPressure"}:
                     db.require(condition["status"] == "False", "node_resource_pressure")
         for pod in self.api.items(CORE, "pods"):
-            if pod["metadata"]["namespace"] in {"gitea-runners", "gitea"} and pod["status"].get("phase") in {"Running", "Pending"}:
+            if pod["metadata"]["namespace"] in {"gitea-runners", "gitea", "gitea-jobs", "wowdecomp-ci-jobs"} and pod["status"].get("phase") in {"Running", "Pending"}:
                 db.require(not any(owner["kind"] == "Job" for owner in pod["metadata"].get("ownerReferences", [])), "ci_build_active")
         node_metrics = self.api.items("/apis/metrics.k8s.io/v1beta1", "nodes")
         nodes = {n["metadata"]["name"]: n for n in self.api.items(CORE, "nodes")}
@@ -517,7 +517,7 @@ class Runner:
         started = db.stamp(db.utcnow())
         payload = {"imageTag": row["runningDigest"], "imageHash": row["runningDigest"], "jobID": job,
                    "wlid": f"wlid://cluster-home/namespace-{row['namespace']}/deployment-{row['workload']}",
-                   "containerName": row["container"], "args": {"platform": "linux/amd64"}}
+                   "containerName": row["container"], "args": {"platform": "linux/amd64", "forceRescan": True}}
         atomic(self.history / "inflight.json", {"jobID": job, "enginePodUID": audit["podUID"], "workload": row, "submittedAt": started})
         self.save("request-" + job, payload)
         # POST is never retried, including a lost HTTP response.
