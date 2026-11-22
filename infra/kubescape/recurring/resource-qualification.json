@@ -1,0 +1,116 @@
+{
+  "status": "verified",
+  "qualifiedScope": [
+    "memos/Deployment/memos/memos"
+  ],
+  "observedAt": "2026-11-22T04:14:59Z",
+  "enginePodUID": "14713298-f922-4ab9-ae36-15400e57557b",
+  "measurementSource": "Authenticated kubelet summary and cAdvisor, plus previous measured hydration acceptance",
+  "cpuCores": 0.000354541,
+  "memory": {
+    "time": "2026-11-22T04:14:59Z",
+    "availableBytes": 2261712896,
+    "usageBytes": 1354522624,
+    "workingSetBytes": 959512576,
+    "rssBytes": 36048896,
+    "pageFaults": 65759,
+    "majorPageFaults": 0,
+    "psi": {
+      "full": {
+        "total": 176992,
+        "avg10": 0,
+        "avg60": 0,
+        "avg300": 0
+      },
+      "some": {
+        "total": 176992,
+        "avg10": 0,
+        "avg60": 0,
+        "avg300": 0
+      }
+    }
+  },
+  "filesystemCacheBytes": 1310851072,
+  "ephemeralStorage": {
+    "time": "2026-11-22T04:15:17Z",
+    "availableBytes": 47254724608,
+    "capacityBytes": 272620314624,
+    "usedBytes": 16384,
+    "inodesFree": 92294918,
+    "inodes": 96661328,
+    "inodesUsed": 30
+  },
+  "databaseFilesystem": {
+    "time": "2026-11-22T04:15:10Z",
+    "availableBytes": 6902054912,
+    "capacityBytes": 10464022528,
+    "usedBytes": 3545190400,
+    "inodesFree": 655344,
+    "inodes": 655360,
+    "inodesUsed": 16,
+    "name": "grype-db",
+    "pvcRef": {
+      "name": "kubescape-kubevuln",
+      "namespace": "kubescape"
+    }
+  },
+  "reportFilesystem": {
+    "time": "2026-11-22T04:17:25Z",
+    "availableBytes": 5178740736,
+    "capacityBytes": 5196382208,
+    "usedBytes": 864256,
+    "inodesFree": 327629,
+    "inodes": 327680,
+    "inodesUsed": 51,
+    "name": "data",
+    "pvcRef": {
+      "name": "kubescape-storage",
+      "namespace": "kubescape"
+    }
+  },
+  "unchangedMemoryLimitBytes": 3221225472,
+  "previousHydration": {
+    "evidence": "../database-maintenance-evidence.json",
+    "seconds": 356,
+    "maximumCPUCoreMillis": 801.6,
+    "maximumWorkingSetMiB": 1040.7,
+    "maximumCgroupUsageBytes": 3220697088,
+    "filesystemCacheIncluded": true,
+    "oomOrRestarts": false
+  },
+  "approvedBudget": {
+    "activeScans": 1,
+    "maximumQueuedVulnerabilityScans": 1,
+    "clientQueuedScans": 0,
+    "scanTimeoutSeconds": 360,
+    "engineScanTimeoutSeconds": 300,
+    "jobDeadlineSeconds": 1800,
+    "postRetries": 0,
+    "auditDeadlineSeconds": 600,
+    "workingSetStopBytes": 2147483648,
+    "idleCPUStopCores": 0.25,
+    "databaseMinimumFreeBytes": 3221225472,
+    "reportsMinimumFreeBytes": 1073741824,
+    "replicaDiskMinimumFreeBytes": 10737418240,
+    "replicaDiskMinimumFreeFraction": 0.15,
+    "historyMaximumBytes": 536870912
+  },
+  "storageImpact": {
+    "additionalPVCs": 0,
+    "databaseActualSizePerReplicaBytes": 7313797120,
+    "reportsActualSizePerReplicaBytes": 154902528,
+    "replicasPerPVC": 3,
+    "historyMaximumAdditionalPhysicalBytes": 1610612736,
+    "snapshotRetention": "Retain existing ready recovery snapshots; no automatic pruning. Their physical allocation remains charged. Stop if any replica disk falls below threshold."
+  },
+  "decisions": [
+    "Keep 3Gi limit: current working set about 915Mi, previous hydration working set about 1041Mi; high cgroup usage included reclaimable cache and no OOM. Growth still requires requalification.",
+    "No simultaneous hydration/scanning: readiness, Helm observed generation, mirror pin, live checksum and Pod-UID gate fail closed.",
+    "Recurring scans reserve 3Gi filesystem space; database replacement separately retains its larger 2*expanded+2*archive+512Mi budget and must include history usage.",
+    "Only Memos may run before initial acceptance. Homepage-assets is a candidate, not activated by this evidence."
+  ],
+  "samplingLimitations": [
+    "Kubelet and ten-second samples are not instantaneous maxima.",
+    "Distroless engine has no shell. Filesystem cache is measured via cAdvisor, without adding a debug container."
+  ]
+}

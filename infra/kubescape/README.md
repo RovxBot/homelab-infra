@@ -9,7 +9,9 @@ The completed NSA assessment and its limitations are preserved in the
 [posture baseline](production-baseline.md). Image scanning qualification,
 database provenance, acceptance evidence and coverage are recorded in the
 [image assessment](image-assessment.md). Neither baseline represents cluster-wide
-coverage. Both recurring scan CronJobs remain **suspended**.
+coverage. The chart CronJobs remain **suspended**. Controlled daily execution,
+its shared lock, freshness gate, inventory and recovery procedures are in the
+[recurring runbook](recurring/README.md).
 
 ## Manual image assessment
 

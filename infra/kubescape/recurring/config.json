@@ -1,0 +1,18 @@
+{
+  "resourceBudgetQualified": true,
+  "maximumScanAgeHours": 26,
+  "scanTimeoutSeconds": 360,
+  "maximumWorkingSetBytes": 2147483648,
+  "maximumIdleCPUCores": 0.25,
+  "minimumDatabaseFreeBytes": 3221225472,
+  "minimumReportFreeBytes": 1073741824,
+  "maximumHistoryBytes": 536870912,
+  "minimumReplicaDiskFreeBytes": 10737418240,
+  "minimumReplicaDiskFreeFraction": 0.15,
+  "targets": [
+    {
+      "identity": "memos/Deployment/memos/memos",
+      "reason": "Qualified public-image canary, one replica, existing SBOM and vulnerability baseline"
+    }
+  ]
+}

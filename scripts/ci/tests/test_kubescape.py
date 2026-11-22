@@ -154,7 +154,8 @@ class StagedReleaseTests(unittest.TestCase):
         infrastructure = yaml.safe_load((ROOT / "clusters/home/infrastructure/kustomization.yaml").read_text())
         self.assertNotIn("../../../infra/kubescape", infrastructure["resources"])
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
-        self.assertEqual(set(source["resources"]), {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml"})
+        self.assertEqual(set(source["resources"]), {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml",
+                                                  "recurring/rbac.yaml", "recurring/cronjobs.yaml"})
         namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
         labels = namespace["metadata"]["labels"]
         self.assertEqual(labels["pod-security.kubernetes.io/enforce"], "restricted")

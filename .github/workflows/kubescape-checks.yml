@@ -10,6 +10,9 @@ on:
       - scripts/ci/tests/test_kubescape.py
       - scripts/grype*.py
       - scripts/kubescape_db.py
+      - scripts/kubescape_recurring_bundle.py
+      - scripts/ci/check_kubescape_recurring.py
+      - scripts/tests/test_kubescape_recurring.py
       - scripts/tests/test_grype*.py
       - .github/workflows/grype-database-refresh.yml
       - .github/workflows/kubescape-checks.yml
@@ -54,6 +57,8 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
           python3 -m unittest discover -s scripts/tests -p 'test_grype*.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_kubescape_recurring.py' -v
+          python3 scripts/ci/check_kubescape_recurring.py
 
       - name: Independently reverify a changed database pin
         env:
@@ -100,6 +105,14 @@ jobs:
         run: |
           set -euo pipefail
           kustomize build infra/kubescape > .work/kubescape-preflight/source.yaml
+          kyverno apply migration/kyverno/policies/workloads.yaml migration/kyverno/policies/namespace.yaml \
+            --resource .work/kubescape-preflight/source.yaml --policy-report > .work/kubescape-preflight/recurring-kyverno.yaml
+          python3 - <<'PY'
+          import yaml
+          text = open('.work/kubescape-preflight/recurring-kyverno.yaml').read()
+          report = yaml.safe_load(text[text.index('apiVersion:'):])
+          assert report['summary'] == {'pass': 13, 'fail': 0, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
+          PY
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home > .work/kubescape-preflight/entrypoint.yaml
           kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.34.0 -summary \
