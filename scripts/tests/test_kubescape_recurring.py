@@ -165,7 +165,7 @@ class FailureTests(unittest.TestCase):
         shared = copy.deepcopy(summary)
         shared["metadata"].update(name="shared-rbac", namespace="kubescape")
         counts = R.check_posture(result, [summary, shared], R.db.stamp(NOW))["controls"]
-        self.assertEqual(counts, {"Passed": 1, "Failed": 1, "Action Required": 1, "Not Evaluated": 1})
+        self.assertEqual(counts, {"Passed": 1, "Failed": 1, "Action Required": 2})
         summary["spec"]["controls"] = {}
         with self.assertRaisesRegex(R.db.Rejected, "posture_controls_empty"):
             R.check_posture(result, [summary, shared], R.db.stamp(NOW))
@@ -181,8 +181,52 @@ class FailureTests(unittest.TestCase):
             return {"metadata": {"namespace": namespace, "name": name,
                     "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}}, "spec": {"controls": {"x": {}}}}
         assessed = R.check_posture(result, [summary("memos", "deployment-memos"), summary("kubescape", "shared")], R.db.stamp(NOW))
-        self.assertEqual(assessed["controls"], {"Passed": 1, "Action Required": 1, "Not Evaluated": 2})
+        self.assertEqual(assessed["controls"], {"Passed": 2, "Action Required": 2})
+        self.assertEqual(assessed["coverage"]["notEvaluatedControls"], 1)
+        self.assertEqual(assessed["coverage"]["notEvaluatedControlIDs"], ["host"])
+        self.assertEqual(assessed["coverage"]["incompleteCoverageControls"], 0)
 
+
+    def test_native_counts_and_not_evaluated_overlay(self):
+        # Synthetic 26-control shape reproducing the pinned printer's *status*
+        # semantics; this is NOT a fixture exported from the production PVC.
+        controls = {}
+        for i in range(15):
+            controls[f"C-P-{i}"] = {"status": "passed", "statusInfo": {"status": "passed"}}
+        for i in range(3):
+            controls[f"C-I-{i}"] = {"status": "passed", "statusInfo": {"status": "passed", "subStatus": "irrelevant"}}
+        for i in range(3):
+            controls[f"C-F-{i}"] = {"status": "failed", "statusInfo": {"status": "failed"}}
+        for i in range(3):
+            controls[f"C-R-{i}"] = {"status": "skipped", "statusInfo": {"status": "skipped", "subStatus": "manual review"}}
+        for i in range(2):
+            controls[f"C-N-{i}"] = {"status": "skipped", "statusInfo": {"status": "skipped", "subStatus": "notEvaluated"}}
+        result = {"summaryDetails": {"frameworks": [{"name": "NSA", "controls": controls}]}}
+        summary = lambda namespace, name: {"metadata": {"namespace": namespace, "name": name,
+            "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}},
+            "spec": {"controls": {"C-X": {"status": "passed"}}}}
+        assessed = R.check_posture(result, [summary("memos", "deployment-memos"),
+                                            summary("kubescape", "shared-rbac")], R.db.stamp(NOW))
+        self.assertEqual(assessed["controls"], {"Passed": 18, "Failed": 3, "Action Required": 5})
+        self.assertEqual(sum(assessed["controls"].values()), 26)
+        self.assertEqual(assessed["coverage"]["notEvaluatedControls"], 2)
+        self.assertEqual(assessed["coverage"]["notEvaluatedControlIDs"], ["C-N-0", "C-N-1"])
+
+    def test_statusinfo_overrides_legacy_and_unknown_is_not_silently_safe(self):
+        summary = lambda namespace, name: {"metadata": {"namespace": namespace, "name": name,
+            "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}},
+            "spec": {"controls": {"C-X": {}}}}
+        summaries = [summary("memos", "deployment-memos"), summary("kubescape", "shared-rbac")]
+        result = {"summaryDetails": {"frameworks": [{"controls": {
+            "C-1": {"status": "passed", "statusInfo": {"status": "failed"}},
+            "C-2": {"status": "passed", "statusInfo": {"status": "passed", "subStatus": "incompleteCoverage"}},
+        }}]}}
+        assessed = R.check_posture(result, summaries, R.db.stamp(NOW))
+        self.assertEqual(assessed["controls"], {"Failed": 1, "Passed": 1})
+        self.assertEqual(assessed["coverage"]["incompleteCoverageControlIDs"], ["C-2"])
+        result["summaryDetails"]["frameworks"][0]["controls"]["C-1"]["statusInfo"]["status"] = "unknownNewStatus"
+        with self.assertRaisesRegex(R.db.Rejected, "posture_status_unrecognised"):
+            R.check_posture(result, summaries, R.db.stamp(NOW))
 
 class SubmissionTests(unittest.TestCase):
     """Drive the actual POST/poll/report path, including ambiguous acceptance."""
