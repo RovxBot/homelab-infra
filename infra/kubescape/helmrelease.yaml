@@ -4,7 +4,7 @@ metadata:
   name: kubescape
   namespace: kubescape
 spec:
-  # Qualified posture and manual image assessment; recurring scans remain suspended below.
+  # Qualified scanners. Chart schedulers stay suspended; recurring/ owns bounded scheduling.
   suspend: false
   interval: 30m
   releaseName: kubescape

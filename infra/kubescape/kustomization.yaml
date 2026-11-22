@@ -4,3 +4,16 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  - recurring/rbac.yaml
+  - recurring/cronjobs.yaml
+configMapGenerator:
+  - name: kubescape-assessment-code
+    namespace: kubescape
+    files:
+      - recurring/runner.py
+      - recurring/client-bundle.json
+  - name: kubescape-assessment-config
+    namespace: kubescape
+    files:
+      - recurring/config.json
+      - grype-database.json

@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubescape-assessment
+  namespace: kubescape
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubescape-assessment-status
+  namespace: kubescape
+data: {}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubescape-assessment
+  namespace: kubescape
+rules:
+  - apiGroups: [kubescape.io]
+    resources: [scans, scanresults, vulnerabilityscans]
+    verbs: [create, get]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create, get, list]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    resourceNames: [kubescape-kubevuln, kubescape-storage]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [kubescape-assessment-status]
+    verbs: [get, update]
+  - apiGroups: [helm.toolkit.fluxcd.io]
+    resources: [helmreleases]
+    resourceNames: [kubescape]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubescape-assessment
+  namespace: kubescape
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubescape-assessment
+subjects:
+  - kind: ServiceAccount
+    name: kubescape-assessment
+    namespace: kubescape
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubescape-assessment-storage
+  namespace: longhorn-system
+rules:
+  - apiGroups: [longhorn.io]
+    resources: [volumes, replicas, nodes]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubescape-assessment-storage
+  namespace: longhorn-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubescape-assessment-storage
+subjects:
+  - kind: ServiceAccount
+    name: kubescape-assessment
+    namespace: kubescape
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubescape-assessment-inventory
+rules:
+  - apiGroups: [""]
+    resources: [pods, nodes]
+    verbs: [get, list]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, daemonsets, replicasets]
+    verbs: [get, list]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods, nodes]
+    verbs: [get, list]
+  - apiGroups: [spdx.softwarecomposition.kubescape.io]
+    resources: [vulnerabilitymanifests, vulnerabilitymanifestsummaries, sbomsyfts, workloadconfigurationscansummaries]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubescape-assessment-inventory
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubescape-assessment-inventory
+subjects:
+  - kind: ServiceAccount
+    name: kubescape-assessment
+    namespace: kubescape
