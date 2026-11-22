@@ -255,16 +255,26 @@ def check_posture(result, summaries, started):
     db.require(isinstance(result, dict) and result.get("summaryDetails"), "posture_result_incomplete")
     frameworks = result["summaryDetails"].get("frameworks", [])
     db.require(bool(frameworks), "posture_controls_empty")
-    controls = [c for f in frameworks for c in f.get("controls", [])]
+    controls = []
+    for framework in frameworks:
+        values = framework.get("controls", {})
+        controls.extend(values.values() if isinstance(values, dict) else values)
     db.require(bool(controls), "posture_controls_empty")
     statuses = Counter()
     for control in controls:
-        status = control.get("status", {})
+        info = control.get("statusInfo", {})
+        substatus = info.get("subStatus", "")
+        status = control.get("status", info.get("status", {}))
         status = status.get("status") if isinstance(status, dict) else status
         status = str(status).lower().replace(" ", "")
         translated = {"passed": "Passed", "failed": "Failed", "actionrequired": "Action Required",
                       "skipped": "Not Evaluated", "notimplemented": "Not Evaluated", "irrelevant": "Not Evaluated"}
-        statuses[translated.get(status, "Not Evaluated")] += 1
+        category = translated.get(status, "Not Evaluated")
+        if substatus in {"notEvaluated", "incompleteCoverage", "irrelevant"}:
+            category = "Not Evaluated"
+        elif substatus in {"requires review", "manual review", "configuration", "integration"} and status != "failed":
+            category = "Action Required"
+        statuses[category] += 1
     db.require(statuses["Passed"] + statuses["Failed"] > 0, "posture_not_evaluated")
     db.require(bool(summaries), "posture_reports_missing")
     for summary in summaries:

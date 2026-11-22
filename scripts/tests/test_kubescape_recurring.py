@@ -104,8 +104,6 @@ class FailureTests(unittest.TestCase):
         self.run_failure("database_refresh_in_progress")
 
     def test_scanner_unavailable(self):
-        with mock.patch.object(mock.Mock(), "items", return_value=[]):
-            pass
         api = mock.Mock()
         api.items.return_value = []
         with self.assertRaisesRegex(R.db.Rejected, "kubevuln_unavailable"):
@@ -167,6 +165,19 @@ class FailureTests(unittest.TestCase):
         summary["spec"]["controls"] = {}
         with self.assertRaisesRegex(R.db.Rejected, "posture_controls_empty"):
             R.check_posture(result, [summary, shared], R.db.stamp(NOW))
+
+    def test_pinned_scanner_controls_map_and_review_substatus(self):
+        result = {"summaryDetails": {"frameworks": [{"name": "NSA", "controls": {
+            "passed": {"status": "passed", "statusInfo": {"status": "passed"}},
+            "manual": {"status": "skipped", "statusInfo": {"status": "skipped", "subStatus": "manual review"}},
+            "host": {"status": "skipped", "statusInfo": {"status": "skipped", "subStatus": "notEvaluated"}},
+            "cloud": {"status": "passed", "statusInfo": {"status": "passed", "subStatus": "irrelevant"}}
+        }}]}}
+        def summary(namespace, name):
+            return {"metadata": {"namespace": namespace, "name": name,
+                    "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}}, "spec": {"controls": {"x": {}}}}
+        assessed = R.check_posture(result, [summary("memos", "deployment-memos"), summary("kubescape", "shared")], R.db.stamp(NOW))
+        self.assertEqual(assessed["controls"], {"Passed": 1, "Action Required": 1, "Not Evaluated": 2})
 
 
 if __name__ == "__main__":
