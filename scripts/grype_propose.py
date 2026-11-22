@@ -21,7 +21,7 @@ def run(*args, **kwargs):
 
 def body(lock):
     previous = lock["previous"]
-    return ("Refresh the immutable Grype database for the existing manual Memos assessment.\n\n"
+    return ("Refresh the immutable Grype database for the curated daily Kubescape assessments.\n\n"
             f"Previous index: `{previous['indexDigest']}`; build: `{previous['metadata'].get('built', 'unknown')}`; "
             f"archive: `{previous['metadata'].get('checksum', 'unknown')}`.\n\n"
             f"New index: `{lock['indexDigest']}`; platform manifest: `{lock['manifestDigest']}`.\n\n"
@@ -33,9 +33,9 @@ def body(lock):
             f"Replacement needs at least {lock['storage']['requiredFreeBytes']} free bytes with the old DB retained. "
             "Live headroom and Longhorn health must be rechecked before merge.\n\n"
             "The engine rollout annotation tracks the mirror index; Recreate preserves the RWO PVC. "
-            "Both scan schedules and automatic event routing remain disabled.\n\n"
-            "Requires normal CI and human-reviewed merge. After Flux reconciliation run the documented "
-            "read-only cache audit and separately authorised manual assessment; readiness alone is insufficient.\n\n"
+            "The two custom daily assessment schedules remain enabled; chart-wide schedules and automatic event routing remain disabled.\n\n"
+            "Requires normal CI and human-reviewed merge, normally on Monday. The verified database is fresh for 7 days and usable in grace through day 14; integrity gates still apply. After Flux reconciliation the recurring runner performs its "
+            "read-only cache audit and bounded image assessments; readiness alone is insufficient.\n\n"
             "Tracking #2135 (leave open).\n")
 
 

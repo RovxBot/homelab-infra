@@ -61,7 +61,6 @@ class VerificationTests(unittest.TestCase):
     def test_invalid_future_stale_and_incompatible_metadata_fail(self):
         for field, value, reason in (("built", "bad", "invalid_timestamp"),
                                      ("built", "2026-11-22T05:00:00Z", "future_timestamp"),
-                                     ("built", "2026-11-19T03:59:59Z", "stale_database"),
                                      ("built", "2026-11-21T06:20:06", "invalid_timestamp"),
                                      ("schemaVersion", "v7.0.0", "incompatible_schema"),
                                      ("schemaVersion", "v6.2.0", "incompatible_schema"),
@@ -183,8 +182,9 @@ class FreshnessTests(unittest.TestCase):
 
     def test_stale_database_is_never_hidden_by_ready_engine_or_good_scan(self):
         evidence, expected = fixture()
-        evidence["audit"]["sqlite"]["built"] = "2026-11-19T03:59:59Z"
-        result = runtime.evaluate(evidence, expected, NOW)
+        now = db.timestamp(BUILT) + timedelta(days=15)
+        evidence["audit"]["checkedAt"] = db.stamp(now)
+        result = runtime.evaluate(evidence, expected, now)
         self.assertEqual(result["state"], "stale")
         self.assertEqual(result["reasons"], ["stale_database"])
         self.assertFalse(result["canAssess"])
@@ -193,11 +193,29 @@ class FreshnessTests(unittest.TestCase):
     def test_exact_age_boundary_and_newer_audit(self):
         evidence, expected = fixture()
         built = db.timestamp(BUILT)
-        now = built + timedelta(hours=72)
+        now = built + timedelta(hours=db.DATABASE_MAXIMUM_HOURS)
         evidence["audit"]["checkedAt"] = db.stamp(now)
         result = runtime.evaluate(evidence, expected, now)
         self.assertTrue(result["canAssess"])
         self.assertEqual(runtime.evaluate(evidence, expected, now + timedelta(microseconds=1))["state"], "stale")
+
+    def test_weekly_grace_preserves_integrity_checks(self):
+        evidence, expected = fixture()
+        now = db.timestamp(BUILT) + timedelta(days=9)
+        evidence["audit"]["checkedAt"] = db.stamp(now)
+        result = runtime.evaluate(evidence, expected, now)
+        self.assertTrue(result["canAssess"])
+        self.assertEqual(result["integrity"], "verified")
+        self.assertEqual(result["databaseFreshness"], "grace")
+        self.assertEqual(result["databaseAgeHours"], 216)
+        for mutate in (lambda e: e["audit"]["checksum"].update(valid=False),
+                       lambda e: e["audit"]["sqlite"].update(schemaVersion="v7.0.0"),
+                       lambda e: e.update(mirrorImageID="mirror@sha256:" + "d" * 64)):
+            changed = copy.deepcopy(evidence)
+            mutate(changed)
+            self.assertFalse(runtime.evaluate(changed, expected, now)["canAssess"])
+        self.assertEqual(db.database_freshness(BUILT, db.timestamp(BUILT) + timedelta(days=7))["state"], "fresh")
+        self.assertEqual(db.database_freshness(BUILT, db.timestamp(BUILT) + timedelta(days=7, seconds=1))["state"], "grace")
 
     def test_unknown_missing_and_unverified_provenance(self):
         evidence, expected = fixture()
@@ -236,9 +254,10 @@ class FreshnessTests(unittest.TestCase):
 
     def test_supported_scan_does_not_submit_when_freshness_fails(self):
         evidence, expected = fixture()
-        evidence["audit"]["sqlite"]["built"] = "2026-11-19T03:59:59Z"
+        now = db.timestamp(BUILT) + timedelta(days=15)
+        evidence["audit"]["checkedAt"] = db.stamp(now)
         with tempfile.TemporaryDirectory() as directory, patch.object(runtime, "collect", return_value=evidence), \
-             patch.object(db, "utcnow", return_value=NOW), patch.object(runtime, "named") as named:
+             patch.object(db, "utcnow", return_value=now), patch.object(runtime, "named") as named:
             request = unittest.mock.Mock()
             with self.assertRaisesRegex(db.Rejected, "freshness_gate_failed"):
                 runtime.scan_memos(request, expected, evidence["audit"], Path(directory))

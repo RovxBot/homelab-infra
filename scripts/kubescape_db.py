@@ -152,7 +152,7 @@ def audit_cache(work):
 def evaluate(evidence, expected, now=None):
     now = now or db.utcnow()
     result = {"state": "unknown", "databaseState": "unknown", "canAssess": False,
-              "assessmentTrustworthy": False, "checkedAt": db.stamp(now), "maximumDatabaseAgeHours": 72,
+              "assessmentTrustworthy": False, "checkedAt": db.stamp(now), "maximumDatabaseAgeHours": db.DATABASE_MAXIMUM_HOURS,
               "reasons": [], "integrity": "unknown", "lastSuccessfulAssessmentTime": None}
     report = evidence.get("assessment")
     try:
@@ -171,8 +171,8 @@ def evaluate(evidence, expected, now=None):
                             "schemaVersion": sqlite["schemaVersion"], "sqliteSHA256": sqlite["sha256"]}
         age = db.age_hours(sqlite["built"], now)
         result["databaseAgeHours"] = round(age, 6)
-        # Expiry wins over readiness, old assessments and missing provenance.
-        db.require(age <= 72, "stale_database")
+        freshness = db.database_freshness(sqlite["built"], now)
+        result["databaseFreshness"] = freshness["state"]
         db.metadata(latest, now)
         db.require(expected.get("state") == "verified" and expected.get("publisher", {}).get("status") == "verified", "unverified_provenance")
         db.publisher_match(latest, expected["publisher"]["document"], now)
@@ -191,7 +191,9 @@ def evaluate(evidence, expected, now=None):
         db.require(source == latest["checksum"] and sqlite["import"]["source"] == checksum["from"], "cache_source_mismatch")
         db.require(diagnostics["cveDBVersion"] == latest["checksum"].removeprefix("sha256:"), "loaded_database_mismatch")
         db.require(diagnostics.get("storageEnabled") is True and diagnostics.get("queueDepth") == 0, "engine_not_idle")
-        result.update(state="healthy", databaseState="healthy", canAssess=True, integrity="verified")
+        result["integrity"] = "verified"
+        db.require(freshness["state"] != "expired", "stale_database")
+        result.update(state="healthy", databaseState=freshness["state"], canAssess=True)
         if report is None:
             result.update(state="unknown", reasons=["assessment_unavailable"])
             return result
@@ -220,7 +222,7 @@ def evaluate(evidence, expected, now=None):
         state = "stale" if reason == "stale_database" else "unknown" if reason in unknown else "failed"
     except (KeyError, TypeError, ValueError):
         state, reason = "unknown", "missing_or_invalid_evidence"
-    result.update(state=state, databaseState="healthy" if result["canAssess"] else state, reasons=[reason])
+    result.update(state=state, databaseState=result.get("databaseFreshness", state) if result["integrity"] == "verified" else state, reasons=[reason])
     return result
 
 

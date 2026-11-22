@@ -36,9 +36,9 @@ class CoverageTests(unittest.TestCase):
                   "severities": {"Critical": 1}, "fixesAvailable": True}
         def state(record, target=current):
             return R.coverage([copy.deepcopy(target)], {R.row_key(target): record}, config, NOW)["rows"][0]["assessmentState"]
-        self.assertEqual(state({}), "never_scanned")
+        self.assertEqual(state({}), "unknown")
         self.assertEqual(state(record), "healthy")
-        self.assertEqual(state({**record, "createdAt": R.db.stamp(NOW - timedelta(hours=27))}), "stale")
+        self.assertEqual(state({**record, "createdAt": R.db.stamp(NOW - timedelta(hours=73))}), "stale")
         self.assertEqual(state({**record, "lastAttempt": {"state": "failed"}}), "failed")
         self.assertEqual(state({**record, "lastAttempt": {"state": "unknown"}}), "unknown")
         failed = {**record, "lastAttempt": {"state": "failed"}}
@@ -56,27 +56,151 @@ class CoverageTests(unittest.TestCase):
         changed = {**previous, "runningDigest": "docker.io/image@sha256:" + "f" * 64}
         config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
         inventory = R.coverage([changed], {R.row_key(previous): {"createdAt": R.db.stamp(NOW)}}, config, NOW)
-        self.assertEqual(inventory["rows"][0]["assessmentState"], "never_scanned")
+        self.assertEqual(inventory["rows"][0]["assessmentState"], "unknown")
 
 
-    def test_reviewed_second_cohort_is_selected_sequentially(self):
-        self.assertEqual([target["identity"] for target in CONFIG["targets"]],
-                         ["memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx"])
+    def test_curated_targets_resolve_independently(self):
+        self.assertEqual(len(CONFIG["targets"]), 6)
         home = {**row(), "namespace": "homepage", "workload": "homepage-assets",
-                "container": "nginx", "workloadUID": "homepage-uid",
-                "podUIDs": ["homepage-pod"], "runningDigest":
-                "docker.io/nginxinc/nginx-unprivileged@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e"}
-        config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
-        selected = R.targets([row(), home], config)
-        self.assertEqual([r["workload"] for r in selected], ["memos", "homepage-assets"])
-        statuses = R.coverage([row(), home], {}, config, NOW)["rows"]
-        self.assertEqual({r["workload"]: r["assessmentState"] for r in statuses},
-                         {"memos": "never_scanned", "homepage-assets": "never_scanned"})
-        for changed in ({**home, "ready": False}, {**home, "runningDigest": None}):
-            with self.assertRaisesRegex(R.db.Rejected, "workload_not_ready"):
-                R.targets([row(), changed], config)
-        with self.assertRaisesRegex(R.db.Rejected, "workload_not_ready"):
-            R.targets([row()], config)
+                "container": "nginx", "workloadUID": "homepage-uid"}
+        config = {**CONFIG, "targets": CONFIG["targets"][:2]}
+        selected, outcomes = R.resolve_targets([row(), {**home, "ready": False}], config)
+        self.assertEqual(selected, [row()])
+        self.assertEqual(outcomes[1]["state"], "skipped")
+        selected, outcomes = R.resolve_targets([row()], config)
+        self.assertEqual(selected, [row()])
+        self.assertEqual(outcomes[1]["reasons"], ["workload_missing"])
+        selected, outcomes = R.resolve_targets([row(), {**home, "runningDigest": None}], config)
+        self.assertEqual(outcomes[1]["state"], "unsupported")
+
+
+class BatchTests(unittest.TestCase):
+    def rows(self):
+        result = []
+        for i, target in enumerate(CONFIG["targets"]):
+            namespace, kind, workload, container = target["identity"].split("/")
+            result.append({**row(), "namespace": namespace, "kind": kind, "workload": workload,
+                           "container": container, "workloadUID": "uid-" + str(i),
+                           "runningDigest": "registry/image@sha256:" + str(i) * 64})
+        return result
+
+    def config(self):
+        return {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+
+    def test_batch_rotates_unscanned_changed_stale_and_failures(self):
+        rows, config = self.rows(), self.config()
+        self.assertEqual(R.select_batch(rows, {}, config), rows[:4])
+        records = {R.row_key(r): {"createdAt": R.db.stamp(NOW), "database": EXPECTED["metadata"]} for r in rows[:4]}
+        self.assertEqual(R.select_batch(rows, records, config)[:2], rows[4:])
+        records[R.row_key(rows[2])]["createdAt"] = R.db.stamp(NOW - timedelta(hours=74))
+        self.assertEqual(R.select_batch(rows, records, config)[2], rows[2])
+        records[R.row_key(rows[1])]["database"] = {"checksum": "old"}
+        self.assertEqual(R.select_batch(rows, records, config)[0], rows[4])
+        self.assertIn(rows[1], R.select_batch(rows, records, config))
+        changed = {**rows[0], "runningDigest": "registry/image@sha256:" + "f" * 64}
+        self.assertEqual(R.select_batch([changed, *rows[1:]], records, config)[0], changed)
+        # Failed new images get an attempt timestamp and cannot monopolise a batch.
+        failures = {R.row_key(r): {"lastAttempt": {"checkedAt": R.db.stamp(NOW),
+                    "databaseChecksum": config["databaseChecksum"]}} for r in rows[:4]}
+        self.assertEqual(R.select_batch(rows, failures, config)[:2], rows[4:])
+
+    def test_failure_isolated_and_successes_survive_restart_and_publish(self):
+        rows, config = self.rows(), self.config()
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
+            history = Path(path)
+            old = {"createdAt": R.db.stamp(NOW - timedelta(hours=73)), "database": EXPECTED["metadata"]}
+            R.atomic(history / "records.json", {R.row_key(r): old.copy() for r in rows})
+            runner = R.Runner(mock.Mock(), config, EXPECTED, history, "vulnerability")
+            def scan(r, _):
+                if r == rows[1]:
+                    raise R.db.Rejected("scan_failed")
+                result = {"createdAt": R.db.stamp(NOW), "database": EXPECTED["metadata"]}
+                runner.records[R.row_key(r)] = result
+                R.atomic(history / "records.json", runner.records)
+                runner.result["assessments"].append(result)
+                runner.result["lastSuccessfulAssessmentAt"] = result["createdAt"]
+            with mock.patch.object(R, "workload_rows", return_value=rows), mock.patch.object(runner, "publish"), \
+                    mock.patch.object(runner, "preflight"), mock.patch.object(runner, "audit", return_value={"checkedAt": R.db.stamp(NOW)}), \
+                    mock.patch.object(runner, "gate"), mock.patch.object(runner, "vulnerability", side_effect=scan) as call:
+                self.assertEqual(runner.run(), 4)
+            self.assertEqual(call.call_count, 4)
+            self.assertEqual(runner.records[R.row_key(rows[1])]["createdAt"], old["createdAt"])
+            self.assertEqual(runner.records[R.row_key(rows[0])]["createdAt"], R.db.stamp(NOW))
+            runner.api.call.return_value = {"data": {"posture.json": "retained"}}
+            with mock.patch.object(R, "workload_rows", return_value=rows), mock.patch("builtins.print"):
+                runner.publish()
+            published = runner.api.call.call_args.args[1]["data"]
+            self.assertEqual(published["posture.json"], "retained")
+            self.assertEqual(published["vulnerability.lastSuccessfulAssessmentAt"], R.db.stamp(NOW))
+            restarted = R.Runner(mock.Mock(), config, EXPECTED, history, "vulnerability")
+            self.assertEqual(restarted.records, runner.records)
+            self.assertEqual(restarted.result["lastSuccessfulAssessmentAt"], R.db.stamp(NOW))
+
+    def test_ambiguous_later_request_preserves_peer_success_and_stops_batch(self):
+        rows, config = self.rows()[:3], {**self.config(), "targets": CONFIG["targets"][:3]}
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
+            history = Path(path)
+            runner = R.Runner(mock.Mock(), config, EXPECTED, history, "vulnerability")
+            def scan(r, _):
+                if r == rows[1]:
+                    R.atomic(history / "inflight.json", {"jobID": "ambiguous"})
+                    raise OSError("lost response")
+                result = {"createdAt": R.db.stamp(NOW), "database": EXPECTED["metadata"]}
+                runner.records[R.row_key(r)] = result
+                R.atomic(history / "records.json", runner.records)
+                runner.result["assessments"].append(result)
+                runner.result["lastSuccessfulAssessmentAt"] = result["createdAt"]
+            with mock.patch.object(R, "workload_rows", return_value=rows), mock.patch.object(runner, "publish"), \
+                    mock.patch.object(runner, "preflight"), mock.patch.object(runner, "audit", return_value={"checkedAt": R.db.stamp(NOW)}), \
+                    mock.patch.object(runner, "gate"), mock.patch.object(runner, "vulnerability", side_effect=scan) as call:
+                self.assertEqual(runner.run(), 3)
+            self.assertEqual(call.call_count, 2)
+            self.assertTrue((history / "inflight.json").exists())
+            stored = json.loads((history / "records.json").read_text())
+            self.assertEqual(stored[R.row_key(rows[0])]["createdAt"], R.db.stamp(NOW))
+            self.assertEqual(stored[R.row_key(rows[1])]["lastAttempt"]["state"], "unknown")
+            self.assertNotIn(R.row_key(rows[2]), stored)
+            self.assertEqual(runner.result["targets"][2]["reasons"], ["uncertain_previous_request"])
+
+    def test_existing_other_mode_success_is_exposed_without_another_scan(self):
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
+            api = mock.Mock()
+            api.call.return_value = {"data": {"posture.json": json.dumps({"state": "healthy", "assessments": [{"createdAt": R.db.stamp(NOW)}]})}}
+            runner = R.Runner(api, self.config(), EXPECTED, Path(path), "vulnerability")
+            with mock.patch.object(R, "workload_rows", return_value=[]), mock.patch("builtins.print"):
+                runner.publish()
+            published = api.call.call_args.args[1]["data"]
+            self.assertEqual(published["posture.lastSuccessfulAssessmentAt"], R.db.stamp(NOW))
+            self.assertEqual(published["posture.state"], "healthy")
+
+    def test_posture_submission_does_not_resolve_vulnerability_workloads(self):
+        def summary(namespace, name):
+            return {"metadata": {"namespace": namespace, "name": name,
+                    "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}}, "spec": {"controls": {"x": {}}}}
+        summaries = [summary("memos", "deployment-memos"), summary("kubescape", "shared")]
+        result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
+            api = mock.Mock()
+            api.items.return_value = summaries
+            api.get.side_effect = lambda base, kind, name, namespace: next(s for s in summaries if s["metadata"]["name"] == name)
+            runner = R.Runner(api, self.config(), EXPECTED, Path(path), "posture")
+            with mock.patch.object(R, "workload_rows", side_effect=AssertionError("target coupling")), \
+                    mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "scanner"}}), \
+                    mock.patch.object(R, "service", side_effect=[{"id": "posture"}, {"type": "success", "response": result}]), \
+                    mock.patch.object(runner, "gate"), mock.patch.object(runner, "observe"):
+                runner.posture({})
+            self.assertEqual(runner.result["lastSuccessfulAssessmentAt"], R.db.stamp(NOW))
+            self.assertFalse((Path(path) / "inflight.json").exists())
+
+    def test_missing_vulnerability_targets_do_not_gate_posture(self):
+        with tempfile.TemporaryDirectory() as path:
+            runner = R.Runner(mock.Mock(), self.config(), EXPECTED, Path(path), "posture")
+            with mock.patch.object(runner, "publish"), mock.patch.object(runner, "preflight"), \
+                    mock.patch.object(runner, "audit"), mock.patch.object(runner, "gate"), \
+                    mock.patch.object(runner, "posture") as posture, mock.patch.object(R, "targets", side_effect=AssertionError("coupled")):
+                self.assertEqual(runner.run(), 0)
+            posture.assert_called_once()
+
 
 class SchedulingTests(unittest.TestCase):
     def test_duplicate_process_fails_without_queueing(self):
@@ -120,9 +244,7 @@ class FailureTests(unittest.TestCase):
                 audit.assert_not_called()
 
     def test_stale_database(self):
-        with mock.patch.object(R.db, "utcnow", return_value=NOW + timedelta(days=4)):
-            with self.assertRaisesRegex(R.db.Rejected, "stale_database"):
-                R.db.metadata(EXPECTED["metadata"])
+        self.assertEqual(R.db.database_freshness(EXPECTED["metadata"]["built"], NOW + timedelta(days=8))["state"], "grace")
         self.run_failure("stale_database", "stale")
 
     def test_refresh_in_progress(self):
@@ -151,17 +273,17 @@ class FailureTests(unittest.TestCase):
     def test_failed_timeout_missing_report_and_changed_image_keep_fence(self):
         for case in ("scan_failed", "scan_timeout", "report_missing", "workload_image_changed", "engine_restarted"):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as path:
-                runner = R.Runner(mock.Mock(), CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
+                runner = R.Runner(mock.Mock(), {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}, EXPECTED, Path(path), "vulnerability")
                 def fail(*_):
                     R.atomic(Path(path) / "inflight.json", {"jobID": "submitted"})
                     raise R.db.Rejected(case)
                 with mock.patch.object(R, "workload_rows", return_value=[row()]), mock.patch.object(runner, "publish"), \
-                        mock.patch.object(runner, "preflight", return_value={}), mock.patch.object(runner, "audit"), \
+                        mock.patch.object(runner, "preflight", return_value={}), mock.patch.object(runner, "audit", return_value={"checkedAt": R.db.stamp(R.db.utcnow())}), \
                         mock.patch.object(runner, "gate"), mock.patch.object(runner, "vulnerability", side_effect=fail) as scan:
-                    self.assertEqual(runner.run(), 4)
+                    self.assertEqual(runner.run(), 3)
                     scan.assert_called_once()
                     self.assertTrue((Path(path) / "inflight.json").exists())
-                    self.assertEqual(runner.records[R.row_key(row())]["lastAttempt"]["state"], "failed")
+                    self.assertEqual(runner.records[R.row_key(row())]["lastAttempt"]["state"], "unknown")
 
     def test_incomplete_or_old_reports_rejected_before_success(self):
         report = {"metadata": {"annotations": {"kubescape.io/status": "incomplete"}}}
@@ -284,7 +406,7 @@ class SubmissionTests(unittest.TestCase):
             config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
             runner = R.Runner(api, config, EXPECTED, history, "vulnerability")
             with mock.patch.object(runner, "preflight", return_value={}), \
-                    mock.patch.object(runner, "audit", return_value={"podUID": "engine-uid"}), \
+                    mock.patch.object(runner, "audit", return_value={"podUID": "engine-uid", "checkedAt": R.db.stamp(NOW)}), \
                     mock.patch.object(runner, "gate"), mock.patch.object(runner, "observe"), mock.patch("builtins.print"):
                 self.assertEqual(runner.run(), 0)
             self.assertEqual(runner.result["state"], "healthy")
@@ -300,7 +422,7 @@ class SubmissionTests(unittest.TestCase):
             self.assertEqual(duplicate.result["reasons"], ["duplicate_execution"])
             self.assertEqual(len(posted), 1)
 
-    def test_terminal_failure_does_not_resubmit_or_clear_intent(self):
+    def test_terminal_failure_does_not_resubmit_and_clears_intent(self):
         self.submission_case("failed", "scan_failed")
 
     def test_missing_report_cannot_pass_a_successful_api_job(self):
@@ -308,6 +430,9 @@ class SubmissionTests(unittest.TestCase):
 
     def test_timeout_leaves_a_queryable_intent_without_retry(self):
         self.submission_case("running", "scan_timeout", timeout=True)
+
+    def test_abandoned_request_keeps_fence(self):
+        self.submission_case("abandoned", "scan_abandoned")
 
     def test_restart_after_acceptance_leaves_fence(self):
         self.submission_case("succeeded", "engine_restarted", restarted=True)
@@ -332,10 +457,12 @@ class SubmissionTests(unittest.TestCase):
             with mock.patch.object(runner, "preflight"), mock.patch.object(runner, "gate"), \
                     mock.patch.object(runner, "observe"), mock.patch.object(R, "service", side_effect=service), \
                     mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "other" if restarted else "engine-uid"}}), \
-                    mock.patch.object(R.time, "monotonic", side_effect=[0, 361] if timeout else lambda: 0):
+                    mock.patch.object(R.time, "monotonic", side_effect=[0, 0, 361] if timeout else lambda: 0):
                 with self.assertRaisesRegex(R.db.Rejected, reason):
                     runner.vulnerability(row(), audit)
-            intent = json.loads((Path(path) / "inflight.json").read_text())
+            intent_path = Path(path) / "inflight.json"
+            self.assertEqual(intent_path.exists(), timeout or restarted or status_state == "abandoned")
+            intent = json.loads(intent_path.read_text()) if intent_path.exists() else {"jobID": requests[0][2]["jobID"]}
             posts = [r for r in requests if r[2] is not None]
             self.assertEqual(len(posts), 1)
             self.assertEqual(posts[0][2]["jobID"], intent["jobID"])

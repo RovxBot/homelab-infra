@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - infra/kubescape/**
+      - infra/pod-report/**
+      - infra/observability/gatus-helmrelease.yaml
+      - scripts/tests/test_kubescape_health.py
       - clusters/home/kustomization.yaml
       - clusters/home/infrastructure/kubescape-kustomization.yaml
       - scripts/ci/check_kubescape.py
@@ -58,6 +61,8 @@ jobs:
           python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
           python3 -m unittest discover -s scripts/tests -p 'test_grype*.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_kubescape_recurring.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_kubescape_health.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_cluster_health.py' -v
           python3 scripts/ci/check_kubescape_recurring.py
 
       - name: Independently reverify a changed database pin

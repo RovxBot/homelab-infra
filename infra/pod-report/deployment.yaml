@@ -279,8 +279,55 @@ spec:
                 mv "$health_tmp" "$health"
               }
 
+              assessment_health() {
+                assessment_rows="$(kubectl --request-timeout=15s get configmap kubescape-assessment-status -n kubescape -o go-template='{{index .data "vulnerability.lastSuccessfulAssessmentAt"}}|{{index .data "posture.lastSuccessfulAssessmentAt"}}|{{index .data "vulnerability.state"}}|{{index .data "posture.state"}}|{{index .data "database.built"}}')" || assessment_rows="||||"
+                IFS='|' read -r vulnerability_time posture_time vulnerability_state posture_state database_built <<EOF
+              $assessment_rows
+              EOF
+                assessment_now="$(date -u +%s)"
+                mode_health() {
+                  # Accept only timestamps, never copy arbitrary ConfigMap text.
+                  evidence_epoch=""
+                  case "$2" in
+                    ????-??-??T*Z) evidence_epoch="$(date -u -d "$2" +%s 2>/dev/null)" || evidence_epoch="" ;;
+                  esac
+                  evidence_age=null
+                  mode_state=unknown
+                  if [ -n "$evidence_epoch" ]; then
+                    evidence_age=$((assessment_now - evidence_epoch))
+                    if [ "$evidence_age" -ge 0 ]; then
+                      mode_state=stale
+                      [ "$evidence_age" -gt "$3" ] || mode_state=healthy
+                    else
+                      evidence_age=null
+                    fi
+                  fi
+                  case "$4" in healthy|stale|failed|unknown) attempt_state="$4" ;; *) attempt_state=unknown ;; esac
+                  printf '"%s":{"state":"%s","evidenceAgeSeconds":%s,"maximumAgeSeconds":%s,"lastAttemptState":"%s"}' "$1" "$mode_state" "$evidence_age" "$3" "$attempt_state"
+                }
+                vulnerability_health="$(mode_health vulnerability "$vulnerability_time" 259200 "$vulnerability_state")"
+                posture_health="$(mode_health posture "$posture_time" 93600 "$posture_state")"
+                database_health="$(mode_health database "$database_built" 1209600 unknown)"
+                database_epoch="$(date -u -d "$database_built" +%s 2>/dev/null)" || database_epoch=""
+                database_freshness=unknown
+                if [ -n "$database_epoch" ]; then
+                  database_age=$((assessment_now - database_epoch))
+                  if [ "$database_age" -ge 0 ]; then
+                    database_freshness=expired
+                    [ "$database_age" -gt 1209600 ] || database_freshness=grace
+                    [ "$database_age" -gt 604800 ] || database_freshness=fresh
+                  fi
+                fi
+                assessment_state=healthy
+                case "$vulnerability_health$posture_health$database_health" in *'"state":"stale"'*) assessment_state=stale ;; esac
+                case "$vulnerability_health$posture_health$database_health" in *'"state":"unknown"'*) assessment_state=unknown ;; esac
+                printf '{"status":"%s","observedAt":"%s","databaseFreshness":"%s",%s,%s,%s}\n' "$assessment_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$database_freshness" "$vulnerability_health" "$posture_health" "$database_health" > /work/kubescape-health.json.tmp
+                mv /work/kubescape-health.json.tmp /work/kubescape-health.json
+              }
+
               while true; do
                 now="$(date -u '+%Y-%m-%d %H:%M:%SZ')"
+                assessment_health
                 evaluate_health
                 {
                   cat <<'HTML'

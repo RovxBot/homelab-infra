@@ -185,14 +185,44 @@ def row_key(row):
     return target_key(row) + "/" + row["workloadUID"] + "/" + (row["runningDigest"] or "")
 
 
+def resolve_targets(rows, config):
+    """Resolve each identity independently; missing workloads never gate another mode."""
+    selected, outcomes = [], []
+    for target in {t["identity"]: t for t in config["targets"]}.values():
+        identity = target["identity"]
+        matches = [r for r in rows if target_key(r) == identity and r["containerType"] == "containers"]
+        outcome = {"identity": identity, "state": "unknown", "reasons": []}
+        if len(matches) != 1:
+            outcome["reasons"] = ["workload_missing" if not matches else "workload_rolling"]
+        elif matches[0]["kind"] != "Deployment":
+            outcome.update(state="unsupported", reasons=["unsupported_workload"])
+        elif not matches[0]["ready"]:
+            outcome.update(state="skipped", reasons=["workload_not_ready"])
+        elif not matches[0]["runningDigest"]:
+            outcome.update(state="unsupported", reasons=["running_digest_unavailable"])
+        else:
+            selected.append(matches[0])
+        outcomes.append(outcome)
+    return selected, outcomes
+
+
 def targets(rows, config):
-    result = []
-    for target in config["targets"]:
-        matches = [r for r in rows if target_key(r) == target["identity"] and r["containerType"] == "containers"]
-        db.require(len(matches) == 1 and matches[0]["ready"] and matches[0]["runningDigest"], "workload_not_ready")
-        db.require(matches[0]["kind"] == "Deployment", "unsupported_workload")
-        result.append(matches[0])
-    return result
+    return resolve_targets(rows, config)[0]
+
+
+def select_batch(rows, records, config):
+    # The most recent attempt rotates failures too, preventing starvation. A new
+    # digest/UID has no record and comes first; DB changes invalidate old scans.
+    def priority(row):
+        record = records.get(row_key(row), {})
+        attempted = record.get("lastAttempt", {}).get("checkedAt")
+        successful = record.get("createdAt")
+        stamp = max(filter(None, (attempted, successful)), default="")
+        changed_db = record.get("database", {}).get("checksum") != config["databaseChecksum"]
+        # An unsuccessful attempt on the current DB counts for fair rotation.
+        attempted_current = record.get("lastAttempt", {}).get("databaseChecksum") == config["databaseChecksum"]
+        return (bool(stamp) and (not changed_db or attempted_current), stamp)
+    return sorted(rows, key=priority)[:config["maximumImagesPerRun"]]
 
 
 def coverage(rows, records, config, now=None):
@@ -202,19 +232,21 @@ def coverage(rows, records, config, now=None):
         record = records.get(row_key(row), {})
         row.update(lastSuccessfulScan=record.get("createdAt"), database=record.get("database"),
                    scanAgeHours=None, severities=record.get("severities"), fixesAvailable=record.get("fixesAvailable"),
-                   assessmentState="never_scanned", exclusionReason=None, lastAttempt=record.get("lastAttempt"))
+                   assessmentState="unknown", exclusionReason=None, lastAttempt=record.get("lastAttempt"))
         current, invalid = False, False
         if record.get("createdAt"):
             try:
                 age = db.age_hours(record["createdAt"], now)
                 row["scanAgeHours"] = round(age, 4)
                 current = (age <= config["maximumScanAgeHours"]
-                    and db.age_hours(record["database"]["built"], now) <= 72
+                    and db.database_freshness(record["database"]["built"], now)["state"] != "expired"
                     and record["database"]["checksum"] == config["databaseChecksum"])
             except (db.Rejected, KeyError):
                 invalid = True
         if target_key(row) not in selected:
-            row.update(assessmentState="deliberately_excluded", exclusionReason="Outside the reviewed initial cohorts; critical infrastructure and other workloads await qualification")
+            row.update(assessmentState="deliberately_excluded", exclusionReason="Outside the curated application targets")
+        elif not row["ready"]:
+            row.update(assessmentState="skipped", exclusionReason="Workload not ready")
         elif not row["runningDigest"] or row["containerType"] != "containers":
             row.update(assessmentState="unsupported", exclusionReason="No running registry digest or unsupported container type")
         elif record.get("lastAttempt", {}).get("state") in {"failed", "unknown"}:
@@ -330,11 +362,23 @@ def locked(history):
 class Runner:
     def __init__(self, api, config, expected, history, mode):
         self.api, self.config, self.expected, self.history, self.mode = api, config, expected, history, mode
+        self.deadline = time.monotonic() + 25 * 60
         self.run_id = mode + "-" + db.utcnow().strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:6]
         self.work = history / self.run_id
         self.result = {"schemaVersion": 1, "runID": self.run_id, "mode": mode, "state": "unknown",
                        "startedAt": db.stamp(db.utcnow()), "reasons": [], "assessments": []}
-        self.records = json.loads((history / "records.json").read_text()) if (history / "records.json").exists() else {}
+        self.load_state()
+
+    def load_state(self):
+        path = self.history / "records.json"
+        self.records = json.loads(path.read_text()) if path.exists() else {}
+        previous_path = self.history / ("latest-" + self.mode + ".json")
+        previous = json.loads(previous_path.read_text()) if previous_path.exists() else {}
+        self.result["lastSuccessfulAssessmentAt"] = previous.get("lastSuccessfulAssessmentAt") or max(
+            (a["createdAt"] for a in previous.get("assessments", []) if a.get("createdAt")), default=None)
+        if not self.result["lastSuccessfulAssessmentAt"] and self.mode == "vulnerability":
+            self.result["lastSuccessfulAssessmentAt"] = max(
+                (r["createdAt"] for r in self.records.values() if r.get("createdAt")), default=None)
 
     def save(self, name, value):
         # Gzip full reports to keep retained evidence small; never overwrite a run.
@@ -357,6 +401,22 @@ class Runner:
             status = self.api.call(path)
             status.setdefault("data", {})[self.mode + ".json"] = json.dumps(self.result, separators=(",", ":"))
             status["data"]["coverage.json"] = json.dumps(inventory, separators=(",", ":"))
+            # Upgrade the already persisted result of the other mode to scalar
+            # health fields without requesting another assessment during rollout.
+            other = "posture" if self.mode == "vulnerability" else "vulnerability"
+            if other + ".lastSuccessfulAssessmentAt" not in status["data"] and other + ".json" in status["data"]:
+                try:
+                    previous = json.loads(status["data"][other + ".json"])
+                    success = previous.get("lastSuccessfulAssessmentAt") or max(
+                        (a["createdAt"] for a in previous.get("assessments", []) if a.get("createdAt")), default="")
+                    status["data"][other + ".lastSuccessfulAssessmentAt"] = success
+                    status["data"][other + ".state"] = previous["state"]
+                except (KeyError, TypeError, ValueError):
+                    pass
+            status["data"][self.mode + ".lastSuccessfulAssessmentAt"] = self.result["lastSuccessfulAssessmentAt"] or ""
+            status["data"][self.mode + ".state"] = self.result["state"]
+            if self.mode == "vulnerability":
+                status["data"]["database.built"] = self.expected["metadata"]["built"]
             db.require(len(json.dumps(status)) < 900000, "inventory_too_large")
             self.api.call(path, status, "PUT")
         except Exception as error:
@@ -382,6 +442,8 @@ class Runner:
         history_bytes = sum(p.stat().st_size for p in self.history.rglob("*") if p.is_file())
         db.require(history_bytes < self.config["maximumHistoryBytes"], "history_budget_exhausted")
         self.result["historyBytesBefore"] = history_bytes
+        self.result["database"] = {"built": self.expected["metadata"]["built"],
+                                   **db.database_freshness(self.expected["metadata"]["built"])}
         metrics = self.api.items("/apis/metrics.k8s.io/v1beta1", "pods", NS)
         metric = next(m for m in metrics if m["metadata"]["name"] == engine["metadata"]["name"])
         db.require(db.age_hours(metric["timestamp"]) <= 0.05, "resource_metrics_stale")
@@ -494,6 +556,8 @@ class Runner:
         result = client.evaluate(evidence, self.expected)
         self.save("freshness-" + str(time.time_ns()), result)
         db.require(result["canAssess"] and result["integrity"] == "verified", result["reasons"][0])
+        self.result["database"] = {"built": self.expected["metadata"]["built"],
+                                   **db.database_freshness(self.expected["metadata"]["built"])}
         return result
 
     def fence(self):
@@ -531,9 +595,12 @@ class Runner:
         self.save("previous-" + row["container"], {"vulnerability": previous, "sbom": previous_sbom})
         job = "recurring-" + uuid.uuid4().hex
         started = db.stamp(db.utcnow())
+        # The per-workload summary must be attributed by the scanner. Identical
+        # digests in distinct workloads still need their own WLID/container request.
         payload = {"imageTag": row["runningDigest"], "imageHash": row["runningDigest"], "jobID": job,
                    "wlid": f"wlid://cluster-home/namespace-{row['namespace']}/deployment-{row['workload']}",
                    "containerName": row["container"], "args": {"platform": "linux/amd64", "forceRescan": True}}
+        db.require(time.monotonic() + self.config["scanTimeoutSeconds"] + 60 <= self.deadline, "execution_time_budget")
         atomic(self.history / "inflight.json", {"jobID": job, "enginePodUID": audit["podUID"], "workload": row, "submittedAt": started})
         self.save("request-" + job, payload)
         # POST is never retried, including a lost HTTP response.
@@ -552,7 +619,13 @@ class Runner:
             time.sleep(3)
         else:
             raise db.Rejected("scan_timeout")
-        self.save("terminal-" + job, status)
+        atomic(self.work / ("terminal-" + job + ".json"), status)
+        db.require(component_pod(self.api, "kubevuln")["metadata"]["uid"] == audit["podUID"], "engine_restarted")
+        db.require(status["state"] != "abandoned", "scan_abandoned")
+        db.require(status["state"] == "failed" or status["phase"] == "completed", "scan_status_invalid")
+        # Only an observed terminal status from this engine clears the durable
+        # submission fence. Report validation can then fail without blocking peers.
+        self.clear_fence()
         db.require(status["state"] == "succeeded" and status["phase"] == "completed", "scan_failed")
         report, sbom = existing("vulnerabilitymanifests"), existing("sbomsyfts")
         db.require(report is not None and sbom is not None, "report_missing")
@@ -568,7 +641,7 @@ class Runner:
                    and annotations["kubescape.io/wlid"] == payload["wlid"]
                    and summary["spec"]["vulnerabilitiesRef"]["all"]["name"] == report["metadata"]["name"], "summary_attribution_mismatch")
         self.save("summary-" + job, summary)
-        current = targets(workload_rows(self.api), self.config)
+        current = targets(workload_rows(self.api), {**self.config, "targets": [{"identity": target_key(row)}]})
         db.require(any(row_key(r) == row_key(row) and r["generation"] == row["generation"] and r["podUIDs"] == row["podUIDs"] for r in current), "workload_image_changed")
         self.gate(audit)
         result.update(jobID=job, durationSeconds=(db.timestamp(status["finishedAt"]) - db.timestamp(status["startedAt"])).total_seconds(),
@@ -576,12 +649,19 @@ class Runner:
         self.records[row_key(row)] = result
         atomic(self.history / "records.json", self.records)
         self.result["assessments"].append(result)
+        self.result["lastSuccessfulAssessmentAt"] = result["createdAt"]
+
+    def clear_fence(self):
         (self.history / "inflight.json").unlink()
+        fd = os.open(self.history, os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
     def posture(self, audit):
         self.gate(audit)  # Also prevents DB hydration / scan overlap.
         scanner = component_pod(self.api, "kubescape")
-        before = targets(workload_rows(self.api), self.config)
         old = self.api.items(STORAGE, "workloadconfigurationscansummaries")
         self.save("previous-posture", [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"]) for s in old])
         started = db.stamp(db.utcnow())
@@ -610,26 +690,64 @@ class Runner:
         self.save("persisted-posture", summaries)
         again = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"]) for s in summaries]
         db.require(again == summaries, "posture_reread_mismatch")
-        db.require(before == targets(workload_rows(self.api), self.config), "workload_image_changed")
         self.gate(audit)
         self.result["assessments"].append({**assessed, "scanID": scan_id, "createdAt": db.stamp(db.utcnow())})
-        (self.history / "inflight.json").unlink()
+        self.result["lastSuccessfulAssessmentAt"] = self.result["assessments"][-1]["createdAt"]
+        self.clear_fence()
+
+    def attempt(self, row, state, reasons):
+        self.records.setdefault(row_key(row), {})["lastAttempt"] = {
+            "state": state, "checkedAt": db.stamp(db.utcnow()), "reasons": reasons,
+            "databaseChecksum": self.config["databaseChecksum"]}
+        atomic(self.history / "records.json", self.records)
+
+    def batch(self, selected, outcomes, audit):
+        batch = select_batch(selected, self.records, self.config)
+        deadline = self.deadline  # Leave room inside the 30-minute Job.
+        for row in selected:
+            outcome = next(o for o in outcomes if o["identity"] == target_key(row))
+            previous = self.records.get(row_key(row), {})
+            outcome.update(lastSuccessfulScan=previous.get("createdAt"))
+            if row not in batch:
+                outcome.update(state="skipped", reasons=["daily_batch_limit"])
+        for row in batch:
+            outcome = next(o for o in outcomes if o["identity"] == target_key(row))
+            if time.monotonic() + self.config["scanTimeoutSeconds"] + 60 > deadline:
+                outcome.update(state="skipped", reasons=["execution_time_budget"])
+                continue
+            self.attempt(row, "unknown", ["assessment_in_progress"])
+            try:
+                # A cache audit is valid for 15 minutes; refresh it only when needed.
+                if db.age_hours(audit["checkedAt"]) > 0.2:
+                    audit = self.audit(component_pod(self.api, "kubevuln"))
+                self.vulnerability(row, audit)
+                outcome.update(state="healthy", reasons=[], lastSuccessfulScan=self.records[row_key(row)]["createdAt"])
+            except Exception as error:
+                uncertain = (self.history / "inflight.json").exists()
+                reason = getattr(error, "reason", "evidence_unavailable")
+                state = "unknown" if uncertain or not isinstance(error, db.Rejected) else "skipped" if reason == "execution_time_budget" else "stale" if reason == "stale_database" else "failed"
+                self.attempt(row, state, [reason])
+                outcome.update(state=state, reasons=[reason])
+                if uncertain:
+                    # Preserve peers' results and do not issue another POST.
+                    for pending in batch[batch.index(row) + 1:]:
+                        next(o for o in outcomes if o["identity"] == target_key(pending)).update(
+                            state="skipped", reasons=["uncertain_previous_request"])
+                    raise db.Rejected("uncertain_previous_request") from None
+            self.publish(terminal=False)  # Persist progress even if a later target fails.
+        states = {o["state"] for o in outcomes if o["reasons"] != ["daily_batch_limit"]}
+        self.result["state"] = "unknown" if "unknown" in states else "failed" if "failed" in states else "stale" if "stale" in states else "healthy" if self.result["assessments"] else "unknown"
+        self.result["reasons"] = sorted({r for o in outcomes for r in o["reasons"] if r != "daily_batch_limit"})
 
     def run(self):
         with locked(self.history):
             try:
-                selected = targets(workload_rows(self.api), self.config)
-                self.selected = selected
+                self.load_state()  # Re-read under the lock before any record mutation.
                 self.fence()
                 digest = hashlib.sha256(json.dumps(self.config["targets"], sort_keys=True).encode()).hexdigest()[:12]
                 day = db.utcnow().strftime("%Y-%m-%d")
                 completed = self.history / (self.mode + "-" + day + "-" + digest + ".done")
                 db.require(not completed.exists(), "duplicate_execution")
-                if self.mode == "vulnerability":
-                    for row in selected:
-                        self.records.setdefault(row_key(row), {})["lastAttempt"] = {
-                            "state": "unknown", "checkedAt": db.stamp(db.utcnow()), "reasons": ["assessment_in_progress"]}
-                    atomic(self.history / "records.json", self.records)
                 self.result["reasons"] = ["assessment_in_progress"]
                 self.publish(terminal=False)
                 self.result["reasons"] = []
@@ -637,21 +755,18 @@ class Runner:
                 audit = self.audit(engine)
                 self.gate(audit)
                 if self.mode == "vulnerability":
-                    for row in selected:
-                        self.vulnerability(row, audit)
+                    selected, outcomes = resolve_targets(workload_rows(self.api), self.config)
+                    self.result["targets"] = outcomes
+                    self.batch(selected, outcomes, audit)
                 else:
                     self.posture(audit)
-                self.result["state"] = "healthy"
+                    self.result["state"] = "healthy"
+                # A completed partial batch is retried on the next daily rotation.
                 atomic(completed, {"runID": self.run_id})
             except db.Rejected as error:
                 self.result.update(state="stale" if error.reason == "stale_database" else "unknown" if error.reason == "uncertain_previous_request" else "failed", reasons=[error.reason])
             except Exception as error:
                 self.result.update(state="unknown", reasons=["evidence_unavailable"], errorType=type(error).__name__)
-            if self.result["state"] != "healthy" and self.mode == "vulnerability":
-                for row in getattr(self, "selected", []):
-                    record = self.records.setdefault(row_key(row), {})
-                    record["lastAttempt"] = {"state": "failed" if self.result["state"] == "failed" else "unknown", "checkedAt": db.stamp(db.utcnow()), "reasons": self.result["reasons"]}
-                atomic(self.history / "records.json", self.records)
             self.publish()
         return EXIT[self.result["state"]]
 

@@ -1,6 +1,6 @@
 {
   "resourceBudgetQualified": true,
-  "maximumScanAgeHours": 26,
+  "maximumScanAgeHours": 72,
   "scanTimeoutSeconds": 360,
   "maximumWorkingSetBytes": 2147483648,
   "maximumIdleCPUCores": 0.25,
@@ -17,6 +17,23 @@
     {
       "identity": "homepage/Deployment/homepage-assets/nginx",
       "reason": "Second reviewed noncritical one-replica immutable nginx cohort after both Memos production modes succeeded"
+    },
+    {
+      "identity": "homepage/Deployment/homepage/homepage",
+      "reason": "Curated public application image; sequential bounded assessment with independent outcome"
+    },
+    {
+      "identity": "koito/Deployment/koito/koito",
+      "reason": "Curated public application image; sequential bounded assessment with independent outcome"
+    },
+    {
+      "identity": "koito/Deployment/koito-lastfm-bridge/multi-scrobbler",
+      "reason": "Curated public application image; sequential bounded assessment with independent outcome"
+    },
+    {
+      "identity": "gitea/Deployment/gitea-mcp/mcp",
+      "reason": "Curated public application image; sequential bounded assessment with independent outcome"
     }
-  ]
+  ],
+  "maximumImagesPerRun": 4
 }

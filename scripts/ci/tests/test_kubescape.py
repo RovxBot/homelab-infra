@@ -203,6 +203,16 @@ class StagedReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, "verified proposed release"):
                 CHECK.check_admission(SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.20.0"), Path("unused"), [])
 
+    def test_scoped_gatus_endpoint_preserves_all_other_settings(self):
+        after = yaml.safe_load((ROOT / "infra/observability/gatus-helmrelease.yaml").read_text())
+        before = copy.deepcopy(after)
+        endpoints = before["spec"]["values"]["config"]["endpoints"]
+        endpoints[:] = [e for e in endpoints if e["name"] != "kubescape-assessments"]
+        CHECK.check_assessment_alert(before, after)
+        after["spec"]["values"]["config"]["endpoints"][0]["interval"] = "20m"
+        with self.assertRaisesRegex(AssertionError, "outside the assessment endpoint"):
+            CHECK.check_assessment_alert(before, after)
+
     def test_scope_guard_rejects_kyverno_gatus_or_cilium_changes(self):
         protected = ["infra/kyverno/helmrelease.yaml", "infra/kyverno-policies/example.yaml",
                      "infra/observability/gatus-configmap.yaml", "infra/cilium/helmrelease.yaml"]
