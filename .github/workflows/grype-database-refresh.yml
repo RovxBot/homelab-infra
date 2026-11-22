@@ -1,0 +1,52 @@
+name: Grype Database Refresh
+
+on:
+  schedule:
+    - cron: "19 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grype-database-refresh
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install verification dependencies
+        run: python3 -m pip install PyYAML==6.0.3 zstandard==0.25.0
+
+      - name: Test verification and freshness failure gates
+        run: python3 -m unittest discover -s scripts/tests -p 'test_grype*.py' -v
+
+      - name: Discover and verify the newest compatible official mirror
+        run: python3 scripts/grype_db.py --prepare --output .work/grype-db/result.json
+
+      - name: Prepare a single reviewable PR
+        env:
+          # Existing repository credential also triggers normal pull_request CI.
+          # No cluster token, deployment permission or automatic merge is used.
+          GH_TOKEN: ${{ secrets.WORKFLOW_PR_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          python3 scripts/grype_propose.py
+
+      - name: Preserve verification outcome
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: grype-database-verification
+          path: .work/grype-db/result.json
+          retention-days: 14

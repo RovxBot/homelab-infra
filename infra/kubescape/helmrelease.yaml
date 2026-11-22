@@ -31,6 +31,37 @@ spec:
   postRenderers:
     - kustomize:
         patches:
+          # Wait for the new mirror before the engine checks the retained cache.
+          # This init never mounts/writes the DB PVC. Pin it with the mirror below.
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: kubevuln
+              namespace: kubescape
+            patch: |-
+              - op: add
+                path: /spec/template/spec/initContainers
+                value:
+                  - name: wait-for-verified-mirror
+                    image: quay.io/kubescape/grype-offline-db@sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449
+                    command:
+                      - sh
+                      - -ec
+                      - >-
+                        for attempt in $(seq 1 60); do if wget -T 5 -q -O /tmp/grype-mirror-latest.json http://grype-offline-db:80/databases/v6/latest.json && cmp -s /tmp/grype-mirror-latest.json /www/databases/v6/latest.json; then exit 0; fi; sleep 2; done; exit 1
+                    resources:
+                      requests: {cpu: 10m, memory: 32Mi}
+                      limits: {cpu: 100m, memory: 128Mi}
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      runAsNonRoot: true
+                      capabilities:
+                        drop: [ALL]
+                    volumeMounts:
+                      - name: tmp-dir
+                        mountPath: /tmp
           # Chart has no manual-only switch: only operator mounts this data.
           # Provision Kubevuln but disable its automatic event/command routing.
           - target:
@@ -226,9 +257,11 @@ spec:
       enabled: true
       image:
         tag: ""
-        sha: sha256:9dd3b2eb49d80612866cfb13f7da0038fe9e3d4108784881de9a7b554a29815a
+        sha: sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449
         pullPolicy: IfNotPresent
     kubevuln:
+      podAnnotations:
+        homelab.cooked.beer/grype-index: sha256:cd4f2c18691791b2c7754a619d011eb388773cdc39c973b621cbcc4217356449
       image:
         repository: quay.io/kubescape/kubevuln
         tag: v0.3.578@sha256:925ced171a8d262e95ea72c04b0ebfec43d9128dbe4d875e783b80df56e54416

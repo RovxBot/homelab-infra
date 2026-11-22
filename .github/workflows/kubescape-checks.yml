@@ -8,6 +8,10 @@ on:
       - clusters/home/infrastructure/kubescape-kustomization.yaml
       - scripts/ci/check_kubescape.py
       - scripts/ci/tests/test_kubescape.py
+      - scripts/grype*.py
+      - scripts/kubescape_db.py
+      - scripts/tests/test_grype*.py
+      - .github/workflows/grype-database-refresh.yml
       - .github/workflows/kubescape-checks.yml
   workflow_dispatch:
 
@@ -37,7 +41,7 @@ jobs:
           mv "$tools_dir/linux-amd64/helm" "$tools_dir/helm"
           curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz -o "$tools_dir/kustomize.tgz"
           tar -xzf "$tools_dir/kustomize.tgz" -C "$tools_dir" kustomize
-          python3 -m pip install PyYAML==6.0.3
+          python3 -m pip install PyYAML==6.0.3 zstandard==0.25.0
           TRUST_SCOPE=cli bash migration/kyverno/harness/trust.sh
           cp .work/cel/bin/kyverno "$tools_dir/kyverno"
           echo "KYVERNO_EXPECTED_VERSION=$(jq -er .application .work/cel/trust/target.json)" >> "$GITHUB_ENV"
@@ -47,7 +51,20 @@ jobs:
           python3 -m pip install --quiet pyyaml
 
       - name: Test suspended and active preflight guards
-        run: python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
+        run: |
+          python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
+          python3 -m unittest discover -s scripts/tests -p 'test_grype*.py' -v
+
+      - name: Independently reverify a changed database pin
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet "$BASE_REF" -- infra/kubescape/grype-database.json; then
+            digest=$(python3 -c 'import json; print(json.load(open("infra/kubescape/grype-database.json"))["indexDigest"])')
+            python3 scripts/grype_db.py --reference "$digest" --output .work/grype-db/ci-verification.json
+          fi
 
       - name: Qualify the declared release mode against the released chart
         # Active mode additionally requires Flux health waiting. Both modes

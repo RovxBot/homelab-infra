@@ -13,6 +13,10 @@ coverage. Both recurring scan CronJobs remain **suspended**.
 
 ## Manual image assessment
 
+Use the [database maintenance and freshness procedure](database-maintenance.md)
+for every new image assessment. Its supported client verifies the actual loaded
+cache and refuses submission when freshness or integrity cannot be established.
+
 Kubevuln **v0.3.578** contains Grype **v0.121.0** and Syft **v1.55.0**. It generates
 SBOMs in process; the optional SBOM sidecar and every node/host collector remain
 disabled. Full SBOMs and vulnerability manifests persist through the existing
@@ -106,6 +110,11 @@ named `workloadconfigurationscansummaries` GET. LIST zeros omit control details.
 Preserve existing results; do not confuse CVEs with posture control failures.
 
 ## Freshness and updates
+
+Daily discovery, independently verified update PRs, cache audits, explicit
+freshness states and recovery steps are implemented in the
+[database maintenance runbook](database-maintenance.md). The original canary
+below remains historical evidence.
 
 The local mirror is immutable and does not refresh itself. No mutable
 `v6-latest` tag, DB rollout CronJob or automatic image update is enabled. Kubevuln

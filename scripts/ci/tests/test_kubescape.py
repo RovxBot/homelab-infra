@@ -240,8 +240,15 @@ class PostRenderTests(unittest.TestCase):
                 {"apiGroups": [""], "resources": ["configmaps"], "verbs": ["get"]},
                 {"apiGroups": [""], "resources": ["secrets"],
                  "verbs": ["create", "get", "update", "watch", "list", "patch", "delete"]}]})
+        for name in ("kubevuln", "grype-offline-db"):
+            workload = safe_workload()
+            workload["metadata"]["name"] = name
+            workload["spec"]["strategy"] = {"type": "Recreate"}
+            raw.append(workload)
         rendered = corrected_resources(raw)
-        rendered[-1]["rules"].pop(1)
+        next(r for r in rendered if r["kind"] == "Role")["rules"].pop(1)
+        engine = next(r for r in rendered if r["kind"] == "Deployment" and r["metadata"]["name"] == "kubevuln")
+        CHECK.pod_template(engine)["spec"]["initContainers"] = [CHECK.mirror_init("test@sha256:" + "a" * 64)]
         caps = next(r["data"] for r in rendered if r["kind"] == "ConfigMap")
         caps["capabilities"] = json.dumps({"components": {
             "kubevuln": {"enabled": False}, "kubevulnScheduler": {"enabled": False}}}, separators=(",", ":"))
@@ -249,7 +256,8 @@ class PostRenderTests(unittest.TestCase):
             pvc["metadata"]["annotations"] = {"helm.sh/resource-policy": "keep"}
         CHECK.check_post_render(raw, rendered)
         for index in range(len(rendered)):
-            if rendered[index]["kind"] not in {"ConfigMap", "CronJob", "PersistentVolumeClaim", "Role"}:
+            if (rendered[index]["kind"] not in {"ConfigMap", "CronJob", "PersistentVolumeClaim", "Role"}
+                    and rendered[index]["metadata"]["name"] != "kubevuln"):
                 continue
             changed = copy.deepcopy(rendered)
             changed[index] = copy.deepcopy(raw[index])
