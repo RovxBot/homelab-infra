@@ -304,7 +304,7 @@ def check_assessment_alert(before, after):
                 "url": "http://pod-report.homepage.svc.cluster.local:80/kubescape-health.json",
                 "interval": "1m", "conditions": ["[STATUS] == 200", "[BODY].status == healthy",
                     "[BODY].vulnerability.evidenceAgeSeconds <= 259200", "[BODY].posture.evidenceAgeSeconds <= 93600"],
-                "alerts": [{"type": "github", "failure-threshold": 3, "success-threshold": 3, "send-on-resolved": True}]}
+                "alerts": [{"type": "github"}]}
     before, after = json.loads(json.dumps(before)), json.loads(json.dumps(after))
     for document in (before, after):
         endpoints = document["spec"]["values"]["config"]["endpoints"]
