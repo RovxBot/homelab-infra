@@ -34,20 +34,15 @@ class AssessmentStatusGuardrailTests(unittest.TestCase):
         self.assertIn("system:serviceaccount:flux-system:kustomize-controller",
                       data["spec"]["validations"][0]["expression"])
 
-    def test_legacy_exclusion_has_exact_identity_and_no_delete_or_create(self):
+    def test_frozen_legacy_contract_is_not_modified(self):
+        # Historical migration-inventory source hashes and accepted legacy
+        # admission behavior must not be rewritten by a post-migration fix.
         data = yaml.safe_load((ROOT / "infra/kyverno/policies/platform-flux-guardrails.yaml").read_text())
         rule = data["spec"]["rules"][0]
         self.assertEqual(rule["validate"]["failureAction"], "Audit")
-        exceptions = [entry for entry in rule["exclude"]["any"]
-                      if entry.get("subjects", [{}])[0].get("name") == "kubescape-assessment"]
-        self.assertEqual(len(exceptions), 1)
-        self.assertEqual(exceptions[0]["resources"], {
-            "kinds": ["ConfigMap"], "names": [NAME],
-            "namespaces": ["kubescape"], "operations": ["UPDATE"],
-        })
-        self.assertEqual(exceptions[0]["subjects"], [{
-            "kind": "ServiceAccount", "name": "kubescape-assessment", "namespace": "kubescape",
-        }])
+        self.assertFalse(any(
+            entry.get("subjects", [{}])[0].get("name") == "kubescape-assessment"
+            for entry in rule["exclude"]["any"]))
 
     def test_generator_is_source_of_truth(self):
         source = (ROOT / "migration/kyverno/harness/build.py").read_text()
