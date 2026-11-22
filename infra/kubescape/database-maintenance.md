@@ -49,7 +49,8 @@ The archive SHA-256, SQLite `quick_check`, internal `db_metadata`, build time
 and schema must agree. Unsafe paths, links, ambiguous files, invalid/future
 builds and databases older than **72 hours** fail. Build, schema, archive path
 and checksum must also match a separate HTTPS request to **Anchore's publisher
-endpoint**. If that source is unavailable or mismatched, the automated proposal
+endpoint** (with Anchore's `toolbox-data.anchore.io` distribution host as a
+second publisher endpoint). If both are unavailable, or metadata is mismatched, the automated proposal
 fails closed. Mirror-provided attestations/checksums cannot substitute for it.
 This establishes publisher linkage through authenticated HTTPS and matching
 bytes; no independently signed OCI build is claimed.

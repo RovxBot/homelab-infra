@@ -66,6 +66,15 @@ jobs:
             python3 scripts/grype_db.py --reference "$digest" --output .work/grype-db/ci-verification.json
           fi
 
+      - name: Preserve independent database verification
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: grype-ci-verification
+          path: .work/grype-db/ci-verification.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Qualify the declared release mode against the released chart
         # Active mode additionally requires Flux health waiting. Both modes
         # retain zero admission failures and a suspended recurring scheduler.

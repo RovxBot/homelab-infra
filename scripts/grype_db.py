@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 IMAGE = "quay.io/kubescape/grype-offline-db"
 REGISTRY = "https://quay.io/v2/kubescape/grype-offline-db/"
 PUBLISHER = "https://grype.anchore.io/databases/v6/latest.json"
+PUBLISHERS = (PUBLISHER, "https://toolbox-data.anchore.io/grype/databases/v6/latest.json")
 MAX_AGE_HOURS = 72
 SCHEMAS = {"v6.1.10"}  # Qualified with Grype 0.121.0. Changes require review.
 MARGIN = 512 * 1024**2
@@ -100,8 +101,9 @@ def publisher_match(mirror, publisher, now=None):
             "publisher_mismatch", "mirror assertions do not match independent Anchore metadata")
 
 
-def get_bytes(url, limit=4 * 1024**2):
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"Accept": ACCEPT}), timeout=30) as response:
+def get_bytes(url, limit=4 * 1024**2, accept=ACCEPT):
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"Accept": accept,
+                                "User-Agent": "grype-db-maintenance/1.0"}), timeout=30) as response:
         require(response.geturl().startswith("https://"), "insecure_redirect")
         body = response.read(limit + 1)
         require(len(body) <= limit, "oversized_document")
@@ -109,17 +111,20 @@ def get_bytes(url, limit=4 * 1024**2):
 
 
 def publisher_metadata():
-    try:
-        body, _ = get_bytes(PUBLISHER)
-        document = metadata(json.loads(body))
-        return document, {"status": "verified", "method": "independent-publisher-https-metadata",
-                          "url": PUBLISHER, "retrievedAt": stamp(utcnow()),
-                          "documentSHA256": digest_bytes(body), "document": document,
-                          "signature": "not established"}
-    except (OSError, ValueError) as error:
-        if isinstance(error, Rejected):
+    failures = []
+    for url in PUBLISHERS:
+        try:
+            body, _ = get_bytes(url, accept="application/json")
+            document = metadata(json.loads(body))
+            return document, {"status": "verified", "method": "independent-publisher-https-metadata",
+                              "url": url, "retrievedAt": stamp(utcnow()),
+                              "documentSHA256": digest_bytes(body), "document": document,
+                              "signature": "not established", "unavailableEndpoints": failures}
+        except Rejected:
             raise
-        raise Rejected("publisher_unavailable", type(error).__name__) from error
+        except (OSError, ValueError) as error:
+            failures.append({"url": url, "error": type(error).__name__, "status": getattr(error, "code", None)})
+    raise Rejected("publisher_unavailable", json.dumps(failures, sort_keys=True))
 
 
 def descriptor_bytes(descriptor, category, work):
