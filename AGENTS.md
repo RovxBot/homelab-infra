@@ -7,8 +7,18 @@ This is a **short route map**, not a checklist of files to read. The repository 
 - Start with `git status --short` and `git diff --stat` to avoid overwriting work. Identify the requested paths from the task/issue first.
 - Narrow searches: `rg --files infra/kubescape`, `rg -n 'symbol' scripts/ci infra/kubescape`. Read specific files or line ranges, not every manifest, README or historical report.
 - Do not run a full repository tree dump, recursive `cat`, blanket `find` over all content, or a complete source/history audit unless the task requires it.
-- Existing docs/evidence are authoritative for *their recorded state*; check changed configuration or live state only when relevant. Never rediscover a validated design decision without a concrete inconsistency.
+- The GitHub Wiki owns current architecture/operations documentation; in-repository evidence records specific versions and acceptance snapshots. Check changed configuration or live state only when relevant. Never rediscover a validated design decision without a concrete inconsistency.
 - Keep research bounded: a short hypothesis and the smallest confirming test beat repeated speculative explorations.
+
+## Canonical documentation: GitHub Wiki
+
+- **Wiki:** https://github.com/RovxBot/homelab-infra/wiki — primary home for architecture, component explanations, operational procedures, setup and troubleshooting. **Git repository:** `https://github.com/RovxBot/homelab-infra.wiki.git` (separate from the GitOps repo).
+- When a task needs existing documentation or changes how a component is operated, consult only the matching Wiki page(s). Start from `Home.md` / `_Sidebar.md` for navigation if available; use targeted `git grep` to locate a subject, then read only those pages. Do **not** fetch/read the entire Wiki for each task.
+- If no Wiki checkout is present, use an authenticated shallow clone **outside** this repo, e.g. `git clone --depth=1 https://github.com/RovxBot/homelab-infra.wiki.git /tmp/homelab-infra-wiki`. If one exists, fetch only when needed. Do not add the Wiki as a GitOps submodule or copy all pages into this repository.
+- **Documentation definition of done:** for changes that alter architecture, deployment, operations, recovery, security controls or troubleshooting, update the appropriate existing Wiki page as part of the task, after qualifying the change. Keep navigation/links correct; add a new page only when no suitable page exists. Record only observed/accepted facts, clearly label pending gates, and link to the code PR and evidence.
+- **Ownership split:** code, Flux manifests, tests, CI, machine-readable evidence, immutable pins and automation-specific co-located contracts stay in `homelab-infra`; human-facing maintained documentation belongs in the Wiki. Older `README.md`/`docs/`/component runbooks can serve as historical or implementation references; **do not create a second evolving source of truth** or bulk-migrate them without a separate request.
+- The Wiki does not participate in normal code PR checks. Prepare documentation alongside the implementation, but publish facts as *deployed/accepted* only after verified merge/rollout. For routine non-sensitive Wiki edits within the authorised task, commit and push a narrowly scoped change to the separate Wiki repository and report its commit/page link. For security-sensitive or architectural decisions requiring review, present a Wiki diff for approval first.
+- If Wiki access or write permission is unavailable, **do not silently substitute a new `docs/` page**. Provide the exact intended Wiki page, proposed edit and access blocker at handoff. Never publish private Gitea findings, credentials, internal secrets or other confidential material in the public Wiki.
 
 ## Repository map (open only the relevant destination)
 
@@ -17,18 +27,18 @@ This is a **short route map**, not a checklist of files to read. The repository 
 | GitOps composition/reconciliation | `clusters/home/`, `README.md#gitops-topology` |
 | Applications | `apps/<app>/`, associated `kustomization.yaml` |
 | Infrastructure | `infra/<component>/` |
-| Kubescape security scanning | `infra/kubescape/README.md`; recurring: `infra/kubescape/recurring/README.md`; DB refresh: `infra/kubescape/database-maintenance.md` |
+| Kubescape security scanning | Matching Wiki page for operations; implementation: `infra/kubescape/`, recurring: `infra/kubescape/recurring/`, DB refresh: `infra/kubescape/database-maintenance.md` |
 | Kubescape tests and validation | `scripts/ci/check_kubescape.py`, `scripts/ci/check_kubescape_recurring.py`, `.github/workflows/kubescape-checks.yml` |
 | Kyverno/PSA | `infra/kyverno-policies/`, `infra/kyverno/`, `migration/kyverno/` |
-| Cilium | `infra/cilium/`, `docs/runbooks/cilium-primary-operations.md` |
-| Longhorn / recovery | `infra/longhorn/`, `infra/longhorn-node-disks/`, relevant `docs/runbooks/` |
+| Cilium | Matching Wiki page; source: `infra/cilium/` |
+| Longhorn / recovery | Matching Wiki page; source: `infra/longhorn/`, `infra/longhorn-node-disks/` |
 | Gatus/health | `infra/observability/` |
-| Gitea and runners | `ops/gitea/`, `docs/gitea/` |
+| Gitea and runners | Matching Wiki page; source: `ops/gitea/` and existing Gitea runbooks as needed |
 | WotLK images and workloads | `apps/wotlk/`, `ops/wotlk/`, `WOTLK.md` |
-| Renovate | `renovate.json`, `docs/runbooks/renovate-operations.md` |
+| Renovate | Matching Wiki page; source: `renovate.json` |
 | CI selection | `scripts/ci/detect_changes.py`, `.github/workflows/ci.yml` |
 | Terraform edge | Only the affected root under `terraform/`; do not mix OCI environments |
-| Accepted decisions | The matching entry in `docs/decisions/` |
+| Accepted decisions | Relevant Wiki architecture page and any existing decision record in `docs/decisions/` |
 
 ## Non-negotiable operating boundaries
 
@@ -58,8 +68,8 @@ This is a **short route map**, not a checklist of files to read. The repository 
 
 ## Handoff format (keep short)
 
-Report only: changed paths and PR/commit, focused checks and their outcomes, any production evidence, the **specific remaining blocker** and the next smallest action. Link to retained evidence rather than pasting entire logs, long manifests, giant JSON or repeated summaries into the conversation.
+Report only: changed paths and PR/commit, any relevant Wiki page/commit, focused checks and their outcomes, any production evidence, the **specific remaining blocker** and the next smallest action. Link to retained evidence rather than pasting entire logs, long manifests, giant JSON or repeated summaries into the conversation.
 
-For prolonged work, leave a short issue comment or scoped runbook with decisions, validated commit/digest, observed state and next action so the next session can resume without reconstructing the investigation. Do not create a new progress file for every minor edit.
+For prolonged work, leave a short issue comment with decisions, validated commit/digest, observed state and next action. Update relevant Wiki documentation when the task changes accepted operation or architecture; do not create a new runbook in the main repository by default. Do not create a new progress file for every minor edit.
 
 **Stop rule:** When the task is implemented and focused validation is complete, or the next gate requires external CI/live evidence/human decision, hand off immediately. Do not consume a session waiting for unchanged external state.
