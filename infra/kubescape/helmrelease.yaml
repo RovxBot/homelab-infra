@@ -22,7 +22,8 @@ spec:
     remediation:
       retries: 0
   upgrade:
-    crds: Skip
+    # Add the runtime binding CRD; do not replace existing scanner/storage CRDs.
+    crds: Create
     remediation:
       retries: 0
   timeout: 10m
@@ -31,6 +32,92 @@ spec:
   postRenderers:
     - kustomize:
         patches:
+          # Runtime canary: detection-only rules and bounded eBPF permissions.
+          - target:
+              group: kubescape.io
+              version: v1
+              kind: RuntimeRuleAlertBinding
+              name: all-rules-all-pods
+            patch: |-
+              - op: replace
+                path: /spec
+                value:
+                  namespaceSelector:
+                    matchExpressions:
+                    - key: kubernetes.io/metadata.name
+                      operator: In
+                      values:
+                      - homepage
+                      - memos
+                      - kubescape-runtime-test
+                  rules:
+                  - ruleID: R0001
+                  - ruleID: R0004
+                  - ruleID: R0007
+                  - ruleID: R1000
+                  - ruleID: R1002
+          - target:
+              group: apps
+              version: v1
+              kind: DaemonSet
+              name: node-agent
+              namespace: kubescape
+            patch: |-
+              - op: add
+                path: /spec/template/spec/containers/0/securityContext/allowPrivilegeEscalation
+                value: false
+              - op: add
+                path: /spec/template/spec/containers/0/securityContext/capabilities/drop
+                value:
+                - ALL
+              - op: add
+                path: /spec/template/spec/containers/0/securityContext/seccompProfile
+                value:
+                  type: Unconfined
+              - op: remove
+                path: /spec/template/spec/containers/0/securityContext/seLinuxOptions
+          # Kubelet proxy access is limited to the canary, not all eight nodes.
+          - target:
+              group: rbac.authorization.k8s.io
+              version: v1
+              kind: ClusterRole
+              name: node-agent
+            patch: |-
+              - op: test
+                path: /rules/0
+                value:
+                  apiGroups:
+                  - ''
+                  resources:
+                  - nodes
+                  - nodes/proxy
+                  - services
+                  - endpoints
+                  - namespaces
+                  - configmaps
+                  verbs:
+                  - get
+                  - watch
+                  - list
+              - op: replace
+                path: /rules/0/resources
+                value:
+                - nodes
+                - services
+                - endpoints
+                - namespaces
+                - configmaps
+              - op: add
+                path: /rules/-
+                value:
+                  apiGroups:
+                  - ''
+                  resources:
+                  - nodes/proxy
+                  resourceNames:
+                  - metal6
+                  verbs:
+                  - get
           # Wait for the new mirror before the engine checks the retained cache.
           # This init never mounts/writes the DB PVC. Pin it with the mirror below.
           - target:
@@ -73,7 +160,7 @@ spec:
               - op: replace
                 path: /data/capabilities
                 value: >-
-                  {"capabilities":{"admissionController":"disable","agentRuntimePosture":"disable","autoUpgrading":"disable","configurationScan":"enable","continuousScan":"disable","httpDetection":"disable","kubescapeOffline":"enable","malwareDetection":"disable","manageWorkloads":"disable","networkEventsStreaming":"disable","networkPolicyService":"disable","nodeProfileService":"disable","nodeSbomGeneration":"disable","nodeScan":"disable","operator":"enable","prometheusExporter":"disable","relevancy":"disable","remediation":"disable","riskAcceptance":"disable","runtimeDetection":"disable","runtimeObservability":"disable","sandboxSeccomp":"disable","scanEmbeddedSBOMs":"disable","seccompProfileBackend":"storage","seccompProfileService":"disable","syncSBOM":"disable","testing":{"nodeAgentMultiplication":{"enabled":false,"replicas":5}},"vexGeneration":"disable","vulnerabilityScan":"enable"},"effectiveCapabilities":{"configurationScan":"enable","httpDetection":"disable","malwareDetection":"disable","networkEventsStreaming":"disable","nodeProfileService":"disable","nodeScan":"disable","vulnerabilityScan":"enable"},"capabilityWarnings":[],"components":{"autoUpdater":{"enabled":false},"cloudSecret":{"create":true,"name":"cloud-secret"},"customCaCertificates":{"name":"custom-ca-certificates"},"kubescape":{"enabled":true},"kubescapeScheduler":{"enabled":true},"kubevuln":{"enabled":false},"kubevulnScheduler":{"enabled":false},"nodeAgent":{"enabled":false},"operator":{"enabled":true},"prometheusExporter":{"enabled":false},"sbomScanner":{"enabled":false},"serviceDiscovery":{"enabled":false},"storage":{"enabled":true},"synchronizer":{"enabled":false}},"configurations":{"excludeJsonPaths":null,"otelUrl":null,"persistence":"enable","priorityClass":{"daemonset":100000100,"enabled":false},"prometheusAnnotations":"disable"},"serviceScanConfig":{"enabled":false,"interval":"1h"}}
+                  {"capabilities":{"admissionController":"disable","agentRuntimePosture":"disable","autoUpgrading":"disable","configurationScan":"enable","continuousScan":"disable","httpDetection":"disable","kubescapeOffline":"enable","malwareDetection":"disable","manageWorkloads":"disable","networkEventsStreaming":"disable","networkPolicyService":"disable","nodeProfileService":"disable","nodeSbomGeneration":"disable","nodeScan":"disable","operator":"enable","prometheusExporter":"disable","relevancy":"disable","remediation":"disable","riskAcceptance":"disable","runtimeDetection":"enable","runtimeObservability":"enable","sandboxSeccomp":"disable","scanEmbeddedSBOMs":"disable","seccompProfileBackend":"storage","seccompProfileService":"disable","syncSBOM":"disable","testing":{"nodeAgentMultiplication":{"enabled":false,"replicas":5}},"vexGeneration":"disable","vulnerabilityScan":"enable"},"effectiveCapabilities":{"configurationScan":"enable","httpDetection":"disable","malwareDetection":"disable","networkEventsStreaming":"disable","nodeProfileService":"disable","nodeScan":"disable","vulnerabilityScan":"enable"},"capabilityWarnings":[],"components":{"autoUpdater":{"enabled":false},"cloudSecret":{"create":true,"name":"cloud-secret"},"customCaCertificates":{"name":"custom-ca-certificates"},"kubescape":{"enabled":true},"kubescapeScheduler":{"enabled":true},"kubevuln":{"enabled":false},"kubevulnScheduler":{"enabled":false},"nodeAgent":{"enabled":true},"operator":{"enabled":true},"prometheusExporter":{"enabled":false},"sbomScanner":{"enabled":false},"serviceDiscovery":{"enabled":false},"storage":{"enabled":true},"synchronizer":{"enabled":false}},"configurations":{"excludeJsonPaths":null,"otelUrl":null,"persistence":"enable","priorityClass":{"daemonset":100000100,"enabled":false},"prometheusAnnotations":"disable"},"serviceScanConfig":{"enabled":false,"interval":"1h"}}
           - target:
               group: batch
               version: v1
@@ -191,10 +278,10 @@ spec:
       vulnerabilityScan: enable
       relevancy: disable
       vexGeneration: disable
-      runtimeObservability: disable
+      runtimeObservability: enable
       networkPolicyService: disable
       networkEventsStreaming: disable
-      runtimeDetection: disable
+      runtimeDetection: enable
       malwareDetection: disable
       nodeProfileService: disable
       admissionController: disable
@@ -231,16 +318,31 @@ spec:
       priorityClass:
         enabled: false
     alertCRD:
-      installDefault: false
-      scopeClustered: false
+      installDefault: true
+      scopeClustered: true
       scopeNamespaced: false
     serviceScanConfig:
       enabled: false
     namespaceFilters:
       enabled: false
     nodeAgent:
+      image:
+        tag: v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/hostname: metal6
+      resources:
+        requests: {cpu: 100m, memory: 180Mi}
+        limits: {cpu: 500m, memory: 1400Mi}
+      # v0.3.310 uses Viper AutomaticEnv. Scope runtime independently of scanners.
+      env:
+        - name: INCLUDENAMESPACES
+          value: homepage,memos,kubescape-runtime-test
       privileged: false
       config:
+        stdoutExporter: true
+        extra:
+          hostMonitoringEnabled: false
         hostSensor:
           enabled: false
         prometheusExporter: disable

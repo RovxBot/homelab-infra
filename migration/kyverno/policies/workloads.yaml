@@ -179,6 +179,9 @@ spec:
       - jobs
       - cronjobs
   matchConditions:
+  - name: bounded-kubescape-node-agent
+    expression: '!(request.namespace == ''kubescape'' && object.kind == ''DaemonSet'' && object.metadata.name ==
+      ''node-agent'' && object.spec.template.spec.?serviceAccountName.orValue('''') == ''node-agent'')'
   - name: excluded-namespaces
     expression: '!(request.namespace in ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"])'
   - name: legacy-existing-violation

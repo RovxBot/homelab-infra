@@ -4,7 +4,8 @@ metadata:
   name: kubescape
   labels:
     homelab.cooked.beer/owner: sam
-    pod-security.kubernetes.io/enforce: restricted
+    # kubescape-runtime-boundary retains restricted admission for every other Pod.
+    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: latest

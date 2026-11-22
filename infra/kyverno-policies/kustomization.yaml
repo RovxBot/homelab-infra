@@ -11,3 +11,4 @@ resources:
 - ../../migration/kyverno/policies/reporting-rbac.yaml
 - ../../migration/kyverno/exceptions/exceptions.yaml
 - ../namespace-defaults/admission.yaml
+- ../kubescape/runtime/admission.yaml

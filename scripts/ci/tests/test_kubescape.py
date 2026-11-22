@@ -158,7 +158,10 @@ class StagedReleaseTests(unittest.TestCase):
                                                   "recurring/rbac.yaml", "recurring/cronjobs.yaml"})
         namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
         labels = namespace["metadata"]["labels"]
-        self.assertEqual(labels["pod-security.kubernetes.io/enforce"], "restricted")
+        self.assertEqual(labels["pod-security.kubernetes.io/enforce"], "privileged")
+        self.assertEqual(labels["pod-security.kubernetes.io/audit"], "restricted")
+        policy_source = (ROOT / "infra/kyverno-policies/kustomization.yaml").read_text()
+        self.assertIn("../kubescape/runtime/admission.yaml", policy_source)
         self.assertTrue(labels["homelab.cooked.beer/owner"])
 
     def test_scheduler_has_explicit_flux_postrender_suspension(self):
@@ -174,9 +177,10 @@ class StagedReleaseTests(unittest.TestCase):
                   if p["target"]["kind"] == "ConfigMap"]
         self.assertEqual(patch["target"]["name"], "ks-capabilities")
         data = json.loads(yaml.safe_load(patch["patch"])[0]["value"])
-        for key in ("kubevuln", "kubevulnScheduler", "nodeAgent", "sbomScanner", "synchronizer"):
+        for key in ("kubevuln", "kubevulnScheduler", "sbomScanner", "synchronizer"):
             self.assertIs(data["components"][key]["enabled"], False)
         self.assertIs(data["components"]["kubescape"]["enabled"], True)
+        self.assertIs(data["components"]["nodeAgent"]["enabled"], True)
 
     def test_database_and_scan_bounds_are_required(self):
         for path, value in [(("grypeOfflineDB", "image", "tag"), "v6-latest"),
@@ -223,10 +227,10 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertEqual(inventory["admissionBlockers"], [])
         self.assertEqual(inventory["certificateInitBudgets"], {
             name: CHECK.CERTGEN_BUDGET for name in CHECK.CERTGEN_NAMES})
-        self.assertEqual(sum(inventory["counts"].values()), 61)
+        self.assertEqual(sum(inventory["counts"].values()), 72)
         self.assertEqual(inventory["counts"]["Deployment"], 5)
         self.assertEqual(inventory["counts"]["APIService"], 1)
-        self.assertNotIn("DaemonSet", inventory["counts"])
+        self.assertEqual(inventory["counts"]["DaemonSet"], 1)
 
 
 class PostRenderTests(unittest.TestCase):
@@ -443,17 +447,20 @@ class FailClosedPreflightTests(unittest.TestCase):
                             CHECK.check_admission(SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.19.2"), Path(directory), [])
 
     def test_cel_admission_requires_its_complete_report(self):
-        for count in [28, 47, 48]:
+        for count in [28, 53, 54]:
             report = {"apiVersion": "openreports.io/v1alpha1", "summary": {
-                "pass": count, "fail": 0, "error": 0, "skip": 0, "warn": 0},
+                "pass": count, "fail": 0, "error": 0, "skip": 1, "warn": 0},
                 "results": [{"policy": "platform-pod-standards-require-owner-label", "rule": "validation",
                              "result": "pass", "resources": [{"kind": "Deployment", "name": "storage"}]}] * count}
+            report['results'].append({'policy': 'platform-pod-standards-require-runtime-hardening',
+                'result': 'skip', 'resources': [{'apiVersion': 'apps/v1', 'kind': 'DaemonSet',
+                'name': 'node-agent', 'namespace': 'kubescape'}]})
             evaluated = SimpleNamespace(stdout=yaml.safe_dump(report), returncode=0)
             with tempfile.TemporaryDirectory() as directory, \
                  mock.patch.object(CHECK.subprocess, "check_output", return_value="Version: v1.20.0\n"), \
                  mock.patch.object(CHECK.subprocess, "run", return_value=evaluated):
                 args = SimpleNamespace(kyverno="kyverno", expected_kyverno_version="1.20.0")
-                if count == 48:
+                if count == 54:
                     CHECK.check_admission(args, Path(directory), [])
                 else:
                     with self.assertRaises(AssertionError):

@@ -197,6 +197,15 @@ def main():
                 ],
             )
         )
+    runtime_hardening = next(d for d in docs if d["metadata"]["name"] ==
+                             "platform-pod-standards-require-runtime-hardening")
+    # The dedicated runtime boundary validates the full agent shape fail-closed.
+    runtime_hardening["spec"]["matchConditions"].insert(0, {
+        "name": "bounded-kubescape-node-agent",
+        "expression": "!(request.namespace == 'kubescape' && object.kind == 'DaemonSet' "
+                      "&& object.metadata.name == 'node-agent' "
+                      "&& object.spec.template.spec.?serviceAccountName.orValue('') == 'node-agent')",
+    })
     emit("policies/workloads.yaml", docs)
     flux = "request.userInfo.username in ['system:serviceaccount:flux-system:helm-controller','system:serviceaccount:flux-system:kustomize-controller']"
     fc = [

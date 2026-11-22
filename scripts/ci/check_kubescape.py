@@ -21,14 +21,16 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts/ci"))
 from grype_db import mirror_init
+import kubescape_runtime as runtime
 VERSION = "1.42.0"
 CHART_SHA256 = "be45f83398f28db8f2ff395e5d8ab411328041e9e2165a42e5fb92a4ba369079"
 CHART_URL = ("https://github.com/kubescape/helm-charts/releases/download/"
              f"kubescape-operator-{VERSION}/kubescape-operator-{VERSION}.tgz")
 DISABLED = set("""continuousScan nodeScan nodeSbomGeneration scanEmbeddedSBOMs
-relevancy vexGeneration runtimeObservability networkPolicyService
-networkEventsStreaming runtimeDetection malwareDetection nodeProfileService
+relevancy vexGeneration networkPolicyService
+networkEventsStreaming malwareDetection nodeProfileService
 admissionController httpDetection seccompProfileService sandboxSeccomp manageWorkloads
 syncSBOM agentRuntimePosture riskAcceptance remediation autoUpgrading prometheusExporter""".split())
 CERTGEN_NAMES = {"certgen-create", "certgen-patch"}
@@ -51,13 +53,15 @@ def check_release(release, active=False):
     caps = values["capabilities"]
     for key in DISABLED:
         assert caps.get(key) == "disable", f"capabilities.{key} must explicitly be disabled"
-    for key in ("operator", "configurationScan", "vulnerabilityScan", "kubescapeOffline"):
+    for key in ("operator", "configurationScan", "vulnerabilityScan", "kubescapeOffline", "runtimeDetection", "runtimeObservability"):
         assert caps.get(key) == "enable", f"capabilities.{key} must be enabled"
     assert caps["seccompProfileBackend"] == "storage"
     assert values["certificates"]["strategy"] == "initContainer"
     assert not any(values.get(k) for k in ("server", "account", "accessKey"))
     assert not values["credentials"]["cloudSecret"]
     assert values["global"]["enableClusterWideSecretAccess"] is False
+    runtime.check_values(values)
+    assert spec["upgrade"]["crds"] == "Create"
     assert values["nodeAgent"]["privileged"] is False
     assert caps["testing"]["nodeAgentMultiplication"]["enabled"] is False
     assert values["storage"]["hostNetwork"] is False
@@ -123,6 +127,9 @@ def findings(resources):
     for resource in resources:
         kind, name = resource["kind"], resource["metadata"]["name"]
         identity = f"{kind}/{name}"
+        if (kind, name) == ("DaemonSet", "node-agent"):
+            errors.extend(runtime.findings(resource))
+            continue
         if kind in {"MutatingWebhookConfiguration", "ValidatingWebhookConfiguration",
                     "NetworkPolicy", "ServiceMonitor", "DaemonSet"}:
             errors.append(f"{identity}: forbidden optional resource")
@@ -179,7 +186,7 @@ def check_effective_config(resources):
     for key in ("serviceDiscovery", "continuousPostureScan",
                 "relevantImageVulnerabilitiesEnabled", "scanEmbeddedSBOMs", "storeFilteredSbom"):
         assert cloud[key] is False, f"effective {key} enabled"
-    assert cloud["keepLocal"] is True and cloud["nodeAgent"] == "false"
+    assert cloud["keepLocal"] is True and cloud["nodeAgent"] == "true"
     assert cloud["imageVulnerabilitiesScanningEnabled"] is True
     assert cloud["listingURL"] == "http://grype-offline-db:80/databases"
     assert cloud["cveMatchingMode"] == "off"
@@ -195,7 +202,7 @@ def check_effective_config(resources):
     assert caps["capabilities"]["vulnerabilityScan"] == "enable"
     for key in DISABLED:
         assert caps["capabilities"][key] == "disable", f"effective {key} enabled"
-    for key in ("nodeAgent", "sbomScanner", "kubevuln", "kubevulnScheduler", "synchronizer",
+    for key in ("sbomScanner", "kubevuln", "kubevulnScheduler", "synchronizer",
                 "autoUpdater", "prometheusExporter", "serviceDiscovery"):
         assert caps["components"][key]["enabled"] is False, f"effective {key} enabled"
     scanner = next(r for r in resources if r["kind"] == "Deployment" and r["metadata"]["name"] == "kubescape")
@@ -207,9 +214,13 @@ def check_effective_config(resources):
     operator = next(r for r in resources if r["kind"] == "Deployment" and r["metadata"]["name"] == "operator")
     env = {e["name"]: e.get("value") for e in pod_template(operator)["spec"]["containers"][0]["env"]}
     assert env["KS_SKIP_UPDATE_CHECK"] == "true" and env["WORKERCONCURRENCY"] == "1"
-    # Only operator consumes ks-capabilities. Keep its automatic Pod/SBOM/Profile
-    # watchers off; manual requests go directly to authenticated Kubevuln.
+    # Only operator consumes ks-capabilities. Keep automatic image routing off;
+    # the runtime agent watches independently and manual scans use authenticated Kubevuln.
     assert caps["components"]["kubescape"]["enabled"] is True
+    assert caps["components"]["nodeAgent"]["enabled"] is True
+    for key in ("runtimeDetection", "runtimeObservability"):
+        assert caps["capabilities"][key] == "enable"
+    runtime.check_config(resources)
     for name in ("kubescape-scheduler", "kubevuln-scheduler"):
         job = next(r for r in resources if r["kind"] == "CronJob" and r["metadata"]["name"] == name)
         assert job["spec"].get("suspend") is True
@@ -290,12 +301,16 @@ def check_post_render(raw, rendered):
     assert certgen["rules"] == [{"apiGroups": ["apiregistration.k8s.io"],
                                  "resources": ["apiservices"], "verbs": ["get", "patch"]}], "chart certgen RBAC changed"
     certgen["rules"][0]["resourceNames"] = [APISERVICE]
-    assert indexed(rendered) == expected, "post-render changed fields outside qualified edits"
+    runtime.post_render(expected)
+    actual = indexed(deepcopy(rendered))
+    runtime.normalize_rules(expected)
+    runtime.normalize_rules(actual)
+    assert actual == expected, "post-render changed fields outside qualified edits"
 
 
 def check_scope(changed_paths):
     protected = ("infra/kyverno/", "infra/kyverno-policies/", "infra/observability/", "infra/cilium/")
-    return [p for p in changed_paths if p.startswith(protected) and p != "infra/observability/gatus-helmrelease.yaml"]
+    return [p for p in changed_paths if p.startswith(protected) and p not in {"infra/observability/gatus-helmrelease.yaml", "infra/kyverno-policies/kustomization.yaml"}]
 
 
 def check_assessment_alert(before, after):
@@ -337,6 +352,7 @@ def check_admission(args, work, resources):
     admission_resources.write_text(yaml.safe_dump_all([namespace, *resources]))
     policy_root = ROOT / ("migration/kyverno/policies" if cel else "infra/kyverno/policies")
     policies = [policy_root / name for name in (["workloads.yaml", "namespace.yaml"] if cel else ["platform-pod-standards.yaml", "platform-namespace-standards.yaml"])]
+    policies.append(ROOT / "infra/kubescape/runtime/admission.yaml")
     evaluated = subprocess.run([
         args.kyverno, "apply", *(str(path) for path in policies),
         "--resource", str(admission_resources), "--policy-report"], text=True, stdout=subprocess.PIPE, check=False)
@@ -349,9 +365,13 @@ def check_admission(args, work, resources):
     assert not failures, failures
     # CEL explicitly passes the non-service probe guard for the rendered Job;
     # the legacy engine omits that rule result. All other decisions agree.
-    expected_passes = 48 if cel else 46
-    assert report["summary"] == {"pass": expected_passes, "fail": 0, "error": 0, "skip": 0, "warn": 0}, report["summary"]
-    assert len(report["results"]) == expected_passes and all(r["result"] == "pass" for r in report["results"]), report["summary"]
+    expected_passes = 54 + sum(r["kind"] in WORKLOADS for r in resources) if cel else 46
+    assert report["summary"] == {"pass": expected_passes, "fail": 0, "error": 0, "skip": 1, "warn": 0}, report["summary"]
+    skipped = [r for r in report["results"] if r["result"] == "skip"]
+    assert len(skipped) == 1 and skipped[0]["policy"] == "platform-pod-standards-require-runtime-hardening"
+    assert skipped[0]["resources"] == [{"apiVersion": "apps/v1", "kind": "DaemonSet", "name": "node-agent", "namespace": "kubescape"}]
+    assert sum(r["result"] == "pass" for r in report["results"]) == expected_passes
+    assert len(report["results"]) == expected_passes + 1, report["summary"]
     assert evaluated.returncode == 0, "Kyverno exit code contradicts its report"
     # Expose the exact Pod specs for subsequent PSA admission verification.
     # Static checks above are deliberately conservative; this is no live PSA claim.
@@ -360,7 +380,7 @@ def check_admission(args, work, resources):
         {"apiVersion": "v1", "kind": "Pod", "metadata": {
             **pod_template(r).get("metadata", {}), "name": r["metadata"]["name"], "namespace": "kubescape"},
          "spec": pod_template(r)["spec"]} for r in resources if r["kind"] in WORKLOADS]))
-    print(f"verified: Kyverno CLI {match[1]}: {expected_passes} passes, 0 failures/errors/skips; restricted Pod fields checked statically")
+    print(f"verified: Kyverno CLI {match[1]}: {expected_passes} passes, 0 failures/errors; exact agent hardening exemption; other Pod fields checked statically")
 
 
 def run(args):
@@ -383,6 +403,11 @@ def run(args):
         # compatibility-only tooling change does not activate that task scope.
         if scope_guard_required(paths):
             assert not check_scope(paths), "Protected infrastructure changed"
+            policy_source = "infra/kyverno-policies/kustomization.yaml"
+            if policy_source in paths:
+                before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + policy_source], cwd=ROOT))
+                before["resources"].append("../kubescape/runtime/admission.yaml")
+                assert before == yaml.safe_load((ROOT / policy_source).read_text()), "policy composition changed outside the runtime boundary"
             alert_path = "infra/observability/gatus-helmrelease.yaml"
             if alert_path in paths:
                 before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + alert_path], cwd=ROOT))
@@ -413,6 +438,7 @@ def run(args):
     expected = json.loads((ROOT / "infra/kubescape/rendered-inventory.json").read_text())
     assert result == expected, "rendered inventory/blockers changed; review the manifests"
     check_admission(args, work, resources)
+    runtime.check_boundary(args.kyverno, work, resources, ROOT)
     errors = result["admissionBlockers"]
     for error in errors:
         print(f"failed: {error}")
