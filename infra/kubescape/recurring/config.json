@@ -13,6 +13,10 @@
     {
       "identity": "memos/Deployment/memos/memos",
       "reason": "Qualified public-image canary, one replica, existing SBOM and vulnerability baseline"
+    },
+    {
+      "identity": "homepage/Deployment/homepage-assets/nginx",
+      "reason": "Second reviewed noncritical one-replica immutable nginx cohort after both Memos production modes succeeded"
     }
   ]
 }
