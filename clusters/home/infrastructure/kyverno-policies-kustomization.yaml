@@ -43,6 +43,9 @@ spec:
     kind: ValidatingPolicy
     name: platform-flux-guardrails
   - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    name: kubescape-runtime-boundary
+  - apiVersion: policies.kyverno.io/v1
     kind: NamespacedValidatingPolicy
     name: gitea-job-security-restricted-with-sanitizer-capability
     namespace: gitea-jobs

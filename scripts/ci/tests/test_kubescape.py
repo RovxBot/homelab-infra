@@ -151,6 +151,11 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertEqual(child["path"], "./infra/kubescape")
         self.assertTrue(child["wait"])
         self.assertEqual(child["dependsOn"], [{"name": "infrastructure"}, {"name": "kyverno-policies"}])
+        policy_child_path = "infrastructure/kyverno-policies-kustomization.yaml"
+        self.assertEqual(cluster["resources"].count(policy_child_path), 1)
+        policy_child = yaml.safe_load((ROOT / "clusters/home" / policy_child_path).read_text())["spec"]
+        self.assertIn({"apiVersion": "policies.kyverno.io/v1", "kind": "ValidatingPolicy",
+                       "name": "kubescape-runtime-boundary"}, policy_child["healthChecks"])
         infrastructure = yaml.safe_load((ROOT / "clusters/home/infrastructure/kustomization.yaml").read_text())
         self.assertNotIn("../../../infra/kubescape", infrastructure["resources"])
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
