@@ -180,5 +180,52 @@ class FailureTests(unittest.TestCase):
         self.assertEqual(assessed["controls"], {"Passed": 1, "Action Required": 1, "Not Evaluated": 2})
 
 
+class SubmissionTests(unittest.TestCase):
+    """Drive the actual POST/poll/report path, including ambiguous acceptance."""
+    def test_terminal_failure_does_not_resubmit_or_clear_intent(self):
+        self.submission_case("failed", "scan_failed")
+
+    def test_missing_report_cannot_pass_a_successful_api_job(self):
+        self.submission_case("succeeded", "report_missing")
+
+    def test_timeout_leaves_a_queryable_intent_without_retry(self):
+        self.submission_case("running", "scan_timeout", timeout=True)
+
+    def test_restart_after_acceptance_leaves_fence(self):
+        self.submission_case("succeeded", "engine_restarted", restarted=True)
+
+    def test_lost_post_response_queries_id_without_post_retry(self):
+        self.submission_case("succeeded", "report_missing", lost=True)
+
+    def submission_case(self, status_state, reason, timeout=False, restarted=False, lost=False):
+        with tempfile.TemporaryDirectory() as path:
+            api = mock.Mock()
+            api.items.return_value = []  # No full report/SBOM persisted.
+            runner = R.Runner(api, CONFIG, EXPECTED, Path(path), "vulnerability")
+            requests = []
+            def service(component, endpoint, value=None):
+                requests.append((component, endpoint, value))
+                if endpoint == "/v1/scanImage":
+                    if lost:
+                        raise OSError("lost response")
+                    return {"accepted": True}
+                return {"state": status_state, "phase": "completed" if status_state == "succeeded" else "scanning"}
+            audit = {"podUID": "engine-uid"}
+            with mock.patch.object(runner, "preflight"), mock.patch.object(runner, "gate"), \
+                    mock.patch.object(runner, "observe"), mock.patch.object(R, "service", side_effect=service), \
+                    mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "other" if restarted else "engine-uid"}}), \
+                    mock.patch.object(R.time, "monotonic", side_effect=[0, 361] if timeout else lambda: 0):
+                with self.assertRaisesRegex(R.db.Rejected, reason):
+                    runner.vulnerability(row(), audit)
+            intent = json.loads((Path(path) / "inflight.json").read_text())
+            posts = [r for r in requests if r[2] is not None]
+            self.assertEqual(len(posts), 1)
+            self.assertEqual(posts[0][2]["jobID"], intent["jobID"])
+            self.assertEqual(posts[0][2]["imageHash"], row()["runningDigest"])
+            self.assertEqual(runner.result["assessments"], [])
+            if lost:
+                self.assertEqual(requests[1][1], "/v1/scanStatus/" + intent["jobID"])
+
+
 if __name__ == "__main__":
     unittest.main()
