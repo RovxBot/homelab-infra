@@ -156,6 +156,14 @@ def evaluate(evidence, expected, now=None):
     result = {"state": "unknown", "databaseState": "unknown", "canAssess": False,
               "assessmentTrustworthy": False, "checkedAt": db.stamp(now), "maximumDatabaseAgeHours": 72,
               "reasons": [], "integrity": "unknown", "lastSuccessfulAssessmentTime": None}
+    report = evidence.get("assessment")
+    try:
+        if report and report["metadata"].get("annotations", {}).get("kubescape.io/status") == "ready":
+            created = report["spec"]["metadata"]["report"]["createdAt"]
+            db.timestamp(created)
+            result["lastSuccessfulAssessmentTime"] = created
+    except (KeyError, TypeError, ValueError):
+        pass
     try:
         latest = expected["metadata"]
         result["expectedImage"] = expected["image"]
@@ -169,6 +177,7 @@ def evaluate(evidence, expected, now=None):
         db.require(age <= 72, "stale_database")
         db.metadata(latest, now)
         db.require(expected.get("state") == "verified" and expected.get("publisher", {}).get("status") == "verified", "unverified_provenance")
+        db.publisher_match(latest, expected["publisher"]["document"], now)
         db.require(evidence["declaredDigest"] == expected["indexDigest"], "gitops_digest_mismatch")
         db.require(evidence["mirrorImage"] == expected["image"], "mirror_image_mismatch")
         db.require(evidence["mirrorImageID"].split("@")[-1] in {expected["indexDigest"], expected["manifestDigest"]}, "mirror_imageid_mismatch")
@@ -185,7 +194,6 @@ def evaluate(evidence, expected, now=None):
         db.require(diagnostics["cveDBVersion"] == latest["checksum"].removeprefix("sha256:"), "loaded_database_mismatch")
         db.require(diagnostics.get("storageEnabled") is True and diagnostics.get("queueDepth") == 0, "engine_not_idle")
         result.update(state="healthy", databaseState="healthy", canAssess=True, integrity="verified")
-        report = evidence.get("assessment")
         if report is None:
             result.update(state="unknown", reasons=["assessment_unavailable"])
             return result
@@ -214,7 +222,7 @@ def evaluate(evidence, expected, now=None):
         state = "stale" if reason == "stale_database" else "unknown" if reason in unknown else "failed"
     except (KeyError, TypeError, ValueError):
         state, reason = "unknown", "missing_or_invalid_evidence"
-    result.update(state=state, databaseState=state, reasons=[reason])
+    result.update(state=state, databaseState="healthy" if result["canAssess"] else state, reasons=[reason])
     return result
 
 
@@ -238,6 +246,8 @@ def spec_hash(resource):
 
 
 def scan_memos(request, expected, audit, work):
+    db.require(not (work / "scan-request.json").exists(), "assessment_workdir_already_used",
+               "use a new directory; inspect the existing job ID before any retry")
     before = collect(request, audit)
     db.save_json(work / "before.json", before)
     gate = evaluate(before, expected)

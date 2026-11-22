@@ -63,6 +63,9 @@ def main():
             raise RuntimeError("Updater branch has unrelated changes; refusing overwrite")
         prior = json.loads(run("git", "show", "FETCH_HEAD:" + PATHS[1]))
         from grype_db import timestamp
+        if (prior["metadata"]["built"] == lock["metadata"]["built"]
+                and prior["metadata"]["checksum"] != lock["metadata"]["checksum"]):
+            raise RuntimeError("Publisher identity changed for the same build; operator review required")
         if timestamp(prior["metadata"]["built"]) >= timestamp(lock["metadata"]["built"]):
             print("Existing proposal already contains this release or a newer database")
             return

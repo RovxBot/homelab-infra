@@ -156,6 +156,22 @@ class VerificationTests(unittest.TestCase):
         for value in (INDEX, CHECKSUM, BUILT, db.PUBLISHER, "human-reviewed", "#2135"):
             self.assertIn(value, text)
 
+    def test_proposal_deduplicates_existing_same_database_without_writes(self):
+        _, lock = fixture()
+        replies = [proposal.PATHS[0], "", '[{"number": 123}]', "d" * 40 + "\trefs/heads/" + proposal.BRANCH,
+                   "", "\n".join(proposal.PATHS), json.dumps(lock)]
+        with patch.object(proposal.Path, "read_text", return_value=json.dumps(lock)), \
+             patch.object(proposal, "run", side_effect=replies) as run:
+            proposal.main()
+        self.assertFalse(any(call.args[:2] == ("git", "push") for call in run.call_args_list))
+
+    def test_proposal_refuses_unrelated_working_tree_changes(self):
+        _, lock = fixture()
+        with patch.object(proposal.Path, "read_text", return_value=json.dumps(lock)), \
+             patch.object(proposal, "run", side_effect=["apps/memos/deployment.yaml", ""]):
+            with self.assertRaisesRegex(RuntimeError, "unrelated"):
+                proposal.main()
+
 
 class FreshnessTests(unittest.TestCase):
     def test_healthy_and_explicit_zero_findings(self):
@@ -172,6 +188,7 @@ class FreshnessTests(unittest.TestCase):
         self.assertEqual(result["state"], "stale")
         self.assertEqual(result["reasons"], ["stale_database"])
         self.assertFalse(result["canAssess"])
+        self.assertEqual(result["lastSuccessfulAssessmentTime"], "2026-11-22T03:59:00Z")
 
     def test_exact_age_boundary_and_newer_audit(self):
         evidence, expected = fixture()
