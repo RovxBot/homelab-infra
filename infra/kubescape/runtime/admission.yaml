@@ -1,0 +1,139 @@
+# PSA cannot exempt one ServiceAccount. Enforce restricted controls here before
+# raising only kubescape PSA; the exact node-agent shape is the sole exception.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: kubescape-runtime-boundary
+  annotations:
+    policies.kyverno.io/title: Kubescape single-worker runtime boundary
+    github.cooked.beer/issue-url: https://github.com/RovxBot/homelab-infra/issues/2136
+spec:
+  failurePolicy: Fail
+  validationActions:
+  - Deny
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: []
+    validatingAdmissionPolicy:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+      - replicasets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  matchConditions:
+  - name: kubescape-only
+    expression: request.namespace == 'kubescape'
+  variables:
+  - name: p
+    expression: 'object.kind == ''Pod'' ? object : (object.kind == ''CronJob'' ? object.spec.jobTemplate.spec.template
+      : object.spec.template)'
+  - name: s
+    expression: variables.p.spec
+  - name: cs
+    expression: variables.s.containers + variables.s.?initContainers.orValue([]) + variables.s.?ephemeralContainers.orValue([])
+  - name: agent
+    expression: variables.s.?serviceAccountName.orValue('') == 'node-agent'
+  validations:
+  - expression: '!variables.s.?hostNetwork.orValue(false) && !variables.s.?hostIPC.orValue(false) && (variables.agent
+      || !variables.s.?hostPID.orValue(false))'
+    message: Only the canary node-agent may use the host PID namespace; host network and IPC remain forbidden.
+  - expression: variables.cs.all(c, !c.?securityContext.?privileged.orValue(false) && c.?securityContext.?allowPrivilegeEscalation.orValue(true)
+      == false && c.?securityContext.?procMount.orValue('Default') == 'Default' && c.?ports.orValue([]).all(p, p.?hostPort.orValue(0)
+      == 0))
+    message: Privileged mode, privilege escalation, unmasked proc and host ports are forbidden.
+  - expression: variables.agent || variables.cs.all(c, c.?securityContext.?runAsNonRoot.orValue(variables.s.?securityContext.?runAsNonRoot.orValue(false))
+      && c.?securityContext.?runAsUser.orValue(variables.s.?securityContext.?runAsUser.orValue(-1)) != 0 && 'ALL'
+      in c.?securityContext.?capabilities.?drop.orValue([]) && c.?securityContext.?capabilities.?add.orValue([]).all(x,x
+      == 'NET_BIND_SERVICE'))
+    message: Other Kubescape workloads retain restricted non-root and capability controls.
+  - expression: variables.agent || variables.s.?volumes.orValue([]).all(v, has(v.configMap) || has(v.csi) || has(v.downwardAPI)
+      || has(v.emptyDir) || has(v.ephemeral) || has(v.persistentVolumeClaim) || has(v.projected) || has(v.secret))
+    message: Other Kubescape workloads may use only restricted volume types.
+  - expression: variables.agent || variables.cs.all(c, c.?securityContext.?seccompProfile.?type.orValue(variables.s.?securityContext.?seccompProfile.?type.orValue(''))
+      in ['RuntimeDefault','Localhost'])
+    message: Other Kubescape containers must use restricted seccomp profiles.
+  - expression: variables.s.?securityContext.?sysctls.orValue([]).size() == 0 && ([variables.s.?securityContext.orValue({})]
+      + variables.cs.map(c,c.?securityContext.orValue({}))).all(sc, !sc.?windowsOptions.?hostProcess.orValue(false)
+      && sc.?seLinuxOptions.?type.orValue('') in ['','container_t','container_init_t','container_kvm_t','container_engine_t']
+      && sc.?seLinuxOptions.?user.orValue('') == '' && sc.?seLinuxOptions.?role.orValue('') == '')
+    message: Host processes, custom sysctls and unrestricted SELinux settings are forbidden.
+  - expression: variables.agent || ([variables.s.?securityContext.orValue({})] + variables.cs.map(c,c.?securityContext.orValue({}))).all(sc,
+      sc.?appArmorProfile.?type.orValue('RuntimeDefault') in ['RuntimeDefault','Localhost'] && sc.?seccompProfile.?type.orValue('RuntimeDefault')
+      in ['RuntimeDefault','Localhost'])
+    message: Other Kubescape Pods retain restricted AppArmor and seccomp controls.
+  - expression: variables.p.metadata.?annotations.orValue({}).all(k, !k.startsWith('container.apparmor.security.beta.kubernetes.io/')
+      || variables.p.metadata.annotations[k] == 'runtime/default' || variables.p.metadata.annotations[k].startsWith('localhost/'))
+    message: Legacy AppArmor annotations must remain restricted.
+  - expression: variables.cs.all(c, [c.?livenessProbe.orValue({}),c.?readinessProbe.orValue({}),c.?startupProbe.orValue({}),c.?lifecycle.?postStart.orValue({}),c.?lifecycle.?preStop.orValue({})].all(h,h.?httpGet.?host.orValue('')
+      == '' && h.?tcpSocket.?host.orValue('') == ''))
+    message: Probes and lifecycle hooks must not target arbitrary hosts.
+  - expression: '!variables.agent || ((object.kind == ''DaemonSet'' && object.metadata.name == ''node-agent'') ||
+      (object.kind == ''Pod'' && object.metadata.?ownerReferences.orValue([]).exists(o,o.kind == ''DaemonSet'' &&
+      o.name == ''node-agent'' && o.?controller.orValue(false))))'
+    message: The node-agent ServiceAccount is reserved for the named DaemonSet and its Pods.
+  - expression: '!variables.agent || (variables.s.?nodeSelector.orValue({}) == {''kubernetes.io/os'':''linux'',''kubernetes.io/hostname'':''metal6''}
+      && variables.s.?nodeName.orValue(''metal6'') == ''metal6'' && variables.s.?hostPID.orValue(false) && variables.s.containers.size()
+      == 1 && variables.s.?initContainers.orValue([]).size() == 0 && variables.s.?ephemeralContainers.orValue([]).size()
+      == 0)'
+    message: The agent is confined to metal6, with one container and no injected init or ephemeral containers.
+  - expression: '!variables.agent || variables.s.containers.all(c,c.name == ''node-agent'' && c.image == "quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60"
+      && c.?command.orValue([]).size() == 0 && c.?args.orValue([]).size() == 0 && !has(c.lifecycle) && c.?envFrom.orValue([]).size()
+      == 0 && c.securityContext.runAsUser == 0 && c.securityContext.capabilities.add == ["SYS_ADMIN","SYS_PTRACE","NET_ADMIN","SYSLOG","SYS_RESOURCE","IPC_LOCK","NET_RAW"]
+      && c.securityContext.capabilities.drop == [''ALL''] && c.securityContext.seccompProfile.type == ''Unconfined''
+      && c.?securityContext.?appArmorProfile.?type.orValue(''Unconfined'') == ''Unconfined'')'
+    message: Only the pinned agent entrypoint and exact reviewed eBPF security context are permitted.
+  - expression: '!variables.agent || variables.s.containers.all(c,c.env.size() == 10 && c.env.all(e,c.env.filter(x,x.name
+      == e.name).size() == 1) && c.env.all(e,(e.name in {"GOMEMLIMIT":"1120MiB","HOST_ROOT":"/host","KS_LOGGER_LEVEL":"info","KS_LOGGER_NAME":"zap","KUBELET_ROOT":"/var/lib/kubelet","AGENT_VERSION":"v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60","INCLUDENAMESPACES":"homepage,memos,kubescape-runtime-test"}
+      && e.?value.orValue('''') == {"GOMEMLIMIT":"1120MiB","HOST_ROOT":"/host","KS_LOGGER_LEVEL":"info","KS_LOGGER_NAME":"zap","KUBELET_ROOT":"/var/lib/kubelet","AGENT_VERSION":"v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60","INCLUDENAMESPACES":"homepage,memos,kubescape-runtime-test"}[e.name]
+      && !has(e.valueFrom)) || (e.name in {"NODE_NAME":"spec.nodeName","POD_NAME":"metadata.name","NAMESPACE_NAME":"metadata.namespace"}
+      && e.valueFrom.fieldRef.fieldPath == {"NODE_NAME":"spec.nodeName","POD_NAME":"metadata.name","NAMESPACE_NAME":"metadata.namespace"}[e.name]
+      && !has(e.value))))'
+    message: Agent environment is fixed; credentials, preload injection and kernel-check bypasses are forbidden.
+  - expression: '!variables.agent || variables.s.volumes.all(v,has(v.hostPath) ? (v.name in {"host":"/","kubeletdir":"/var/lib/kubelet","run":"/run","var":"/var","cgroup":"/sys/fs/cgroup","modules":"/lib/modules","bpffs":"/sys/fs/bpf","debugfs":"/sys/kernel/debug","boot":"/boot","host-filesystem":"/"}
+      && v.hostPath.path == {"host":"/","kubeletdir":"/var/lib/kubelet","run":"/run","var":"/var","cgroup":"/sys/fs/cgroup","modules":"/lib/modules","bpffs":"/sys/fs/bpf","debugfs":"/sys/kernel/debug","boot":"/boot","host-filesystem":"/"}[v.name]
+      && v.hostPath.?type.orValue('''') in ['''', ''Directory'']) : ((v.name in [''data'',''profiles''] && has(v.emptyDir))
+      || (v.name == ''cloud-secret'' && v.secret.secretName == ''cloud-secret'') || (v.name == ''ks-cloud-config''
+      && v.configMap.name == ''ks-cloud-config'') || (v.name == ''config'' && v.configMap.name == ''node-agent'')
+      || (v.name == ''kubescape-api-token'' && has(v.projected)) || (v.name.startsWith(''kube-api-access-'') &&
+      has(v.projected))))'
+    message: Agent host paths and configuration sources are limited to the reviewed chart inputs.
+  - expression: '!variables.agent || variables.s.containers.all(c,c.volumeMounts.all(m,(m.name in {"kubescape-api-token":["/var/run/secrets/kubescape.io/api-token","true",""],"host":["/host","true",""],"kubeletdir":["/var/lib/kubelet","false",""],"run":["/run","false",""],"var":["/var","true",""],"modules":["/lib/modules","true",""],"debugfs":["/sys/kernel/debug","false",""],"cgroup":["/sys/fs/cgroup","true",""],"bpffs":["/sys/fs/bpf","false",""],"data":["/data","false",""],"profiles":["/profiles","false",""],"boot":["/boot","true",""],"cloud-secret":["/etc/credentials","true",""],"ks-cloud-config":["/etc/config/clusterData.json","true","clusterData.json"],"config":["/etc/config/config.json","true","config.json"]}
+      && [string(m.mountPath),string(m.?readOnly.orValue(false)),string(m.?subPath.orValue(''''))] == {"kubescape-api-token":["/var/run/secrets/kubescape.io/api-token","true",""],"host":["/host","true",""],"kubeletdir":["/var/lib/kubelet","false",""],"run":["/run","false",""],"var":["/var","true",""],"modules":["/lib/modules","true",""],"debugfs":["/sys/kernel/debug","false",""],"cgroup":["/sys/fs/cgroup","true",""],"bpffs":["/sys/fs/bpf","false",""],"data":["/data","false",""],"profiles":["/profiles","false",""],"boot":["/boot","true",""],"cloud-secret":["/etc/credentials","true",""],"ks-cloud-config":["/etc/config/clusterData.json","true","clusterData.json"],"config":["/etc/config/config.json","true","config.json"]}[m.name]
+      && m.?subPathExpr.orValue('''') == '''' && m.?mountPropagation.orValue(''None'') == ''None'') || (m.name.startsWith(''kube-api-access-'')
+      && m.mountPath == ''/var/run/secrets/kubernetes.io/serviceaccount'' && m.readOnly)))'
+    message: Agent mounts may not expose writable root, alternate config or shared mount propagation.
