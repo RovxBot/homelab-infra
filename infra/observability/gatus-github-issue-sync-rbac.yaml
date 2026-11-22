@@ -1,0 +1,153 @@
+# Named workload/Flux reads only. Dynamic Pod/Event names require namespace-scoped
+# list rights; selectors and public status categories are enforced by sync.py.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gatus-github-issue-sync
+  namespace: monitoring
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gatus-github-issue-sync
+  namespace: gitea
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [gitea, gitea-postgres]
+    verbs: [get]
+  - apiGroups: ['']
+    resources: [pods, events]
+    verbs: [list]
+  - apiGroups: [helm.toolkit.fluxcd.io]
+    resources: [helmreleases]
+    resourceNames: [gitea]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gatus-github-issue-sync
+  namespace: gitea
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gatus-github-issue-sync
+subjects:
+  - kind: ServiceAccount
+    name: gatus-github-issue-sync
+    namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gatus-github-issue-sync
+  namespace: homepage
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [homepage, pod-report]
+    verbs: [get]
+  - apiGroups: ['']
+    resources: [pods, events]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gatus-github-issue-sync
+  namespace: homepage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gatus-github-issue-sync
+subjects:
+  - kind: ServiceAccount
+    name: gatus-github-issue-sync
+    namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gatus-github-issue-sync
+  namespace: koito
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [koito]
+    verbs: [get]
+  - apiGroups: ['']
+    resources: [pods, events]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gatus-github-issue-sync
+  namespace: koito
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gatus-github-issue-sync
+subjects:
+  - kind: ServiceAccount
+    name: gatus-github-issue-sync
+    namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gatus-github-issue-sync
+  namespace: kubescape
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [kubescape, kubevuln, operator, storage, grype-offline-db]
+    verbs: [get]
+  - apiGroups: ['']
+    resources: [pods, events]
+    verbs: [list]
+  - apiGroups: [helm.toolkit.fluxcd.io]
+    resources: [helmreleases]
+    resourceNames: [kubescape]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gatus-github-issue-sync
+  namespace: kubescape
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gatus-github-issue-sync
+subjects:
+  - kind: ServiceAccount
+    name: gatus-github-issue-sync
+    namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gatus-github-issue-sync
+  namespace: flux-system
+rules:
+  - apiGroups: [kustomize.toolkit.fluxcd.io]
+    resources: [kustomizations]
+    resourceNames: [apps-gitea, apps-homepage, apps-koito, infrastructure, kubescape]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gatus-github-issue-sync
+  namespace: flux-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gatus-github-issue-sync
+subjects:
+  - kind: ServiceAccount
+    name: gatus-github-issue-sync
+    namespace: monitoring
