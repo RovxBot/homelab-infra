@@ -76,6 +76,23 @@ spec:
             success-threshold: 2
             send-on-resolved: true
       endpoints:
+        # Aggregate health only. No incident payloads or GitHub alerts in this rollout.
+        - name: security-collector-process
+          group: cluster
+          url: http://security-collector.kubescape.svc.cluster.local:8080/readyz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+            - "[BODY].ready == true"
+          alerts: []
+        - name: security-collector-sources
+          group: cluster
+          url: http://security-collector.kubescape.svc.cluster.local:8080/healthz
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+            - "[BODY].status == healthy"
+          alerts: []
         - name: gitea
           group: internal
           url: http://gitea-http.gitea.svc.cluster.local:3000/api/healthz

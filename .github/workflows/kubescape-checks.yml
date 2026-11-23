@@ -121,7 +121,8 @@ jobs:
           import yaml
           text = open('.work/kubescape-preflight/recurring-kyverno.yaml').read()
           report = yaml.safe_load(text[text.index('apiVersion:'):])
-          assert report['summary'] == {'pass': 13, 'fail': 0, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
+          # Seven additional workload checks cover collector hardening.
+          assert report['summary'] == {'pass': 20, 'fail': 0, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
           PY
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home > .work/kubescape-preflight/entrypoint.yaml

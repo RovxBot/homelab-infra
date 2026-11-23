@@ -1,0 +1,79 @@
+{
+  "status": "local-live-read-qualified-production-not-deployed",
+  "observed_at": "2026-11-23T06:17:01.734948+00:00",
+  "method": "Production Service.tick with authenticated operator OIDC kubectl GET transport. Not the in-cluster projected-token TLS transport or deployed ServiceAccount.",
+  "agent": {
+    "pod_name": "node-agent-6krhl",
+    "pod_uid": "510bf845-85b5-48bd-861f-1eb2ea0a2c52",
+    "daemonset_uid": "bae3ba0e-c7f2-41f4-81d7-bb96cb4de279",
+    "node": "metal6",
+    "image": "quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60"
+  },
+  "runtime": {
+    "read_ok": true,
+    "attributable_incidents": 0,
+    "covered_workloads": 0,
+    "enrolled_workloads": 2,
+    "gap_latched": true,
+    "retained_unattributed_r1000_observations": 1,
+    "restart_overlap_lines": 1,
+    "initial_read_lines": 208
+  },
+  "local_restart": {
+    "cursor_loaded": true,
+    "counts_preserved": true,
+    "sqlite_quick_check": "ok"
+  },
+  "assessment": {
+    "available": false,
+    "qualified": false,
+    "reason": "Shared scanner RWO volume can be mounted on its current node, but a permanent second consumer could fence scanner relocation. No scanner/storage/schedule changes; access design pending review."
+  },
+  "github_writes": 0,
+  "production_acceptance": "not run; operator merges only after independent review and image CI/anonymous pull gate",
+  "wiki_publication": "pending security review",
+  "state_storage_class_replicas": 3,
+  "validation": {
+    "collector_tests": {
+      "status": "verified",
+      "count": 77
+    },
+    "gatus_tests": {
+      "status": "verified",
+      "count": 4
+    },
+    "kubescape_guard_tests": {
+      "status": "verified",
+      "count": 31
+    },
+    "recurring_validator": "verified",
+    "component_renders": "verified",
+    "schema_validation": {
+      "status": "verified",
+      "valid": 38,
+      "skipped_missing_crd_schema": 4,
+      "invalid": 0,
+      "errors": 0
+    },
+    "source_admission": {
+      "status": "verified",
+      "pass": 23,
+      "fail": 0,
+      "error": 0,
+      "skip": 0
+    },
+    "chart_preflight": "verified; existing 72-resource chart inventory and runtime boundary unchanged",
+    "actionlint": "verified",
+    "python_compilation": "verified",
+    "image_reproducibility": {
+      "status": "verified",
+      "digest": "sha256:1ced7461a2a41cfee94ace5cb270b93b8b3804a819fef3dcdaaa1be8274fb32b",
+      "method": "Two independent local crane v0.22.1 builds; complete build proofs match."
+    },
+    "container_restriction_smoke": "not run locally; CI image job required",
+    "registry_publication_anonymous_pull": "not run; CI image job required",
+    "deployed_acceptance": "not run"
+  },
+  "deployment_pr": "https://github.com/RovxBot/homelab-infra/pull/2205",
+  "validated_code_commit": "e1b8f20ce04974a4007934f03333dfb6e6d5ae2b"
+}

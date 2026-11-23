@@ -314,21 +314,27 @@ def check_scope(changed_paths):
 
 
 def check_assessment_alert(before, after):
-    """Only the explicitly requested Gatus endpoint may change with this rollout."""
+    """Only exact reviewed assessment/collector health endpoints may change."""
     expected = {"name": "kubescape-assessments", "group": "cluster",
                 "url": "http://pod-report.homepage.svc.cluster.local:80/kubescape-health.json",
                 "interval": "1m", "conditions": ["[STATUS] == 200", "[BODY].status == healthy",
                     "[BODY].vulnerability.evidenceAgeSeconds <= 259200", "[BODY].posture.evidenceAgeSeconds <= 93600"],
                 "alerts": [{"type": "github"}]}
+    allowed = [expected] + [dict(name='security-collector-' + name, group='cluster',
+        url='http://security-collector.kubescape.svc.cluster.local:8080/' + path,
+        interval='1m', conditions=['[STATUS] == 200', condition], alerts=[])
+        for name, path, condition in (('process', 'readyz', '[BODY].ready == true'),
+                                      ('sources', 'healthz', '[BODY].status == healthy'))]
     before, after = json.loads(json.dumps(before)), json.loads(json.dumps(after))
     for document in (before, after):
         endpoints = document["spec"]["values"]["config"]["endpoints"]
-        matching = [e for e in endpoints if e["name"] == expected["name"]]
-        assert len(matching) <= 1
-        if matching:
-            assert matching[0] == expected, "assessment alert differs"
-            endpoints.remove(matching[0])
-    assert before == after, "Gatus changed outside the assessment endpoint"
+        for reviewed in allowed:
+            matching = [e for e in endpoints if e["name"] == reviewed["name"]]
+            assert len(matching) <= 1
+            if matching:
+                assert matching[0] == reviewed, "assessment/collector alert differs"
+                endpoints.remove(matching[0])
+    assert before == after, "Gatus changed outside the assessment/collector endpoints"
 
 
 def scope_guard_required(paths):

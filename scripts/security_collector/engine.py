@@ -11,7 +11,8 @@ from .model import Observation, Rejected, require, stamp, timestamp
 
 class Collector:
     def __init__(self, path, *, max_incidents=200, max_receipts=20000, events_per_hour=1000,
-                 storage_bytes=64 * 1024 * 1024):
+                 storage_bytes=64 * 1024 * 1024, allow_assessment_resolution=True):
+        self.allow_assessment_resolution = allow_assessment_resolution
         self._lock_fd = None
         if str(path) != ":memory:":
             # Create private state before SQLite can write it; do not follow symlinks.
@@ -167,7 +168,7 @@ class Collector:
                     qualified = (current and event.confidence == 'qualified'
                                  and event.freshness == 'confirmed' and event.valid_until is not None
                                  and timestamp(event.valid_until) > now)
-                    clean = qualified and event.clean
+                    clean = qualified and event.clean and self.allow_assessment_resolution
                     incident.update(status='resolved' if clean else 'open', resolution='assessment' if clean else None)
                     if not current:
                         incident.update(freshness='unknown', confidence='unverified')

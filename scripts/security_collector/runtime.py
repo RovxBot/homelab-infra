@@ -6,6 +6,7 @@ successful poll nor quiet logs proves that the agent emitted every detection.
 from datetime import timedelta
 import hashlib
 import json
+import re
 import sqlite3
 
 from .adapters import RuntimeStderrAdapter, decode
@@ -60,13 +61,15 @@ class RuntimeLogReader:
             for inventory in inventories:
                 self.intake.c.deployment(inventory.deployment)
             same = previous and previous['agent'] == agent
-            since = stamp(timestamp(previous['at']) - timedelta(seconds=1)) if same and previous['at'] else None
+            boundary = now - timedelta(days=7)
+            since = stamp(max(boundary, timestamp(previous['at']) - timedelta(seconds=1))
+                          if same and previous['at'] else boundary)
             payload = self.api.raw(log_path('kubescape', self.pod_name, since))
             require(len(payload) <= 4 * 1024 * 1024 and (not payload or payload.endswith(b'\n')),
                     'log_snapshot_incomplete')
             lines = payload.splitlines()
             require(len(lines) <= 10000, 'log_snapshot_limit')
-            events, anchors, at = [], [], previous['at'] if same else None
+            events, anchors, observations, at = [], [], [], previous['at'] if same else None
             for line in lines:
                 require(len(line) <= 1024 * 1024, 'log_line_limit')
                 raw_time, separator, raw = line.partition(b' ')
@@ -88,6 +91,15 @@ class RuntimeLogReader:
                 candidates = [i for i in inventories if i.deployment.workload.namespace == k8s['namespace']
                               and i.deployment.workload.container == k8s['containerName']
                               and any(p['name'] == k8s['podName'] and p['node'] == self.node for p in i.pods)]
+                if not candidates:
+                    # No trusted current owner: retain only a typed source
+                    # observation, never invent a workload or an incident.
+                    rule = event.get('RuleID')
+                    require(isinstance(rule, str) and re.fullmatch(r'R[0-9]{4}', rule),
+                            'runtime_attribution_invalid')
+                    observations.append(dict(id=anchors[-1], rule=rule, at=log_time,
+                                             state='unknown', reason='attribution_unavailable'))
+                    continue
                 require(len(candidates) == 1, 'runtime_attribution_invalid')
                 inventory = candidates[0]
                 require(k8s['imageDigest'].rsplit('@', 1)[-1] == inventory.deployment.digest,
@@ -108,12 +120,19 @@ class RuntimeLogReader:
                 reason = 'disconnected'
             elif previous['anchor'] and previous['anchor'] not in anchors:
                 reason = 'overlap_missing'
+            if observations:
+                reason = 'attribution_unavailable'
             # Latch gaps until a separately reviewed reconciliation; subsequent
             # reads/replays do not certify the missing interval as complete.
             gap = reason != 'poll_ok' or bool(previous and previous.get('gap'))
             cursor = dict(agent=agent, at=at, anchor=anchors[-1] if anchors else
-                          previous.get('anchor') if same else None, checked=stamp(now), gap=gap)
-            self.intake.enqueue(events, now, cursor_key=self.key, cursor=cursor)
+                          previous.get('anchor') if same else None, checked=stamp(now), gap=gap,
+                          covered_workloads=sum(any(p['node'] == self.node for p in i.pods)
+                                                for i in inventories),
+                          observed_lines=len(lines), attributed_events=len(events),
+                          unattributed_events=len(observations))
+            self.intake.enqueue(events, now, cursor_key=self.key, cursor=cursor,
+                                source_observations=observations)
             self.intake.drain(now)
             state = 'unknown' if gap else 'confirmed'
         except (Rejected, KeyError, TypeError, ValueError, UnicodeError, AttributeError, sqlite3.Error, OSError) as exc:

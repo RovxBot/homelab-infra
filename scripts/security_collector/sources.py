@@ -1,6 +1,7 @@
 """Read-only Kubernetes source with verified TLS, rotating credentials and bounds."""
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import ssl
 from urllib.error import URLError, HTTPError
 from urllib.parse import urlencode, urlsplit
@@ -58,7 +59,10 @@ def resource(base, namespace, kind, name=None):
     identity(namespace)
     require(kind in ('pods', 'replicasets', 'deployments', 'daemonsets', 'vulnerabilitymanifests',
                      'vulnerabilitymanifestsummaries', 'sbomsyfts'), 'resource_unsupported')
-    return f'{base}/namespaces/{namespace}/{kind}' + ('/' + identity(name) if name else '')
+    if name is not None:
+        require(isinstance(name, str) and re.fullmatch(r'[a-z0-9][a-z0-9.-]{0,251}[a-z0-9]|[a-z0-9]', name),
+                'resource_name_invalid')
+    return f'{base}/namespaces/{namespace}/{kind}' + ('/' + name if name else '')
 
 
 def items(api, path):
