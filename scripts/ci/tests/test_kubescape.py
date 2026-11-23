@@ -164,6 +164,7 @@ class StagedReleaseTests(unittest.TestCase):
         # Explicitly reviewed, opt-in disposable R1000 fixture only. Reject other additions.
         trigger = "../../ops/security-collector/acceptance/trigger"
         resources = set(source["resources"])
+        self.assertEqual(len(resources), len(source["resources"]), "duplicate Kubescape resource include")
         self.assertIn(resources, (baseline, baseline | {trigger}))
         collector = json.loads((ROOT / "infra/kubescape/collector/collector.json").read_text())
         test_workloads = [w for w in collector["workloads"] if w["namespace"] == "kubescape-runtime-test"]
