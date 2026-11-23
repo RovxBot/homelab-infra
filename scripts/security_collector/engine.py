@@ -39,7 +39,8 @@ class Collector:
         self.events_per_hour = events_per_hour
         self.db.executescript('''
             CREATE TABLE IF NOT EXISTS incidents (key TEXT PRIMARY KEY, data TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, received TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS receipts (
+                id TEXT PRIMARY KEY, received TEXT NOT NULL, observation_hash TEXT);
             CREATE TABLE IF NOT EXISTS deployments (key TEXT PRIMARY KEY, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS delivery (
                 key TEXT PRIMARY KEY, attempts INTEGER DEFAULT 0, next TEXT,
@@ -47,6 +48,12 @@ class Collector:
             CREATE TABLE IF NOT EXISTS api_calls (at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS writes (at TEXT NOT NULL, creation INTEGER NOT NULL);
         ''')
+        # Old receipts cannot prove the observation they accepted. Preserve them
+        # with a NULL hash and fail closed on vulnerability replay, never backfill
+        # their identity from a potentially changed current assessment.
+        if 'observation_hash' not in {row['name'] for row in self.db.execute('PRAGMA table_info(receipts)')}:
+            with self.db:
+                self.db.execute('ALTER TABLE receipts ADD COLUMN observation_hash TEXT')
 
     def close(self):
         self.db.close()
@@ -100,13 +107,21 @@ class Collector:
         value = json.loads(row[0])
         return value.get('epoch_started', value['observed_at'])
 
+    def is_replay(self, event):
+        row = self.db.execute('SELECT observation_hash FROM receipts WHERE id=?', (event.event_id,)).fetchone()
+        if row is None:
+            return False
+        require(event.category != 'vulnerability' or row['observation_hash'] == event.observation_hash,
+                'assessment_identity_conflict')
+        return True
+
     def ingest(self, event: Observation, now):
         # Revalidate frozen contracts even if a caller bypassed construction.
         event.__post_init__()
         require(timedelta(0) <= now - timestamp(event.observed_at) <= timedelta(days=7), 'event_outside_replay_window')
         with self.db:
             self.db.execute('DELETE FROM receipts WHERE received < ?', (stamp(now - timedelta(days=7)),))
-            if self.db.execute('SELECT 1 FROM receipts WHERE id=?', (event.event_id,)).fetchone():
+            if self.is_replay(event):
                 return self.get(event.incident_key)
             require(self.db.execute('SELECT count(*) FROM receipts WHERE received >= ?',
                                     (stamp(now - timedelta(hours=1)),)).fetchone()[0] < self.events_per_hour, 'ingest_rate_limit')
@@ -114,7 +129,8 @@ class Collector:
             incident = self.get(event.incident_key)
             if incident is None and event.category == 'vulnerability' and not event.identities:
                 # Empty/stale/unknown reports cannot open a synthetic finding.
-                self.db.execute('INSERT INTO receipts VALUES (?,?)', (event.event_id, stamp(now)))
+                self.db.execute('INSERT INTO receipts (id,received,observation_hash) VALUES (?,?,?)',
+                                (event.event_id, stamp(now), event.observation_hash))
                 return None
             if incident is None:
                 require(self.db.execute('SELECT count(*) FROM incidents').fetchone()[0] < self.max_incidents, 'incident_capacity')
@@ -164,7 +180,8 @@ class Collector:
                                     findings_digest=event.digest, findings_generation=event.generation,
                                     findings_uid=event.workload_uid,
                                     findings_qualified=qualified)
-            self.db.execute('INSERT INTO receipts VALUES (?,?)', (event.event_id, stamp(now)))
+            self.db.execute('INSERT INTO receipts (id,received,observation_hash) VALUES (?,?,?)',
+                            (event.event_id, stamp(now), event.observation_hash))
             self._save(incident)
             return incident
 

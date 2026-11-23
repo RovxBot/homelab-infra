@@ -1,5 +1,5 @@
 """Bounded internal contracts. Raw telemetry never enters collector state."""
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -128,6 +128,12 @@ class Observation:
             require(self.digest is not None, 'assessment_digest_missing')
             require(not self.clean or (not self.identities and self.freshness == 'confirmed'
                     and self.confidence == 'qualified'), 'clean_unqualified')
+
+    @property
+    def observation_hash(self):
+        # The logical event ID locates an assessment; only its complete validated
+        # normalized body proves an identical replay or fresh requalification.
+        return fingerprint(asdict(self))
 
     @property
     def incident_key(self):

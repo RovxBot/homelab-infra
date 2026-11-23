@@ -8,7 +8,7 @@ from datetime import timedelta
 import json
 import sqlite3
 
-from .model import Observation, Workload, require, stamp, timestamp
+from .model import Observation, Workload, fingerprint, require, stamp, timestamp
 
 
 class Intake:
@@ -44,9 +44,12 @@ class Intake:
                 'SELECT count(*), coalesce(sum(length(data)),0) FROM pending').fetchone()
             for event in events:
                 event.__post_init__()
-                if self.c.db.execute('SELECT 1 FROM pending WHERE id=? UNION ALL '
-                                     'SELECT 1 FROM receipts WHERE id=?',
-                                     (event.event_id, event.event_id)).fetchone():
+                pending = self.c.db.execute('SELECT data FROM pending WHERE id=?', (event.event_id,)).fetchone()
+                if pending and event.category == 'vulnerability':
+                    require(fingerprint(json.loads(pending['data'])) == event.observation_hash,
+                            'assessment_identity_conflict')
+                replay = self.c.is_replay(event)
+                if pending or replay:
                     continue
                 value = json.dumps(asdict(event), sort_keys=True)
                 count, size = count + 1, size + len(value.encode())
@@ -92,6 +95,15 @@ class Intake:
         return result
 
     def drain(self, now, *, requalified=()):
+        qualified = {}
+        for current in requalified:
+            require(isinstance(current, Observation), 'assessment_requalification_invalid')
+            current.__post_init__()
+            require(current.category == 'vulnerability' and current.freshness == 'confirmed'
+                    and current.confidence == 'qualified', 'assessment_requalification_invalid')
+            require(current.event_id not in qualified or qualified[current.event_id] == current.observation_hash,
+                    'assessment_identity_conflict')
+            qualified[current.event_id] = current.observation_hash
         for row in self.c.db.execute('SELECT id,data FROM pending ORDER BY received,id').fetchall():
             value = json.loads(row['data'])
             value['workload'] = Workload(**value['workload'])
@@ -100,8 +112,10 @@ class Intake:
             # A durable "qualified" bit is not a lease on external state. Only
             # this poll's fresh assessment qualification authorizes delivery.
             # Runtime draining must never consume an assessment left by a crash.
-            if event.category == 'vulnerability' and event.event_id not in requalified:
-                continue
+            if event.category == 'vulnerability':
+                if event.event_id not in qualified:
+                    continue
+                require(event.observation_hash == qualified[event.event_id], 'assessment_identity_conflict')
             # Expired pending evidence is fenced for explicit operator handling;
             # no dropping evidence or receipts to make room automatically.
             require(now - timestamp(event.observed_at) <= timedelta(days=7), 'spool_evidence_expired')
@@ -117,4 +131,4 @@ class Intake:
 GAPS = {'initial_gap', 'overlap_missing', 'agent_restarted', 'disconnected', 'read_failed', 'invalid_input',
         'saturated', 'heartbeat_expired', 'inventory_changed'}
 REASONS = GAPS | {'poll_ok', 'qualified', 'missing', 'assessment_failed', 'assessment_stale',
-                 'assessment_incomplete', 'unsupported', 'excluded', 'history_changed'}
+                 'assessment_incomplete', 'assessment_identity_conflict', 'unsupported', 'excluded', 'history_changed'}

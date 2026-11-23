@@ -201,7 +201,7 @@ class AssessmentReader:
         try:
             event = self.qualify(w, now)
             self.intake.enqueue([event], now)
-            self.intake.drain(now, requalified=(event.event_id,))
+            self.intake.drain(now, requalified=(event,))
             state, reason = 'confirmed', 'qualified'
         except (Rejected, KeyError, TypeError, ValueError, AttributeError, sqlite3.Error, OSError) as exc:
             code = str(exc) if isinstance(exc, Rejected) else ''
@@ -214,6 +214,8 @@ class AssessmentReader:
                 state, reason = 'failed', 'assessment_failed'
             elif code == 'history_changed':
                 state, reason = 'unknown', 'history_changed'
+            elif code == 'assessment_identity_conflict':
+                state, reason = 'unknown', 'assessment_identity_conflict'
             elif code in ('history_missing', 'assessment_missing', 'inventory_missing'):
                 state, reason = 'unknown', 'missing'
             elif code in ('spool_capacity', 'ingest_rate_limit', 'receipt_capacity', 'incident_capacity',

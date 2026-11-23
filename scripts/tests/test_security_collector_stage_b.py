@@ -1,5 +1,6 @@
 """Source -> reader -> validation -> durable state -> safe preview, no external writes."""
 import copy
+from contextlib import closing
 from dataclasses import replace
 from datetime import timedelta
 import gzip
@@ -112,7 +113,7 @@ class StageBTests(unittest.TestCase):
         self.reader = AssessmentReader(self.api, self.i, self.history, EXPECTED,
                                        [dict(identity='example/Deployment/example/app')])
 
-    def make_assessment(self, *, clean=False):
+    def make_assessment(self, *, clean=False, created_at=None):
         bundle = json.loads((FIXTURES / 'assessment.json').read_text())
         db = EXPECTED['metadata']
         bundle['report']['spec']['metadata']['tool']['databaseVersion'] = db['checksum'].removeprefix('sha256:')
@@ -120,6 +121,8 @@ class StageBTests(unittest.TestCase):
         if clean:
             bundle['report']['spec']['payload']['matches'] = []
             bundle['report']['spec']['metadata']['report']['createdAt'] = '2026-11-23T00:01:00Z'
+        if created_at is not None:
+            bundle['report']['spec']['metadata']['report']['createdAt'] = created_at
         for key, name, namespace, kind in (('report', 'synthetic-report', 'kubescape', 'vulnerabilitymanifests'),
                     ('sbom', 'synthetic-sbom', 'kubescape', 'sbomsyfts'),
                     ('summary', 'deployment-example-app', 'example', 'vulnerabilitymanifestsummaries')):
@@ -341,6 +344,132 @@ class StageBTests(unittest.TestCase):
         self.assertEqual(self.reader.poll(W, NOW + timedelta(seconds=15)), 'confirmed')
         self.assertEqual(self.c.db.execute('SELECT count(*) FROM pending').fetchone()[0], 0)
         self.assertTrue(self.c.all()[0]['findings_qualified'])
+
+    def test_crashed_clean_queue_rejects_same_identity_positive_requalification(self):
+        self.reader.poll(W, NOW)
+        before = self.c.all()[0]
+        self.i.enqueue([], NOW, cursor_key='retained', cursor=dict(at=stamp(NOW)))
+        self.make_assessment(clean=True)
+        clean = self.reader.qualify(W, NOW)
+        with patch.object(self.i, 'drain', side_effect=SystemExit):
+            with self.assertRaises(SystemExit):
+                self.reader.poll(W, NOW + timedelta(seconds=15))
+        pending = tuple(self.c.db.execute('SELECT * FROM pending').fetchone())
+        receipts = [tuple(r) for r in self.c.db.execute('SELECT * FROM receipts ORDER BY id')]
+        self.restart()
+        self.make_assessment(created_at=clean.observed_at)
+        positive = self.reader.qualify(W, NOW + timedelta(seconds=30))
+        self.assertEqual(clean.event_id, positive.event_id)
+        self.assertTrue(clean.clean)
+        self.assertTrue(positive.identities)
+        self.assertEqual(self.reader.poll(W, NOW + timedelta(seconds=30)), 'unknown')
+        after = self.c.get(clean.incident_key)
+        self.assertEqual((after['status'], after['resolution']), ('open', None))
+        self.assertEqual(after['identities'], before['identities'])
+        self.assertEqual(after['count'], before['count'])
+        self.assertEqual(self.i.health(NOW + timedelta(seconds=30))[0]['reason'], 'assessment_identity_conflict')
+        self.assertEqual(tuple(self.c.db.execute('SELECT * FROM pending').fetchone()), pending)
+        self.assertEqual([tuple(r) for r in self.c.db.execute('SELECT * FROM receipts ORDER BY id')], receipts)
+        self.assertEqual(self.i.cursor('retained'), dict(at=stamp(NOW)))
+
+    def test_pending_and_drain_reject_changed_observation_fields(self):
+        event = self.reader.qualify(W, NOW)
+        self.i.enqueue([event], NOW, cursor_key='retained', cursor=dict(at=stamp(NOW)))
+        pending = tuple(self.c.db.execute('SELECT * FROM pending').fetchone())
+        with self.assertRaisesRegex(Rejected, '^assessment_requalification_invalid$'):
+            self.i.drain(NOW, requalified=(event.event_id,))
+        for changes in (dict(severity='High'), dict(remediation='no_known_fix'),
+                        dict(generation=2), dict(workload_uid='replacement-uid'),
+                        dict(valid_until=stamp(NOW + timedelta(hours=1)))):
+            with self.subTest(changes=changes):
+                changed = replace(event, **changes)
+                self.assertNotEqual(event, changed)
+                with self.assertRaisesRegex(Rejected, '^assessment_identity_conflict$'):
+                    self.i.enqueue([changed], NOW, cursor_key='retained', cursor=dict(at='changed'))
+                with self.assertRaisesRegex(Rejected, '^assessment_identity_conflict$'):
+                    self.i.drain(NOW, requalified=(changed,))
+                self.assertEqual(tuple(self.c.db.execute('SELECT * FROM pending').fetchone()), pending)
+                self.assertEqual(self.i.cursor('retained'), dict(at=stamp(NOW)))
+                self.assertEqual(self.c.db.execute('SELECT count(*) FROM receipts').fetchone()[0], 0)
+                self.assertEqual(self.c.all(), [])
+
+    def test_crashed_clean_queue_accepts_identical_requalification(self):
+        self.reader.poll(W, NOW)
+        self.make_assessment(clean=True)
+        clean = self.reader.qualify(W, NOW)
+        with patch.object(self.i, 'drain', side_effect=SystemExit):
+            with self.assertRaises(SystemExit):
+                self.reader.poll(W, NOW + timedelta(seconds=15))
+        self.restart()
+        at = NOW + timedelta(seconds=30)
+        self.assertEqual(self.reader.qualify(W, at), clean)
+        self.assertEqual(self.reader.poll(W, at), 'confirmed')
+        self.assertEqual(self.c.db.execute('SELECT count(*) FROM pending').fetchone()[0], 0)
+        incident = self.c.get(clean.incident_key)
+        self.assertEqual((incident['status'], incident['resolution']), ('resolved', 'assessment'))
+        self.assertEqual(incident['count'], 2)
+        self.restart()
+        self.assertEqual(self.reader.poll(W, NOW + timedelta(seconds=45)), 'confirmed')
+        self.assertEqual(self.c.get(clean.incident_key), incident)
+
+    def test_receipt_rejects_same_identity_mutation_after_restart(self):
+        self.reader.poll(W, NOW)
+        self.make_assessment(clean=True)
+        clean = self.reader.qualify(W, NOW)
+        self.assertEqual(self.reader.poll(W, NOW + timedelta(seconds=15)), 'confirmed')
+        self.assertEqual(self.c.get(clean.incident_key)['status'], 'resolved')
+        receipts = [tuple(r) for r in self.c.db.execute('SELECT * FROM receipts ORDER BY id')]
+        self.restart()
+        self.make_assessment(created_at=clean.observed_at)
+        at = NOW + timedelta(seconds=30)
+        positive = self.reader.qualify(W, at)
+        self.assertEqual(clean.event_id, positive.event_id)
+        with self.assertRaisesRegex(Rejected, '^assessment_identity_conflict$'):
+            self.c.ingest(positive, at)
+        self.assertEqual(self.reader.poll(W, at), 'unknown')
+        self.assertEqual(self.i.health(at)[0]['reason'], 'assessment_identity_conflict')
+        incident = self.c.get(clean.incident_key)
+        self.assertEqual((incident['status'], incident['resolution']), ('open', None))
+        self.assertEqual(incident['count'], 2)
+        self.assertEqual([tuple(r) for r in self.c.db.execute('SELECT * FROM receipts ORDER BY id')], receipts)
+        self.assertEqual(self.c.db.execute('SELECT count(*) FROM pending').fetchone()[0], 0)
+
+    def test_restart_after_receipt_commit_before_pending_delete(self):
+        ingest = self.c.ingest
+
+        def crash(event, now):
+            ingest(event, now)
+            raise SystemExit
+
+        with patch.object(self.c, 'ingest', side_effect=crash):
+            with self.assertRaises(SystemExit):
+                self.reader.poll(W, NOW)
+        self.assertEqual(self.c.db.execute('SELECT count(*) FROM pending').fetchone()[0], 1)
+        self.assertEqual(self.c.db.execute('SELECT count(*) FROM receipts').fetchone()[0], 1)
+        self.restart()
+        self.assertEqual(self.reader.poll(W, NOW + timedelta(seconds=15)), 'confirmed')
+        self.assertEqual(self.c.db.execute('SELECT count(*) FROM pending').fetchone()[0], 0)
+        self.assertEqual(self.c.all()[0]['count'], 1)
+
+    def test_legacy_receipt_without_observation_hash_fails_closed(self):
+        event = self.reader.qualify(W, NOW)
+        path = self.root / 'legacy.sqlite'
+        with closing(sqlite3.connect(path)) as db, db:
+            db.execute('CREATE TABLE receipts (id TEXT PRIMARY KEY, received TEXT NOT NULL)')
+            db.execute('INSERT INTO receipts VALUES (?,?)', (event.event_id, stamp(NOW)))
+        collector = Collector(path)
+        try:
+            intake = Intake(collector)
+            with self.assertRaisesRegex(Rejected, '^assessment_identity_conflict$'):
+                intake.enqueue([event], NOW, cursor_key='test', cursor=dict(at=stamp(NOW)))
+            with self.assertRaisesRegex(Rejected, '^assessment_identity_conflict$'):
+                collector.ingest(event, NOW)
+            self.assertIsNone(intake.cursor('test'))
+            self.assertEqual(collector.db.execute('SELECT count(*) FROM receipts').fetchone()[0], 1)
+            self.assertEqual(collector.db.execute('SELECT count(*) FROM pending').fetchone()[0], 0)
+            self.assertEqual(collector.all(), [])
+        finally:
+            collector.close()
 
     def test_changed_digest_and_uid_cannot_inherit_clean(self):
         for change in ('digest', 'uid', 'generation'):
