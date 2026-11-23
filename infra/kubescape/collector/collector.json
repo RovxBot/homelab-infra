@@ -1,20 +1,35 @@
 {
   "api_origin": "https://kubernetes.default.svc",
-  "agents": [{
-    "pod_name": "node-agent-6krhl",
-    "pod_uid": "510bf845-85b5-48bd-861f-1eb2ea0a2c52",
-    "daemonset_uid": "bae3ba0e-c7f2-41f4-81d7-bb96cb4de279",
-    "node": "metal6"
-  }, {
-    "pod_name": null,
-    "pod_uid": null,
-    "daemonset_uid": "bae3ba0e-c7f2-41f4-81d7-bb96cb4de279",
-    "node": "metal3"
-  }],
+  "agents": [
+    {
+      "pod_name": "node-agent-9c6ql",
+      "pod_uid": "2c2fd847-4607-4318-8070-8d4faca05f9e",
+      "daemonset_uid": "bae3ba0e-c7f2-41f4-81d7-bb96cb4de279",
+      "node": "metal6"
+    },
+    {
+      "pod_name": "node-agent-pwmg5",
+      "pod_uid": "7bfb8fc9-9244-4c5e-b62b-c4e6a09f2f5f",
+      "daemonset_uid": "bae3ba0e-c7f2-41f4-81d7-bb96cb4de279",
+      "node": "metal3"
+    }
+  ],
   "history": "/assessment-history-unavailable",
   "assessment_history_available": false,
   "workloads": [
-    {"cluster": "home", "namespace": "homepage", "kind": "Deployment", "name": "homepage", "container": "homepage"},
-    {"cluster": "home", "namespace": "homepage", "kind": "Deployment", "name": "homepage-assets", "container": "nginx"}
+    {
+      "cluster": "home",
+      "namespace": "homepage",
+      "kind": "Deployment",
+      "name": "homepage",
+      "container": "homepage"
+    },
+    {
+      "cluster": "home",
+      "namespace": "homepage",
+      "kind": "Deployment",
+      "name": "homepage-assets",
+      "container": "nginx"
+    }
   ]
 }

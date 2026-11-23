@@ -4,16 +4,24 @@ metadata:
   name: security-collector
   namespace: kubescape
 rules:
-  - apiGroups: [apps]
-    resources: [daemonsets]
-    resourceNames: [node-agent]
-    verbs: [get]
-  - apiGroups: ['']
-    resources: [pods, pods/log]
-    # Exact metal3 Pod name is added by reviewed enrollment after rollout.
-    # Never grant namespace-wide logs to discover a generated DaemonSet name.
-    resourceNames: [node-agent-6krhl]
-    verbs: [get]
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  resourceNames:
+  - node-agent
+  verbs:
+  - get
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  - pods/log
+  resourceNames:
+  - node-agent-9c6ql
+  - node-agent-pwmg5
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -25,9 +33,9 @@ roleRef:
   kind: Role
   name: security-collector
 subjects:
-  - kind: ServiceAccount
-    name: security-collector
-    namespace: kubescape
+- kind: ServiceAccount
+  name: security-collector
+  namespace: kubescape
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -35,16 +43,27 @@ metadata:
   name: security-collector-inventory
   namespace: homepage
 rules:
-  - apiGroups: [apps]
-    resources: [deployments]
-    resourceNames: [homepage, homepage-assets]
-    verbs: [get]
-  - apiGroups: [apps]
-    resources: [replicasets]
-    verbs: [get]
-  - apiGroups: ['']
-    resources: [pods]
-    verbs: [list]
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  resourceNames:
+  - homepage
+  - homepage-assets
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  verbs:
+  - get
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  verbs:
+  - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -56,6 +75,6 @@ roleRef:
   kind: Role
   name: security-collector-inventory
 subjects:
-  - kind: ServiceAccount
-    name: security-collector
-    namespace: kubescape
+- kind: ServiceAccount
+  name: security-collector
+  namespace: kubescape
