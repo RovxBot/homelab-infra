@@ -25,6 +25,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Fetch the reviewed upstream component
+        id: source
         shell: bash
         run: |
           set -euo pipefail
@@ -35,6 +36,7 @@ jobs:
           git -C "$source_dir" checkout --detach FETCH_HEAD
           echo "AIRTOUCH_UPSTREAM=$source_dir" >> "$GITHUB_ENV"
       - name: Install test dependencies matching the deployment
+        id: dependencies
         shell: bash
         run: |
           set -euo pipefail
@@ -56,6 +58,25 @@ jobs:
           subprocess.run([sys.executable, '-m', 'pip', 'install', f'homeassistant=={version}', *requirements], check=True)
           PY
       - name: Test controller, timer automations and component installation
+        id: compatibility
         run: python -m pytest -q apps/home-assistant/tests
       - name: Test dashboard interactions
+        id: dashboard
         run: node --test apps/home-assistant/tests/*.test.cjs
+      - name: Summarize Home Assistant failure category
+        if: failure()
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          steps = json.loads(os.environ['STEPS'])
+          labels = {'source': 'External pinned-source retrieval failed',
+                    'dependencies': 'External dependency setup failed; inspect download or package-resolution log',
+                    'compatibility': 'Home Assistant compatibility/regression tests failed against the proposed release',
+                    'dashboard': 'Dashboard interaction regression failed'}
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              for step, label in labels.items():
+                  if steps.get(step, {}).get('outcome') == 'failure':
+                      summary.write('- ' + label + ' (see original step log).\n')
+          PY
