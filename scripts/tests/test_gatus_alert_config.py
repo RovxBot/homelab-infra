@@ -3,6 +3,7 @@ from pathlib import Path
 import unittest
 
 import yaml
+from scripts.ci.image_reference import release_tag
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -103,7 +104,9 @@ class GatusAlertConfigTests(unittest.TestCase):
     def test_only_cluster_health_overrides_recovery_and_preserves_detection(self):
         release = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())
         values = release['spec']['values']
-        self.assertEqual(values['image']['tag'], 'v5.34.0')
+        # Native GitHub alert/recovery behavior was qualified on 5.34.0.
+        release_tag(values['image']['tag'], minimum=(5, 34, 0), release_line=(5,))
+        self.assertRegex(values['image']['sha'], r'^[a-f0-9]{64}$')
         config = values['config']
         defaults = config['alerting']['github']['default-alert']
         self.assertEqual(defaults['failure-threshold'], 3)

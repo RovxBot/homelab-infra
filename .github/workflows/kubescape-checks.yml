@@ -18,6 +18,8 @@ on:
       - scripts/kubescape_db.py
       - scripts/kubescape_recurring_bundle.py
       - scripts/ci/check_kubescape_recurring.py
+      - scripts/ci/image_reference.py
+      - scripts/tests/test_image_reference.py
       - scripts/tests/test_kubescape_recurring.py
       - scripts/tests/test_grype*.py
       - .github/workflows/grype-database-refresh.yml

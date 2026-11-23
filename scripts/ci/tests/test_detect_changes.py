@@ -22,8 +22,35 @@ class CheckSelectionTests(unittest.TestCase):
     def selected(self, paths: list[str], *, full: bool = False) -> set[str]:
         return {
             name for name, value in detect.classify_changes(paths, full=full).items()
-            if value == "true"
+            if value == "true" and name not in {'unit_tests', 'ci_tests', 'gitea_tests'}
         }
+
+    def test_unit_suites_are_selected_by_owner(self):
+        result = detect.classify_changes(['apps/koito/lastfm-bridge.yaml'])
+        self.assertEqual(result['unit_tests'], 'true')
+        self.assertEqual(result['ci_tests'], 'false')
+        self.assertEqual(result['gitea_tests'], 'false')
+        self.assertEqual(json.loads(result['script_tests']), ['test_gatus_alert_config.py', 'test_koito*.py'])
+        for path in ['apps/immich/server.yaml', 'apps/home-assistant/deployment.yaml', 'renovate.json', 'docs/report.md']:
+            self.assertEqual(detect.classify_changes([path])['unit_tests'], 'false', path)
+        for path in ['scripts/example.py', 'scripts/tests/test_example.py']:
+            self.assertEqual(json.loads(detect.classify_changes([path])['script_tests']), ['test_*.py'])
+        self.assertEqual(detect.classify_changes(['ops/gitea/images/Dockerfile'])['gitea_tests'], 'true')
+        self.assertEqual(detect.classify_changes(['scripts/ci/check_immich_versions.py'])['ci_tests'], 'true')
+        full = detect.classify_changes([], full=True)
+        self.assertEqual(full['unit_tests'], 'true')
+        self.assertEqual(full['ci_tests'], 'true')
+        self.assertEqual(full['gitea_tests'], 'true')
+        self.assertEqual(json.loads(full['script_tests']), ['test_*.py'])
+
+    def test_owner_patterns_cover_existing_tests(self):
+        # Every current script test remains in the weekly full audit; owner
+        # mappings must also refer to real tests rather than silently empty globs.
+        tests = SCRIPT.parents[1] / 'tests'
+        for paths in [('apps/koito/x',), ('infra/observability/x',), ('infra/kubescape/x',),
+                      ('infra/kyverno/x',), ('infra/longhorn/x',), ('clusters/home/x',)]:
+            for pattern in detect.script_test_patterns(list(paths), full=False):
+                self.assertTrue(list(tests.glob(pattern)), pattern)
 
     def test_documentation_does_not_start_expensive_checks(self):
         self.assertEqual(self.selected(["README.md", "docs/runbooks/renovate-operations.md"]), set())
@@ -58,6 +85,7 @@ class CheckSelectionTests(unittest.TestCase):
     def test_workflow_pin_changes_run_workflow_checks(self):
         self.assertEqual(self.selected([".github/workflows/azerothcore-wotlk-images.yml"]), {"workflows"})
         self.assertEqual(self.selected([".github/tests/renovate-policy.test.cjs"]), {"workflows", "renovate"})
+        self.assertEqual(self.selected([".github/tests/fixtures/renovate-2026-11-23.json"]), {"workflows", "renovate"})
         self.assertEqual(self.selected([".yamllint.yml"]), {"workflows"})
 
     def test_renovate_config_has_its_own_validation(self):
@@ -155,7 +183,7 @@ class GitDiffTests(unittest.TestCase):
 
 class RequiredGateTests(unittest.TestCase):
     @staticmethod
-    def run_step(name: str, env: dict[str, str]) -> int:
+    def run_step(name: str, env: dict[str, str], *, capture=False):
         # Execute the actual gate's shell block so the tests cover its failure
         # behavior rather than a second implementation of the workflow logic.
         workflow = (SCRIPT.parents[2] / ".github/workflows/ci.yml").read_text()
@@ -167,24 +195,59 @@ class RequiredGateTests(unittest.TestCase):
                 break
             block.append(line)
         command = textwrap.dedent("\n".join(block))
-        return subprocess.run(
+        result = subprocess.run(
             ["bash", "-e", "-o", "pipefail", "-c", command],
             env={**os.environ, **env}, capture_output=True,
-        ).returncode
+        )
+        return result if capture else result.returncode
 
     def run_summary(self, results: dict) -> int:
         return self.run_step("Require successful checks", {"CHECK_RESULTS": json.dumps(results)})
 
     @staticmethod
     def successful_results() -> dict:
-        names = ["kyverno-release-change", "kyverno-compatibility", "changes", "manifest-validation", "public-edge", "shell-syntax", "actionlint", "yamllint", "gitleaks", "zizmor", "validate", "renovate-config"]
+        names = ["kyverno-release-change", "kyverno-compatibility", "changes", "unit-tests", "manifest-validation", "public-edge", "shell-syntax", "actionlint", "yamllint", "gitleaks", "zizmor", "validate", "renovate-config"]
         results = {name: {"result": "success"} for name in names}
-        results["changes"]["outputs"] = {selector: "true" for selector in ["manifests", "public_edge", "shell", "workflows", "renovate", "terraform"]}
+        results["changes"]["outputs"] = {selector: "true" for selector in ["unit_tests", "manifests", "public_edge", "shell", "workflows", "renovate", "terraform"]}
         results["kyverno-release-change"]["outputs"] = {"changed": "true", "chart": "3.10.0"}
         return results
 
     def test_full_success_passes(self):
         self.assertEqual(self.run_summary(self.successful_results()), 0)
+
+    def test_selection_is_a_separate_job_and_survives_test_failure(self):
+        import yaml
+        workflow = yaml.safe_load((SCRIPT.parents[2] / '.github/workflows/ci.yml').read_text())
+        jobs = workflow['jobs']
+        self.assertEqual([s.get('id') for s in jobs['changes']['steps'] if 'run' in s], ['changes'])
+        self.assertEqual(jobs['unit-tests']['needs'], 'changes')
+        self.assertEqual(jobs['manifest-validation']['needs'], 'changes')
+        self.assertIn('unit-tests', jobs['repo-checks']['needs'])
+        results = self.successful_results()
+        results['unit-tests']['result'] = 'failure'
+        result = self.run_step('Require successful checks', {'CHECK_RESULTS': json.dumps(results)}, capture=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b'Check unit-tests: failure', result.stdout)
+        self.assertNotIn(b'Missing or invalid check selection', result.stdout)
+
+    def test_missing_metadata_does_not_hide_original_failure(self):
+        results = self.successful_results()
+        results['changes'] = {'result': 'failure', 'outputs': {}}
+        results['manifest-validation']['result'] = 'skipped'
+        result = self.run_step('Require successful checks', {'CHECK_RESULTS': json.dumps(results)}, capture=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b'Check changes: failure', result.stdout)
+        self.assertIn(b'Missing or invalid check selection: manifests', result.stdout)
+
+    def test_summary_identifies_selected_check_not_executed(self):
+        results = self.successful_results()
+        results['unit-tests']['result'] = 'skipped'
+        with tempfile.TemporaryDirectory() as directory:
+            summary = Path(directory) / 'summary'
+            result = self.run_step('Require successful checks', {
+                'CHECK_RESULTS': json.dumps(results), 'GITHUB_STEP_SUMMARY': str(summary)}, capture=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Required check did not succeed: unit-tests (skipped)', summary.read_text())
 
     def test_unrelated_jobs_may_be_skipped(self):
         results = self.successful_results()

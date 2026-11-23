@@ -9,7 +9,7 @@ const { resolve, dirname, join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const root = resolve(__dirname, '../..');
 const raw = JSON.parse(readFileSync(join(root, 'renovate.json')));
-let config, merge, applyRules, branchify, extractRegex, extractKubernetes, compile, scheduled, luxon, getVersioning;
+let config, merge, applyRules, branchify, extractRegex, extractKubernetes, extractDockerfile, extractFlux, compile, scheduled, luxon, getVersioning;
 let renovateDir;
 
 before(async () => {
@@ -28,6 +28,8 @@ before(async () => {
   ({ branchifyUpgrades: branchify } = await load('workers/repository/updates/branchify.js'));
   ({ extractPackageFile: extractRegex } = await load('modules/manager/custom/regex/index.js'));
   ({ extractPackageFile: extractKubernetes } = await load('modules/manager/kubernetes/extract.js'));
+  ({ extractPackageFile: extractDockerfile } = await load('modules/manager/dockerfile/extract.js'));
+  ({ extractPackageFile: extractFlux } = await load('modules/manager/flux/extract.js'));
   ({ compile } = await load('util/template/index.js'));
   ({ isScheduledNow: scheduled } = await load('workers/repository/update/branch/schedule.js'));
   ({ get: getVersioning } = await load('modules/versioning/index.js'));
@@ -345,6 +347,120 @@ test('unrelated application database and OS release lines are independently revi
   ]);
   assert.equal(result.length, 4);
   assert.ok(result.every(b => b.dependencyDashboardApproval && b.branchName !== 'renovate/weekly-maintenance'));
+});
+
+test('23 November production scenarios generate one clean maintenance batch and independent reviews', async () => {
+  const { cases } = JSON.parse(readFileSync(join(__dirname, 'fixtures/renovate-2026-11-23.json')));
+  const result = await branches(cases.map(c => update(c.depName, c.packageFile, c.updateType, c)));
+  const expectedNames = [...new Set(cases.map(c => c.expectedBranch).filter(Boolean))].sort();
+  assert.deepEqual(result.map(b => b.branchName).sort(), expectedNames);
+  for (const scenario of cases) {
+    const matches = result.filter(b => b.upgrades.some(u => u.depName === scenario.depName && u.packageFile === scenario.packageFile));
+    assert.deepEqual(matches.map(b => b.branchName), scenario.expectedBranch ? [scenario.expectedBranch] : [], scenario.depName);
+  }
+  const maintenance = result.find(b => b.branchName === 'renovate/weekly-maintenance');
+  assert.equal(maintenance.upgrades.length, cases.filter(c => c.expectedBranch === maintenance.branchName).length);
+  assert.equal(maintenance.prTitle, 'Update weekly maintenance');
+  assert.equal(maintenance.dependencyDashboardApproval, false);
+  assert.ok(maintenance.upgrades.every(u => !u.packageFile.startsWith('infra/kubescape/')));
+  assert.equal(result.find(b => b.branchName === 'renovate/kubescape-release').dependencyDashboardApproval, true);
+  assert.equal(result.find(b => b.branchName === 'renovate/prowlarr-release').dependencyDashboardApproval, true);
+  assert.ok(result.every(b => b.automerge === false && b.rebaseWhen === 'conflicted'));
+});
+
+test('actual scanner extraction preserves input inventory but no direct edit can generate a branch', async () => {
+  const file = 'infra/kubescape/recurring/scanner/Dockerfile';
+  const extracted = extractDockerfile(readFileSync(join(root, file), 'utf8'), file, {});
+  assert.deepEqual(extracted.deps.map(d => d.depName), ['golang', 'quay.io/kubescape/kubevuln']);
+  for (const dep of extracted.deps) {
+    for (const type of ['patch', 'minor', 'major', 'digest', 'pin', 'pinDigest']) {
+      const fixture = update(dep.depName, file, type, { manager: 'dockerfile' });
+      assert.equal((await effective(fixture)).enabled, false);
+      assert.deepEqual(await branches([fixture]), []);
+    }
+  }
+});
+
+test('an explicit local lookup can discover scanner updates without changing the normal edit policy', async () => {
+  const scanner = update('golang', 'infra/kubescape/recurring/scanner/Dockerfile', 'minor', { manager: 'dockerfile' });
+  assert.equal((await effective(scanner)).enabled, false);
+  const normal = config;
+  try {
+    config = merge(config, { platform: 'local', dryRun: 'lookup',
+      includePaths: [scanner.packageFile], force: { enabled: true, dependencyDashboardApproval: true } });
+    assert.equal(config.dryRun, 'lookup');
+    assert.equal((await effective(scanner)).enabled, true);
+    assert.equal((await effective(scanner)).dependencyDashboardApproval, true);
+  } finally { config = normal; }
+  assert.equal((await effective(scanner)).enabled, false);
+});
+
+test('the real Kubescape HelmRelease extracts both owned artifacts and reviewable component releases', async () => {
+  const file = 'infra/kubescape/helmrelease.yaml';
+  const extracted = extractFlux(readFileSync(join(root, file), 'utf8'), file, {});
+  const names = extracted.deps.map(d => d.depName);
+  for (const name of ['kubescape-operator', 'ghcr.io/rovxbot/kubevuln', 'quay.io/kubescape/operator', 'quay.io/kubescape/storage']) {
+    assert.ok(names.includes(name), name);
+  }
+  for (const dep of extracted.deps) {
+    const fixture = { manager: 'flux', packageFile: file, dep: { ...dep, updates: [{ updateType: 'digest', newValue: dep.currentValue }] } };
+    const policy = await effective(fixture);
+    if (dep.depName === 'ghcr.io/rovxbot/kubevuln') assert.equal(policy.enabled, false);
+    else {
+      assert.equal(policy.groupSlug, 'kubescape-release', dep.depName);
+      assert.equal(policy.dependencyDashboardApproval, true, dep.depName);
+    }
+  }
+  // The database startup gate is embedded YAML extracted by Kubernetes, not
+  // Flux. Both managers must be covered by the same ownership policy.
+  const startup = extractKubernetes(readFileSync(join(root, file), 'utf8'), file, {});
+  const database = startup.deps.find(d => d.depName === 'quay.io/kubescape/grype-offline-db');
+  assert.ok(database);
+  assert.equal((await effective({ manager: 'kubernetes', packageFile: file, dep: { ...database, updates: [{ updateType: 'digest' }] } })).enabled, false);
+});
+
+test('Kubescape chart, scanner, storage, operator and node-agent changes share one gated review', async () => {
+  const fixtures = [
+    update('kubescape-operator', 'infra/kubescape/helmrelease.yaml', 'minor', { manager: 'flux', datasource: 'helm' }),
+    ...['kubescape', 'operator', 'storage', 'kubevuln', 'node-agent'].map(name =>
+      update('quay.io/kubescape/' + name, 'infra/kubescape/helmrelease.yaml', 'patch', { manager: 'flux' })),
+    update('python', 'infra/kubescape/recurring/vulnerability-cronjob.yaml', 'minor'),
+  ];
+  const [branch] = await branches(fixtures);
+  assert.equal(branch.upgrades.length, fixtures.length);
+  assert.equal(branch.branchName, 'renovate/kubescape-release');
+  assert.equal(branch.prTitle, 'Update Kubescape release');
+  assert.equal(branch.dependencyDashboardApproval, true);
+  assert.equal(branch.automerge, false);
+});
+
+test('security force config cannot enable owned artifacts or relax build qualification', async () => {
+  const prior = config;
+  try {
+    config = merge(config, { force: config.vulnerabilityAlerts });
+    for (const fixture of [
+      update('golang', 'infra/kubescape/recurring/scanner/Dockerfile', 'minor', { manager: 'dockerfile' }),
+      update('quay.io/kubescape/kubevuln', 'infra/kubescape/recurring/scanner/Dockerfile'),
+      update('quay.io/kubescape/grype-offline-db', 'infra/kubescape/helmrelease.yaml', 'digest'),
+      update('ghcr.io/rovxbot/kubevuln', 'infra/kubescape/helmrelease.yaml', 'digest', { manager: 'flux' }),
+    ]) assert.deepEqual(await branches([fixture]), []);
+    const [urgent] = await branches([update('foxxmd/multi-scrobbler', 'apps/koito/lastfm-bridge.yaml')]);
+    assert.notEqual(urgent.branchName, 'renovate/weekly-maintenance');
+    assert.deepEqual(urgent.schedule, []);
+    assert.equal(urgent.updateNotScheduled, true);
+    assert.equal(urgent.automerge, false);
+  } finally { config = prior; }
+});
+
+test('controller review branch slugs are concrete and independent, including Cilium and Longhorn', async () => {
+  const result = await branches([
+    update('cilium/cilium', 'infra/cilium/helmrelease.yaml', 'digest', { manager: 'flux', datasource: 'helm' }),
+    update('longhorn', 'infra/longhorn/longhorn-helmrelease.yaml', 'patch', { manager: 'flux', datasource: 'helm' }),
+    update('kyverno', 'infra/kyverno/helmrelease.yaml', 'patch', { manager: 'flux', datasource: 'helm' }),
+    update('gpu-operator', 'infra/gpu-operator/helmrelease.yaml', 'patch', { manager: 'flux', datasource: 'helm' }),
+  ]);
+  assert.deepEqual(result.map(b => b.branchName).sort(), ['renovate/cilium', 'renovate/gpu-operator', 'renovate/kyverno', 'renovate/longhorn']);
+  assert.ok(result.every(b => b.dependencyDashboardApproval && b.automerge === false));
 });
 
 // Optional integration evidence from the supported --platform=local --dry-run=lookup

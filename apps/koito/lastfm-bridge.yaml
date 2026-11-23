@@ -32,7 +32,7 @@ spec:
         - name: multi-scrobbler
           image: foxxmd/multi-scrobbler:0.21.0@sha256:d3dacd94c5e6629d9a01579c2e4484de9440c1755dcbaae2ffb50d19b18793a0
           imagePullPolicy: IfNotPresent
-          # Use 0.21.0's distroless Node ENTRYPOINT and application CMD.
+          # Use the reviewed 0.21 release line's distroless Node ENTRYPOINT and application CMD.
           # Startup and probes must not depend on a shell inside the image.
           ports:
             - name: http
