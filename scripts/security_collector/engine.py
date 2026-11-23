@@ -11,8 +11,9 @@ from .model import Observation, Rejected, require, stamp, timestamp
 
 class Collector:
     def __init__(self, path, *, max_incidents=200, max_receipts=20000, events_per_hour=1000,
-                 storage_bytes=64 * 1024 * 1024, allow_assessment_resolution=True):
+                 storage_bytes=64 * 1024 * 1024, allow_assessment_resolution=True, retain_evidence=False):
         self.allow_assessment_resolution = allow_assessment_resolution
+        self.retain_evidence = retain_evidence
         self._lock_fd = None
         if str(path) != ":memory:":
             # Create private state before SQLite can write it; do not follow symlinks.
@@ -121,7 +122,8 @@ class Collector:
         event.__post_init__()
         require(timedelta(0) <= now - timestamp(event.observed_at) <= timedelta(days=7), 'event_outside_replay_window')
         with self.db:
-            self.db.execute('DELETE FROM receipts WHERE received < ?', (stamp(now - timedelta(days=7)),))
+            if not self.retain_evidence:
+                self.db.execute('DELETE FROM receipts WHERE received < ?', (stamp(now - timedelta(days=7)),))
             if self.is_replay(event):
                 return self.get(event.incident_key)
             require(self.db.execute('SELECT count(*) FROM receipts WHERE received >= ?',
@@ -143,16 +145,19 @@ class Collector:
             previous_last = incident['last']
             incident['last'] = max(previous_last, event.observed_at, key=timestamp)
             incident['count'] = min(2**63 - 1, incident['count'] + 1)
-            incident['history'] = (incident['history'] + [dict(at=event.observed_at, digest=event.digest,
+            incident['history'] = incident['history'] + [dict(at=event.observed_at, digest=event.digest,
                 fingerprint=event.event_id, findings=len(event.identities), identities=list(event.identities[:50]),
                 severity=event.severity, confidence=event.confidence, remediation=event.remediation,
-                freshness=event.freshness)])[-32:]
+                freshness=event.freshness, runtime_identity=event.runtime_identity)]
+            if not self.retain_evidence:
+                incident['history'] = incident['history'][-32:]
             if timestamp(event.observed_at) >= timestamp(previous_last):
                 incident.update(confidence=event.confidence, freshness=event.freshness,
                                 valid_until=event.valid_until)
                 qualified = False
                 if event.category == 'runtime':
-                    incident.update(digest=event.digest, status='open', resolution=None)
+                    incident.update(digest=event.digest, status='open', resolution=None,
+                                    runtime_identity=event.runtime_identity)
                 else:
                     row = self.db.execute('SELECT data FROM deployments WHERE key=?', (event.workload.key,)).fetchone()
                     deployed = json.loads(row[0]) if row else None
@@ -202,7 +207,8 @@ class Collector:
 
     def refresh(self, now):
         with self.db:
-            self.db.execute('DELETE FROM receipts WHERE received < ?', (stamp(now - timedelta(days=7)),))
+            if not self.retain_evidence:
+                self.db.execute('DELETE FROM receipts WHERE received < ?', (stamp(now - timedelta(days=7)),))
             self.db.execute('DELETE FROM api_calls WHERE at < ?', (stamp(now - timedelta(hours=1)),))
             self.db.execute('DELETE FROM writes WHERE at < ?', (stamp(now - timedelta(days=1)),))
             for incident in self.all():

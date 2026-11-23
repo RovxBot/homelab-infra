@@ -101,6 +101,7 @@ class Observation:
     generation: int | None = None
     valid_until: str | None = None
     workload_uid: str | None = None
+    runtime_identity: dict | None = None
 
     def __post_init__(self):
         require(self.source == 'kubescape', 'source_unsupported')
@@ -118,6 +119,12 @@ class Observation:
         if self.workload_uid is not None:
             require(isinstance(self.workload_uid, str)
                     and re.fullmatch(r'[a-zA-Z0-9-]{1,64}', self.workload_uid), 'uid_invalid')
+        if self.runtime_identity is not None:
+            require(self.category == 'runtime' and isinstance(self.runtime_identity, dict)
+                    and set(self.runtime_identity) == {'source', 'node', 'agent_pod_uid', 'deployment_uid',
+                                                       'pod', 'pod_uid', 'container_id'}, 'runtime_identity_invalid')
+            require(all(isinstance(v, str) and re.fullmatch(r'[a-zA-Z0-9_.:/-]{1,255}', v)
+                        for v in self.runtime_identity.values()), 'runtime_identity_invalid')
         require(len(self.identities) <= 5000, 'finding_limit')
         for value in self.identities:
             require(isinstance(value, str) and re.fullmatch(r'(R[0-9]{4}|CVE-[0-9]{4}-[0-9]{4,10}|GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4})', value), 'finding_id_invalid')
@@ -133,7 +140,10 @@ class Observation:
     def observation_hash(self):
         # The logical event ID locates an assessment; only its complete validated
         # normalized body proves an identical replay or fresh requalification.
-        return fingerprint(asdict(self))
+        value = asdict(self)
+        if self.runtime_identity is None:
+            value.pop('runtime_identity')  # Preserve hashes of pre-upgrade assessments.
+        return fingerprint(value)
 
     @property
     def incident_key(self):

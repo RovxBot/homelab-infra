@@ -1,15 +1,21 @@
-"""Small static contract for the single-worker runtime canary; no cluster writes."""
+"""Static contract for the reviewed two-worker runtime cohort; no cluster writes."""
 from copy import deepcopy
 import json
 
 IMAGE = 'quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60'
-NODE = 'metal6'
+NODES = ['metal3', 'metal6']
 NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test']
 RULES = ['R0001', 'R0004', 'R0007', 'R1000', 'R1002']
 CAPS = ['SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'SYSLOG', 'SYS_RESOURCE', 'IPC_LOCK', 'NET_RAW']
 BUDGET = {'requests': {'cpu': '100m', 'memory': '180Mi'}, 'limits': {'cpu': '500m', 'memory': '1400Mi'}}
 SECURITY = {'runAsUser': 0, 'privileged': False, 'allowPrivilegeEscalation': False,
             'capabilities': {'add': CAPS, 'drop': ['ALL']}, 'seccompProfile': {'type': 'Unconfined'}}
+
+
+def affinity(node=None):
+    term = {'matchFields': [{'key': 'metadata.name', 'operator': 'In', 'values': [node]}]} if node else {
+        'matchExpressions': [{'key': 'kubernetes.io/hostname', 'operator': 'In', 'values': NODES}]}
+    return {'nodeAffinity': {'requiredDuringSchedulingIgnoredDuringExecution': {'nodeSelectorTerms': [term]}}}
 
 
 def binding_spec():
@@ -20,7 +26,7 @@ def binding_spec():
 def check_values(values):
     agent = values['nodeAgent']
     assert agent['image']['tag'] == IMAGE.split(':', 1)[1]
-    assert agent['nodeSelector'] == {'kubernetes.io/os': 'linux', 'kubernetes.io/hostname': NODE}
+    assert agent['nodeSelector'] == {'kubernetes.io/os': 'linux'}
     assert agent['resources'] == BUDGET
     assert agent['env'] == [{'name': 'INCLUDENAMESPACES', 'value': ','.join(NAMESPACES)}]
     assert values['alertCRD'] == {'installDefault': True, 'scopeClustered': True, 'scopeNamespaced': False}
@@ -35,7 +41,7 @@ def findings(resource):
         assert resource['metadata']['namespace'] == 'kubescape'
         t = resource['spec']['template']; p = t['spec']; c, = p['containers']
         assert t['metadata']['labels']['homelab.cooked.beer/owner'] == 'sam'
-        assert p['nodeSelector'] == {'kubernetes.io/os': 'linux', 'kubernetes.io/hostname': NODE}
+        assert p['nodeSelector'] == {'kubernetes.io/os': 'linux'} and p['affinity'] == affinity()
         assert p['serviceAccountName'] == 'node-agent' and p['hostPID'] is True
         assert not p.get('hostNetwork') and not p.get('hostIPC')
         assert not p.get('initContainers') and not p.get('ephemeralContainers')
@@ -56,9 +62,10 @@ def post_render(expected):
     role = expected[('rbac.authorization.k8s.io/v1', 'ClusterRole', None, 'node-agent')]
     assert role['rules'][0]['resources'] == ['nodes','nodes/proxy','services','endpoints','namespaces','configmaps']
     role['rules'][0]['resources'].remove('nodes/proxy')
-    role['rules'].append({'apiGroups': [''], 'resources': ['nodes/proxy'], 'resourceNames': [NODE], 'verbs': ['get']})
+    role['rules'].append({'apiGroups': [''], 'resources': ['nodes/proxy'], 'resourceNames': NODES, 'verbs': ['get']})
     agent = expected[key]
     agent['spec']['template']['spec']['containers'][0]['securityContext'] = deepcopy(SECURITY)
+    agent['spec']['template']['spec']['affinity'] = affinity()
     expected[('kubescape.io/v1', 'RuntimeRuleAlertBinding', None, 'all-rules-all-pods')]['spec'] = binding_spec()
 
 
@@ -75,7 +82,7 @@ def check_config(resources):
     assert binding['spec'] == binding_spec()
     role = next(r for r in resources if r['kind'] == 'ClusterRole' and r['metadata']['name'] == 'node-agent')
     assert [r for r in role['rules'] if 'nodes/proxy' in r.get('resources', [])] == [
-        {'apiGroups': [''], 'resources': ['nodes/proxy'], 'resourceNames': [NODE], 'verbs': ['get']}]
+        {'apiGroups': [''], 'resources': ['nodes/proxy'], 'resourceNames': NODES, 'verbs': ['get']}]
     assert not any('*' in r.get('resources', []) or 'secrets' in r.get('resources', []) or 'delete' in r.get('verbs', []) for r in role['rules'])
     library, = [r for r in resources if r['kind'] == 'Rules']
     rules = {r['id']: r for r in library['spec']['rules']}
@@ -110,10 +117,21 @@ def check_boundary(kyverno, work, resources, root):
             {'apiVersion': 'apps/v1', 'kind': 'DaemonSet', 'name': 'node-agent',
              'uid': '00000000-0000-0000-0000-000000000001', 'controller': True}]},
         'spec': deepcopy(agent['spec']['template']['spec'])}
-    fixtures = [agent, pod]
+    pod['spec']['affinity'] = affinity('metal6')
+    second = deepcopy(pod)
+    second['metadata']['name'] = 'metal3-positive'
+    second['spec']['affinity'] = affinity('metal3')
+    second['spec']['nodeName'] = 'metal3'
+    fixtures = [agent, pod, second]
+    bound_ds = deepcopy(agent)
+    bound_ds['metadata']['name'] = 'node-agent'
+    bound_ds['spec']['template']['spec']['nodeName'] = 'metal3'
+    # Check separately to keep report resource identities unambiguous.
     changes = {
         'wrong-node': lambda p: p['nodeSelector'].update({'kubernetes.io/hostname': 'metal7'}),
-        'all-nodes': lambda p: p['nodeSelector'].pop('kubernetes.io/hostname'),
+        'all-nodes': lambda p: p.pop('affinity'),
+        'wrong-affinity': lambda p: p.update(affinity=affinity('metal7')),
+        'unbounded-affinity': lambda p: p.update(affinity={'nodeAffinity': {}}),
         'bound-node': lambda p: p.update(nodeName='metal7'),
         'wrong-account': lambda p: p.update(serviceAccountName='default'),
         'wrong-image': lambda p: p['containers'][0].update(image='busybox:latest'),
@@ -149,8 +167,14 @@ def check_boundary(kyverno, work, resources, root):
     assert 'apiVersion:' in output, run.stderr[:400]
     (work / 'runtime-admission-report.yaml').write_text(output)
     report = yaml.safe_load(output[output.index('apiVersion:'):])
-    assert report['summary'] == {'pass': 3, 'fail': len(changes) + 5, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
+    assert report['summary'] == {'pass': 4, 'fail': len(changes) + 5, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
     for result in report['results']:
         name = result['resources'][0]['name']
-        assert result['result'] == ('pass' if name in {'node-agent', 'agent-positive', 'scanner-positive'} else 'fail'), name
-    print('verified: runtime CEL boundary allows agent/scanner and denies 20 access-widening cases')
+        assert result['result'] == ('pass' if name in {'node-agent', 'agent-positive', 'metal3-positive', 'scanner-positive'} else 'fail'), name
+    bound_path = work / 'runtime-bound-daemonset.yaml'
+    bound_path.write_text(yaml.safe_dump(bound_ds))
+    denied = subprocess.run([kyverno, 'apply', str(root / 'infra/kubescape/runtime/admission.yaml'),
+                             '--resource', str(bound_path), '--policy-report'], text=True, capture_output=True)
+    bound_report = yaml.safe_load(denied.stdout[denied.stdout.index('apiVersion:'):])
+    assert bound_report['summary'] == {'pass': 0, 'fail': 1, 'error': 0, 'skip': 0, 'warn': 0}
+    print('verified: runtime CEL boundary allows both cohort nodes/scanner and denies access-widening cases')

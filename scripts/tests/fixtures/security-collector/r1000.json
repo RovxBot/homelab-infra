@@ -13,6 +13,8 @@
     "workloadKind": "Deployment",
     "workloadName": "example",
     "podName": "example-synthetic",
+    "podUID": "pod-uid",
+    "containerID": "application",
     "imageDigest": "registry.invalid/example@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "RuntimeProcessDetails": {

@@ -63,17 +63,19 @@ class FakeAPI:
                         dict(name='app', ready=True, imageID=REF, containerID='containerd://application',
                              state=dict(running=dict(startedAt='2026-11-22T00:00:00Z')))]))
         self.agent = dict(metadata=dict(name='node-agent-test', namespace='kubescape', uid='agent-pod-uid',
-                        ownerReferences=[dict(kind='DaemonSet', uid='agent-ds-uid', controller=True)]),
+                        ownerReferences=[dict(name='node-agent', kind='DaemonSet', uid='agent-ds-uid', controller=True)]),
                         spec=dict(nodeName='metal6', serviceAccountName='node-agent',
                                   containers=[dict(name='node-agent', image=AGENT_IMAGE)]),
                         status=dict(phase='Running', containerStatuses=[dict(name='node-agent', ready=True,
                         imageID=AGENT_IMAGE, containerID='containerd://agent', restartCount=0,
-                        state=dict(running={}))]))
+                        state=dict(running=dict(startedAt='2026-11-22T00:00:00Z')))]))
         self.objects[resource(APPS, 'example', 'deployments', 'example')] = self.dep
         self.objects[resource(CORE, 'example', 'pods')] = dict(items=[self.pod])
         self.objects[resource(APPS, 'example', 'replicasets', 'example-rs')] = dict(metadata=dict(uid='rs-uid',
             ownerReferences=[dict(kind='Deployment', uid='deployment-uid', controller=True)]))
-        self.objects[resource(APPS, 'kubescape', 'daemonsets', 'node-agent')] = dict(metadata=dict(uid='agent-ds-uid'))
+        self.objects[resource(APPS, 'kubescape', 'daemonsets', 'node-agent')] = dict(
+            metadata=dict(uid='agent-ds-uid', name='node-agent', namespace='kubescape'),
+            spec=dict(template=dict(spec=copy.deepcopy(self.agent['spec']))))
         self.objects[resource(CORE, 'kubescape', 'pods', 'node-agent-test')] = self.agent
         event = json.loads((FIXTURES / 'r1000.json').read_text())
         self.logs = b'2026-11-23T00:00:01Z ' + json.dumps(event).encode() + b'\n'

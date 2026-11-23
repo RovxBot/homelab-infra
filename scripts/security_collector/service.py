@@ -17,9 +17,9 @@ import time
 from .assessment import AssessmentReader
 from .engine import Collector
 from .intake import Intake
-from .issues import Publication, render
+from .issues import Publication, render_private
 from .model import Rejected, Workload, require, stamp, timestamp
-from .runtime import RuntimeLogReader
+from .runtime import RuntimeSources
 from .sources import KubernetesAPI
 
 
@@ -45,11 +45,19 @@ class Service:
         self.state.mkdir(mode=0o700, parents=True, exist_ok=True)
         require(not self.state.is_symlink(), 'state_path_invalid')
         os.chmod(self.state, 0o700)
-        self.c = Collector(self.state / 'collector.sqlite', allow_assessment_resolution=False)
-        self.intake = Intake(self.c)
         self.workloads = tuple(Workload(**w) for w in config['workloads'])
         require(0 < len(self.workloads) <= 10, 'runtime_scope_invalid')
-        self.runtime = RuntimeLogReader(api, self.intake, self.workloads, **config['agent'])
+        require(('agent' in config) != ('agents' in config), 'agent_configuration_invalid')
+        require(len({w.key for w in self.workloads}) == len(self.workloads), 'runtime_scope_invalid')
+        self.sources = RuntimeSources(api, None, self.workloads,
+                                      config.get('agents', [config.get('agent')]))
+        self.c = Collector(self.state / 'collector.sqlite', allow_assessment_resolution=False, retain_evidence=True)
+        self.intake = Intake(self.c)
+        self.sources.intake = self.intake
+        for reader in self.sources.readers:
+            reader.intake = self.intake
+        self.runtime = self.sources.readers[0]  # Legacy callers; persistent metal6 key is unchanged.
+        require(self.c.db.execute('PRAGMA quick_check').fetchone()[0] == 'ok', 'database_integrity_failed')
         self.assessment = AssessmentReader(api, self.intake, config['history'],
             config['database_lock'], [{'identity': '/'.join((w.namespace, w.kind, w.name, w.container))}
                                       for w in self.workloads])
@@ -61,14 +69,15 @@ class Service:
     def tick(self, now):
         try:
             self.intake.health(now)
-            self.runtime.poll(now)
+            sources = self.sources.poll(now)
             for workload in self.workloads:
                 if self.assessment_available:
                     self.assessment.poll(workload, now)
                 else:
                     self.intake.status(workload, 'vulnerability', now, 'unknown', 'history_unavailable')
             health = self.intake.health(now)
-            cursor = self.intake.cursor(self.runtime.key)
+            cursors = {r.node: self.intake.cursor(r.key) for r in self.sources.readers}
+            cursor = cursors.get('metal6')
             pending = self.c.db.execute('SELECT count(*),coalesce(sum(length(data)),0) FROM pending').fetchone()
             pages = self.c.db.execute('PRAGMA page_count').fetchone()[0]
             page_size = self.c.db.execute('PRAGMA page_size').fetchone()[0]
@@ -77,41 +86,49 @@ class Service:
                           and pages * page_size < 64 * 1024 * 1024
                           and pending[0] < self.intake.max_pending
                           and pending[1] < self.intake.pending_bytes)
-            current = bool(cursor and 0 <= (now - timestamp(cursor['checked'])).total_seconds() <= 300)
-            runtimes = [json.loads(row['data']) for row in self.c.db.execute(
-                "SELECT data FROM reader_status WHERE category='runtime'")]
-            runtime_ok = current and len(runtimes) == len(self.workloads) and all(r['state'] in ('confirmed', 'unknown')
-                and r['reason'] in ('poll_ok', 'initial_gap', 'attribution_unavailable',
-                                   'overlap_missing', 'agent_restarted', 'disconnected')
-                and 0 <= (now - timestamp(r['checked_at'])).total_seconds() <= 300 for r in runtimes)
+            runtime_ok = all(s['read_ok'] for s in sources)
             assessments = [json.loads(row['data']) for row in self.c.db.execute(
                 "SELECT data FROM reader_status WHERE category='vulnerability'")]
             assessment_ok = len(assessments) == len(self.workloads) and all(
                 r['state'] == 'confirmed' for r in assessments)
-            gap = bool(cursor and cursor['gap'])
-            coverage = cursor.get('covered_workloads', 0) if cursor else 0
+            # Historical source gaps remain visible even after removing a source during rollback.
+            retained_sources = [json.loads(r[0]) for r in self.c.db.execute('SELECT data FROM runtime_source_status')]
+            retained_cursors = [json.loads(r[0]) for r in self.c.db.execute("SELECT data FROM cursors WHERE key LIKE 'runtime/%'")]
+            gap = any(s.get('gap') for s in retained_sources + retained_cursors)
+            coverage = sum(w['covered'] for w in self.sources.coverage)
             saturated = (not storage_ok or any(r['reason'] == 'saturated' for r in health))
             public = dict(ready=storage_ok, runtime_read_ok=runtime_ok,
                 assessment_available=self.assessment_available,
                 assessment_qualified=assessment_ok, covered_workloads=coverage,
+                uncovered_workloads=len(self.workloads) - coverage,
                 enrolled_workloads=len(self.workloads), continuity_gap=gap,
+                expected_agents=len(sources), healthy_agents=sum(s['read_ok'] for s in sources),
+                invalid_source_identities=sum(s['identity_invalid'] for s in sources),
+                event_count=sum(s['event_count'] for s in sources),
+                attributed_detection_count=sum(s['attributed_detections'] for s in sources),
                 pending=pending[0], saturated=saturated,
-                last_runtime_read=cursor['checked'] if cursor else None,
+                database_ok=True, queue_ok=storage_ok,
+                last_runtime_reads={s['node']: s['last_success'] for s in sources},
+                last_runtime_read=min((s['last_success'] for s in sources), key=lambda t: timestamp(t))
+                                  if all(s['last_success'] for s in sources) else None,
                 last_qualified_assessments=[r.get('last_success') for r in assessments],
-                collection_error=any(r['state'] in ('failed', 'unsupported', 'stale')
+                collection_error=not runtime_ok or any(r['state'] in ('failed', 'unsupported', 'stale')
                                      or r['reason'] in ('missing', 'assessment_incomplete', 'history_changed',
                                                        'assessment_identity_conflict', 'history_unavailable') for r in health))
             public['status'] = ('healthy' if runtime_ok and assessment_ok and not gap
                 and not saturated and coverage == len(self.workloads) and not public['collection_error']
                 else 'degraded')
             private = dict(checked_at=stamp(now), health=public, readers=health, runtime_cursor=cursor,
-                           agent=dict(node='metal6', pod=self.runtime.pod_name,
-                                      pod_uid=self.runtime.pod_uid, daemonset_uid=self.runtime.daemonset_uid,
-                                      observed=cursor['agent'] if cursor else None),
+                           runtime_cursors=cursors, sources=sources, workload_coverage=self.sources.coverage,
+                           agents=[dict(node=r.node, pod=r.pod_name, pod_uid=r.pod_uid,
+                                        daemonset_uid=r.daemonset_uid,
+                                        observed=cursors[r.node]['agent'] if cursors[r.node] else None)
+                                   for r in self.sources.readers],
+                           retained_sources=retained_sources,
                            database_bytes=pages * page_size, pending_bytes=pending[1],
                            public_writes_enabled=False, automatic_closure_enabled=False)
             # Previews never become an unauthenticated HTTP endpoint or log output.
-            atomic(self.state / 'previews.json', [render(i, self.publications[i['workload_key']])
+            atomic(self.state / 'previews.json', [render_private(i, self.publications[i['workload_key']])
                    for i in self.c.all() if i['workload_key'] in self.publications])
             atomic(self.state / 'status.json', private)
             with self.c.db:
@@ -139,7 +156,8 @@ class Service:
             if not ready:
                 value.update(status='degraded', ready=False)
             if not live:
-                value.update(runtime_read_ok=False, assessment_qualified=False)
+                value.update(runtime_read_ok=False, assessment_qualified=False, healthy_agents=0,
+                             covered_workloads=0, uncovered_workloads=len(self.workloads))
             return (200 if ready and value['status'] == 'healthy' else 503), value
         return 404, {'error': 'not_found'}
 

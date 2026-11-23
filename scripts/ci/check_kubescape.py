@@ -332,7 +332,10 @@ def check_assessment_alert(before, after):
             matching = [e for e in endpoints if e["name"] == reviewed["name"]]
             assert len(matching) <= 1
             if matching:
-                assert matching[0] == reviewed, "assessment/collector alert differs"
+                multi = dict(reviewed, conditions=reviewed['conditions'] + [
+                    '[BODY].expected_agents == 2', '[BODY].healthy_agents == 2', '[BODY].uncovered_workloads == 0'])
+                assert matching[0] == reviewed or (reviewed['name'] == 'security-collector-sources'
+                                                   and matching[0] == multi), "assessment/collector alert differs"
                 endpoints.remove(matching[0])
     assert before == after, "Gatus changed outside the assessment/collector endpoints"
 

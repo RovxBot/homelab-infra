@@ -10,6 +10,8 @@ rules:
     verbs: [get]
   - apiGroups: ['']
     resources: [pods, pods/log]
+    # Exact metal3 Pod name is added by reviewed enrollment after rollout.
+    # Never grant namespace-wide logs to discover a generated DaemonSet name.
     resourceNames: [node-agent-6krhl]
     verbs: [get]
 ---

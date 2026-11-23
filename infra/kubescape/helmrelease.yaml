@@ -76,7 +76,17 @@ spec:
                   type: Unconfined
               - op: remove
                 path: /spec/template/spec/containers/0/securityContext/seLinuxOptions
-          # Kubelet proxy access is limited to the canary, not all eight nodes.
+              - op: add
+                path: /spec/template/spec/affinity
+                value:
+                  nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                      nodeSelectorTerms:
+                        - matchExpressions:
+                            - key: kubernetes.io/hostname
+                              operator: In
+                              values: [metal3, metal6]
+          # Agent kubelet access follows the two-node cohort; collector has none.
           - target:
               group: rbac.authorization.k8s.io
               version: v1
@@ -115,6 +125,7 @@ spec:
                   resources:
                   - nodes/proxy
                   resourceNames:
+                  - metal3
                   - metal6
                   verbs:
                   - get
@@ -330,7 +341,6 @@ spec:
         tag: v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60
       nodeSelector:
         kubernetes.io/os: linux
-        kubernetes.io/hostname: metal6
       resources:
         requests: {cpu: 100m, memory: 180Mi}
         limits: {cpu: 500m, memory: 1400Mi}

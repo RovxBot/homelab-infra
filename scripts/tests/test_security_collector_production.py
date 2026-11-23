@@ -128,6 +128,7 @@ class ProductionTests(unittest.TestCase):
             self.assertEqual(self.s.response(path)[0], 503)
         self.assertTrue(self.s.response('/healthz')[1]['telemetry_stale'])
         self.assertFalse(self.s.response('/healthz')[1]['runtime_read_ok'])
+        self.assertEqual(self.s.response('/healthz')[1]['covered_workloads'], 0)
 
     def test_storage_failure_and_saturation_reach_external_health(self):
         with patch('security_collector.service.atomic', side_effect=OSError('PRIVATE_CREDENTIAL')):
@@ -186,6 +187,9 @@ class ProductionTests(unittest.TestCase):
 
 class DeploymentBoundaries(unittest.TestCase):
     def test_only_named_reads_no_cluster_role_and_retained_state(self):
+        config = json.loads((ROOT / 'infra/kubescape/collector/collector.json').read_text())
+        names = sorted(a['pod_name'] for a in config.get('agents', [config.get('agent')]) if a['pod_name'])
+        self.assertTrue(names)
         docs = list(yaml.safe_load_all((ROOT / 'infra/kubescape/collector/rbac.yaml').read_text()))
         self.assertEqual({d['kind'] for d in docs}, {'Role', 'RoleBinding'})
         for role in (d for d in docs if d['kind'] == 'Role'):
@@ -193,7 +197,7 @@ class DeploymentBoundaries(unittest.TestCase):
                 self.assertIn(rule['verbs'], (['get'], ['list']))
                 self.assertFalse(set(rule['resources']) & {'secrets', 'pods/exec', 'pods/attach'})
                 if 'pods/log' in rule['resources']:
-                    self.assertEqual(rule['resourceNames'], ['node-agent-6krhl'])
+                    self.assertEqual(sorted(rule['resourceNames']), names)
         workload = list(yaml.safe_load_all((ROOT / 'infra/kubescape/collector/workload.yaml').read_text()))
         pvc = next(d for d in workload if d['kind'] == 'PersistentVolumeClaim')
         self.assertEqual(pvc['metadata']['annotations']['kustomize.toolkit.fluxcd.io/prune'], 'disabled')

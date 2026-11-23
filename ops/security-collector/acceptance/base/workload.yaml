@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubescape-runtime-test
+  labels:
+    homelab.cooked.beer/owner: sam
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: runtime-test
+  namespace: kubescape-runtime-test
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runtime-acceptance
+  namespace: kubescape-runtime-test
+  labels:
+    homelab.cooked.beer/owner: sam
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: runtime-acceptance
+  template:
+    metadata:
+      labels:
+        app: runtime-acceptance
+        homelab.cooked.beer/owner: sam
+    spec:
+      serviceAccountName: runtime-test
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/hostname: metal3
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: test
+          image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+          command: [python3, -B, -c]
+          # Standby emits no R1000. Only the separately approved trigger overlay does.
+          args: ['import time; time.sleep(86400)']
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - name: scratch
+              mountPath: /dev/shm
+      volumes:
+        - name: scratch
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi

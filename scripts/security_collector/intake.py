@@ -23,11 +23,45 @@ class Intake:
                 key TEXT PRIMARY KEY, category TEXT NOT NULL, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS polls (key TEXT PRIMARY KEY, at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS source_observations (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS runtime_source_status (key TEXT PRIMARY KEY, data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS runtime_identities (
+                source TEXT NOT NULL, identity TEXT NOT NULL, accepted TEXT NOT NULL, data TEXT NOT NULL,
+                PRIMARY KEY (source, identity));
+            CREATE TABLE IF NOT EXISTS runtime_evidence (
+                source TEXT NOT NULL, id TEXT NOT NULL, attributed INTEGER NOT NULL, data TEXT NOT NULL,
+                PRIMARY KEY (source, id));
         ''')
 
     def cursor(self, key):
         row = self.c.db.execute('SELECT data FROM cursors WHERE key=?', (key,)).fetchone()
         return json.loads(row[0]) if row else None
+
+    def source_status(self, key):
+        row = self.c.db.execute('SELECT data FROM runtime_source_status WHERE key=?', (key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def source_health(self, key, node, now, state, reason, *, identity_invalid=False):
+        """Additive source records; never rewrite or reset a legacy cursor on failure."""
+        old, cursor = self.source_status(key) or {}, self.cursor(key)
+        value = dict(node=node, checked_at=stamp(now), state=state, reason=reason,
+                     read_ok=state in ('confirmed', 'unknown'), identity_invalid=identity_invalid,
+                     invalid_identity_count=old.get('invalid_identity_count', 0) + identity_invalid,
+                     last_invalid_identity=stamp(now) if identity_invalid else old.get('last_invalid_identity'),
+                     last_success=stamp(now) if state in ('confirmed', 'unknown') else old.get('last_success'),
+                     gap=bool((cursor and cursor.get('gap')) or old.get('gap') or reason in GAPS),
+                     last_gap=stamp(now) if reason in GAPS else old.get('last_gap'),
+                     successful_reads=old.get('successful_reads', 0) + (state in ('confirmed', 'unknown')),
+                     event_count=old.get('event_count', 0),
+                     attributed_detections=old.get('attributed_detections', 0))
+        # Cursor counters are cumulative and commit with the corresponding queue.
+        if cursor:
+            value.update(event_count=cursor.get('event_count', cursor.get('attributed_events', 0)
+                         + cursor.get('unattributed_events', 0)),
+                         attributed_detections=cursor.get('attributed_detections', cursor.get('attributed_events', 0)))
+        with self.c.db:
+            self.c.db.execute('INSERT OR REPLACE INTO runtime_source_status VALUES (?,?)',
+                              (key, json.dumps(value, sort_keys=True)))
+        return value
 
     def reserve_poll(self, key, now):
         """Persisted 15-second minimum interval, including failed API reads."""
@@ -38,9 +72,33 @@ class Intake:
                     < self.c.max_incidents * 2, 'reader_capacity')
             self.c.db.execute('INSERT OR REPLACE INTO polls VALUES (?,?)', (key, stamp(now)))
 
-    def enqueue(self, events, now, *, cursor_key=None, cursor=None, source_observations=()):
+    def enqueue(self, events, now, *, cursor_key=None, cursor=None, source_observations=(), source_identity=None):
         require(len(events) <= self.max_pending, 'spool_capacity')
         with self.c.db:
+            if source_identity is not None:
+                token = fingerprint(source_identity)
+                exists = self.c.db.execute('SELECT 1 FROM runtime_identities WHERE source=? AND identity=?',
+                                          (cursor_key, token)).fetchone()
+                if not exists:
+                    require(self.c.db.execute('SELECT count(*) FROM runtime_identities WHERE source=?',
+                            (cursor_key,)).fetchone()[0] < 128, 'source_identity_capacity')
+                    require(self.c.db.execute('SELECT count(*) FROM runtime_identities WHERE source=? AND accepted>=?',
+                            (cursor_key, stamp(now - timedelta(hours=1)))).fetchone()[0] < 4,
+                            'source_refresh_rate_limit')
+                    self.c.db.execute('INSERT INTO runtime_identities VALUES (?,?,?,?)',
+                        (cursor_key, token, stamp(now), json.dumps(source_identity, sort_keys=True)))
+            if source_identity is not None:
+                proofs = [(e.event_id, 1, dict(event_id=e.event_id, at=e.observed_at,
+                          rule=e.identities[0], workload=e.workload.key, digest=e.digest,
+                          identity=e.runtime_identity)) for e in events]
+                proofs += [(o['id'], 0, o) for o in source_observations]
+                for event_id, attributed, proof in proofs:
+                    exists = self.c.db.execute('SELECT 1 FROM runtime_evidence WHERE source=? AND id=?',
+                                              (cursor_key, event_id)).fetchone()
+                    require(exists or self.c.db.execute('SELECT count(*) FROM runtime_evidence').fetchone()[0]
+                            < self.c.max_receipts, 'receipt_capacity')
+                    self.c.db.execute('INSERT OR IGNORE INTO runtime_evidence VALUES (?,?,?,?)',
+                                      (cursor_key, event_id, attributed, json.dumps(proof, sort_keys=True)))
             for observation in source_observations:
                 require(self.c.db.execute('SELECT 1 FROM source_observations WHERE id=?',
                         (observation['id'],)).fetchone() or self.c.db.execute(
@@ -54,7 +112,10 @@ class Intake:
                 event.__post_init__()
                 pending = self.c.db.execute('SELECT data FROM pending WHERE id=?', (event.event_id,)).fetchone()
                 if pending and event.category == 'vulnerability':
-                    require(fingerprint(json.loads(pending['data'])) == event.observation_hash,
+                    previous = json.loads(pending['data'])
+                    if previous.get('runtime_identity') is None:
+                        previous.pop('runtime_identity', None)
+                    require(fingerprint(previous) == event.observation_hash,
                             'assessment_identity_conflict')
                 replay = self.c.is_replay(event)
                 if pending or replay:
@@ -64,6 +125,11 @@ class Intake:
                 require(count <= self.max_pending and size <= self.pending_bytes, 'spool_capacity')
                 self.c.db.execute('INSERT INTO pending VALUES (?,?,?)', (event.event_id, value, stamp(now)))
             if cursor_key is not None:
+                if source_identity is not None:
+                    count, attributed = self.c.db.execute(
+                        'SELECT count(*),coalesce(sum(attributed),0) FROM runtime_evidence WHERE source=?',
+                        (cursor_key,)).fetchone()
+                    cursor.update(event_count=count, attributed_detections=attributed)
                 require(self.cursor(cursor_key) is not None or self.c.db.execute(
                     'SELECT count(*) FROM cursors').fetchone()[0] < 8, 'cursor_capacity')
                 self.c.db.execute('INSERT OR REPLACE INTO cursors VALUES (?,?)',
@@ -137,7 +203,8 @@ class Intake:
 
 
 GAPS = {'initial_gap', 'overlap_missing', 'agent_restarted', 'disconnected', 'read_failed', 'invalid_input',
-        'saturated', 'heartbeat_expired', 'inventory_changed', 'attribution_unavailable'}
+        'saturated', 'heartbeat_expired', 'inventory_changed', 'attribution_unavailable',
+        'source_enrollment_pending', 'source_identity_invalid', 'source_refresh_limited', 'uncovered_node'}
 REASONS = GAPS | {'poll_ok', 'qualified', 'missing', 'assessment_failed', 'assessment_stale',
                  'assessment_incomplete', 'assessment_identity_conflict', 'unsupported', 'excluded', 'history_changed',
                  'history_unavailable'}
