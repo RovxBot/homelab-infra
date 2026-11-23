@@ -1,0 +1,29 @@
+{
+  "stage": "A-offline-only",
+  "pullRequest": "https://github.com/RovxBot/homelab-infra/pull/2203",
+  "checks": [
+    {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_security_collector.py -v",
+      "result": "passed",
+      "tests": 26
+    },
+    {
+      "command": "python3 -m compileall -q scripts/security_collector scripts/tests/test_security_collector.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --cached --check",
+      "result": "passed"
+    },
+    {
+      "command": "git apply --unidiff-zero --check ops/security-collector/wiki-proposal.patch (in pinned Wiki checkout)",
+      "result": "passed"
+    }
+  ],
+  "githubCI": "not awaited",
+  "collectorDeployed": false,
+  "productionIncidentWrites": false,
+  "wikiPublished": false,
+  "wikiGate": "Security-sensitive architecture proposal requires review under AGENTS.md.",
+  "remainingGate": "Independent Stage A review; separately approve and qualify authenticated durable transport, trusted assessment reader and production GitHub client."
+}

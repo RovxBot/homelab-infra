@@ -4,7 +4,7 @@
 +
 +## Proposed security incident collector — Stage A, review pending
 +
-+This section is a proposal for [#2138](https://github.com/RovxBot/homelab-infra/issues/2138), not deployed/accepted operation. Code review will be linked from #2138 when the Stage A PR is opened. The PR retains the source-compatibility snapshot, synthetic fixtures and offline lifecycle tests under `ops/security-collector/` and `scripts/security_collector/`. Approval of this proposal does not enable ingestion, publication or closure.
++This section is a proposal for [#2138](https://github.com/RovxBot/homelab-infra/issues/2138), not deployed/accepted operation. Code review: [PR #2203](https://github.com/RovxBot/homelab-infra/pull/2203). The PR retains the source-compatibility snapshot, synthetic fixtures and offline lifecycle tests under `ops/security-collector/` and `scripts/security_collector/`. Approval of this proposal does not enable ingestion, publication or closure.
 +
 +Read-only checks on 23 November 2026 confirmed chart 1.42.0, node-agent v0.3.310 on metal6, storage v0.0.382 and the repository-pinned scanner/operator images. Only the local stdout exporter is configured. Despite its name, its JSON goes to container **stderr**. The retained R1000 record's field layout matches the pinned exporter and armotypes; the [accepted single-worker canary](https://github.com/RovxBot/homelab-infra/issues/2136#issuecomment-7087742825) remains the functional evidence. No HTTP/webhook/hosted event pipeline was demonstrated. Native HTTP export exists in the pinned source but is not configured or qualified here.
 +
