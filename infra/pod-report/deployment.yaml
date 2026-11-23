@@ -303,6 +303,14 @@ spec:
                     fi
                   fi
                   case "$4" in healthy|stale|failed|unknown) attempt_state="$4" ;; *) attempt_state=unknown ;; esac
+                  if [ "$1" != database ]; then
+                    # Preserve evidence age, but never mask the latest failure
+                    # or interrupted/unknown attempt with a cached success.
+                    case "$attempt_state" in
+                      failed|unknown) mode_state="$attempt_state" ;;
+                      stale) [ "$mode_state" = unknown ] || mode_state=stale ;;
+                    esac
+                  fi
                   printf '"%s":{"state":"%s","evidenceAgeSeconds":%s,"maximumAgeSeconds":%s,"lastAttemptState":"%s"}' "$1" "$mode_state" "$evidence_age" "$3" "$attempt_state"
                 }
                 vulnerability_health="$(mode_health vulnerability "$vulnerability_time" 259200 "$vulnerability_state")"
@@ -321,6 +329,7 @@ spec:
                 assessment_state=healthy
                 case "$vulnerability_health$posture_health$database_health" in *'"state":"stale"'*) assessment_state=stale ;; esac
                 case "$vulnerability_health$posture_health$database_health" in *'"state":"unknown"'*) assessment_state=unknown ;; esac
+                case "$vulnerability_health$posture_health$database_health" in *'"state":"failed"'*) assessment_state=failed ;; esac
                 printf '{"status":"%s","observedAt":"%s","databaseFreshness":"%s",%s,%s,%s}\n' "$assessment_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$database_freshness" "$vulnerability_health" "$posture_health" "$database_health" > /work/kubescape-health.json.tmp
                 mv /work/kubescape-health.json.tmp /work/kubescape-health.json
               }

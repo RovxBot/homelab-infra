@@ -50,12 +50,24 @@ except Exception:
             return json.loads((root / 'kubescape-health.json').read_text())
 
     def test_recent_success_ages_and_grace_are_reported(self):
-        result = self.health([stamp(24), stamp(24), 'failed', 'healthy', stamp(9 * 24)])
+        result = self.health([stamp(24), stamp(24), 'healthy', 'healthy', stamp(9 * 24)])
         self.assertEqual(result['status'], 'healthy')
         self.assertEqual(result['vulnerability']['evidenceAgeSeconds'], 86400)
-        self.assertEqual(result['vulnerability']['lastAttemptState'], 'failed')
+        self.assertEqual(result['vulnerability']['lastAttemptState'], 'healthy')
         self.assertEqual(result['databaseFreshness'], 'grace')
         self.assertEqual(result['database']['evidenceAgeSeconds'], 9 * 86400)
+
+    def test_latest_failed_unknown_or_stale_attempt_overrides_cached_success(self):
+        for mode, index in (('vulnerability', 2), ('posture', 3)):
+            for state in ('failed', 'unknown', 'stale'):
+                with self.subTest(mode=mode, state=state):
+                    values = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
+                    values[index] = state
+                    result = self.health(values)
+                    self.assertEqual(result['status'], state)
+                    self.assertEqual(result[mode]['state'], state)
+                    self.assertEqual(result[mode]['lastAttemptState'], state)
+                    self.assertEqual(result[mode]['evidenceAgeSeconds'], 86400)
 
     def test_modes_expire_independently_and_future_is_unknown(self):
         for values, mode, state in [

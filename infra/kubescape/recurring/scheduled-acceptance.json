@@ -1,0 +1,390 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-11-23T00:43:16.640405Z",
+  "trackingIssue": "https://github.com/RovxBot/homelab-infra/issues/2135",
+  "acceptance": "incomplete",
+  "sources": {
+    "statusConfigMap": "kubescape/kubescape-assessment-status",
+    "statusResourceVersion": "193903418",
+    "retainedCoverageGeneratedAt": "2026-11-22T20:14:05.152949Z",
+    "retainedCoverageValidUntil": "2026-11-23T22:14:05.152949Z",
+    "failedJobCodeConfigMap": "kubescape-assessment-code-bm775hg87m",
+    "failedJobRunnerSha256": "21ccfb19c29ef3040113087234a00b664883b5c37c837184ad0c09d9e8aef9e8",
+    "failedJobConfigSha256": "93c5ab795e3f16410e82fdf2db3d078abc4df0f503f48fe178c1e62a93e07418",
+    "failedJobSourceMatchesBaseCommit": true,
+    "baseCommit": "3c9b96143747948314216cbe833e5ef4c24a6679"
+  },
+  "diagnosis": {
+    "confirmed": "Fourth target rejected by preflight CPU gate scanner_busy before request intent or scanner POST; three preceding requests succeeded and were attributed.",
+    "failingTarget": "koito/Deployment/koito-lastfm-bridge/multi-scrobbler",
+    "precedingRequestID": "recurring-e3a62078263347cd992fb7a69d75ddbf",
+    "precedingScannerCompletedAt": "2026-11-22T19:15:43.572945985Z",
+    "lastRetainedScannerMetric": {
+      "observedAt": "2026-11-22T19:15:46.463795Z",
+      "timestamp": "2026-11-22T19:15:27Z",
+      "cpu": "496760303n",
+      "memory": "239152Ki",
+      "window": null
+    },
+    "lastTargetAttemptAt": "2026-11-22T19:15:56.414517Z",
+    "idleCPUThresholdCores": 0.25,
+    "reproducedDefect": "The immediate CPU gate rejects a scan-time metrics sample after the preceding request is terminal. CPU is an average over the Metrics API window, not scanner queue state.",
+    "inference": "Lagging CPU accounting from the preceding scan is consistent with the retained timing; the exact rejected metric/window was not retained, so concurrent load at rejection cannot be ruled out.",
+    "secondaryDefect": "The existing pod-report health function returned healthy from cached success ages even when vulnerability.state was failed. Reproduced locally with the persisted scalar values.",
+    "metricSemantics": "https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/#cpu",
+    "unavailableEvidence": [
+      "Failed assessment container logs rotated/unretrievable",
+      "Exact rejected preflight metric and its window",
+      "Direct PVC intent/history/records export: existing distroless engine has no /bin/sh; no reader Job was created",
+      "Current inflight.json and same-day completion marker were not independently inspected"
+    ],
+    "excludedFailurePointsForFourthTarget": [
+      "Preflight rejected before report matching or attribution, freshness audit or scanner submission for that target",
+      "A previous request fence did not block this batch; successful later posture also passed the shared fence check at its start"
+    ]
+  },
+  "historicalManualEvidence": {
+    "record": "acceptance.json",
+    "vulnerability": "https://github.com/RovxBot/homelab-infra/issues/2135#issuecomment-7074646631",
+    "posture": "https://github.com/RovxBot/homelab-infra/issues/2135#issuecomment-7074762889",
+    "qualification": "Historical manual production-template scans; no qualification of this patch or current changed digests"
+  },
+  "unattendedVulnerability": {
+    "job": "kubescape/kubescape-assessment-vulnerability-29922913",
+    "ownerCronJob": "kubescape-assessment-vulnerability",
+    "scheduledAt": "2026-11-22T19:13:00Z",
+    "runID": "vulnerability-20261122191305-b777bc",
+    "state": "failed",
+    "reasons": [
+      "scanner_busy"
+    ],
+    "finishedAt": "2026-11-22T19:15:57.369886Z",
+    "containerExitCode": 4,
+    "jobFailure": "BackoffLimitExceeded",
+    "successfulAssessments": [
+      {
+        "jobID": "recurring-bc606c531bb7405f9c8a7e5018743e51",
+        "createdAt": "2026-11-22T19:14:25Z",
+        "imageDigest": "docker.io/nginxinc/nginx-unprivileged@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e",
+        "container": "nginx",
+        "database": {
+          "built": "2026-11-21T06:20:06Z",
+          "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+          "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+          "schemaVersion": "v6.1.10",
+          "status": "active"
+        }
+      },
+      {
+        "jobID": "recurring-24591ed58b914487a3ee42da62a39299",
+        "createdAt": "2026-11-22T19:15:08Z",
+        "imageDigest": "ghcr.io/gethomepage/homepage@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18",
+        "container": "homepage",
+        "database": {
+          "built": "2026-11-21T06:20:06Z",
+          "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+          "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+          "schemaVersion": "v6.1.10",
+          "status": "active"
+        }
+      },
+      {
+        "jobID": "recurring-e3a62078263347cd992fb7a69d75ddbf",
+        "createdAt": "2026-11-22T19:15:40Z",
+        "imageDigest": "docker.io/gabehf/koito@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857",
+        "container": "koito",
+        "database": {
+          "built": "2026-11-21T06:20:06Z",
+          "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+          "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+          "schemaVersion": "v6.1.10",
+          "status": "active"
+        }
+      }
+    ],
+    "targets": [
+      {
+        "identity": "memos/Deployment/memos/memos",
+        "state": "skipped",
+        "reasons": [
+          "daily_batch_limit"
+        ],
+        "lastSuccessfulScan": "2026-11-22T05:02:57Z"
+      },
+      {
+        "identity": "homepage/Deployment/homepage-assets/nginx",
+        "state": "healthy",
+        "reasons": [],
+        "lastSuccessfulScan": "2026-11-22T19:14:25Z"
+      },
+      {
+        "identity": "homepage/Deployment/homepage/homepage",
+        "state": "healthy",
+        "reasons": [],
+        "lastSuccessfulScan": "2026-11-22T19:15:08Z"
+      },
+      {
+        "identity": "koito/Deployment/koito/koito",
+        "state": "healthy",
+        "reasons": [],
+        "lastSuccessfulScan": "2026-11-22T19:15:40Z"
+      },
+      {
+        "identity": "koito/Deployment/koito-lastfm-bridge/multi-scrobbler",
+        "state": "failed",
+        "reasons": [
+          "scanner_busy"
+        ],
+        "lastSuccessfulScan": null
+      },
+      {
+        "identity": "gitea/Deployment/gitea-mcp/mcp",
+        "state": "skipped",
+        "reasons": [
+          "daily_batch_limit"
+        ],
+        "lastSuccessfulScan": null
+      }
+    ],
+    "database": {
+      "built": "2026-11-21T06:20:06Z",
+      "ageHours": 36.930666,
+      "state": "fresh",
+      "freshHours": 168,
+      "maximumAgeHours": 336
+    },
+    "databaseFreeBytesBefore": 6901338112,
+    "reportFreeBytesBefore": 5174894592,
+    "historyBytesBefore": 1221055,
+    "resourceQualification": "Repeated metrics samples are not instantaneous resource peaks; existing gates passed for successful requests"
+  },
+  "unattendedPosture": {
+    "job": "kubescape/kubescape-assessment-posture-29922973",
+    "ownerCronJob": "kubescape-assessment-posture",
+    "scheduledAt": "2026-11-22T20:13:00Z",
+    "state": "healthy",
+    "runID": "posture-20261122201305-bf6e1c",
+    "jobCompletedAt": "2026-11-22T20:14:07Z",
+    "assessment": {
+      "framework": "nsa",
+      "controls": {
+        "Failed": 3,
+        "Passed": 18,
+        "Action Required": 5
+      },
+      "storedSummaries": 24,
+      "coverage": {
+        "notEvaluatedControls": 2,
+        "notEvaluatedControlIDs": [
+          "C-0069",
+          "C-0070"
+        ],
+        "incompleteCoverageControls": 0,
+        "incompleteCoverageControlIDs": []
+      },
+      "limitations": [
+        "Host/cloud checks remain unsupported or Action Required; no host collector",
+        "Intentional RBAC exceptions retained; no remediation"
+      ],
+      "scanID": "b54cda2f-610d-43f1-9fe8-9924031a80f6",
+      "createdAt": "2026-11-22T20:14:04.360537Z"
+    },
+    "scope": "NSA Memos namespace plus shared RBAC, before subsequent workload revisions; no whole-cluster posture claim"
+  },
+  "coverage": {
+    "observedAt": "2026-11-23T00:43:16.640405Z",
+    "configuredTargets": 6,
+    "successfulCurrentDigests": 3,
+    "historicallySuccessfulTargetDigests": 4,
+    "maximumImagesPerExecution": 4,
+    "imageCoverageHours": 72,
+    "databaseAgeHoursAtObservation": 42.3863,
+    "databaseFreshnessAtObservation": "fresh",
+    "databaseFreshHours": 168,
+    "databaseMaximumAgeHours": 336,
+    "freshnessQualification": "Calculated age of retained scan DB identity; no new live cache audit was launched",
+    "rows": [
+      {
+        "identity": "gitea/Deployment/gitea-mcp/mcp",
+        "currentRunningImage": "docker.gitea.com/gitea-mcp-server@sha256:2daf12dfa853bfc21f6f4754bca2612957c2acbc4288b03ddcce81e37f18ea18",
+        "lastSuccessfulAssessmentOnCurrentDigest": null,
+        "database": null,
+        "latestAttemptOnCurrentDigest": null,
+        "coverageState": "unknown",
+        "generationAtInventory": 2,
+        "currentGeneration": 2,
+        "runningDigestChangedSinceInventory": false
+      },
+      {
+        "identity": "homepage/Deployment/homepage-assets/nginx",
+        "currentRunningImage": "docker.io/nginxinc/nginx-unprivileged@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e",
+        "lastSuccessfulAssessmentOnCurrentDigest": "2026-11-22T19:14:25Z",
+        "database": {
+          "built": "2026-11-21T06:20:06Z",
+          "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+          "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+          "schemaVersion": "v6.1.10",
+          "status": "active"
+        },
+        "latestAttemptOnCurrentDigest": {
+          "checkedAt": "2026-11-22T19:14:28.162178Z",
+          "state": "healthy"
+        },
+        "coverageState": "healthy",
+        "generationAtInventory": 103,
+        "currentGeneration": 104,
+        "runningDigestChangedSinceInventory": false
+      },
+      {
+        "identity": "homepage/Deployment/homepage/homepage",
+        "currentRunningImage": "ghcr.io/gethomepage/homepage@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18",
+        "lastSuccessfulAssessmentOnCurrentDigest": "2026-11-22T19:15:08Z",
+        "database": {
+          "built": "2026-11-21T06:20:06Z",
+          "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+          "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+          "schemaVersion": "v6.1.10",
+          "status": "active"
+        },
+        "latestAttemptOnCurrentDigest": {
+          "checkedAt": "2026-11-22T19:15:08.881575Z",
+          "state": "healthy"
+        },
+        "coverageState": "healthy",
+        "generationAtInventory": 142,
+        "currentGeneration": 142,
+        "runningDigestChangedSinceInventory": false
+      },
+      {
+        "identity": "koito/Deployment/koito-lastfm-bridge/multi-scrobbler",
+        "currentRunningImage": "docker.io/foxxmd/multi-scrobbler@sha256:a8ff2d0ae1dc6984fea0481863f29a9647a8f5b705f6e44cbf6791e0c0fb88e5",
+        "lastSuccessfulAssessmentOnCurrentDigest": null,
+        "database": null,
+        "latestAttemptOnCurrentDigest": null,
+        "coverageState": "unknown",
+        "generationAtInventory": 9,
+        "currentGeneration": 10,
+        "runningDigestChangedSinceInventory": true,
+        "previousDigestEvidence": {
+          "runningDigest": "docker.io/foxxmd/multi-scrobbler@sha256:d3dacd94c5e6629d9a01579c2e4484de9440c1755dcbaae2ffb50d19b18793a0",
+          "lastSuccessfulScan": null,
+          "database": null,
+          "lastAttempt": {
+            "checkedAt": "2026-11-22T19:15:56.414517Z",
+            "databaseChecksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+            "reasons": [
+              "scanner_busy"
+            ],
+            "state": "failed"
+          },
+          "assessmentState": "failed"
+        }
+      },
+      {
+        "identity": "koito/Deployment/koito/koito",
+        "currentRunningImage": "docker.io/gabehf/koito@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857",
+        "lastSuccessfulAssessmentOnCurrentDigest": "2026-11-22T19:15:40Z",
+        "database": {
+          "built": "2026-11-21T06:20:06Z",
+          "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+          "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+          "schemaVersion": "v6.1.10",
+          "status": "active"
+        },
+        "latestAttemptOnCurrentDigest": {
+          "checkedAt": "2026-11-22T19:15:49.217441Z",
+          "state": "healthy"
+        },
+        "coverageState": "healthy",
+        "generationAtInventory": 5,
+        "currentGeneration": 5,
+        "runningDigestChangedSinceInventory": false
+      },
+      {
+        "identity": "memos/Deployment/memos/memos",
+        "currentRunningImage": "docker.io/neosmemo/memos@sha256:3c7bd779510403350465ecabb7e6fbc0887206f9d55b8decf51a205613fa5616",
+        "lastSuccessfulAssessmentOnCurrentDigest": null,
+        "database": null,
+        "latestAttemptOnCurrentDigest": null,
+        "coverageState": "unknown",
+        "generationAtInventory": 5,
+        "currentGeneration": 6,
+        "runningDigestChangedSinceInventory": true,
+        "previousDigestEvidence": {
+          "runningDigest": "docker.io/neosmemo/memos@sha256:5dcd6e6b973a55b964f2fe2ccdaa33319463ab448a23404ebb5d2acbd19299ba",
+          "lastSuccessfulScan": "2026-11-22T05:02:57Z",
+          "database": {
+            "built": "2026-11-21T06:20:06Z",
+            "checksum": "sha256:921d1b1b4151a211d39efbb8a7da54caabfc6eb717112766cb5bdee7920809b5",
+            "path": "vulnerability-db_v6.1.10_2026-11-21T00:21:39Z_1795242006.tar.zst",
+            "schemaVersion": "v6.1.10",
+            "status": "active"
+          },
+          "lastAttempt": {
+            "checkedAt": "2026-11-22T05:02:59.037490Z",
+            "state": "healthy"
+          },
+          "assessmentState": "healthy"
+        }
+      }
+    ],
+    "exclusions": {
+      "retainedInventoryExcludedRows": 174,
+      "qualification": "Count from retained 180-row inventory, not a new whole-cluster inventory",
+      "reason": "Outside the six configured application container identities; critical/system workloads are not qualified by these scans",
+      "unsupportedPostureControls": [
+        "C-0069",
+        "C-0070"
+      ],
+      "postureLimitations": [
+        "No host collector",
+        "Host/cloud coverage remains unsupported or Action Required",
+        "Intentional RBAC exceptions remain"
+      ],
+      "scopeDecisionRequired": "The curated cohort alone does not meet #2135 whole-running-image/critical-namespace intent. Agree remaining staged coverage or explicit reviewed exceptions before closure."
+    }
+  },
+  "correction": {
+    "runner": "Recheck CPU-only idleness for at most 120 seconds at five-second intervals, within existing execution budget; after a busy sample require an advancing idle timestamp; preserve memory, metric age, engine identity and all later gates. Retain timestamp/window/usage for every preflight sample.",
+    "health": "A failed/unknown latest attempt overrides a cached successful timestamp; evidence ages remain visible. No Gatus routing or incident automation changes.",
+    "productionState": "proposed_only"
+  },
+  "recovery": {
+    "interventionRequiredByThisFailure": false,
+    "reason": "scanner_busy occurs before the fourth request is persisted/submitted; no evidence supports clearing a fence or resubmitting it manually.",
+    "sameDayDeduplication": "A completed partial batch writes its same-day/cohort .done marker; a code rollout does not authorize bypassing it. Wait for the next UTC daily slot.",
+    "ifUnexpectedFenceExists": "Suspend both custom schedules through reviewed GitOps; export existing request/history with an approved read-only reader; inspect saved ID, engine identity and terminal status. Preserve all evidence. Use the existing reviewed maintenance acknowledgement only after terminal/process-gone proof; never auto-clear.",
+    "rollback": "Revert the correction through a focused PR and Flux. If a request is active or uncertain, suspend both custom schedules through GitOps and resolve/wait before changing the runner; preserve PVCs, reports, intent and .done markers."
+  },
+  "qualification": {
+    "local": {
+      "state": "verified",
+      "recurringRunnerTests": 42,
+      "assessmentHealthTests": 5,
+      "databaseTests": 21,
+      "kubescapeValidatorTests": 31,
+      "existingClusterHealthTests": 45,
+      "gatusAlertConfigTests": 4,
+      "recurringValidator": "passed",
+      "kustomize": [
+        "infra/kubescape",
+        "infra/pod-report"
+      ],
+      "syntaxAndDiff": "passed",
+      "chartAdmission": "not rerun; manifests/Pod admission fields unchanged; final-head CI remains required"
+    },
+    "githubCI": "not_run_on_patch",
+    "deployed": "not_deployed",
+    "manualProductionTestOfPatch": "not_run",
+    "unattendedProductionTestOfPatch": "not_run"
+  },
+  "closureGates": [
+    "Independent final-head GitHub CI and review; no merge or deployment in this task",
+    "After separately approved rollout, confirm exact runner ConfigMap/code revision and health output failed/unknown behavior",
+    "Observe a genuine unattended vulnerability batch succeeding and a subsequent daily rotation; no manual scan can substitute",
+    "Fresh attributed reports for all six currently running digests within 72 hours, including changed Memos/bridge and unscanned Gitea MCP",
+    "Revalidate posture after workload revisions and verify resource/Longhorn headroom through the expanded cohort; samples are not peak guarantees",
+    "Review retained intent/history and any recovery evidence without deleting or clearing state",
+    "Agree further staged critical/system coverage or explicit exceptions; curated cohort is not full-cluster coverage"
+  ]
+}

@@ -38,6 +38,8 @@ BATCH = "/apis/batch/v1"
 EXIT = {"healthy": 0, "stale": 2, "unknown": 3, "failed": 4}
 TERMINAL = {"succeeded", "failed", "abandoned"}
 LABELS = {"homelab.cooked.beer/owner": "sam", "kubescape.io/ignore": "true"}
+IDLE_WAIT_SECONDS = 120
+IDLE_POLL_SECONDS = 5
 
 
 class APIError(Exception):
@@ -444,12 +446,7 @@ class Runner:
         self.result["historyBytesBefore"] = history_bytes
         self.result["database"] = {"built": self.expected["metadata"]["built"],
                                    **db.database_freshness(self.expected["metadata"]["built"])}
-        metrics = self.api.items("/apis/metrics.k8s.io/v1beta1", "pods", NS)
-        metric = next(m for m in metrics if m["metadata"]["name"] == engine["metadata"]["name"])
-        db.require(db.age_hours(metric["timestamp"]) <= 0.05, "resource_metrics_stale")
-        usage = next(c["usage"] for c in metric["containers"] if c["name"] == "kubevuln")
-        db.require(quantity(usage["memory"]) < self.config["maximumWorkingSetBytes"], "memory_budget_exhausted")
-        db.require(quantity(usage["cpu"]) < self.config["maximumIdleCPUCores"], "scanner_busy")
+        usage = self.idle_resources(engine)
         self.result["resourceBefore"] = {"enginePodUID": engine["metadata"]["uid"], "usage": usage,
                                          "databaseFreeBytes": fs.f_bavail * fs.f_frsize}
         for node in self.api.items(CORE, "nodes"):
@@ -474,6 +471,34 @@ class Runner:
         # The pinned scanner's no-ID status refers to its latest user scan.
         db.require(str(service("kubescape", "/v1/status").get("type", "")).lower() != "busy", "posture_scanner_busy")
         return engine
+
+    def idle_resources(self, engine):
+        # CPU is averaged over the metrics window, which can still include our
+        # preceding completed scan. Wait only on this resource gate, never retry
+        # a submission. All remaining preflight/freshness gates still run after it.
+        deadline = time.monotonic() + IDLE_WAIT_SECONDS
+        busy_timestamp = None
+        while True:
+            metrics = self.api.items("/apis/metrics.k8s.io/v1beta1", "pods", NS)
+            metric = next(m for m in metrics if m["metadata"]["name"] == engine["metadata"]["name"])
+            usage = next(c["usage"] for c in metric["containers"] if c["name"] == "kubevuln")
+            self.result.setdefault("resourcePreflight", []).append({
+                "observedAt": db.stamp(db.utcnow()), "enginePodUID": engine["metadata"]["uid"],
+                "timestamp": metric["timestamp"], "window": metric.get("window"), "usage": usage})
+            db.require(db.age_hours(metric["timestamp"]) <= 0.05, "resource_metrics_stale")
+            db.require(quantity(usage["memory"]) < self.config["maximumWorkingSetBytes"], "memory_budget_exhausted")
+            timestamp = db.timestamp(metric["timestamp"])
+            if (quantity(usage["cpu"]) < self.config["maximumIdleCPUCores"]
+                    and (busy_timestamp is None or timestamp > busy_timestamp)):
+                return usage
+            busy_timestamp = timestamp if busy_timestamp is None else max(timestamp, busy_timestamp)
+            now = time.monotonic()
+            remaining = deadline - now
+            db.require(remaining > 0, "scanner_busy")
+            budget = self.deadline - self.config["scanTimeoutSeconds"] - 60 - now
+            db.require(budget > 0, "execution_time_budget")
+            time.sleep(min(IDLE_POLL_SECONDS, remaining, budget))
+            db.require(component_pod(self.api, "kubevuln")["metadata"]["uid"] == engine["metadata"]["uid"], "engine_restarted")
 
     def observe(self):
         metrics = self.api.items("/apis/metrics.k8s.io/v1beta1", "pods", NS)
