@@ -1,6 +1,10 @@
 # Controlled recurring assessments
 
 Tracking [#2135](https://github.com/RovxBot/homelab-infra/issues/2135) stays open.
+Maintained operations and coverage are in the [Kubescape Wiki](https://github.com/RovxBot/homelab-infra/wiki/Kubescape).
+The [scheduled checkpoint](scheduled-acceptance.json) records the first unattended
+partial failure and its evidence limits; historical qualification below is not
+acceptance of the current cohort or current workload digests.
 The two new CronJobs wrap the existing verified client. Both chart CronJobs
 remain suspended; chart, image watchers, preventive controls
 and PVC sizes are unchanged.
@@ -28,6 +32,7 @@ Measured samples are not instantaneous peak guarantees.
 | Job / cache audit deadline | 1800 / 600 seconds |
 | POST retries / Job retries | 0 / 0 |
 | Working memory / idle CPU before scanning | below 2Gi / 250m |
+| Idle CPU settling / poll interval | at most 120 seconds / 5 seconds, within the existing execution budget |
 | Involved node CPU/memory utilization | below 85%, recent metrics, no pressure |
 | DB / reports filesystem free | at least 3Gi / 1Gi |
 | Each physical replica disk free | at least max(10Gi, 15%) |
@@ -67,7 +72,9 @@ Database growth and additional cohorts require requalification.
 
 Before submitting, require Helm observed generation/Ready, scanner/storage
 readiness, expected immutable GitOps DB pin, mirror runtime imageID and served
-metadata, live DB integrity/metadata, publisher-verified lock and **72-hour age**.
+metadata, live DB integrity/metadata and publisher-verified lock. The DB is fresh
+through day 7, usable in grace through day 14, then blocked; image assessment
+coverage expires after 72 hours independently of DB freshness.
 Jobs use the byte-exact existing `kubescape_db.evaluate`. The transient pinned
 Grype Job checks the hydrated xxh64; Python checks SQLite metadata and SHA256.
 Audit evidence expires after 15 minutes and is bound to engine Pod UID.
@@ -103,20 +110,22 @@ Jobs or OperatorCommands alone cannot establish a successful assessment.
 `healthy` means a trustworthy recent assessment, including any findings, not
 absence of vulnerabilities or full compliance. Exit codes: 0 healthy, 2 stale,
 3 unknown, 4 failed. Publish unknown before long work, so a killed Job cannot
-leave a new healthy status. Fsync every intent before POST. Failed, timed-out or
-uncertain requests retain `inflight.json`; the next run checks the existing ID
+leave a new healthy status. Fsync every intent before POST. Timed-out, abandoned
+or uncertain requests retain `inflight.json`; an observed terminal failed/completed
+request from the same engine releases the fence while report checks can still
+fail. The next run checks any retained existing ID
 and refuses to resubmit. Lost posture responses without a server-generated ID
 also fence future scans. GET transport failures yield unknown; POSTs never retry.
 
 ## Inventory and bounded expansion
 
-[config.json](config.json) starts with Memos. After **both production Memos paths
-succeed**, add only `homepage/Deployment/homepage-assets/nginx` through a reviewed
-PR. This public unprivileged nginx static-asset service has one replica,
-20m/64Mi requests and 200m/256Mi limits. It is noncritical, has an accessible
-immutable Docker Hub digest and needs no privileged scanning. This expands
-image coverage; posture remains Memos plus shared RBAC. Remove only that entry
-through GitOps if it exceeds budget, preserving Memos and historical evidence.
+[config.json](config.json) selects six reviewed public application images after
+[PR #2190](https://github.com/RovxBot/homelab-infra/pull/2190), with at most four
+sequential requests per daily execution. New/changed/old evidence takes priority;
+failed attempts also rotate so peers are not starved. Successful peer records
+survive a partial batch failure. Configured targets do not establish successful
+coverage. Posture remains Memos plus shared RBAC. The Wiki and scheduled
+checkpoint distinguish historical and currently running digests.
 
 `kubescape-assessment-status` contains `vulnerability.json`, `posture.json` and
 `coverage.json`; full gzip evidence and `records.json` remain on the PVC.
@@ -135,18 +144,12 @@ PYTHONPATH=scripts python3 infra/kubescape/recurring/runner.py inventory --local
 kubectl -n kubescape get configmap kubescape-assessment-status -o json
 ```
 
-No monitoring platform, Gatus check or incident bridge is added. Operational
-monitoring stays under #2134/#2138 and #2135 remains open. Qualify the **deployed**
-production templates without waiting for tomorrow:
-
-```sh
-kubectl -n kubescape create job --from=cronjob/kubescape-assessment-vulnerability assessment-vulnerability-acceptance
-# Verify actual results and JSON before proceeding.
-kubectl -n kubescape create job --from=cronjob/kubescape-assessment-posture assessment-posture-acceptance
-```
-
-Record manual versus unattended execution explicitly. A manually triggered Job
-qualifies mechanics only. Leave the next unattended observation as a follow-up.
+The existing pod-report `/kubescape-health.json` and Gatus check consume minimal
+schedule status and age fields. The proposed correction makes a failed/unknown
+latest attempt override a cached successful timestamp. Detailed inventory remains
+in internal status and history. See the Wiki for production revalidation and
+recovery; manual template execution proves mechanics only, and a genuine
+unattended run is still required.
 
 ## Recovery
 

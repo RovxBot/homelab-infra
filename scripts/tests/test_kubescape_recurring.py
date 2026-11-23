@@ -265,6 +265,29 @@ class FailureTests(unittest.TestCase):
                 self.assertEqual(runner.run(), 3)
                 self.assertEqual(runner.result["state"], "unknown")
 
+    def test_failed_preflight_replaces_cached_health_without_submission(self):
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
+            history = Path(path)
+            success = R.db.stamp(NOW - timedelta(days=1))
+            R.atomic(history / "latest-vulnerability.json", {"state": "healthy", "lastSuccessfulAssessmentAt": success})
+            api = mock.Mock()
+            api.call.return_value = {"data": {"vulnerability.state": "healthy"}}
+            runner = R.Runner(api, {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]},
+                              EXPECTED, history, "vulnerability")
+            with mock.patch.object(R, "workload_rows", return_value=[row()]), \
+                    mock.patch.object(runner, "preflight", side_effect=R.db.Rejected("scanner_busy")), \
+                    mock.patch.object(runner, "audit") as audit, mock.patch.object(R, "service") as service, \
+                    mock.patch("builtins.print"):
+                self.assertEqual(runner.run(), 4)
+            audit.assert_not_called()
+            service.assert_not_called()
+            data = api.call.call_args.args[1]["data"]
+            self.assertEqual(data["vulnerability.state"], "failed")
+            self.assertEqual(data["vulnerability.lastSuccessfulAssessmentAt"], success)
+            self.assertEqual(json.loads(data["vulnerability.json"])["reasons"], ["scanner_busy"])
+            self.assertFalse((history / "inflight.json").exists())
+            self.assertFalse(list(history.glob("*.done")))
+
     def test_low_storage(self):
         self.run_failure("database_pvc_low_space")
         self.run_failure("replica_disk_low_space")
@@ -396,10 +419,11 @@ class SubmissionTests(unittest.TestCase):
             if value is not None:
                 posted.append(value)
                 self.assertIs(value["args"]["forceRescan"], True)
-                report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(NOW)
+                report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(clock.return_value)
                 return {"accepted": True}
-            return {"state": "succeeded", "phase": "completed", "startedAt": R.db.stamp(NOW), "finishedAt": R.db.stamp(NOW + timedelta(seconds=1))}
-        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW), \
+            return {"state": "succeeded", "phase": "completed", "startedAt": R.db.stamp(clock.return_value),
+                    "finishedAt": R.db.stamp(clock.return_value + timedelta(seconds=1))}
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW) as clock, \
                 mock.patch.object(R, "workload_rows", return_value=[current]), mock.patch.object(R, "service", side_effect=service), \
                 mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "engine-uid"}}):
             history = Path(path)
@@ -421,6 +445,17 @@ class SubmissionTests(unittest.TestCase):
                 self.assertEqual(duplicate.run(), 4)
             self.assertEqual(duplicate.result["reasons"], ["duplicate_execution"])
             self.assertEqual(len(posted), 1)
+            # Yesterday's completion and report cannot suppress a new daily scan.
+            clock.return_value = NOW + timedelta(days=1)
+            tomorrow = R.Runner(api, config, EXPECTED, history, "vulnerability")
+            with mock.patch.object(tomorrow, "preflight", return_value={}), \
+                    mock.patch.object(tomorrow, "audit", return_value={"podUID": "engine-uid", "checkedAt": R.db.stamp(clock.return_value)}), \
+                    mock.patch.object(tomorrow, "gate"), mock.patch.object(tomorrow, "observe"), mock.patch("builtins.print"):
+                self.assertEqual(tomorrow.run(), 0)
+            self.assertEqual(len(posted), 2)
+            self.assertNotEqual(posted[0]["jobID"], posted[1]["jobID"])
+            self.assertEqual(tomorrow.records[R.row_key(current)]["createdAt"], R.db.stamp(clock.return_value))
+            self.assertEqual(len(list(history.glob("*.done"))), 2)
 
     def test_terminal_failure_does_not_resubmit_and_clears_intent(self):
         self.submission_case("failed", "scan_failed")
@@ -525,6 +560,111 @@ class PrerequisiteTests(unittest.TestCase):
             runner = R.Runner(api, CANARY_CONFIG, EXPECTED, Path(path), "vulnerability")
             with self.assertRaisesRegex(R.db.Rejected, "replica_disk_low_space"):
                 runner.storage_gate()
+
+
+class IdleResourceTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.api = mock.Mock()
+        self.runner = R.Runner(self.api, {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]},
+                               EXPECTED, Path(self.temp.name), "vulnerability")
+        self.elapsed = 0
+        self.start = datetime(2026, 11, 22, 19, 15, 56, tzinfo=timezone.utc)
+        self.runner.deadline = 1500
+        self.engine = {"metadata": {"name": "engine", "uid": "engine-uid"}, "spec": {"nodeName": "node"}}
+        self.clock = self.enterContext(mock.patch.object(R.db, "utcnow", side_effect=lambda: self.start + timedelta(seconds=self.elapsed)))
+        self.enterContext(mock.patch.object(R.time, "monotonic", side_effect=lambda: self.elapsed))
+        self.sleep = self.enterContext(mock.patch.object(R.time, "sleep", side_effect=self.advance))
+        self.component = self.enterContext(mock.patch.object(R, "component_pod", return_value=self.engine))
+        self.service = self.enterContext(mock.patch.object(R, "service", return_value={"queueDepth": 0}))
+
+    def advance(self, seconds):
+        self.elapsed += seconds
+
+    def metric(self, cpu="496760303n", memory="239152Ki", seconds=-29):
+        # Exact CPU/memory and timestamp offset from the last retained Koito
+        # sample, 19:15:27Z, before the 19:15:56Z scanner_busy failure. The
+        # rejected preflight itself did not retain its sample or metrics window.
+        return {"metadata": {"name": "engine"}, "timestamp": R.db.stamp(self.start + timedelta(seconds=seconds)),
+                "containers": [{"name": "kubevuln", "usage": {"cpu": cpu, "memory": memory}}]}
+
+    def test_previous_scan_cpu_waits_for_new_idle_sample(self):
+        busy, idle = self.metric(), self.metric(cpu="1m", seconds=5)
+        self.api.items.side_effect = [[busy], [busy], [idle]]
+        self.assertEqual(self.runner.idle_resources(self.engine), idle["containers"][0]["usage"])
+        self.assertEqual(self.elapsed, 10)
+        self.assertEqual(len(self.runner.result["resourcePreflight"]), 3)
+        self.assertEqual(self.runner.result["resourcePreflight"][0]["usage"]["cpu"], "496760303n")
+        self.service.assert_not_called()
+        self.assertFalse((self.runner.history / "inflight.json").exists())
+
+    def test_busy_scanner_stays_failed_and_bounded(self):
+        self.api.items.return_value = [self.metric()]
+        with self.assertRaisesRegex(R.db.Rejected, "scanner_busy"):
+            self.runner.idle_resources(self.engine)
+        self.assertEqual(self.elapsed, R.IDLE_WAIT_SECONDS)
+        self.assertEqual(self.api.items.call_count, 1 + R.IDLE_WAIT_SECONDS // R.IDLE_POLL_SECONDS)
+        self.service.assert_not_called()
+
+    def test_idle_sample_must_advance_after_busy(self):
+        # A regressed or cached metric cannot turn a busy observation into idle.
+        busy, idle = self.metric(), self.metric(cpu="1m", seconds=-30)
+        self.api.items.side_effect = [[busy]] + [[idle]] * 24
+        with self.assertRaisesRegex(R.db.Rejected, "scanner_busy"):
+            self.runner.idle_resources(self.engine)
+
+    def test_wait_preserves_memory_freshness_identity_and_transport_gates(self):
+        for failure in ("memory_budget_exhausted", "resource_metrics_stale", "engine_restarted", "api_unavailable"):
+            with self.subTest(failure=failure):
+                self.elapsed = 0
+                self.component.return_value = self.engine
+                second = self.metric(memory="3Gi") if failure == "memory_budget_exhausted" else self.metric(seconds=-181)
+                self.api.items.side_effect = [[self.metric()], [second]]
+                if failure == "engine_restarted":
+                    self.component.return_value = {"metadata": {"uid": "replacement"}}
+                if failure == "api_unavailable":
+                    self.api.items.side_effect = [[self.metric()], R.APIError(503)]
+                    with self.assertRaises(R.APIError):
+                        self.runner.idle_resources(self.engine)
+                else:
+                    with self.assertRaisesRegex(R.db.Rejected, failure):
+                        self.runner.idle_resources(self.engine)
+                self.assertEqual(self.elapsed, 5)
+        self.service.assert_not_called()
+
+    def test_wait_leaves_time_for_scan_and_publication(self):
+        self.runner.deadline = self.runner.config["scanTimeoutSeconds"] + 60 + 7
+        self.api.items.return_value = [self.metric()]
+        with self.assertRaisesRegex(R.db.Rejected, "execution_time_budget"):
+            self.runner.idle_resources(self.engine)
+        self.assertEqual(self.elapsed, 7)
+        self.service.assert_not_called()
+
+    def test_full_preflight_still_rejects_nonempty_queue_after_idle(self):
+        busy, idle = self.metric(), self.metric(cpu="1m", seconds=5)
+        pod_samples = iter([[busy], [idle]])
+        node = {"metadata": {"name": "node"}, "status": {
+            "conditions": [{"type": "Ready", "status": "True"}], "allocatable": {"cpu": "4", "memory": "8Gi"}}}
+        def items(base, resource, namespace=None):
+            if resource == "pods":
+                return next(pod_samples) if namespace == R.NS else []
+            if base == R.CORE:
+                return [node]
+            return [{"metadata": {"name": "node"}, "timestamp": R.db.stamp(self.clock()),
+                     "usage": {"cpu": "1m", "memory": "1Gi"}}]
+        self.api.items.side_effect = items
+        self.api.get.return_value = {"metadata": {"generation": 1}, "spec": {"values": {
+            "grypeOfflineDB": {"image": {"sha": EXPECTED["indexDigest"]}}}}, "status": {"observedGeneration": 1,
+            "conditions": [{"type": "Ready", "status": "True", "observedGeneration": 1}]}}
+        self.service.return_value = {"queueDepth": 1}
+        with mock.patch.object(self.runner, "storage_gate") as storage, \
+                mock.patch.object(R.os, "statvfs", return_value=SimpleNamespace(f_bavail=6 * 1024**3, f_frsize=1)):
+            with self.assertRaisesRegex(R.db.Rejected, "engine_not_idle"):
+                self.runner.preflight()
+        storage.assert_called_once()
+        self.assertEqual(self.elapsed, 5)
+        self.assertTrue(all(call.args[1] != "/v1/scanImage" for call in self.service.call_args_list))
 
 
 if __name__ == "__main__":
