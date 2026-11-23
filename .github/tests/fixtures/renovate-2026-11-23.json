@@ -1,0 +1,211 @@
+{
+  "date": "2026-11-23",
+  "sourceHeads": {
+    "2195": "0f7f7757987dd22ef749a6e2c922ac37a1850a10",
+    "2196": "a472f5c2d3618a46ff93ef50683ef1a0bfb2630f",
+    "2021": "11f825d5d78a25c7140930768070c224771960b7",
+    "2197": "ddae5785f8d0e89d40001456ca62856d412508a0",
+    "2198": "39bfd186cafbdd6a82fab9d924f903857b6dd532",
+    "2109": "a553830662c75bcf99b7e1f10ba42538d2518a6a"
+  },
+  "cases": [
+    {
+      "depName": "foxxmd/multi-scrobbler",
+      "packageFile": "apps/koito/lastfm-bridge.yaml",
+      "currentValue": "0.21.0",
+      "newValue": "0.21.1",
+      "updateType": "patch",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "ghcr.io/immich-app/immich-server",
+      "packageFile": "apps/immich/server.yaml",
+      "currentValue": "v3.4.1",
+      "newValue": "v3.4.2",
+      "updateType": "patch",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "ghcr.io/immich-app/immich-machine-learning",
+      "packageFile": "apps/immich/machine-learning.yaml",
+      "currentValue": "v3.4.1",
+      "newValue": "v3.4.2",
+      "updateType": "patch",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "alpine/git",
+      "packageFile": "apps/home-assistant/deployment.yaml",
+      "currentValue": "v2.54.1",
+      "newValue": "v2.54.1",
+      "updateType": "digest",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "postgres",
+      "packageFile": "apps/gitea/database.yaml",
+      "currentValue": "17-bookworm",
+      "newValue": "17-bookworm",
+      "updateType": "digest",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "invoiceninja/invoiceninja",
+      "packageFile": "apps/invoiceninja/deployment.yaml",
+      "currentValue": "5.13.53",
+      "newValue": "5.13.56",
+      "updateType": "patch",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "neosmemo/memos",
+      "packageFile": "apps/memos/deployment.yaml",
+      "currentValue": "26.11.1",
+      "newValue": "26.11.2",
+      "updateType": "patch",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "ghcr.io/stirling-tools/stirling-pdf",
+      "packageFile": "apps/stirling-pdf/deployment.yaml",
+      "currentValue": "3.3.0-fat",
+      "newValue": "3.5.0-fat",
+      "updateType": "minor",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "journeyapps/powersync-service",
+      "packageFile": "apps/wger/powersync.yaml",
+      "currentValue": "1.28.3",
+      "newValue": "1.29.1",
+      "updateType": "minor",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "eclipse-mosquitto",
+      "packageFile": "infra/mosquitto/deployment.yaml",
+      "currentValue": "2.0.22",
+      "newValue": "2.0.23",
+      "updateType": "patch",
+      "expectedBranch": "renovate/weekly-maintenance"
+    },
+    {
+      "depName": "quay.io/kubescape/grype-offline-db",
+      "packageFile": "infra/kubescape/helmrelease.yaml",
+      "currentValue": "v6-latest",
+      "newValue": "v6-latest",
+      "updateType": "digest",
+      "expectedBranch": null
+    },
+    {
+      "depName": "quay.io/kubescape/kubevuln",
+      "packageFile": "infra/kubescape/recurring/scanner/Dockerfile",
+      "currentValue": "v0.3.578",
+      "newValue": "v0.3.585",
+      "updateType": "patch",
+      "expectedBranch": null,
+      "manager": "dockerfile"
+    },
+    {
+      "depName": "golang",
+      "packageFile": "infra/kubescape/recurring/scanner/Dockerfile",
+      "currentValue": "1.26-trixie",
+      "newValue": "1.27-trixie",
+      "updateType": "minor",
+      "expectedBranch": null,
+      "manager": "dockerfile"
+    },
+    {
+      "depName": "quay.io/kubescape/kubescape",
+      "packageFile": "infra/kubescape/helmrelease.yaml",
+      "currentValue": "v4.0.20",
+      "newValue": "v4.0.21",
+      "updateType": "patch",
+      "expectedBranch": "renovate/kubescape-release",
+      "manager": "flux"
+    },
+    {
+      "depName": "quay.io/kubescape/operator",
+      "packageFile": "infra/kubescape/helmrelease.yaml",
+      "currentValue": "v0.2.209",
+      "newValue": "v0.2.240",
+      "updateType": "patch",
+      "expectedBranch": "renovate/kubescape-release",
+      "manager": "flux"
+    },
+    {
+      "depName": "quay.io/kubescape/storage",
+      "packageFile": "infra/kubescape/helmrelease.yaml",
+      "currentValue": "v0.0.382",
+      "newValue": "v0.0.415",
+      "updateType": "patch",
+      "expectedBranch": "renovate/kubescape-release",
+      "manager": "flux"
+    },
+    {
+      "depName": "ghcr.io/home-assistant/home-assistant",
+      "packageFile": "apps/home-assistant/deployment.yaml",
+      "currentValue": "2026.10.4",
+      "newValue": "2026.11.2",
+      "updateType": "minor",
+      "expectedBranch": "renovate/home-assistant"
+    },
+    {
+      "depName": "restic/restic",
+      "packageFile": "infra/backups/restic-immich-photos.yaml",
+      "currentValue": "0.19.1",
+      "newValue": "0.20.0",
+      "updateType": "minor",
+      "expectedBranch": "renovate/restic-restic-0.x",
+      "manager": "kubernetes"
+    },
+    {
+      "depName": "restic/restic",
+      "packageFile": "ops/gitea/images/Dockerfile",
+      "currentValue": "0.19.1",
+      "newValue": "0.20.0",
+      "updateType": "minor",
+      "expectedBranch": "renovate/restic-restic-0.x",
+      "manager": "dockerfile"
+    },
+    {
+      "depName": "restic/restic",
+      "packageFile": "ops/gitea/images/backup.Dockerfile",
+      "currentValue": "0.19.1",
+      "newValue": "0.20.0",
+      "updateType": "minor",
+      "expectedBranch": "renovate/restic-restic-0.x",
+      "manager": "dockerfile"
+    },
+    {
+      "depName": "linuxserver/prowlarr",
+      "packageFile": "apps/prowlarr/deployment.yaml",
+      "currentValue": "2.7.0.5723-ls168",
+      "newValue": "3.0.2.5780-ls169",
+      "updateType": "major",
+      "expectedBranch": "renovate/prowlarr-release"
+    },
+    {
+      "depName": "ubuntu",
+      "packageFile": ".github/workflows/ci.yml",
+      "currentValue": "24.04",
+      "newValue": "26.04",
+      "updateType": "major",
+      "expectedBranch": "renovate/ubuntu-26.x",
+      "manager": "github-actions",
+      "depType": "github-runner",
+      "datasource": "github-runners"
+    },
+    {
+      "depName": "ubuntu",
+      "packageFile": ".github/workflows/kubescape-scanner-image.yml",
+      "currentValue": "24.04",
+      "newValue": "26.04",
+      "updateType": "major",
+      "expectedBranch": "renovate/ubuntu-26.x",
+      "manager": "github-actions",
+      "depType": "github-runner",
+      "datasource": "github-runners"
+    }
+  ]
+}

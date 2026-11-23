@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: invoiceninja
-          image: invoiceninja/invoiceninja:5.13.53@sha256:63f77970efdd0d648b7b372958519f1fd4a89da690884c9b4abf3d911918640e
+          image: invoiceninja/invoiceninja:5.13.56@sha256:39a2835e53dd19446966be4a99445419c9badfaab6035390cb9ef2a2cb0b654b
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9000

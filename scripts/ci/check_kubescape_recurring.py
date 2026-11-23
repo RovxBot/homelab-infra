@@ -13,11 +13,23 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "scripts/ci"))
 import kubescape_recurring_bundle
 import check_kubescape as chart
+from image_reference import pinned_image_tag
+
+
+def check_runner_images(pod):
+    # Keep the reviewed interpreter/distro contract and atomic occurrences;
+    # ordinary patch and digest changes do not need copied literal pins.
+    images = {c['image'] for c in pod['containers'] + pod['initContainers']}
+    assert len(images) == 1, 'recurring runner images must move together'
+    pinned_image_tag(images.pop(), repository='python', tag_pattern=r'3\.15(?:\.\d+)?-alpine')
 
 
 def check(resources):
     jobs = [r for r in resources if r["kind"] == "CronJob"]
     assert {r["metadata"]["name"] for r in jobs} == {"kubescape-assessment-vulnerability", "kubescape-assessment-posture"}
+    assert len({c['image'] for job in jobs for c in
+                job['spec']['jobTemplate']['spec']['template']['spec']['containers'] +
+                job['spec']['jobTemplate']['spec']['template']['spec']['initContainers']}) == 1, 'recurring jobs must use one reviewed runner pin'
     config = json.loads((ROOT / "infra/kubescape/recurring/config.json").read_text())
     evidence = json.loads((ROOT / "infra/kubescape/recurring/resource-qualification.json").read_text())
     assert config["resourceBudgetQualified"] is True and evidence["status"] == "verified"
@@ -65,8 +77,7 @@ def check(resources):
         probe["metadata"]["name"] = "kubescape-scheduler"
         probe["spec"]["suspend"] = True
         assert not chart.findings([probe]), chart.findings([probe])
-        assert all(c["image"] == "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
-                   for c in pod["containers"] + pod["initContainers"])
+        check_runner_images(pod)
         mounts = pod["containers"][0]["volumeMounts"]
         assert next(m for m in mounts if m["name"] == "history")["subPath"] == "assessments"
         assert next(v for v in pod["volumes"] if v["name"] == "history")["persistentVolumeClaim"]["claimName"] == "kubescape-kubevuln"
