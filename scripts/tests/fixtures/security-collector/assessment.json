@@ -1,0 +1,105 @@
+{
+  "report": {
+    "metadata": {
+      "name": "synthetic-report",
+      "annotations": {
+        "kubescape.io/status": "ready"
+      }
+    },
+    "spec": {
+      "metadata": {
+        "report": {
+          "createdAt": "2026-11-23T00:00:00Z"
+        },
+        "tool": {
+          "databaseVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "version": "v0.121.0-matching-off"
+        }
+      },
+      "payload": {
+        "source": {
+          "target": {
+            "userInput": "registry.invalid/example@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        },
+        "descriptor": {
+          "db": {
+            "built": "2026-11-21T06:20:06Z",
+            "schemaVersion": "v6.1.10",
+            "valid": true
+          }
+        },
+        "matches": [
+          {
+            "vulnerability": {
+              "id": "CVE-2026-10001",
+              "severity": "High",
+              "fix": {
+                "state": "fixed",
+                "versions": [
+                  "1.2.3"
+                ]
+              },
+              "description": "UNTRUSTED_PAYLOAD_DO_NOT_PUBLISH"
+            },
+            "artifact": {
+              "name": "private-package"
+            }
+          },
+          {
+            "vulnerability": {
+              "id": "CVE-2026-10002",
+              "severity": "Critical",
+              "fix": {
+                "state": "not-fixed"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "sbom": {
+    "metadata": {
+      "annotations": {
+        "kubescape.io/status": "ready"
+      }
+    },
+    "spec": {
+      "syft": {
+        "source": {
+          "metadata": {
+            "userInput": "registry.invalid/example@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "architecture": "amd64",
+            "os": "linux",
+            "manifest": "eyJzY2hlbWFWZXJzaW9uIjoyfQ==",
+            "manifestDigest": "sha256:bafebd36189ad3688b7b3915ea55d461e0bfcfbdde11e54b0a123999fb6be50f",
+            "config": "eyJhcmNoaXRlY3R1cmUiOiJhbWQ2NCIsIm9zIjoibGludXgifQ==",
+            "imageID": "sha256:9d99a75171aea000c711b34c0e5e3f28d3d537dd99d110eafbfbc2bd8e52c2bf"
+          }
+        },
+        "artifacts": [
+          {
+            "id": "synthetic-nonempty"
+          }
+        ]
+      }
+    }
+  },
+  "summary": {
+    "metadata": {
+      "annotations": {
+        "kubescape.io/image-id": "registry.invalid/example@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "kubescape.io/workload-container-name": "app",
+        "kubescape.io/wlid": "wlid://cluster-home/namespace-example/deployment-example"
+      }
+    },
+    "spec": {
+      "vulnerabilitiesRef": {
+        "all": {
+          "name": "synthetic-report"
+        }
+      }
+    }
+  }
+}

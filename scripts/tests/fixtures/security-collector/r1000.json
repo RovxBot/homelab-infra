@@ -1,0 +1,25 @@
+{
+  "RuleID": "R1000",
+  "BaseRuntimeMetadata": {
+    "alertName": "Process Executed from /dev/shm",
+    "severity": 8,
+    "timestamp": "2026-11-22T23:35:19.421796939Z",
+    "uniqueID": "synthetic-event-1",
+    "agentVersion": "v0.3.310"
+  },
+  "RuntimeK8sDetails": {
+    "namespace": "example",
+    "containerName": "app",
+    "workloadKind": "Deployment",
+    "workloadName": "example",
+    "podName": "example-synthetic",
+    "imageDigest": "registry.invalid/example@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "RuntimeProcessDetails": {
+    "processTree": {
+      "cmdline": "SYNTHETIC_SECRET_DO_NOT_PUBLISH",
+      "cwd": "/private/synthetic"
+    }
+  },
+  "message": "UNTRUSTED_PAYLOAD_DO_NOT_PUBLISH"
+}

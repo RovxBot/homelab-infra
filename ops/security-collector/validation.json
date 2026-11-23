@@ -1,0 +1,35 @@
+{
+  "stage": "A-offline-only",
+  "pullRequest": "https://github.com/RovxBot/homelab-infra/pull/2203",
+  "review": "https://github.com/RovxBot/homelab-infra/pull/2203#issuecomment-7090846341",
+  "reviewedBase": "b4bc075f5addc1bf8ccc2d76e8c657922a4bcc67",
+  "checks": [
+    {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_security_collector.py -v",
+      "result": "passed",
+      "tests": 31
+    },
+    {
+      "command": "python3 -m compileall -q scripts/security_collector scripts/tests/test_security_collector.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --cached --check",
+      "result": "passed"
+    }
+  ],
+  "reviewRegressions": [
+    "Explicit source/category telemetry scope and same-workload runtime/vulnerability isolation",
+    "Invalid or omitted telemetry scope rejects without mutation",
+    "Critical finding IDs, count, severity and fix hint survive unqualified empty/changed assessments; public projection stays safe and issue remains open",
+    "Qualified snapshot survives restart, history rollover, inventory expiry and deployment changes",
+    "Later qualified positive and clean assessments supersede the retained snapshot"
+  ],
+  "githubCI": "Revision push triggers final-head CI; result not awaited",
+  "collectorDeployed": false,
+  "productionIncidentWrites": false,
+  "wikiPublished": false,
+  "wikiProposal": "Unchanged by this revision; applicability was checked in the initial Stage A validation",
+  "wikiGate": "Security-sensitive architecture proposal requires review under AGENTS.md.",
+  "remainingGate": "Final-head CI and independent Stage A re-review; no merge/deploy. Separately approve and qualify authenticated durable transport, trusted assessment reader and production GitHub client."
+}
