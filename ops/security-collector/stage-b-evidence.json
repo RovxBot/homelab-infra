@@ -126,5 +126,6 @@
   "automaticClosure": false,
   "collectorDeployed": false,
   "wikiPublished": false,
-  "wikiProposal": "wiki-proposal.patch; security review required before publication"
+  "wikiProposal": "wiki-proposal.patch; security review required before publication",
+  "pullRequest": "https://github.com/RovxBot/homelab-infra/pull/2204"
 }
