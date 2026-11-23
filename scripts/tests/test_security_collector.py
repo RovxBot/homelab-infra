@@ -138,12 +138,131 @@ class CollectorTests(unittest.TestCase):
     def test_missing_stale_and_failed_do_not_recover(self):
         a = self.c.ingest(assessment(), NOW)
         for state in ('failed', 'unknown', 'stale', 'unsupported'):
-            self.c.telemetry(W, state)
+            self.c.telemetry(W, state, source='kubescape', category='vulnerability')
             self.assertEqual(self.c.get(a['key'])['status'], 'open')
             self.assertEqual(self.c.get(a['key'])['freshness'], state)
         self.c.refresh(NOW + timedelta(days=4))
         self.assertEqual(self.c.get(a['key'])['status'], 'open')
         self.assertEqual(self.c.get(a['key'])['freshness'], 'stale')
+
+    def test_telemetry_gaps_are_source_and_category_scoped(self):
+        runtime_incident = self.c.ingest(runtime(), NOW)
+        vulnerability = self.c.ingest(assessment(), NOW)
+        for state in ('unknown', 'failed', 'stale', 'unsupported'):
+            with self.subTest(state=state):
+                self.c.telemetry(W, state, source='kubescape', category='vulnerability')
+                self.assertEqual(self.c.get(runtime_incident['key']), runtime_incident)
+                self.assertEqual(self.c.get(vulnerability['key'])['freshness'], state)
+        vulnerability = self.c.ingest(assessment(clean_bundle()), NOW)
+        self.assertEqual(vulnerability['status'], 'resolved')
+        self.c.telemetry(W, 'failed', source='kubescape', category='runtime')
+        self.assertEqual(self.c.get(vulnerability['key']), vulnerability)
+        self.assertEqual(self.c.get(runtime_incident['key'])['confidence'], 'unverified')
+        runtime_incident = self.c.ingest(runtime(uniqueID='recovered', timestamp='2026-11-23T00:03:00Z'), NOW)
+        self.assertEqual(runtime_incident['freshness'], 'confirmed')
+        self.assertEqual(runtime_incident['confidence'], 'detection')
+        self.c.telemetry(W, 'unknown', source='kubescape', category='vulnerability')
+        self.assertEqual(self.c.get(runtime_incident['key']), runtime_incident)
+        self.assertEqual(self.c.get(vulnerability['key'])['status'], 'open')
+
+    def test_invalid_telemetry_scope_is_rejected_without_mutation(self):
+        self.c.ingest(runtime(), NOW)
+        self.c.ingest(assessment(), NOW)
+        before = self.c.all()
+        for source, category in (('untrusted', 'runtime'), ('kubescape', 'posture')):
+            with self.subTest(source=source, category=category), self.assertRaises(Rejected):
+                self.c.telemetry(W, 'failed', source=source, category=category)
+        with self.assertRaises(TypeError):
+            self.c.telemetry(W, 'failed')
+        self.assertEqual(self.c.all(), before)
+
+    def test_unqualified_assessments_retain_qualified_findings_and_public_output(self):
+        confirmed = self.c.ingest(assessment(), NOW)
+        delivery = self.delivery(enabled=True, allow_closure=True)
+        delivery.sync(NOW)
+        candidate = assessment(clean_bundle(), context=replace(CTX, latest_attempt='failed'))
+        snapshot_fields = ('identities', 'finding_count', 'severity', 'remediation', 'provenance',
+                           'findings_at', 'findings_digest', 'findings_generation', 'findings_qualified')
+        states = [('unverified', state) for state in ('unknown', 'failed', 'stale', 'unsupported')]
+        for i, (confidence, freshness) in enumerate(states + [('qualified', 'stale')]):
+            for identities in ((), ('CVE-2026-10003',)):
+                with self.subTest(confidence=confidence, freshness=freshness, identities=identities):
+                    at = stamp(NOW - timedelta(minutes=4) + timedelta(seconds=2*i + bool(identities)))
+                    event = replace(candidate, observed_at=at, identities=identities, severity='Low',
+                                    confidence=confidence, freshness=freshness,
+                                    event_id=fingerprint((confidence, freshness, identities)))
+                    updated = self.c.ingest(event, NOW)
+                    self.assertEqual({k: updated[k] for k in snapshot_fields},
+                                     {k: confirmed[k] for k in snapshot_fields})
+                    self.assertEqual(updated['assessed_at'], at)
+                    self.assertEqual(updated['freshness'], freshness)
+                    self.assertEqual(updated['confidence'], confidence)
+                    self.assertEqual(updated['status'], 'open')
+                    self.assertIsNone(updated['resolution'])
+                    title, body = render(updated, self.publications[W.key])
+                    for expected in ('CVE-2026-10001', 'CVE-2026-10002', 'Severity: Critical',
+                                     'Findings in last qualified assessment: 2', 'Scanner reports a fix',
+                                     'Finding snapshot: 2026-11-23T00:00:00Z',
+                                     f'Latest assessment attempt: {at}'):
+                        self.assertIn(expected, body)
+                    self.assertNotIn('None in', body)
+                    self.assertNotIn('CVE-2026-10003', body)
+                    for forbidden in ('UNTRUSTED_PAYLOAD', 'private-package',
+                                      'registry.invalid', '/private/', 'TOKEN_MUST_NOT_PERSIST'):
+                        self.assertNotIn(forbidden, title + body + json.dumps(self.c.all()))
+        self.assertEqual(delivery.sync(NOW), 'complete')
+        issue = self.github.issues[confirmed['key']]
+        self.assertEqual(issue.state, 'open')
+        self.assertEqual(issue.body, body)
+
+    def test_qualified_finding_snapshot_survives_restart_history_and_deployment(self):
+        confirmed = self.c.ingest(assessment(), NOW)
+        candidate = assessment(clean_bundle(), context=replace(CTX, coverage_complete=False))
+        for i in range(35):
+            self.c.ingest(replace(candidate, event_id=fingerprint(('gap', i)),
+                                 observed_at=stamp(NOW - timedelta(minutes=4) + timedelta(seconds=i))), NOW)
+        self.c.close()
+        self.c = Collector(self.path)
+        changed = replace(D, digest='sha256:'+'c'*64, generation=2)
+        self.c.deployment(changed)
+        # A qualified-looking old-digest clean report cannot replace the snapshot.
+        updated = self.c.ingest(assessment(clean_bundle('2026-11-23T00:03:00Z')), NOW)
+        self.c.refresh(NOW + timedelta(hours=2))
+        updated = self.c.get(confirmed['key'])
+        self.assertEqual(len(updated['history']), 32)
+        self.assertTrue(all(h['findings'] == 0 for h in updated['history']))
+        self.assertEqual(updated['identities'], confirmed['identities'])
+        self.assertEqual(updated['severity'], 'Critical')
+        self.assertEqual(updated['remediation'], 'fix_available')
+        self.assertEqual(updated['findings_digest'], D.digest)
+        self.assertEqual(updated['digest'], changed.digest)
+        self.assertEqual(updated['status'], 'open')
+        self.assertEqual(updated['freshness'], 'stale')
+        _, body = render(updated, self.publications[W.key])
+        self.assertIn(f'Finding snapshot: {confirmed["findings_at"]}; image digest: {D.digest}; generation: 1', body)
+        self.assertIn(f'Image digest: {changed.digest}', body)
+
+    def test_new_qualified_assessment_supersedes_retained_snapshot(self):
+        confirmed = self.c.ingest(assessment(), NOW)
+        self.c.ingest(assessment(clean_bundle(), context=replace(CTX, coverage_complete=False)), NOW)
+        bundle = json.loads((FIXTURES / 'assessment.json').read_text())
+        bundle['report']['spec']['metadata']['report']['createdAt'] = '2026-11-23T00:02:00Z'
+        bundle['report']['spec']['payload']['matches'] = [
+            {'vulnerability': {'id': 'CVE-2026-10003', 'severity': 'High', 'fix': {'state': 'not-fixed'}}}]
+        updated = self.c.ingest(assessment(bundle), NOW)
+        self.assertEqual(updated['identities'], ['CVE-2026-10003'])
+        self.assertEqual(updated['finding_count'], 1)
+        self.assertEqual(updated['severity'], 'High')
+        self.assertEqual(updated['remediation'], 'no_known_fix')
+        self.assertEqual(updated['findings_at'], '2026-11-23T00:02:00Z')
+        self.assertEqual(updated['status'], 'open')
+        updated = self.c.ingest(assessment(clean_bundle('2026-11-23T00:03:00Z')), NOW)
+        self.assertEqual(updated['key'], confirmed['key'])
+        self.assertEqual(updated['identities'], [])
+        self.assertEqual(updated['finding_count'], 0)
+        self.assertEqual(updated['severity'], 'Unknown')
+        self.assertEqual(updated['findings_at'], '2026-11-23T00:03:00Z')
+        self.assertEqual(updated['status'], 'resolved')
 
     def test_clean_qualified_recovery_and_separate_closure_gate(self):
         a = self.c.ingest(assessment(), NOW)
@@ -155,7 +274,7 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(self.github.issues[a['key']].state, 'open')
         self.delivery(enabled=True, allow_closure=True).sync(NOW)
         self.assertEqual(self.github.issues[a['key']].state, 'closed')
-        self.c.telemetry(W, 'failed')
+        self.c.telemetry(W, 'failed', source='kubescape', category='vulnerability')
         self.delivery(enabled=True, allow_closure=True).sync(NOW)
         self.assertEqual(self.github.issues[a['key']].state, 'open')
 

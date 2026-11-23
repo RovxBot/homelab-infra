@@ -32,7 +32,9 @@ def render(incident, publication):
     w = publication.public_workload
     runtime = incident['category'] == 'runtime'
     title = f"Security: {'runtime detection' if runtime else 'image vulnerabilities'} in {w.namespace}/{w.name}"
-    identifiers = ', '.join(incident['identities']) or 'None in latest assessment'
+    finding_evidence = ('latest evidence' if runtime else 'last qualified assessment'
+                        if incident.get('findings_qualified') else 'unqualified evidence')
+    identifiers = ', '.join(incident['identities']) or f'None in {finding_evidence}'
     investigation = ('Investigate the rule against private process evidence and expected workload behaviour; record a reviewed disposition.'
                      if runtime else 'Review the deployed image and private assessment; qualify an image update through Renovate/CI, deploy through Flux, then reassess.')
     fix = ('Scanner reports a fix; applicability needs review.' if incident['remediation'] == 'fix_available'
@@ -46,7 +48,7 @@ def render(incident, publication):
         f"Detected: {'runtime rule violation' if runtime else 'vulnerabilities in an application image'}.",
         f'Affected: {w.namespace}/{w.kind}/{w.name}, container {w.container}.',
         f"Severity: {incident['severity']}. Rule/advisories: {identifiers}.",
-        f"Findings in latest evidence: {incident['finding_count']} (up to 50 identifiers shown).",
+        f"Findings in {finding_evidence}: {incident['finding_count']} (up to 50 identifiers shown).",
         f"First observed: {stamp(timestamp(incident['first']))}. Last observed: {stamp(timestamp(incident['last']))}.",
         f"Occurrences / assessments: {incident['count']}.",
         f"State: {incident['status']}. Evidence: {incident['freshness']}; confidence: {incident['confidence']}.",
@@ -55,6 +57,10 @@ def render(incident, publication):
         f"Image digest: {incident['digest'] or 'unavailable'}.",
         f"Provenance: {incident['provenance']}.",
         f'Investigation: {investigation}', f'Remediation: {fix}', f'Related issues: {related}.']
+    if not runtime and incident.get('findings_at'):
+        lines.append(f"Finding snapshot: {stamp(timestamp(incident['findings_at']))}; "
+                     f"image digest: {incident['findings_digest']}; generation: {incident['findings_generation']}.")
+        lines.append(f"Latest assessment attempt: {stamp(timestamp(incident['assessed_at']))}.")
     if disposition:
         lines.append(f'Reviewed disposition: {REPO}/issues/{disposition}.')
     return title, '\n\n'.join(lines + [END])

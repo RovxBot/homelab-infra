@@ -70,7 +70,7 @@ class Collector:
                 if incident['digest'] != deployment.digest or incident['generation'] != deployment.generation:
                     incident.update(digest=deployment.digest, generation=deployment.generation,
                                     freshness='unknown', confidence='unverified', status='open',
-                                    resolution=None, remediation='reassess', valid_until=None)
+                                    resolution=None, valid_until=None)
                     self._save(incident)
 
     def ingest(self, event: Observation, now):
@@ -104,10 +104,9 @@ class Collector:
                 severity=event.severity, confidence=event.confidence, remediation=event.remediation,
                 freshness=event.freshness)])[-32:]
             if timestamp(event.observed_at) >= timestamp(previous_last):
-                incident.update(identities=list(event.identities[:50]), finding_count=len(event.identities),
-                                severity=event.severity, provenance=event.provenance,
-                                confidence=event.confidence, freshness=event.freshness,
-                                remediation=event.remediation, valid_until=event.valid_until)
+                incident.update(confidence=event.confidence, freshness=event.freshness,
+                                valid_until=event.valid_until)
+                qualified = False
                 if event.category == 'runtime':
                     incident.update(digest=event.digest, status='open', resolution=None)
                 else:
@@ -120,21 +119,34 @@ class Collector:
                     incident.update(digest=deployed['digest'] if deployed else event.digest,
                                     generation=deployed['generation'] if deployed else event.generation,
                                     assessed_at=event.observed_at)
-                    clean = (current and event.clean and event.confidence == 'qualified'
-                             and event.freshness == 'confirmed' and event.valid_until is not None
-                             and timestamp(event.valid_until) > now)
+                    qualified = (current and event.confidence == 'qualified'
+                                 and event.freshness == 'confirmed' and event.valid_until is not None
+                                 and timestamp(event.valid_until) > now)
+                    clean = qualified and event.clean
                     incident.update(status='resolved' if clean else 'open', resolution='assessment' if clean else None)
                     if not current:
-                        incident.update(freshness='unknown', confidence='unverified', remediation='reassess')
+                        incident.update(freshness='unknown', confidence='unverified')
+                # Retain the last qualified finding snapshot separately from the
+                # latest attempt/freshness, even after history rolls over or a deploy.
+                if event.category == 'runtime' or qualified or not incident.get('findings_qualified', False):
+                    incident.update(identities=list(event.identities[:50]), finding_count=len(event.identities),
+                                    severity=event.severity, provenance=event.provenance,
+                                    remediation=event.remediation, findings_at=event.observed_at,
+                                    findings_digest=event.digest, findings_generation=event.generation,
+                                    findings_qualified=qualified)
             self.db.execute('INSERT INTO receipts VALUES (?,?)', (event.event_id, stamp(now)))
             self._save(incident)
             return incident
 
-    def telemetry(self, workload, state):
+    def telemetry(self, workload, state, *, source, category):
+        """A reader gap invalidates only its own source/category evidence."""
+        require(source == 'kubescape', 'source_unsupported')
+        require(category in ('runtime', 'vulnerability'), 'category_unsupported')
         require(state in ('unknown', 'failed', 'stale', 'unsupported'), 'telemetry_state_invalid')
         with self.db:
             for incident in self.all():
-                if incident['workload_key'] == workload.key:
+                if (incident['workload_key'] == workload.key and incident['source'] == source
+                        and incident['category'] == category):
                     incident.update(freshness=state, confidence='unverified')
                     if incident['resolution'] == 'assessment':
                         incident.update(status='open', resolution=None)
