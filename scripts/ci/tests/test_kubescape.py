@@ -160,7 +160,7 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertNotIn("../../../infra/kubescape", infrastructure["resources"])
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
         self.assertEqual(set(source["resources"]), {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml",
-                                                  "recurring/rbac.yaml", "recurring/cronjobs.yaml"})
+                                              "recurring/rbac.yaml", "recurring/cronjobs.yaml", "collector"})
         namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
         labels = namespace["metadata"]["labels"]
         self.assertEqual(labels["pod-security.kubernetes.io/enforce"], "privileged")
@@ -216,10 +216,18 @@ class StagedReleaseTests(unittest.TestCase):
         after = yaml.safe_load((ROOT / "infra/observability/gatus-helmrelease.yaml").read_text())
         before = copy.deepcopy(after)
         endpoints = before["spec"]["values"]["config"]["endpoints"]
-        endpoints[:] = [e for e in endpoints if e["name"] != "kubescape-assessments"]
+        endpoints[:] = [e for e in endpoints if e["name"] != "kubescape-assessments"
+                        and not e['name'].startswith('security-collector-')]
         CHECK.check_assessment_alert(before, after)
-        after["spec"]["values"]["config"]["endpoints"][0]["interval"] = "20m"
-        with self.assertRaisesRegex(AssertionError, "outside the assessment endpoint"):
+        for endpoint in (e for e in after['spec']['values']['config']['endpoints']
+                         if e['name'].startswith('security-collector-')):
+            original = endpoint['alerts']
+            endpoint['alerts'] = [{'type': 'github'}]
+            with self.assertRaisesRegex(AssertionError, 'assessment/collector alert differs'):
+                CHECK.check_assessment_alert(before, after)
+            endpoint['alerts'] = original
+        next(e for e in after["spec"]["values"]["config"]["endpoints"] if e['name'] == 'gitea')['interval'] = '20m'
+        with self.assertRaisesRegex(AssertionError, "outside the assessment/collector endpoints"):
             CHECK.check_assessment_alert(before, after)
 
     def test_scope_guard_rejects_kyverno_gatus_or_cilium_changes(self):

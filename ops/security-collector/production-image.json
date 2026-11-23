@@ -1,0 +1,19 @@
+{
+  "platform": "linux/amd64",
+  "base": "docker.io/library/python@sha256:a943ed02f4e22d024d2b4fc5083619497dfb9bc1c64c193861f3bc6d3074f5b1",
+  "digest": "sha256:1ced7461a2a41cfee94ace5cb270b93b8b3804a819fef3dcdaaa1be8274fb32b",
+  "files": {
+    "scripts/security_collector/__init__.py": "4e7ee8d3fb9b87e36b768a03059964e90999d7e1665c60578ad8f9c975d74a53",
+    "scripts/security_collector/adapters.py": "6a94c618647f76d3ef80fcb5da5bc8f1a4fd500886b9d6242939fcb65534f836",
+    "scripts/security_collector/assessment.py": "9fbafdcad22459a292c613dfbff405624708bbe70b2a534f01d8cadf314b6e21",
+    "scripts/security_collector/engine.py": "29e7366f197c0fadb70519030f65d37f52efe3dbcff08cdb20e27ce732d62823",
+    "scripts/security_collector/intake.py": "994c3e8e06d554eba56e95b1b4e25b15105096a0c66410bce27d7b487e5c8b13",
+    "scripts/security_collector/issues.py": "3ad20a57d72047192a41948a98042fb3ae039cd9f647f68a88a7e8a8dcdec07d",
+    "scripts/security_collector/model.py": "601c788589202b319369a4f35e3d669840e5d0524af17f82c75b74c9c35ac941",
+    "scripts/security_collector/pipeline.py": "97dee1ca004c86bfc673c69e370c7a777c0fe4808adcb8ea413ccf2c4ccc069c",
+    "scripts/security_collector/runtime.py": "50b40cd132fa79de7f89a75742d22b226fa807d15a8877717ae4e640f1f86964",
+    "scripts/security_collector/service.py": "64c010cbf5ba16d43218c9e31955b1731c1504676d31c7c6c4195122e5685230",
+    "scripts/security_collector/sources.py": "ed260b8767fd2e050aaa771d9297dfcb73f0807f5ba5549f6d626b74ba981d58"
+  },
+  "source_layer_sha256": "17fb6ae9d985d4f4801a9f68f73bcd4fe581f75c74ae4facb95908d883b6c933"
+}

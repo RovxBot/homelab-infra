@@ -22,6 +22,7 @@ class Intake:
             CREATE TABLE IF NOT EXISTS reader_status (
                 key TEXT PRIMARY KEY, category TEXT NOT NULL, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS polls (key TEXT PRIMARY KEY, at TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS source_observations (id TEXT PRIMARY KEY, data TEXT NOT NULL);
         ''')
 
     def cursor(self, key):
@@ -37,9 +38,16 @@ class Intake:
                     < self.c.max_incidents * 2, 'reader_capacity')
             self.c.db.execute('INSERT OR REPLACE INTO polls VALUES (?,?)', (key, stamp(now)))
 
-    def enqueue(self, events, now, *, cursor_key=None, cursor=None):
+    def enqueue(self, events, now, *, cursor_key=None, cursor=None, source_observations=()):
         require(len(events) <= self.max_pending, 'spool_capacity')
         with self.c.db:
+            for observation in source_observations:
+                require(self.c.db.execute('SELECT 1 FROM source_observations WHERE id=?',
+                        (observation['id'],)).fetchone() or self.c.db.execute(
+                        'SELECT count(*) FROM source_observations').fetchone()[0] < self.max_pending,
+                        'spool_capacity')
+                self.c.db.execute('INSERT OR IGNORE INTO source_observations VALUES (?,?)',
+                                 (observation['id'], json.dumps(observation, sort_keys=True)))
             count, size = self.c.db.execute(
                 'SELECT count(*), coalesce(sum(length(data)),0) FROM pending').fetchone()
             for event in events:
@@ -129,6 +137,7 @@ class Intake:
 
 
 GAPS = {'initial_gap', 'overlap_missing', 'agent_restarted', 'disconnected', 'read_failed', 'invalid_input',
-        'saturated', 'heartbeat_expired', 'inventory_changed'}
+        'saturated', 'heartbeat_expired', 'inventory_changed', 'attribution_unavailable'}
 REASONS = GAPS | {'poll_ok', 'qualified', 'missing', 'assessment_failed', 'assessment_stale',
-                 'assessment_incomplete', 'assessment_identity_conflict', 'unsupported', 'excluded', 'history_changed'}
+                 'assessment_incomplete', 'assessment_identity_conflict', 'unsupported', 'excluded', 'history_changed',
+                 'history_unavailable'}

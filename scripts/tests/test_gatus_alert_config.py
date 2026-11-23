@@ -119,6 +119,8 @@ class GatusAlertConfigTests(unittest.TestCase):
                     self.assertEqual(endpoint['conditions'], ['[STATUS] == 200', '[BODY].status == healthy'])
                     self.assertEqual(endpoint['alerts'], [{'type': 'github', 'failure-threshold': 3,
                                                          'success-threshold': 20, 'send-on-resolved': True}])
+                elif endpoint['name'] in ('security-collector-process', 'security-collector-sources'):
+                    self.assertEqual(endpoint['alerts'], [])
                 else:
                     self.assertEqual(endpoint['alerts'], [{'type': 'github'}])
         self.assertEqual(config['storage'], {'type': 'sqlite', 'path': '/data/data.db'})
