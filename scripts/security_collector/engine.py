@@ -10,7 +10,8 @@ from .model import Observation, Rejected, require, stamp, timestamp
 
 
 class Collector:
-    def __init__(self, path, *, max_incidents=200, max_receipts=20000, events_per_hour=1000):
+    def __init__(self, path, *, max_incidents=200, max_receipts=20000, events_per_hour=1000,
+                 storage_bytes=64 * 1024 * 1024):
         self._lock_fd = None
         if str(path) != ":memory:":
             # Create private state before SQLite can write it; do not follow symlinks.
@@ -23,12 +24,23 @@ class Collector:
                 raise Rejected('writer_already_active') from None
             self._lock_fd = fd
         self.db = sqlite3.connect(path)
+        # DELETE journal has at most the bounded database's dirty pages. Reserve
+        # twice storage_bytes on the private filesystem for atomic transactions.
+        self.db.execute('PRAGMA journal_mode=DELETE')
+        self.db.execute('PRAGMA synchronous=FULL')
+        page_size = self.db.execute('PRAGMA page_size').fetchone()[0]
+        quota_pages = max(32, storage_bytes // page_size)
+        actual = self.db.execute(f'PRAGMA max_page_count={quota_pages}').fetchone()[0]
+        if actual > quota_pages:
+            self.close()
+            require(False, 'storage_existing_over_quota')
         self.db.row_factory = sqlite3.Row
         self.max_incidents, self.max_receipts = max_incidents, max_receipts
         self.events_per_hour = events_per_hour
         self.db.executescript('''
             CREATE TABLE IF NOT EXISTS incidents (key TEXT PRIMARY KEY, data TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, received TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS receipts (
+                id TEXT PRIMARY KEY, received TEXT NOT NULL, observation_hash TEXT);
             CREATE TABLE IF NOT EXISTS deployments (key TEXT PRIMARY KEY, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS delivery (
                 key TEXT PRIMARY KEY, attempts INTEGER DEFAULT 0, next TEXT,
@@ -36,6 +48,12 @@ class Collector:
             CREATE TABLE IF NOT EXISTS api_calls (at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS writes (at TEXT NOT NULL, creation INTEGER NOT NULL);
         ''')
+        # Old receipts cannot prove the observation they accepted. Preserve them
+        # with a NULL hash and fail closed on vulnerability replay, never backfill
+        # their identity from a potentially changed current assessment.
+        if 'observation_hash' not in {row['name'] for row in self.db.execute('PRAGMA table_info(receipts)')}:
+            with self.db:
+                self.db.execute('ALTER TABLE receipts ADD COLUMN observation_hash TEXT')
 
     def close(self):
         self.db.close()
@@ -58,20 +76,44 @@ class Collector:
         """Called only by a trusted inventory reader; changed digest invalidates recovery."""
         with self.db:
             old = self.db.execute('SELECT data FROM deployments WHERE key=?', (deployment.workload.key,)).fetchone()
+            previous = json.loads(old[0]) if old else None
             if old:
-                require(timestamp(deployment.observed_at) >= timestamp(json.loads(old[0])['observed_at']), 'inventory_out_of_order')
+                require(timestamp(deployment.observed_at) >= timestamp(previous['observed_at']), 'inventory_out_of_order')
             else:
                 require(self.db.execute('SELECT count(*) FROM deployments').fetchone()[0] < self.max_incidents, 'inventory_capacity')
+            same = (previous is not None and previous['digest'] == deployment.digest
+                    and previous['generation'] == deployment.generation and previous.get('uid') == deployment.uid)
+            # The recurring record has UID/digest but no historical generation.
+            # A pre-request independent observation of this monotonic generation
+            # is required by Stage B; current coverage cannot invent that history.
+            value = dict(asdict(deployment), epoch_started=previous.get('epoch_started', previous['observed_at'])
+                         if same else deployment.observed_at)
             self.db.execute('INSERT OR REPLACE INTO deployments VALUES (?,?)',
-                            (deployment.workload.key, json.dumps(asdict(deployment))))
+                            (deployment.workload.key, json.dumps(value)))
             for incident in self.all():
                 if incident['workload_key'] != deployment.workload.key or incident['category'] != 'vulnerability':
                     continue
-                if incident['digest'] != deployment.digest or incident['generation'] != deployment.generation:
+                if (incident['digest'] != deployment.digest or incident['generation'] != deployment.generation
+                        or incident.get('workload_uid') != deployment.uid):
                     incident.update(digest=deployment.digest, generation=deployment.generation,
+                                    workload_uid=deployment.uid,
                                     freshness='unknown', confidence='unverified', status='open',
                                     resolution=None, valid_until=None)
                     self._save(incident)
+
+    def inventory_epoch(self, workload):
+        row = self.db.execute('SELECT data FROM deployments WHERE key=?', (workload.key,)).fetchone()
+        require(row is not None, 'inventory_missing')
+        value = json.loads(row[0])
+        return value.get('epoch_started', value['observed_at'])
+
+    def is_replay(self, event):
+        row = self.db.execute('SELECT observation_hash FROM receipts WHERE id=?', (event.event_id,)).fetchone()
+        if row is None:
+            return False
+        require(event.category != 'vulnerability' or row['observation_hash'] == event.observation_hash,
+                'assessment_identity_conflict')
+        return True
 
     def ingest(self, event: Observation, now):
         # Revalidate frozen contracts even if a caller bypassed construction.
@@ -79,7 +121,7 @@ class Collector:
         require(timedelta(0) <= now - timestamp(event.observed_at) <= timedelta(days=7), 'event_outside_replay_window')
         with self.db:
             self.db.execute('DELETE FROM receipts WHERE received < ?', (stamp(now - timedelta(days=7)),))
-            if self.db.execute('SELECT 1 FROM receipts WHERE id=?', (event.event_id,)).fetchone():
+            if self.is_replay(event):
                 return self.get(event.incident_key)
             require(self.db.execute('SELECT count(*) FROM receipts WHERE received >= ?',
                                     (stamp(now - timedelta(hours=1)),)).fetchone()[0] < self.events_per_hour, 'ingest_rate_limit')
@@ -87,7 +129,8 @@ class Collector:
             incident = self.get(event.incident_key)
             if incident is None and event.category == 'vulnerability' and not event.identities:
                 # Empty/stale/unknown reports cannot open a synthetic finding.
-                self.db.execute('INSERT INTO receipts VALUES (?,?)', (event.event_id, stamp(now)))
+                self.db.execute('INSERT INTO receipts (id,received,observation_hash) VALUES (?,?,?)',
+                                (event.event_id, stamp(now), event.observation_hash))
                 return None
             if incident is None:
                 require(self.db.execute('SELECT count(*) FROM incidents').fetchone()[0] < self.max_incidents, 'incident_capacity')
@@ -114,10 +157,12 @@ class Collector:
                     deployed = json.loads(row[0]) if row else None
                     current = (deployed is not None and deployed['digest'] == event.digest
                                and deployed['generation'] == event.generation
+                               and deployed.get('uid') == event.workload_uid
                                and timedelta(0) <= now - timestamp(deployed['observed_at']) <= timedelta(hours=1)
                                and timestamp(event.observed_at) >= timestamp(deployed['deployed_at']))
                     incident.update(digest=deployed['digest'] if deployed else event.digest,
                                     generation=deployed['generation'] if deployed else event.generation,
+                                    workload_uid=deployed.get('uid') if deployed else event.workload_uid,
                                     assessed_at=event.observed_at)
                     qualified = (current and event.confidence == 'qualified'
                                  and event.freshness == 'confirmed' and event.valid_until is not None
@@ -133,8 +178,10 @@ class Collector:
                                     severity=event.severity, provenance=event.provenance,
                                     remediation=event.remediation, findings_at=event.observed_at,
                                     findings_digest=event.digest, findings_generation=event.generation,
+                                    findings_uid=event.workload_uid,
                                     findings_qualified=qualified)
-            self.db.execute('INSERT INTO receipts VALUES (?,?)', (event.event_id, stamp(now)))
+            self.db.execute('INSERT INTO receipts (id,received,observation_hash) VALUES (?,?,?)',
+                            (event.event_id, stamp(now), event.observation_hash))
             self._save(incident)
             return incident
 
