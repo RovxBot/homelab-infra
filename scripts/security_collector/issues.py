@@ -74,6 +74,18 @@ def merge_section(body, key, section):
     return body[:left] + section + body[right:]
 
 
+def render_private(incident, publication):
+    """Only the private file receives independently verified Kubernetes identity."""
+    title, body = render(incident, publication)
+    proof = incident.get('runtime_identity')
+    if proof:
+        body = body.replace(END, '\n\n'.join([
+            f"Verified source: {proof['source']}; node: {proof['node']}; agent Pod UID: {proof['agent_pod_uid']}.",
+            f"Controller UID: {proof['deployment_uid']}; Pod: {proof['pod']}; Pod UID: {proof['pod_uid']}.",
+            f"Running container ID: {proof['container_id']}.", END]))
+    return title, body
+
+
 @dataclass
 class Issue:
     number: int

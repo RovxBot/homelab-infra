@@ -87,11 +87,16 @@ spec:
           alerts: []
         - name: security-collector-sources
           group: cluster
+          # Includes every expected source. Enrollment pending, source loss,
+          # uncovered replicas, retained gaps and unavailable history degrade it.
           url: http://security-collector.kubescape.svc.cluster.local:8080/healthz
           interval: 1m
           conditions:
             - "[STATUS] == 200"
             - "[BODY].status == healthy"
+            - "[BODY].expected_agents == 2"
+            - "[BODY].healthy_agents == 2"
+            - "[BODY].uncovered_workloads == 0"
           alerts: []
         - name: gitea
           group: internal

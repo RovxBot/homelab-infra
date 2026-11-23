@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runtime-acceptance
+  namespace: kubescape-runtime-test
+spec:
+  template:
+    spec:
+      containers:
+        - name: test
+          args:
+            - |
+              import subprocess, time
+              # Permit inventory and collector enrollment to settle after Recreate.
+              time.sleep(180)
+              subprocess.run(['/bin/true'], cwd='/dev/shm', check=True)
+              # Keep API ownership observable until evidence has been retained.
+              time.sleep(86400)

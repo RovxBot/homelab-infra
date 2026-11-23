@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "status": "local-qualified-production-rollout-and-live-acceptance-pending",
+  "date": "2026-11-23",
+  "baseline": {
+    "merge_commit": "296c6ba7",
+    "pr": "https://github.com/RovxBot/homelab-infra/pull/2205"
+  },
+  "production_pr": "https://github.com/RovxBot/homelab-infra/pull/2206",
+  "authorized_staging": {
+    "decision": "Operator explicitly selected exact Pod-name RBAC with reviewed staged GitOps enrollment after agents start.",
+    "initial_expected_sources": [
+      "metal6",
+      "metal3"
+    ],
+    "initial_metal3_state": "source_enrollment_pending",
+    "reason": "DaemonSet Pod names are generated at rollout; resourceNames cannot select by node or owner.",
+    "next_change": "Run read-only enroll-agents.py after rollout; independently review exact pins/RBAC in a configuration PR.",
+    "metal6_replacement": "Template rollout may replace metal6 Pod too; refresh both actual sources without changing persistent cursor keys."
+  },
+  "read_only_preflight": {
+    "status": "verified",
+    "target": "cooked-k8s",
+    "operator_context": "entra@homelab",
+    "software_match": {
+      "nodes": [
+        "metal3",
+        "metal6"
+      ],
+      "talos": "v1.12.8",
+      "kernel": "6.18.32-talos",
+      "container_runtime": "containerd://2.2.4",
+      "kubernetes": "v1.34.1",
+      "architecture": "amd64"
+    },
+    "metal3_ready": true,
+    "metal3_pressure": false,
+    "metal3_metrics": {
+      "timestamp": "2026-11-23T08:31:31Z",
+      "window": "30.306s",
+      "cpu_nanocores": 658747442,
+      "memory_ki": 3620040
+    },
+    "metal3_allocatable": {
+      "cpu_millicores": 3950,
+      "memory_ki": 7344560
+    },
+    "metal3_existing_allocations": {
+      "request_cpu_millicores": 1609,
+      "request_memory_mi": 2960,
+      "limit_cpu_millicores": 7850,
+      "limit_memory_mi": 8670
+    },
+    "unchanged_agent_budget": {
+      "request_cpu_millicores": 100,
+      "request_memory_mi": 180,
+      "limit_cpu_millicores": 500,
+      "limit_memory_mi": 1400
+    },
+    "metal3_after_agent_requests": {
+      "cpu_millicores": 1709,
+      "memory_mi": 3140
+    },
+    "sample_headroom_after_full_agent_limit": {
+      "cpu_millicores_approx": 2791,
+      "memory_mi_approx": 2237
+    },
+    "metal6_agent_metrics": {
+      "timestamp": "2026-11-23T08:32:59Z",
+      "window": "30.112s",
+      "cpu_nanocores": 35353314,
+      "memory_ki": 196420
+    },
+    "homepage_nodes": {
+      "homepage": "metal3",
+      "homepage-assets": "metal3"
+    },
+    "live_metal6_verifier": "verified twice against Kubernetes API with the new production owner/SA/node/image/container verifier; no log or state write",
+    "limitations": [
+      "Point-in-time usage, not measured peaks. Existing metal3 workload limits already exceed allocatable capacity.",
+      "No Talos API credentials available locally; metal3-specific BTF/socket/lockdown inspection and eBPF initialization remain unverified.",
+      "Matching accepted software versions is compatibility evidence, not a metal3 live detection or tracer acceptance result."
+    ]
+  },
+  "state": {
+    "migration": "Additive CREATE TABLE IF NOT EXISTS: runtime_source_status, runtime_identities, runtime_evidence; no legacy rename/reset/deletion.",
+    "legacy_cursor_key": "runtime/metal6",
+    "new_cursor_key": "runtime/metal3",
+    "evidence_retention": "Production disables receipt/history eviction. Existing receipt hashes are preserved when optional runtime identity is absent.",
+    "single_writer": "Existing SQLite exclusive lock, Recreate Deployment, one replica and same retained Longhorn PVC.",
+    "identity_refresh": "Exact Pod pin changes require reviewed config and matching RBAC. Container restarts are independently reverified; up to four new identities/hour and 128 retained identities/node.",
+    "source_evidence_limit": 20000,
+    "rollback": "Keep updated collector image, reduce active source config to metal6, retain all source records/cursors/gaps/receipts/incidents. Roll back agent placement/proxy/admission together through review.",
+    "event_counters": "Distinct per-source normalized records in the additive runtime_evidence ledger; old receipts and source observations remain retained without invented backfill."
+  },
+  "focused_validation": {
+    "collector_tests": {
+      "status": "verified",
+      "count": 96,
+      "command": "python3 -m unittest discover -s scripts/tests -p 'test_security_collector*.py' -q"
+    },
+    "kubescape_guard_tests": {
+      "status": "verified",
+      "count": 31,
+      "skipped": 0,
+      "reason": "Kustomize integration also executed with the verified tool on PATH."
+    },
+    "helm_preflight": {
+      "status": "verified",
+      "resources": 72,
+      "kyverno_version": "1.20.0",
+      "admission_pass": 62,
+      "admission_fail": 0,
+      "admission_error": 0,
+      "hardening_exception_skip": 1
+    },
+    "runtime_boundary_cases": {
+      "status": "verified",
+      "allowed": 4,
+      "denied": 23,
+      "error": 0,
+      "notes": "Includes both cohort nodes, scanner hardening, affinity escape and node-bound DaemonSet rejection."
+    },
+    "source_and_acceptance_admission": {
+      "status": "verified",
+      "pass": 28,
+      "fail": 0,
+      "error": 0
+    },
+    "kustomize": {
+      "status": "verified",
+      "paths": [
+        "infra/kubescape",
+        "infra/kyverno-policies",
+        "ops/security-collector/acceptance/trigger"
+      ]
+    },
+    "schema": {
+      "status": "verified",
+      "valid": 29,
+      "invalid": 0,
+      "error": 0,
+      "missing_crd_schema_skipped": 2
+    },
+    "image": {
+      "status": "verified",
+      "proof": "production-image.json",
+      "workflow": "https://github.com/RovxBot/homelab-infra/actions/workflows/security-collector-image.yml",
+      "digest": "sha256:878bd903b267ae6ac3831fa0565db406c98c68355c13293282c0b890d37c9e58",
+      "method": "Two independent local crane v0.22.1 builds; complete build proofs identical. Registry publication remains a CI gate."
+    },
+    "container_process_restrictions": {
+      "status": "unavailable",
+      "reason": "Local Docker daemon not running; required existing workflow job remains a pre-merge gate."
+    },
+    "publication_and_anonymous_pull": {
+      "status": "not run",
+      "gate": "Existing Security Collector Image workflow must publish and validate anonymous digest retrieval before operator merge."
+    },
+    "wiki_patch": {
+      "status": "verified",
+      "page": "Kubescape.md",
+      "base": "2fd01e29af164bba5df01f472a16e2b199a456ee",
+      "proposal": "wiki-proposal.patch",
+      "publication": "not published; security review required"
+    },
+    "gatus_health_tests": {
+      "status": "verified",
+      "count": 45
+    },
+    "python_compilation": {
+      "status": "verified"
+    },
+    "recurring_contract": {
+      "status": "verified",
+      "notes": "Existing scanner scope, budgets, authentication and restricted/additive RBAC unchanged."
+    }
+  },
+  "production_acceptance": {
+    "rollout": "not run",
+    "source_enrollment": "not run",
+    "metal3_ebpf": "not run",
+    "two_source_coverage": "not run",
+    "disposable_r1000": "not run; requires explicit operator approval after merged rollout",
+    "incident_and_replay": "not run; synthetic tests are not production evidence",
+    "resource_peaks_and_rollback": "not run; proposed procedure only"
+  },
+  "boundaries": {
+    "github_runtime_writes_enabled": false,
+    "automatic_closure_enabled": false,
+    "automatic_response_enabled": false,
+    "assessment_history_available": false,
+    "cilium_policy_enforcement_mode": "never",
+    "unrestricted_log_grant": false,
+    "remaining_six_nodes_included": false,
+    "scanner_or_cronjob_changes": false,
+    "cluster_mutations_performed": false,
+    "acceptance_referenced_by_production_flux": false
+  },
+  "next_action": "Open focused PR and update #2136/#2138; independent final-head CI/security review, operator-approved merge, staged source enrollment, then separately approved live acceptance.",
+  "validated_implementation_commit": "068fa5611206d41c1a357603941085d671932804"
+}

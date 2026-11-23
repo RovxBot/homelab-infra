@@ -1,0 +1,5 @@
+# Opt-in GitOps fixture. The production Flux composition does not reference it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - base

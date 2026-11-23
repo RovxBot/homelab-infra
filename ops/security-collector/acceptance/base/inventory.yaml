@@ -1,0 +1,30 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-collector-acceptance
+  namespace: kubescape-runtime-test
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [runtime-acceptance]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
+  - apiGroups: ['']
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-collector-acceptance
+  namespace: kubescape-runtime-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-collector-acceptance
+subjects:
+  - kind: ServiceAccount
+    name: security-collector
+    namespace: kubescape

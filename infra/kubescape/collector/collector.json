@@ -1,11 +1,16 @@
 {
   "api_origin": "https://kubernetes.default.svc",
-  "agent": {
+  "agents": [{
     "pod_name": "node-agent-6krhl",
     "pod_uid": "510bf845-85b5-48bd-861f-1eb2ea0a2c52",
     "daemonset_uid": "bae3ba0e-c7f2-41f4-81d7-bb96cb4de279",
     "node": "metal6"
-  },
+  }, {
+    "pod_name": null,
+    "pod_uid": null,
+    "daemonset_uid": "bae3ba0e-c7f2-41f4-81d7-bb96cb4de279",
+    "node": "metal3"
+  }],
   "history": "/assessment-history-unavailable",
   "assessment_history_available": false,
   "workloads": [
