@@ -95,9 +95,12 @@ class RuntimeLogReader:
                 self.intake.c.deployment(inventory.deployment)
             same = previous and previous['agent'] == agent
             boundary = now - timedelta(days=7)
-            since = stamp(max(boundary, timestamp(previous['at']) - timedelta(seconds=1))
-                          if same and previous['at'] else boundary)
-            payload = self.api.raw(log_path('kubescape', self.pod_name, since))
+            # Kubernetes can return the whole second containing sinceTime.
+            # Share the rounded overlap bound with validation, never widening
+            # the strict seven-day acceptance window.
+            lower = (max(boundary, (timestamp(previous['at']) - timedelta(seconds=1)).replace(microsecond=0))
+                     if same and previous['at'] else boundary)
+            payload = self.api.raw(log_path('kubescape', self.pod_name, stamp(lower)))
             require(len(payload) <= 4 * 1024 * 1024 and (not payload or payload.endswith(b'\n')),
                     'log_snapshot_incomplete')
             lines = payload.splitlines()
@@ -108,8 +111,11 @@ class RuntimeLogReader:
                 raw_time, separator, raw = line.partition(b' ')
                 require(separator, 'log_line_invalid')
                 log_time = raw_time.decode('ascii')
-                require(timedelta(0) <= now - timestamp(log_time) <= timedelta(days=7), 'log_time_invalid')
-                require(at is None or timestamp(log_time) >= timestamp(at) - timedelta(seconds=1),
+                parsed_time = timestamp(log_time)
+                require(timedelta(0) <= now - parsed_time <= timedelta(days=7), 'log_time_invalid')
+                # Retain the moving out-of-order limit at the same granularity.
+                require(parsed_time >= lower and (at is None or parsed_time >=
+                        (timestamp(at) - timedelta(seconds=1)).replace(microsecond=0)),
                         'log_time_invalid')
                 at = max(filter(None, (at, log_time)), key=timestamp)
                 anchors.append(hashlib.sha256(line).hexdigest())
