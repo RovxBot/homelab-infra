@@ -73,5 +73,7 @@
     "container_restriction_smoke": "not run locally; CI image job required",
     "registry_publication_anonymous_pull": "not run; CI image job required",
     "deployed_acceptance": "not run"
-  }
+  },
+  "deployment_pr": "https://github.com/RovxBot/homelab-infra/pull/2205",
+  "validated_code_commit": "e1b8f20ce04974a4007934f03333dfb6e6d5ae2b"
 }
