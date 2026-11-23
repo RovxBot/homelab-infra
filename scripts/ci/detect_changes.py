@@ -35,9 +35,34 @@ MANIFEST_CHECK_PATHS = {
 EDGE_ROOT = "terraform/oci-free-tier/ops/wireguard/"
 
 
+def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
+    if full or any(path.startswith('scripts/') and path.endswith(('.py', '.json', '.go')) for path in paths):
+        return ['test_*.py']
+    owners = {
+        ('apps/koito/',): ['test_koito*.py'],
+        ('infra/observability/', 'infra/pod-report/'):
+            ['test_gatus*.py', 'test_cluster_health.py', 'test_kubescape_health.py'],
+        ('apps/gitea/', 'apps/homepage/', 'apps/koito/', 'clusters/home/'):
+            ['test_gatus_alert_config.py'],
+        ('infra/kubescape/',): ['test_grype*.py', 'test_kubescape*.py', 'test_gatus_alert_config.py'],
+        ('infra/longhorn/', 'infra/longhorn-node-disks/', 'ops/longhorn/'):
+            ['test_longhorn*.py'],
+        ('infra/kyverno/', 'infra/kyverno-policies/', 'migration/kyverno/'):
+            ['test_kyverno*.py', 'test_kubescape_status_guardrail.py'],
+    }
+    return sorted({pattern for prefixes, patterns in owners.items()
+                   if any(path.startswith(prefixes) for path in paths) for pattern in patterns})
+
+
 def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
     full = full or any(path in FULL_CHECK_PATHS for path in paths)
+    patterns = script_test_patterns(paths, full=full)
+    ci_tests = full or any(path.startswith('scripts/ci/') for path in paths)
+    gitea_tests = full or any(path.startswith(('ops/gitea/', 'apps/gitea/', 'apps/gitea-runners/')) for path in paths)
     flags = {
+        "unit_tests": bool(patterns) or ci_tests or gitea_tests,
+        "ci_tests": ci_tests,
+        "gitea_tests": gitea_tests,
         "manifests": full or any(
             path.startswith(("apps/", "infra/", "clusters/", "secrets/", "ops/gitea/"))
             or path.startswith("migration/kyverno/namespace-example/")
@@ -55,7 +80,7 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
             for path in paths
         ),
         "renovate": full or any(
-            path == "renovate.json" or path.startswith(".github/tests/renovate-")
+            path == "renovate.json" or path.startswith((".github/tests/renovate-", ".github/tests/fixtures/renovate-"))
             for path in paths
         ),
     }
@@ -69,6 +94,7 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
     ]
     return {
         **{name: str(value).lower() for name, value in flags.items()},
+        "script_tests": json.dumps(patterns, separators=(",", ":")),
         "terraform_matrix": json.dumps({"stack": stacks}, separators=(",", ":")),
         "terraform": str(bool(stacks)).lower(),
     }
