@@ -1,0 +1,109 @@
+{
+  "stage": "A-offline-only",
+  "issue": "https://github.com/RovxBot/homelab-infra/issues/2138",
+  "observedAt": "2026-11-23T03:23:04.853425+00:00",
+  "method": "Read-only Kubernetes pod/release/configmap/API-discovery reads; bounded node-agent logs projected to field names only. No scans, deployments or public incidents created.",
+  "chart": "1.42.0",
+  "pins": {
+    "nodeAgent": {
+      "tag": "v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60"
+    },
+    "kubevuln": {
+      "repository": "ghcr.io/rovxbot/kubevuln",
+      "tag": "65ab8b472ec2685fc0c14032717a584dc99f2ff7@sha256:c97020711ba19a215f19f1858a846b2962584fd4e0b7afcb9272d7da915569b2"
+    },
+    "kubescape": {
+      "repository": "quay.io/kubescape/kubescape",
+      "tag": "v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060"
+    },
+    "operator": {
+      "repository": "quay.io/kubescape/operator",
+      "tag": "v0.2.209@sha256:b280f5154451d1d075d49e3fade361e934063fe5dc26e18e673f67a4cca3a558"
+    },
+    "storage": {
+      "repository": "quay.io/kubescape/storage",
+      "tag": "v0.0.382@sha256:270e22b65e95de4054d6b9ed3aad2d63296e4941ba1aa49b356d5be94d41863b"
+    }
+  },
+  "runtime": {
+    "configuredExporters": [
+      "stdoutExporter"
+    ],
+    "stdoutExporterStream": "stderr",
+    "httpConfigured": false,
+    "alertmanagerConfigured": false,
+    "syslogConfigured": false,
+    "agentNode": "metal6",
+    "readyAgents": 1,
+    "restarts": 0,
+    "matchedRetainedR1000Records": 1,
+    "fieldNames": {
+      "root": [
+        "BaseRuntimeMetadata",
+        "CloudMetadata",
+        "RuleID",
+        "RuntimeK8sDetails",
+        "RuntimeProcessDetails",
+        "level",
+        "message",
+        "msg",
+        "processtree_depth",
+        "time"
+      ],
+      "usedBase": [
+        "agentVersion",
+        "severity",
+        "timestamp",
+        "uniqueID"
+      ],
+      "usedKubernetes": [
+        "namespace",
+        "containerName",
+        "workloadKind",
+        "workloadName",
+        "podName",
+        "imageDigest"
+      ]
+    },
+    "acceptance": "https://github.com/RovxBot/homelab-infra/issues/2136#issuecomment-7087742825",
+    "source": "https://github.com/kubescape/node-agent/blob/eaeb55d9a67bfaf89d789b5f8c337d5d55d5c820/pkg/exporters/stdout_exporter.go",
+    "httpSupportSource": "https://github.com/kubescape/node-agent/blob/eaeb55d9a67bfaf89d789b5f8c337d5d55d5c820/pkg/exporters/exporters_bus.go",
+    "payloadTypes": "https://github.com/armosec/armoapi-go/blob/v0.0.742/armotypes/runtimeincidents.go",
+    "missingIntegration": [
+      "Authenticated durable reader/receiver",
+      "Agent identity binding to independent controller inventory",
+      "Cursor/restart/log-rotation gap detection",
+      "Bounded private spool and explicit telemetry heartbeat",
+      "Transport qualification on pinned deployed version"
+    ]
+  },
+  "assessment": {
+    "apiGroupVersion": "spdx.softwarecomposition.kubescape.io/v1beta1",
+    "discoveredNamespacedResources": [
+      "vulnerabilitymanifests",
+      "vulnerabilitymanifestsummaries",
+      "sbomsyfts",
+      "workloadconfigurationscansummaries"
+    ],
+    "vulnerabilityObjectsObserved": 4,
+    "samplePayloadKeys": [
+      "descriptor",
+      "distro",
+      "matches",
+      "source"
+    ],
+    "sampleMatchesEmpty": true,
+    "positiveFindingsFixture": "Synthetic CVE matches using Grype v0.121.0 presenter contract; no production positive finding copied.",
+    "source": "infra/kubescape/recurring/runner.py:check_report and Runner.vulnerability",
+    "positiveMatchSchema": "https://github.com/anchore/grype/blob/v0.121.0/grype/presenter/models/match.go",
+    "fixSchema": "https://github.com/anchore/grype/blob/v0.121.0/grype/presenter/models/vulnerability.go",
+    "freshness": "Report <=72h, locked DB <=7d, independent deployment inventory <=1h; failed/latest-attempt and coverage gates override cached success.",
+    "missingIntegration": [
+      "Read-only reader binding recurring qualified history, DB lock, summary/SBOM/report and fresh inventory",
+      "Atomic attribution across digest/generation/rollout changes",
+      "Explicit propagation of failed/missing/stale/unsupported coverage",
+      "Reviewed handling for advisory families outside CVE/GHSA; reject whole assessment until supported"
+    ]
+  },
+  "productionAcceptance": "Not performed; local synthetic tests only for collector."
+}
