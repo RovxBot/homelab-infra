@@ -30,7 +30,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: multi-scrobbler
-          image: foxxmd/multi-scrobbler:0.21.0@sha256:d3dacd94c5e6629d9a01579c2e4484de9440c1755dcbaae2ffb50d19b18793a0
+          image: foxxmd/multi-scrobbler:0.21.2@sha256:a8ff2d0ae1dc6984fea0481863f29a9647a8f5b705f6e44cbf6791e0c0fb88e5
           imagePullPolicy: IfNotPresent
           # Use the reviewed 0.21 release line's distroless Node ENTRYPOINT and application CMD.
           # Startup and probes must not depend on a shell inside the image.
