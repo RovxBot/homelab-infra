@@ -1,5 +1,5 @@
 diff --git a/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py b/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py
-index 83e8a31..ad4004e 100644
+index 83e8a31..2bf52fe 100644
 --- a/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py
 +++ b/custom_components/airtouch2plus/Airtouch2PlusClimateEntity.py
 @@ -1,4 +1,6 @@
@@ -9,7 +9,17 @@ index 83e8a31..ad4004e 100644
  
  from .conversions import (
      AT2PLUS_TO_HA_MODE,
-@@ -43,6 +45,7 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+@@ -15,8 +17,6 @@ from homeassistant.components.climate import (
+     ClimateEntity,
+     ClimateEntityFeature,
+     HVACMode,
+-    UnitOfTemperature,
+-    ATTR_TEMPERATURE,
+-    PRECISION_WHOLE
+ )
++from homeassistant.const import UnitOfTemperature, ATTR_TEMPERATURE, PRECISION_WHOLE
+ from homeassistant.helpers.entity import DeviceInfo
+@@ -43,6 +43,7 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
      def __init__(self, at2plus_aircon: At2PlusAircon) -> None:
          """Initialize the climate device."""
          self._ac = at2plus_aircon
@@ -17,7 +27,7 @@ index 83e8a31..ad4004e 100644
  
      #
      # Entity overrides:
-@@ -75,19 +78,29 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+@@ -75,19 +76,29 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
          """Call when entity is added."""
          # Add callback for when aircon receives new data
          # Removes callback on remove
@@ -49,7 +59,7 @@ index 83e8a31..ad4004e 100644
  
      @property
      def hvac_modes(self) -> list[HVACMode]:
-@@ -95,7 +108,9 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+@@ -95,7 +106,9 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
          modes: list[HVACMode] = [HVACMode.OFF]
          if self._ac.ability is not None:
              for mode in self._ac.ability.supported_modes:
@@ -60,7 +70,7 @@ index 83e8a31..ad4004e 100644
          return modes
  
      @property
-@@ -104,7 +119,7 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+@@ -104,7 +117,7 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
          if self._ac.status.temperature is not None:
              return self._ac.status.temperature
          else:
@@ -69,7 +79,7 @@ index 83e8a31..ad4004e 100644
  
      @property
      def target_temperature(self) -> float:
-@@ -112,46 +127,55 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+@@ -112,46 +125,55 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
          if self._ac.status.set_point is not None:
              return self._ac.status.set_point
          else:
@@ -144,7 +154,7 @@ index 83e8a31..ad4004e 100644
  
      @property
      def supported_features(self) -> ClimateEntityFeature:
-@@ -161,9 +185,9 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
+@@ -161,9 +183,9 @@ class Airtouch2PlusClimateEntity(ClimateEntity):
  
          if mode == AcMode.DRY:
              # only because there's no ClimateEntityFeature.NONE

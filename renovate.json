@@ -104,6 +104,14 @@
       "groupSlug": "{{ lookup (split packageFile '/') 1 }}-release"
     },
     {
+      "description": "Major releases require explicit review; later narrow exceptions cover stable date tags.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
       "description": "Routine patches, digests and pins share one Monday PR, including Docker references extracted from Terraform. Critical overrides follow this rule.",
       "matchUpdateTypes": [
         "patch",
@@ -271,19 +279,69 @@
       "commitMessageTopic": "Terraform dependency {{depName}}"
     },
     {
-      "description": "Control-plane, storage and admission changes always require a maintenance decision. The Python-only automation exception is below.",
+      "description": "cilium changes require an independent maintenance decision; only named Python helper exceptions follow.",
       "matchFileNames": [
-        "infra/cilium/**",
+        "infra/cilium/**"
+      ],
+      "groupName": "cilium",
+      "groupSlug": "cilium",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "kyverno changes require an independent maintenance decision; only named Python helper exceptions follow.",
+      "matchFileNames": [
         "infra/kyverno/**",
-        "infra/kyverno-policies/**",
+        "infra/kyverno-policies/**"
+      ],
+      "groupName": "kyverno",
+      "groupSlug": "kyverno",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "longhorn changes require an independent maintenance decision; only named Python helper exceptions follow.",
+      "matchFileNames": [
         "infra/longhorn/**",
-        "infra/longhorn-node-disks/**",
-        "infra/gpu-operator/**",
-        "infra/snapshot-controller/**",
+        "infra/longhorn-node-disks/**"
+      ],
+      "groupName": "longhorn",
+      "groupSlug": "longhorn",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "gpu-operator changes require an independent maintenance decision; only named Python helper exceptions follow.",
+      "matchFileNames": [
+        "infra/gpu-operator/**"
+      ],
+      "groupName": "gpu-operator",
+      "groupSlug": "gpu-operator",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "snapshot-controller changes require an independent maintenance decision; only named Python helper exceptions follow.",
+      "matchFileNames": [
+        "infra/snapshot-controller/**"
+      ],
+      "groupName": "snapshot-controller",
+      "groupSlug": "snapshot-controller",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0
+    },
+    {
+      "description": "flux changes require an independent maintenance decision; only named Python helper exceptions follow.",
+      "matchFileNames": [
         "clusters/home/flux-system/**"
       ],
-      "groupName": "{{replace '-(node-disks|policies)$' '' (lookup (split packageFile '/') 1)}}",
-      "groupSlug": null,
+      "groupName": "flux",
+      "groupSlug": "flux",
       "separateMajorMinor": false,
       "dependencyDashboardApproval": true,
       "prPriority": 0
@@ -468,7 +526,26 @@
       "enabled": false
     },
     {
-      "description": "Immutable pipeline outputs are promoted by their owning workflows, including references embedded in admission policies. Upstream Dockerfile bases remain tracked.",
+      "description": "Kubescape chart and component releases share one approval-required compatibility review, including runtime node-agent changes. Qualified artifacts remain workflow-owned below.",
+      "matchFileNames": [
+        "infra/kubescape/**"
+      ],
+      "groupName": "Kubescape release",
+      "groupSlug": "kubescape-release",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": true,
+      "prPriority": 0,
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "{{groupName}}",
+      "commitMessageExtra": "",
+      "group": {
+        "commitMessageTopic": "{{groupName}}",
+        "commitMessageExtra": "",
+        "branchTopic": "{{{groupSlug}}}"
+      }
+    },
+    {
+      "description": "Immutable pipeline outputs are promoted by their owning workflows, including references embedded in admission policies. Ordinary upstream Dockerfile bases remain tracked; scanner inputs are protected separately.",
       "matchDatasources": [
         "docker"
       ],
@@ -480,7 +557,9 @@
         "ghcr.io/rovxbot/azerothcore-wotlk",
         "ghcr.io/rovxbot/skyfire-mop",
         "ghcr.io/rovxbot/grimguzzler-registration",
-        "ghcr.io/rovxbot/openbrew-sqlserver"
+        "ghcr.io/rovxbot/openbrew-sqlserver",
+        "ghcr.io/rovxbot/kubevuln",
+        "quay.io/kubescape/grype-offline-db"
       ],
       "enabled": false
     },
@@ -533,6 +612,13 @@
       "automerge": false,
       "dependencyDashboardApproval": true,
       "separateMajorMinor": false
+    },
+    {
+      "description": "Scanner build inputs require an explicitly reviewed candidate build and fresh evidence; Renovate may extract these dependencies but never edit this Dockerfile.",
+      "matchFileNames": [
+        "infra/kubescape/recurring/scanner/**"
+      ],
+      "enabled": false
     }
   ]
 }

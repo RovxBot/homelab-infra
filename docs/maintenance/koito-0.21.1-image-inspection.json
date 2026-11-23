@@ -1,0 +1,53 @@
+{
+  "image": "foxxmd/multi-scrobbler:0.21.1@sha256:9e3740476f09a14428eaa97703c7c0e5134469ff1fd5183a10079a192135107f",
+  "platform": "linux/amd64",
+  "manifestDigest": "sha256:d460dd6ed2a328716cedcb887f82f5616f8255810d8b28ebab3388ace9228371",
+  "configDigest": "sha256:2c3da0e40e6d43da41ee84c84e5054c6cab3e60aaa26944a9ea376448db06761",
+  "config": {
+    "User": "65532",
+    "ExposedPorts": {
+      "9078/tcp": {}
+    },
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt",
+      "TZ=Etc/GMT",
+      "NODE_ENV=production",
+      "IS_DOCKER=true",
+      "COLORED_STD=true",
+      "APP_VERSION=0.21.1",
+      "PORT=9078",
+      "CONFIG_DIR=/config",
+      "LOGS_DIR=/config/logs",
+      "DATA_DIR=/config"
+    ],
+    "Entrypoint": [
+      "/nodejs/bin/node"
+    ],
+    "Cmd": [
+      "/app/src/backend/index.ts"
+    ],
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/app",
+    "Labels": {
+      "build_version": "0.21.1",
+      "maintainer": "FoxxMD",
+      "org.opencontainers.image.authors": "FoxxMD",
+      "org.opencontainers.image.created": "2026-11-17T19:41:26Z",
+      "org.opencontainers.image.description": "Scrobble from multiple sources to multiple clients",
+      "org.opencontainers.image.documentation": "https://docs.multi-scrobbler.app",
+      "org.opencontainers.image.licenses": "MIT",
+      "org.opencontainers.image.source": "https://github.com/FoxxMD/multi-scrobbler",
+      "org.opencontainers.image.title": "Multi-Scrobbler",
+      "org.opencontainers.image.url": "https://docs.multi-scrobbler.app",
+      "org.opencontainers.image.version": "0.21.1"
+    },
+    "ArgsEscaped": true
+  },
+  "sourceCommit": "0fa664c2ec752eb1de7084e7560cba9ea9e7cd19",
+  "sourceDockerfile": "https://github.com/FoxxMD/multi-scrobbler/blob/0.21.1/Dockerfile",
+  "healthEndpoint": "src/backend/server/api.ts:961 (/api/health; HTTP status remains available anonymously)",
+  "verification": "Anonymous Docker Hub index, amd64 manifest and config SHA256 verification plus pinned-tag source inspection; container execution not run (no local Docker daemon)."
+}
