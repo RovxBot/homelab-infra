@@ -6,7 +6,7 @@
     "merge_commit": "296c6ba7",
     "pr": "https://github.com/RovxBot/homelab-infra/pull/2205"
   },
-  "production_pr": "pending",
+  "production_pr": "https://github.com/RovxBot/homelab-infra/pull/2206",
   "authorized_staging": {
     "decision": "Operator explicitly selected exact Pod-name RBAC with reviewed staged GitOps enrollment after agents start.",
     "initial_expected_sources": [
@@ -197,5 +197,6 @@
     "cluster_mutations_performed": false,
     "acceptance_referenced_by_production_flux": false
   },
-  "next_action": "Open focused PR and update #2136/#2138; independent final-head CI/security review, operator-approved merge, staged source enrollment, then separately approved live acceptance."
+  "next_action": "Open focused PR and update #2136/#2138; independent final-head CI/security review, operator-approved merge, staged source enrollment, then separately approved live acceptance.",
+  "validated_implementation_commit": "068fa5611206d41c1a357603941085d671932804"
 }
