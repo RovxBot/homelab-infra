@@ -25,21 +25,16 @@ jobs:
       renovate: ${{ steps.changes.outputs.renovate }}
       terraform: ${{ steps.changes.outputs.terraform }}
       terraform_matrix: ${{ steps.changes.outputs.terraform_matrix }}
+      unit_tests: ${{ steps.changes.outputs.unit_tests }}
+      ci_tests: ${{ steps.changes.outputs.ci_tests }}
+      gitea_tests: ${{ steps.changes.outputs.gitea_tests }}
+      script_tests: ${{ steps.changes.outputs.script_tests }}
     steps:
       - name: Checkout PR history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Test check selection
-        run: python3 -m unittest discover -s scripts/ci/tests -v
-
-      - name: Test storage maintenance guards
-        run: python3 -m unittest discover -s scripts/tests -v
-
-      - name: Test Gitea destructive-update protection
-        run: python3 -m unittest discover -s ops/gitea/tests -v
 
       - name: Select relevant checks
         id: changes
@@ -50,6 +45,69 @@ jobs:
         run: |
           python3 scripts/ci/detect_changes.py \
             --event "$EVENT_NAME" --base "$BASE_SHA" --head "$HEAD_SHA"
+
+  unit-tests:
+    needs: changes
+    if: needs.changes.outputs.unit_tests == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install test dependencies
+        id: dependencies
+        run: python3 -m pip install PyYAML==6.0.3
+      - name: Test check selection and validators
+        id: validators
+        if: needs.changes.outputs.ci_tests == 'true'
+        run: python3 -m unittest discover -s scripts/ci/tests -v
+      - name: Test selected application and maintenance guards
+        id: guards
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && needs.changes.outputs.script_tests != '[]' }}
+        env:
+          TEST_PATTERNS: ${{ needs.changes.outputs.script_tests }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, unittest
+          patterns = json.loads(os.environ['TEST_PATTERNS'])
+          names = set()
+          suite = unittest.TestSuite()
+          for pattern in patterns:
+              discovered = unittest.defaultTestLoader.discover('scripts/tests', pattern=pattern)
+              def collect(tests):
+                  for test in tests:
+                      if isinstance(test, unittest.TestSuite):
+                          collect(test)
+                      elif test.id() not in names:
+                          names.add(test.id())
+                          suite.addTest(test)
+              collect(discovered)
+          if not names:
+              sys.exit('Selected tests were not found')
+          sys.exit(not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful())
+          PY
+      - name: Test Gitea destructive-update protection
+        id: gitea
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && needs.changes.outputs.gitea_tests == 'true' }}
+        run: python3 -m unittest discover -s ops/gitea/tests -v
+      - name: Summarize the original unit-test failure
+        if: failure()
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          steps = json.loads(os.environ['STEPS'])
+          labels = {'dependencies': 'Test dependency setup failed; inspect package/download errors',
+                    'validators': 'Actual validator unit-test failure',
+                    'guards': 'Actual application or maintenance unit-test failure',
+                    'gitea': 'Actual Gitea protection unit-test failure'}
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              for step, label in labels.items():
+                  if steps.get(step, {}).get('outcome') == 'failure':
+                      summary.write('- ' + label + ' (see original step log).\n')
+          PY
 
   manifest-validation:
     needs: changes
@@ -434,6 +492,7 @@ jobs:
     if: always()
     needs:
       - changes
+      - unit-tests
       - kyverno-release-change
       - kyverno-compatibility
       - manifest-validation
@@ -457,14 +516,18 @@ jobs:
           import sys
 
           results = json.loads(os.environ['CHECK_RESULTS'])
-          failed = [name for name, job in results.items() if job['result'] not in {'success', 'skipped'}]
+          errors = []
+          for name, job in results.items():
+              if job['result'] not in {'success', 'skipped'}:
+                  errors.append(f"Check {name}: {job['result']} (see the failing step and its original log)")
           required = {'changes', 'gitleaks', 'kyverno-release-change'}
-          release_changed = results['kyverno-release-change'].get('outputs', {}).get('changed')
+          release_changed = results.get('kyverno-release-change', {}).get('outputs', {}).get('changed')
           if release_changed not in {'true', 'false'}:
-              sys.exit('Missing Kyverno release selection')
+              errors.append('Missing Kyverno release selection; dependent compatibility check cannot be selected')
           if release_changed == 'true':
               required.add('kyverno-compatibility')
           selectors = {
+              'unit_tests': ['unit-tests'],
               'manifests': ['manifest-validation'],
               'public_edge': ['public-edge'],
               'shell': ['shell-syntax'],
@@ -472,18 +535,22 @@ jobs:
               'renovate': ['renovate-config'],
               'terraform': ['validate'],
           }
-          outputs = results['changes'].get('outputs', {})
+          outputs = results.get('changes', {}).get('outputs', {})
           for selector, jobs in selectors.items():
               if outputs.get(selector) not in {'true', 'false'}:
-                  print('Missing or invalid check selection: ' + selector)
-                  sys.exit(1)
+                  errors.append('Missing or invalid check selection: ' + selector + '; dependent checks could not be selected')
               if outputs.get(selector) == 'true':
                   required.update(jobs)
           for name in required:
-              if results[name]['result'] != 'success' and name not in failed:
-                  failed.append(name)
-          if failed:
-              print('Checks failed or were cancelled: ' + ', '.join(failed))
+              if results.get(name, {}).get('result') != 'success':
+                  errors.append('Required check did not succeed: ' + name + ' (' + results.get(name, {}).get('result', 'missing') + ')')
+          summary = ['## Required check results', *['- ' + error for error in errors]]
+          summary.append('Failure types are reported by the original named step: unit test, build qualification, compatibility, or external fetch/registry. A job status alone does not establish the cause.')
+          if os.environ.get('GITHUB_STEP_SUMMARY'):
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as handle:
+                  handle.write('\n'.join(summary) + '\n')
+          if errors:
+              print('\n'.join(errors))
               sys.exit(1)
           print('All selected checks passed.')
           PYCODE

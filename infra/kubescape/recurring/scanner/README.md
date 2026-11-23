@@ -25,6 +25,15 @@ package pattern; no cluster credential is supplied. Deployment must pin the
 published digest and record its source/build run. An independent signature is
 not claimed. Do not deploy a mutable build tag.
 
+The workflow's normal PR path verifies the existing proof and retrieves its
+immutable pin. A reviewed `workflow_dispatch` with `build_candidate=true` is the
+only build/publish path. After successful tests, publication and anonymous
+retrieval it uploads `scanner-image-digest.txt` and generated
+`scanner-build-evidence.json`; it never edits the committed proof or deployment.
+The candidate's source commit and hashes must match the later promotion PR.
+Human release initiation/review belongs in the Wiki's Kubescape page (the
+23 November production-feedback change includes a review draft).
+
 Rollback restores the original scanner digest through GitOps and suspends the
 new vulnerability schedule: the original binary cannot satisfy the fresh
 evaluation contract for cached reports. Existing reports, SBOMs, history and DB
