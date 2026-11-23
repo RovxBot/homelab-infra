@@ -7,6 +7,9 @@ remain compatible with the installed integration.
 
 The patch fixes these observed code paths:
 
+- Home Assistant 2026.11 removed climate-module re-exports of
+  `UnitOfTemperature` and `PRECISION_WHOLE`. The patch imports those and
+  `ATTR_TEMPERATURE` from their defining `homeassistant.const` API.
 - The first AC status waited for capability discovery, then overwrote newer
   statuses. A late discovery response could restore an obsolete “on” state.
 - The transport could reconnect after a failed send and report success without
@@ -45,7 +48,8 @@ Local reproduction (Python 3.14 and Node 22+):
 python3 -m venv /tmp/airtouch-tests
 /tmp/airtouch-tests/bin/pip install -r apps/home-assistant/tests/requirements.txt
 # Use the version pinned in deployment.yaml.
-/tmp/airtouch-tests/bin/pip install homeassistant==2026.9.1 airtouch2==0.8.7
+ha_version=$(python3 -c "import yaml; d=yaml.safe_load(open('apps/home-assistant/deployment.yaml')); print(next(c['image'] for c in d['spec']['template']['spec']['containers'] if c['name']=='home-assistant').split('@')[0].rsplit(':',1)[1])")
+/tmp/airtouch-tests/bin/pip install "homeassistant==$ha_version" airtouch2==0.8.7
 git clone https://github.com/nathanvdh/homeassistant-airtouch2plus.git /tmp/airtouch-upstream
 AIRTOUCH_UPSTREAM=/tmp/airtouch-upstream /tmp/airtouch-tests/bin/pytest -q apps/home-assistant/tests
 node --test apps/home-assistant/tests/timer-picker.test.cjs

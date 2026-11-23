@@ -35,6 +35,17 @@ def climate(client):
     return entity
 
 
+def test_native_homeassistant_climate_constant_contract(climate):
+    # Import the real API installed for the proposed deployment. Neither the
+    # component nor its climate imports may be replaced with test stubs.
+    from homeassistant.const import UnitOfTemperature, PRECISION_WHOLE, ATTR_TEMPERATURE
+    from homeassistant.components.climate import ClimateEntity
+    assert isinstance(climate, ClimateEntity)
+    assert climate.temperature_unit == UnitOfTemperature.CELSIUS
+    assert climate.precision == PRECISION_WHOLE
+    assert ATTR_TEMPERATURE == 'temperature'
+
+
 @pytest.mark.asyncio
 async def test_late_ability_does_not_restore_stale_power(client):
     ability = asyncio.Future()
