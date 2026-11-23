@@ -159,8 +159,20 @@ class StagedReleaseTests(unittest.TestCase):
         infrastructure = yaml.safe_load((ROOT / "clusters/home/infrastructure/kustomization.yaml").read_text())
         self.assertNotIn("../../../infra/kubescape", infrastructure["resources"])
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
-        self.assertEqual(set(source["resources"]), {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml",
-                                              "recurring/rbac.yaml", "recurring/cronjobs.yaml", "collector"})
+        baseline = {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml",
+                    "recurring/rbac.yaml", "recurring/cronjobs.yaml", "collector"}
+        # Explicitly reviewed, opt-in disposable R1000 fixture only. Reject other additions.
+        trigger = "../../ops/security-collector/acceptance/trigger"
+        resources = set(source["resources"])
+        self.assertIn(resources, (baseline, baseline | {trigger}))
+        collector = json.loads((ROOT / "infra/kubescape/collector/collector.json").read_text())
+        test_workloads = [w for w in collector["workloads"] if w["namespace"] == "kubescape-runtime-test"]
+        if trigger in resources:
+            self.assertEqual(test_workloads, [{"cluster": "home", "namespace": "kubescape-runtime-test",
+                                               "kind": "Deployment", "name": "runtime-acceptance",
+                                               "container": "test"}])
+        else:
+            self.assertEqual(test_workloads, [])
         namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
         labels = namespace["metadata"]["labels"]
         self.assertEqual(labels["pod-security.kubernetes.io/enforce"], "privileged")
