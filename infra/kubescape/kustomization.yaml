@@ -7,6 +7,8 @@ resources:
   - recurring/rbac.yaml
   - recurring/cronjobs.yaml
   - collector
+  # Explicitly approved disposable R1000 runtime acceptance on metal3.
+  - ../../ops/security-collector/acceptance/trigger
 configMapGenerator:
   - name: kubescape-assessment-code
     namespace: kubescape

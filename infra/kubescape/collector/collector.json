@@ -30,6 +30,13 @@
       "kind": "Deployment",
       "name": "homepage-assets",
       "container": "nginx"
+    },
+    {
+      "cluster": "home",
+      "namespace": "kubescape-runtime-test",
+      "kind": "Deployment",
+      "name": "runtime-acceptance",
+      "container": "test"
     }
   ]
 }
