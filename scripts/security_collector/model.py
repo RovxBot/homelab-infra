@@ -72,11 +72,14 @@ class Deployment:
     generation: int
     observed_at: str
     deployed_at: str
+    uid: str | None = None
 
     def __post_init__(self):
         digest(self.digest)
         require(type(self.generation) is int and self.generation > 0, 'generation_invalid')
         require(timestamp(self.deployed_at) <= timestamp(self.observed_at), 'deployment_time_invalid')
+        if self.uid is not None:
+            require(isinstance(self.uid, str) and re.fullmatch(r'[a-zA-Z0-9-]{1,64}', self.uid), 'uid_invalid')
 
 
 @dataclass(frozen=True)
@@ -97,6 +100,7 @@ class Observation:
     clean: bool = False
     generation: int | None = None
     valid_until: str | None = None
+    workload_uid: str | None = None
 
     def __post_init__(self):
         require(self.source == 'kubescape', 'source_unsupported')
@@ -111,6 +115,9 @@ class Observation:
             timestamp(self.valid_until)
         if self.digest is not None:
             digest(self.digest)
+        if self.workload_uid is not None:
+            require(isinstance(self.workload_uid, str)
+                    and re.fullmatch(r'[a-zA-Z0-9-]{1,64}', self.workload_uid), 'uid_invalid')
         require(len(self.identities) <= 5000, 'finding_limit')
         for value in self.identities:
             require(isinstance(value, str) and re.fullmatch(r'(R[0-9]{4}|CVE-[0-9]{4}-[0-9]{4,10}|GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4})', value), 'finding_id_invalid')

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "status": "review-contract-only-not-installed",
+  "productionEnabled": false,
+  "publicIssueWritesEnabled": false,
+  "automaticClosureEnabled": false,
+  "process": {
+    "replicas": 1,
+    "runAsNonRoot": true,
+    "proposedUID": 10001,
+    "readOnlyRootFilesystem": true,
+    "allowPrivilegeEscalation": false,
+    "capabilities": {"drop": ["ALL"]},
+    "seccompProfile": "RuntimeDefault",
+    "hostPID": false,
+    "hostNetwork": false,
+    "hostPaths": [],
+    "cpuRequest": "100m",
+    "cpuLimit": "500m",
+    "memoryRequest": "128Mi",
+    "memoryLimit": "512Mi",
+    "resourceQualification": "Proposed ceilings only. No deployed resource or peak-memory measurement; approve and measure before production enablement."
+  },
+  "storage": {
+    "databasePageBytes": 67108864,
+    "pendingNormalizedBytes": 8388608,
+    "pendingEvents": 1000,
+    "minimumPrivateVolumeBytes": 268435456,
+    "filesystemQuotaRequired": true,
+    "rollbackJournalAllowanceBytes": 67108864,
+    "directoryMode": "0700",
+    "fileMode": "0600",
+    "rawEvidenceRetention": "none; payloads only in bounded process memory",
+    "fullBehavior": "Stop acceptance without cursor advancement unless the normalized queue has already committed. Retain pending items and receipts; surface failure externally. No eviction or automatic PVC expansion.",
+    "historySource": "Continuously updated trusted runner-history directory mounted read-only. Read-only snapshots are suitable for offline qualification, not proof of latest live attempt.",
+    "historyConstraints": "Do not change active CronJobs, acquire their locks, mount their data read-write, move scanner pods, or create audit/reader Jobs under this PR. Volume access/locality and Longhorn headroom require separate rollout approval."
+  },
+  "readRBACRequirements": [
+    {"scope": "kubescape", "apiGroup": "apps", "resources": ["daemonsets"], "verbs": ["get"], "resourceNames": ["node-agent"]},
+    {"scope": "kubescape", "apiGroup": "", "resources": ["pods", "pods/log"], "verbs": ["get"], "resourceNames": ["REVIEWED_CURRENT_AGENT_POD_ONLY"]},
+    {"scope": "EACH_ENROLLED_NAMESPACE", "apiGroup": "apps", "resources": ["deployments"], "verbs": ["get"], "resourceNames": ["REVIEWED_ENROLLED_DEPLOYMENTS_ONLY"]},
+    {"scope": "EACH_ENROLLED_NAMESPACE", "apiGroup": "", "resources": ["pods"], "verbs": ["list"]},
+    {"scope": "EACH_ENROLLED_NAMESPACE", "apiGroup": "apps", "resources": ["replicasets"], "verbs": ["get"]},
+    {"scope": "kubescape", "apiGroup": "spdx.softwarecomposition.kubescape.io", "resources": ["vulnerabilitymanifests", "sbomsyfts"], "verbs": ["get"], "resourceNames": ["REVIEWED_NAMED_REPORTS_AND_SBOMS_ONLY"]},
+    {"scope": "EACH_ENROLLED_NAMESPACE", "apiGroup": "spdx.softwarecomposition.kubescape.io", "resources": ["vulnerabilitymanifestsummaries"], "verbs": ["get"], "resourceNames": ["REVIEWED_NAMED_SUMMARIES_ONLY"]}
+  ],
+  "forbiddenAccess": ["Secrets", "Gitea", "pods/exec", "pods/attach", "nodes/proxy", "scan submission", "token creation", "workload writes", "GitHub credentials"],
+  "credentials": "Use a dedicated projected short-lived API-server-audience ServiceAccount token, namespace Roles and bindings, and verified CA/HTTPS origin. Do not reuse node-agent credentials or accept source identity from log bodies. Any future static credential must be SOPS-managed; none is supplied.",
+  "network": {
+    "listeners": [],
+    "readDestinations": ["REVIEWED_HTTPS_KUBERNETES_API_ORIGIN_ONLY"],
+    "proxyAndRedirects": "disabled",
+    "ciliumPolicyEnforcementMode": "never",
+    "isolation": "No NetworkPolicy isolation claim. Exact-origin client authentication controls implemented; independent infrastructure egress control and denied-access probes remain an enablement gate."
+  },
+  "operations": {
+    "minimumPollIntervalSeconds": 15,
+    "proposedSchedulerTickSeconds": 30,
+    "maximumHeartbeatAgeSeconds": 300,
+    "healthSupervisor": "External private supervisor must call health on quiet ticks and detect stopped process/unwritable status. No public issue writer or new monitoring stack.",
+    "identityChanges": "Agent Pod replacement requires separately reviewed Pod UID/name/RBAC configuration; never widen log access to all pods. Workload UID/generation/digest changes invalidate recovery.",
+    "rollback": "contract.md#stage-b-rollbackrecovery-contract",
+    "approvalGates": ["Independent security/code review and CI", "Unpublished Wiki diff security approval", "RBAC denied-access probes and authentic deployed source identities", "Private history access without interfering with #2135", "Resource, volume, supervision and reconnect qualification", "Separate production ingestion approval"]
+  }
+}

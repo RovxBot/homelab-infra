@@ -1,4 +1,4 @@
-"""Private file adapters for verified local formats; no receiver or polling loop."""
+"""Pure private-format adapters, called after Stage B source authentication."""
 import base64
 from dataclasses import dataclass
 from datetime import timedelta
@@ -23,7 +23,8 @@ def decode(payload, limit):
             result[key] = value
         return result
     try:
-        result = json.loads(payload, object_pairs_hook=unique)
+        result = json.loads(payload, object_pairs_hook=unique,
+                            parse_constant=lambda _: require(False, 'json_constant_invalid'))
         require(isinstance(result, dict), 'payload_invalid')
         return result
     except (ValueError, UnicodeError, RecursionError):
@@ -83,6 +84,7 @@ class AssessmentContext:
     generation: int
     latest_attempt: str
     coverage_complete: bool
+    workload_uid: str | None = None
 
 
 class VulnerabilityAdapter:
@@ -128,6 +130,7 @@ class VulnerabilityAdapter:
                 fixed |= vuln.get('fix', {}).get('state') == 'fixed'
             qualified = (ctx.latest_attempt == 'healthy' and ctx.coverage_complete is True
                          and ctx.generation == deployment.generation
+                         and ctx.workload_uid == deployment.uid
                          and age_ok(deployment.observed_at, now, 1)
                          and timestamp(deployment.observed_at) >= timestamp(created))
             fresh = age_ok(created, now, 72) and age_ok(ctx.database_built, now, 168)
@@ -138,7 +141,7 @@ class VulnerabilityAdapter:
                                'storage-v0.0.382-grype', state, 'qualified' if qualified else 'unverified',
                                'fix_available' if fixed else 'no_known_fix', not matches and state == 'confirmed',
                                deployment.generation, stamp(min(timestamp(created) + timedelta(hours=72),
-                                   timestamp(ctx.database_built) + timedelta(hours=168))))
+                                   timestamp(ctx.database_built) + timedelta(hours=168))), ctx.workload_uid)
         except (KeyError, TypeError, AttributeError, IndexError, ValueError) as exc:
             if isinstance(exc, Rejected):
                 raise

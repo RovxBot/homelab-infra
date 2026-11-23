@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "stage": "B-offline-qualified-production-disabled",
+  "trackingIssue": "https://github.com/RovxBot/homelab-infra/issues/2138",
+  "foundation": "https://github.com/RovxBot/homelab-infra/pull/2203",
+  "foundationMerge": "9f024872",
+  "qualificationDate": "2026-11-23",
+  "method": "Exact pinned upstream source checkout review, existing repository compatibility/evidence, isolated temporary files and SQLite, synthetic real-format data generated with the active runner contracts, mocked cluster reads and external writes, local TLS server. No live cluster reads, scans, deployments, public incidents or Wiki publication.",
+  "runtimeTransport": {
+    "selected": "Authenticated HTTPS Kubernetes API GET of named node-agent Pod logs with timestamps, independent source/owner/inventory verification and durable normalized queue/cursor",
+    "sourceCommit": "eaeb55d9a67bfaf89d789b5f8c337d5d55d5c820",
+    "sourceTag": "v0.3.310",
+    "files": [
+      {
+        "path": "pkg/exporters/stdout_exporter.go",
+        "sha256": "c8b975edc29ed83b1089e54673428e465feaf1cea324a3f1534288a3a0ede100"
+      },
+      {
+        "path": "pkg/exporters/http_exporter.go",
+        "sha256": "b31a65bca80cb6c1b38094480710e978410cf93ecbd7189aca2826fa0137b32b"
+      },
+      {
+        "path": "pkg/exporters/http_client.go",
+        "sha256": "fd2721e11cbf64a36a37f663f6be685193c9a08fb7cde553bb8add9aabe81763"
+      },
+      {
+        "path": "pkg/exporters/http_rule_retry.go",
+        "sha256": "913035579b0cb6ade259a4db7fb723e7ef6b0667d60c075e01c5022d1ef37e27"
+      },
+      {
+        "path": "pkg/exporters/alert_bulk_manager.go",
+        "sha256": "0470d7640f92cf9bcd34ba3ccdd2328a89f24b4a6c7bc0255acbbfa0c4f044af"
+      }
+    ],
+    "nativeHTTPFindings": {
+      "supported": true,
+      "enabledOrTestedAgainstRunningAgent": false,
+      "serialization": "RuntimeAlerts kubescape.io/v1 with spec.alerts array, processTree and cloudMetadata, for single or bulk paths; differs from stderr field layout",
+      "authentication": "Configurable headers and projected bearer tokenFile reread by apiauth transport for configured host; HTTPS downgrade redirects refused. No durable sender identity comes from event metadata.",
+      "singleRuleRetry": "Explicit 429/503 retries use a process-memory FIFO: 1000 entries, 16 MiB, five-minute retention. Ambiguous network failures are not blindly retried.",
+      "bulkRetry": "Process-memory send queue with configured queue size/retry count/backoff. Full queue or exhausted retries can lose data; no disk persistence or restart-resume cursor.",
+      "selectionReason": "Native HTTP needs separately approved exporter/token configuration and a receiver, plus independent heartbeat/durable loss accounting. Log pull uses existing output with no agent change. Neither upstream transport proves complete detector emission.",
+      "source": "https://github.com/kubescape/node-agent/tree/eaeb55d9a67bfaf89d789b5f8c337d5d55d5c820/pkg/exporters"
+    },
+    "imageIdentityEvidence": "infra/kubescape/runtime/prerequisites.json retains the pinned index and independently qualified amd64 child",
+    "gaps": "Initial boundary, missing overlap anchor, changed agent Pod/container/restart count, disconnection over five minutes, malformed/oversized reads, ingestion failures and heartbeat expiry. Gaps stay explicit; no claim of lossless kubelet logs or detector liveness.",
+    "agentConfigChanged": false,
+    "productionEnabled": false
+  },
+  "assessmentReader": {
+    "readOnlyContracts": [
+      "infra/kubescape/recurring/runner.py:check_report",
+      "infra/kubescape/recurring/runner.py:row_key",
+      "infra/kubescape/recurring/runner.py:coverage",
+      "infra/kubescape/grype-database.json"
+    ],
+    "joinedInputs": [
+      "records.json",
+      "latest-vulnerability.json",
+      "coverage.json",
+      "inflight.json presence",
+      "unique retained run result",
+      "request",
+      "successful terminal status",
+      "cache SQLite/checksum audit",
+      "report",
+      "SBOM",
+      "workload summary",
+      "fresh named storage API rereads",
+      "fresh controller/Pod UID, generation, image and container inventory"
+    ],
+    "generationLimit": "Existing records lack historical generation. A scan must start after the collector independently observed the current UID/generation/digest epoch. Old history remains unknown rather than inheriting current coverage generation.",
+    "completeness": "Per-enrolled Deployment/container only; all current replicas ready with one running digest, current UID/generation and Pod set, healthy overall latest batch and per-record attempt/coverage, retained terminal success and verified locked database. Missing/excluded/unsupported/failed/stale are explicit and preserve qualified findings.",
+    "cronJobsChanged": false,
+    "acceptance2135Touched": false
+  },
+  "focusedChecks": [
+    {
+      "command": "python3 -m unittest discover -s scripts/tests -p 'test_security_collector*.py'",
+      "result": "passed",
+      "tests": 56
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts/tests -p test_kubescape_recurring.py",
+      "result": "passed",
+      "tests": 42
+    },
+    {
+      "command": "python3 -m compileall -q scripts/security_collector scripts/tests/test_security_collector*.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "git -C /tmp/homelab-infra-wiki apply --unidiff-zero --check <absolute-path-to-wiki-proposal.patch>",
+      "result": "passed"
+    }
+  ],
+  "qualifiedScenarios": [
+    "Authenticated source allowlist",
+    "TLS CA/hostname validation, token rotation and redirect refusal",
+    "Source -> Reader -> Validation -> Collector -> Durable State -> safe preview",
+    "Duplicate events across restart",
+    "Crash after queue/cursor commit",
+    "Assessment pending after crash requires current requalification",
+    "Changed workload UID/generation/digest",
+    "Malformed input and duplicate keys/nonfinite numbers",
+    "Missing/failed/expired telemetry and assessment evidence",
+    "Agent restart, log rotation and disconnection gaps",
+    "History/inventory races and named independent rereads",
+    "Logical spool, collector backpressure and physical SQLite quota saturation",
+    "Private raw-field exclusion",
+    "Disabled coordinator, public writes and closure"
+  ],
+  "unqualifiedProductionGates": [
+    "Independent review and GitHub CI",
+    "Actual deployed sender and least-privilege denied-access qualification",
+    "Live history access and source freshness supervision without changing #2135",
+    "Measured CPU/memory/storage and filesystem quota",
+    "Live reconnect/rotation/rollback acceptance",
+    "Separate production enablement approval"
+  ],
+  "publicIncidentWrites": false,
+  "automaticClosure": false,
+  "collectorDeployed": false,
+  "wikiPublished": false,
+  "wikiProposal": "wiki-proposal.patch; security review required before publication"
+}
