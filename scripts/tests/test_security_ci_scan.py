@@ -56,6 +56,21 @@ class ScanContractTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             S.provenance(report,DIGEST,SHA,ASSET,NOW)
 
+    def test_explicit_repository_allowlist_and_scan_attribution(self):
+        for image in sorted(S.ALLOWED_IMAGES):
+            report=self.report()
+            report["source"]["target"]["userInput"]=image+DIGEST
+            result=S.provenance(report,DIGEST,SHA,ASSET,NOW,image=image)
+            self.assertEqual(result["image"],image+DIGEST)
+            if image!=S.IMAGE:
+                with self.assertRaises(ValueError):
+                    S.provenance(report,DIGEST,SHA,ASSET,NOW)
+        for image in ("ghcr.io/other/private@", "https://example.com/image@", "ghcr.io/rovxbot/security-receiver:latest@"):
+            report=self.report()
+            report["source"]["target"]["userInput"]=image+DIGEST
+            with self.assertRaises(ValueError):
+                S.provenance(report,DIGEST,SHA,ASSET,NOW,image=image)
+
     def test_exact_binary_checksum_required(self):
         self.assertEqual(S.ASSET_DIGEST,"sha256:e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85")
         payload=b"fixture binary"
