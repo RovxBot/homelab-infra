@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - infra/kubescape/**
+      - secrets/security-receiver-*.enc.yaml
+      - ops/security-receiver/*.sh
+      - scripts/tests/test_security_receiver_deployment.py
       - infra/pod-report/**
       - infra/observability/gatus-helmrelease.yaml
       - scripts/tests/test_kubescape_health.py
@@ -64,6 +67,7 @@ jobs:
       - name: Test suspended and active preflight guards
         run: |
           python3 -m unittest discover -s scripts/ci/tests -p test_kubescape.py -v
+          python3 -m unittest discover -s scripts/tests -p test_security_receiver_deployment.py -v
           python3 -m unittest discover -s scripts/tests -p 'test_grype*.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_kubescape_recurring.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_kubescape_health.py' -v
