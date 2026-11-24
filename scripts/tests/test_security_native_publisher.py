@@ -219,6 +219,14 @@ class PublisherTests(unittest.TestCase):
 
 
 class CVEPublisherTests(unittest.TestCase):
+    def test_private_projection_scope_matches_reviewed_scan_config(self):
+        import json
+        config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
+        self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
+        self.assertEqual(len(pub.CVE_ALLOWED),9)
+        self.assertEqual(len(pub.ALLOWED),3)
+        self.assertNotIn("kubescape-public-cve",SOURCE.read_text())
+
     def fixture(self):
         return {"schema":1,"source":"kubescape-cve","generatedAt":"2026-11-24T06:00:00Z","entries":[
             {"workload":w,"state":"complete","assessedAt":"2026-11-24T05:00:00Z",
