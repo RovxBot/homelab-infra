@@ -3,9 +3,11 @@ kind: Kustomization
 resources:
   - workload.yaml
   - policy-workload.yaml
+  - admission-workload.yaml
 configMapGenerator:
   - name: security-incident-publisher-code
     namespace: monitoring
     files:
       - publisher.py
       - policy.py
+      - admission.py
