@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-import copy
+import hashlib
+from unittest.mock import patch
 import json
 from pathlib import Path
 import sys
@@ -37,15 +38,15 @@ class ScanContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 S.provenance(report,DIGEST,SHA,ASSET,NOW)
 
-    def test_immutable_release_and_exact_asset_required(self):
-        asset={"name":S.ARCHIVE,"browser_download_url":S.DOWNLOAD,"state":"uploaded","digest":ASSET,"size":1024}
-        release={"tag_name":"v"+S.VERSION,"immutable":True,"draft":False,"prerelease":False,"assets":[asset]}
-        self.assertEqual(S.release_asset(release),asset)
-        for field,value in (("immutable",False),("prerelease",True),("tag_name","latest"),("assets",[asset,asset])):
-            bad=copy.deepcopy(release)
-            bad[field]=value
-            with self.assertRaises(ValueError):
-                S.release_asset(bad)
+    def test_exact_binary_checksum_required(self):
+        self.assertEqual(S.ASSET_DIGEST,"sha256:e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85")
+        payload=b"fixture binary"
+        with patch.object(S,"ASSET_DIGEST","sha256:"+hashlib.sha256(payload).hexdigest()):
+            S.verify_asset(payload)
+            for value in (b"",payload+b"modified"):
+                with self.assertRaises(ValueError):
+                    S.verify_asset(value)
+
 
 
 if __name__=="__main__":
