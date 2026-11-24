@@ -336,7 +336,7 @@ spec:
                     if [ "$coverage_healthy" -le "$coverage_expected" ]; then
                       cohort_expected="$coverage_expected"
                       cohort_healthy="$coverage_healthy"
-                      if [ "$coverage_state" = healthy ] && [ "$coverage_healthy" = "$coverage_expected" ]; then
+                      if [ "$coverage_state" = healthy ] && [ "$coverage_expected" = 9 ] && [ "$coverage_healthy" = "$coverage_expected" ]; then
                         case "$coverage_until" in
                           ????-??-??T*Z)
                             cohort_expiry="$(date -u -d "$coverage_until" +%s 2>/dev/null)" || cohort_expiry=""
