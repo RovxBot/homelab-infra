@@ -10,6 +10,13 @@ spec:
   wait: true
   path: ./infra/kubescape
   prune: true
+  # Decrypt only Kubescape-owned SOPS Secrets; namespace is in the same
+  # source composition, so clean-cluster bootstrap does not depend on
+  # a Secret being applied before its Namespace exists.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
   sourceRef:
     kind: GitRepository
     name: flux-system
