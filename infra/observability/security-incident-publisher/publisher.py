@@ -1,0 +1,328 @@
+"""Isolated, stateful, public-safe Kubescape incident publisher.
+
+Never import the receiver's private EventStore. Trust only a TokenReview-
+protected, statically allowlisted projection, and never log credentials,
+responses, private source data or failed HTTP bodies.
+"""
+import base64
+from datetime import datetime, timezone
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import sqlite3
+import ssl
+import time
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote_plus
+from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
+
+REPO = "RovxBot/homelab-infra"
+GITHUB = "https://api.github.com"
+RECEIVER = "https://security-receiver.kubescape.svc:8443/v1/public-incidents"
+KUBERNETES = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/secrets/security-receiver-ca"
+ALLOWED = frozenset(("homepage/Deployment/homepage", "homepage/Deployment/homepage-assets",
+                     "memos/Deployment/memos"))
+FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "count", "state"))
+KEY = re.compile(r"[0-9a-f]{64}\Z")
+RULE = re.compile(r"R[0-9]{4}\Z")
+MAX_BODY = 128 * 1024
+IMAGE = "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
+
+
+def require(condition):
+    if not condition:
+        raise ValueError("publication_contract_invalid")
+
+
+def normalize_date(value):
+    require(isinstance(value, str) and len(value) <= 40)
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("publication_contract_invalid") from None
+    require(dt.tzinfo is not None)
+    return dt.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def validate(projection):
+    require(isinstance(projection, dict) and set(projection) == {"schema", "source", "incidents"})
+    require(projection["schema"] == 1 and projection["source"] == "kubescape-native")
+    values = projection["incidents"]
+    require(isinstance(values, list) and len(values) <= 30)
+    known = set()
+    for item in values:
+        require(isinstance(item, dict) and set(item) == FIELDS)
+        require(isinstance(item["key"], str) and KEY.fullmatch(item["key"]))
+        require(item["key"] not in known)
+        known.add(item["key"])
+        require(item["workload"] in ALLOWED
+                and isinstance(item["rule"], str) and RULE.fullmatch(item["rule"])
+                and item["severity"] in ("High", "Critical") and item["state"] == "open")
+        require(type(item["count"]) is int and 1 <= item["count"] <= 2**63 - 1)
+        require(normalize_date(item["first"]) <= normalize_date(item["last"]))
+    return sorted(values, key=lambda x: x["key"])
+
+
+def marker(key):
+    require(isinstance(key, str) and KEY.fullmatch(key))
+    return "<!-- native-security:" + key + " -->"
+
+
+def revision(item):
+    return hashlib.sha256(json.dumps(item, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def render(item):
+    # Fields are independently allowlisted and strictly typed by validate().
+    title = "Security (Kubescape): " + item["rule"] + " in " + item["workload"]
+    body = "\n".join((
+        marker(item["key"]),
+        "Native Kubescape runtime security finding (sanitized summary).",
+        "Affected workload: " + item["workload"],
+        "Detection rule: " + item["rule"],
+        "Severity: " + item["severity"],
+        "First observed: " + normalize_date(item["first"]),
+        "Last observed: " + normalize_date(item["last"]),
+        "Occurrences: " + str(item["count"]),
+        "State: open — requires human investigation.",
+        "Private process/event evidence remains inside Kubernetes.",
+        "Do not close based on quiet telemetry, receiver restart or Gatus recovery.",
+        "Resolution requires reviewed mitigation and fresh independent evidence.",
+    ))
+    return title, body
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("redirect_refused")
+
+
+def request_json(opener, url, token, *, method="GET", payload=None):
+    require(isinstance(url, str) and url.startswith("https://") and len(url) < 1800)
+    require(isinstance(token, str) and 0 < len(token) <= 8192
+            and "\r" not in token and "\n" not in token)
+    body = None if payload is None else json.dumps(payload, separators=(",", ":")).encode()
+    req = Request(url, data=body, method=method, headers={
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json" if url.startswith(GITHUB) else "application/json",
+        "Content-Type": "application/json",
+        "Accept-Encoding": "identity",
+        "User-Agent": "security-native-publisher",
+    })
+    try:
+        with opener.open(req, timeout=15) as response:
+            require(response.status in (200, 201) and
+                    response.headers.get("Content-Encoding", "identity") == "identity")
+            data = response.read(MAX_BODY + 1)
+            require(len(data) <= MAX_BODY)
+            return json.loads(data)
+    except (HTTPError, URLError, OSError, UnicodeError, ValueError):
+        raise ValueError("remote_request_failed") from None
+
+
+def fetch_projection():
+    api_token = Path("/var/run/publisher-api/token").read_text().strip()
+    api_ca = "/var/run/publisher-api/ca.crt"
+    kube = build_opener(ProxyHandler({}), NoRedirect(),
+                        HTTPSHandler(context=ssl.create_default_context(cafile=api_ca)))
+    secret = request_json(kube, KUBERNETES, api_token)
+    require(secret.get("kind") == "Secret"
+            and secret.get("metadata", {}).get("namespace") == "kubescape"
+            and secret["metadata"].get("name") == "security-receiver-ca")
+    data = secret.get("data")
+    # This named Secret contains the PUBLIC CA ONLY (not the receiver TLS key).
+    require(isinstance(data, dict) and set(data) == {"receiver-ca.crt"})
+    try:
+        pem = base64.b64decode(data["receiver-ca.crt"], validate=True).decode("ascii")
+    except (ValueError, UnicodeError):
+        raise ValueError("ca_invalid") from None
+    require(pem.startswith("-----BEGIN CERTIFICATE-----\n") and
+            pem.count("-----BEGIN CERTIFICATE-----") == 1 and len(pem) < 8192)
+    context = ssl.create_default_context(cadata=pem)
+    receiver = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=context))
+    bearer = Path("/var/run/publisher-receiver/token").read_text().strip()
+    result = request_json(receiver, RECEIVER, bearer)
+    return validate(result)
+
+
+class GitHub:
+    def __init__(self, token, requester=request_json):
+        self.token = token
+        self.requester = requester
+        self.opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(
+            context=ssl.create_default_context()))
+
+    def call(self, path, method="GET", body=None):
+        require(path.startswith(("/repos/" + REPO + "/issues", "/search/issues?q="))
+                and ".." not in path and not path.startswith("//"))
+        return self.requester(self.opener, GITHUB + path, self.token,
+                              method=method, payload=body)
+
+    def search(self, key):
+        # Search is only a discovery aid. An on-disk intent fences a create
+        # before POST, so eventually consistent search cannot cause retries.
+        title_query = 'repo:' + REPO + ' in:title "Security (Kubescape)"'
+        result = self.call("/search/issues?q=" + quote_plus(title_query) + "&per_page=100")
+        require(result.get("incomplete_results") is False
+                and type(result.get("total_count")) is int
+                and result["total_count"] <= 100)
+        candidates = [x for x in result.get("items", [])
+                      if not x.get("pull_request") and
+                      isinstance(x.get("body"), str) and marker(key) in x["body"]]
+        require(len(candidates) <= 1)
+        return candidates[0] if candidates else None
+
+    def issue(self, number):
+        require(type(number) is int and 0 < number < 10**9)
+        return self.call("/repos/" + REPO + "/issues/" + str(number))
+
+    def create(self, title, body):
+        return self.call("/repos/" + REPO + "/issues", "POST",
+                         {"title":title, "body":body})
+
+    def comments(self, number):
+        issue = self.issue(number)
+        amount = issue.get("comments")
+        require(type(amount) is int and 0 <= amount <= 300)
+        comments = []
+        for page in range(1, (amount + 99)//100 + 1):
+            part = self.call("/repos/" + REPO + "/issues/" + str(number)
+                             + "/comments?per_page=100&page=" + str(page))
+            require(isinstance(part, list) and len(part) <= 100)
+            comments.extend(part)
+        return comments
+
+    def comment(self, number, body):
+        return self.call("/repos/" + REPO + "/issues/" + str(number)
+                         + "/comments", "POST", {"body":body})
+
+
+class DurablePublisher:
+    def __init__(self, connection, github, now=None):
+        self.db = connection
+        self.github = github
+        self.now = int(time.time()) if now is None else now
+        self.db.execute("""CREATE TABLE IF NOT EXISTS issues
+            (key TEXT PRIMARY KEY, number INTEGER, revision TEXT,
+             pending_create INTEGER NOT NULL DEFAULT 0, pending_update TEXT)""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS writes
+            (at INTEGER NOT NULL, action TEXT NOT NULL)""")
+
+    def reserve(self, action):
+        with self.db:
+            self.db.execute("DELETE FROM writes WHERE at < ?", (self.now - 86400,))
+            hourly = self.db.execute("SELECT count(*) FROM writes WHERE at >= ?",
+                                     (self.now-3600,)).fetchone()[0]
+            creates = self.db.execute("SELECT count(*) FROM writes WHERE action='create'").fetchone()[0]
+            require(hourly < 10 and (action != "create" or creates < 3))
+            self.db.execute("INSERT INTO writes VALUES (?,?)", (self.now, action))
+
+    def sync(self, item):
+        title, body = render(item)
+        fp = revision(item)
+        key = item["key"]
+        row = self.db.execute(
+            "SELECT number,revision,pending_create,pending_update FROM issues WHERE key=?",
+            (key,)).fetchone()
+        if row is None:
+            found = self.github.search(key)
+            if found is not None:
+                number = found.get("number")
+                require(type(number) is int and number > 0)
+                with self.db:
+                    self.db.execute("INSERT INTO issues VALUES (?,?,?,0,NULL)",
+                                    (key, number, fp if body == found.get("body") else None))
+                row = (number, fp if body == found.get("body") else None, 0, None)
+            else:
+                # Intent DURABLE before a potentially ambiguous external POST.
+                self.reserve("create")
+                with self.db:
+                    self.db.execute("INSERT INTO issues VALUES (?,NULL,NULL,1,NULL)", (key,))
+                created = self.github.create(title, body)
+                number = created.get("number")
+                require(type(number) is int and 0 < number < 10**9 and
+                        created.get("body") == body)
+                with self.db:
+                    self.db.execute("UPDATE issues SET number=?,revision=?,pending_create=0 WHERE key=?",
+                                    (number, fp, key))
+                return "created"
+        number, published, pending_create, pending_update = row
+        if pending_create:
+            # A crash/timeout during create: search can reconcile, but never
+            # send a second create on absence; human review is then required.
+            found = self.github.search(key)
+            if found is None:
+                return "pending_manual_create"
+            number = found.get("number")
+            require(type(number) is int and number > 0)
+            with self.db:
+                self.db.execute("UPDATE issues SET number=?,pending_create=0 WHERE key=?",
+                                (number,key))
+            published = None
+        issue = self.github.issue(number)
+        require(issue.get("number") == number and not issue.get("pull_request")
+                and isinstance(issue.get("body"), str)
+                and issue["body"].count(marker(key)) == 1)
+        if issue.get("state") != "open":
+            return "human_closed"
+        if pending_update:
+            code = "<!-- native-security-update:" + key + ":" + pending_update + " -->"
+            found = any(code in (c.get("body") or "") for c in self.github.comments(number))
+            if not found:
+                return "pending_manual_update"
+            with self.db:
+                self.db.execute("UPDATE issues SET revision=?,pending_update=NULL WHERE key=?",
+                                (pending_update, key))
+            published = pending_update
+        if published == fp:
+            return "unchanged"
+        # Preserve human edits and notes: never replace a GitHub issue body.
+        # A pending comment intent is also never blindly replayed after failure.
+        self.reserve("comment")
+        with self.db:
+            self.db.execute("UPDATE issues SET pending_update=? WHERE key=?", (fp,key))
+        comment = "<!-- native-security-update:" + key + ":" + fp + " -->\n" + body.replace(
+            marker(key) + "\n", "", 1)
+        self.github.comment(number, comment)
+        with self.db:
+            self.db.execute("UPDATE issues SET revision=?,pending_update=NULL WHERE key=?",
+                            (fp,key))
+        return "updated"
+
+
+def main():
+    token = os.environ.get("GITHUB_TOKEN", "")
+    require(0 < len(token) <= 8192)
+    incidents = fetch_projection()  # Fail before any GitHub API call.
+    Path("/state").mkdir(exist_ok=True)
+    fd = os.open("/state/publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    db = sqlite3.connect("/state/publisher.sqlite", timeout=5)
+    try:
+        db.execute("PRAGMA journal_mode=DELETE")
+        db.execute("PRAGMA synchronous=FULL")
+        require(db.execute("PRAGMA quick_check").fetchone()[0] == "ok")
+        publisher = DurablePublisher(db, GitHub(token))
+        outcomes = []
+        for item in incidents:
+            outcomes.append(publisher.sync(item))
+        # Only static categories; no incident keys, payloads, UIDs, tokens,
+        # request errors, GitHub bodies or private evidence in Pod logs.
+        print(json.dumps({"total":len(incidents),
+                          "created":outcomes.count("created"),
+                          "updated":outcomes.count("updated"),
+                          "pending":sum(x.startswith("pending_") for x in outcomes)}))
+    finally:
+        db.close()
+        os.close(fd)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        print("security_native_publisher_failed", flush=True)
+        raise SystemExit(1) from None
