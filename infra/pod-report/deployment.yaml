@@ -280,8 +280,8 @@ spec:
               }
 
               assessment_health() {
-                assessment_rows="$(kubectl --request-timeout=15s get configmap kubescape-assessment-status -n kubescape -o go-template='{{index .data "vulnerability.lastSuccessfulAssessmentAt"}}|{{index .data "posture.lastSuccessfulAssessmentAt"}}|{{index .data "vulnerability.state"}}|{{index .data "posture.state"}}|{{index .data "database.built"}}')" || assessment_rows="||||"
-                IFS='|' read -r vulnerability_time posture_time vulnerability_state posture_state database_built <<EOF
+                assessment_rows="$(kubectl --request-timeout=15s get configmap kubescape-assessment-status -n kubescape -o go-template='{{index .data "vulnerability.lastSuccessfulAssessmentAt"}}|{{index .data "posture.lastSuccessfulAssessmentAt"}}|{{index .data "vulnerability.state"}}|{{index .data "posture.state"}}|{{index .data "database.built"}}|{{index .data "coverage.state"}}|{{index .data "coverage.validUntil"}}|{{index .data "coverage.expected"}}|{{index .data "coverage.healthy"}}')" || assessment_rows="||||||||"
+                IFS='|' read -r vulnerability_time posture_time vulnerability_state posture_state database_built coverage_state coverage_until coverage_expected coverage_healthy <<EOF
               $assessment_rows
               EOF
                 assessment_now="$(date -u +%s)"
@@ -326,11 +326,32 @@ spec:
                     [ "$database_age" -gt 604800 ] || database_freshness=fresh
                   fi
                 fi
-                assessment_state=healthy
+                # Report only bounded aggregate counts, never private inventory rows.
+                cohort_state=unknown
+                cohort_expected=null
+                cohort_healthy=null
+                case "$coverage_expected:$coverage_healthy" in
+                  [1-9]:[0-9])
+                    if [ "$coverage_healthy" -le "$coverage_expected" ]; then
+                      cohort_expected="$coverage_expected"
+                      cohort_healthy="$coverage_healthy"
+                      if [ "$coverage_state" = healthy ] && [ "$coverage_healthy" = "$coverage_expected" ]; then
+                        case "$coverage_until" in
+                          ????-??-??T*Z)
+                            cohort_expiry="$(date -u -d "$coverage_until" +%s 2>/dev/null)" || cohort_expiry=""
+                            if [ -n "$cohort_expiry" ]; then
+                              cohort_state=stale
+                              [ "$cohort_expiry" -lt "$assessment_now" ] || cohort_state=healthy
+                            fi ;;
+                        esac
+                      fi
+                    fi ;;
+                esac
+                assessment_state="$cohort_state"
                 case "$vulnerability_health$posture_health$database_health" in *'"state":"stale"'*) assessment_state=stale ;; esac
                 case "$vulnerability_health$posture_health$database_health" in *'"state":"unknown"'*) assessment_state=unknown ;; esac
                 case "$vulnerability_health$posture_health$database_health" in *'"state":"failed"'*) assessment_state=failed ;; esac
-                printf '{"status":"%s","observedAt":"%s","databaseFreshness":"%s",%s,%s,%s}\n' "$assessment_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$database_freshness" "$vulnerability_health" "$posture_health" "$database_health" > /work/kubescape-health.json.tmp
+                printf '{"status":"%s","observedAt":"%s","databaseFreshness":"%s",%s,%s,%s,"coverage":{"state":"%s","expected":%s,"healthy":%s}}\n' "$assessment_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$database_freshness" "$vulnerability_health" "$posture_health" "$database_health" "$cohort_state" "$cohort_expected" "$cohort_healthy" > /work/kubescape-health.json.tmp
                 mv /work/kubescape-health.json.tmp /work/kubescape-health.json
               }
 
