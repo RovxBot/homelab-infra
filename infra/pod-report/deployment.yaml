@@ -349,7 +349,10 @@ spec:
                     fi ;;
                 esac
                 # A recent inventory observation is required independently of the scan age.
-                observed_epoch="$(date -u -d "$coverage_observed" +%s 2>/dev/null)" || observed_epoch=""
+                observed_epoch=""
+                case "$coverage_observed" in
+                  ????-??-??T??:??:??Z) observed_epoch="$(date -u -d "$coverage_observed" +%s 2>/dev/null)" || observed_epoch="" ;;
+                esac
                 if [ -z "$observed_epoch" ] || [ "$observed_epoch" -gt "$assessment_now" ]; then
                   cohort_state=unknown
                 elif [ "$((assessment_now - observed_epoch))" -gt 3900 ]; then
