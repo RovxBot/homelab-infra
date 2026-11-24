@@ -419,6 +419,10 @@ spec:
           value: "1"
         - name: MAXQUEUEDEPTH
           value: "1"
+        # Viper AutomaticEnv uses the uppercase maxImageSize key; isolate
+        # this scanner-only qualification from the chart node-agent config.
+        - name: MAXIMAGESIZE
+          value: "1073741824"
       sbomScanner:
         enabled: false
       config:

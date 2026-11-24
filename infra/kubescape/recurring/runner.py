@@ -559,6 +559,18 @@ def coverage_status(api, inventory, records, config):
     return path, status
 
 
+def scan_failure_reason(status):
+    # Exact fixed codes from the pinned engine's terminal status contract.
+    # Never copy arbitrary server error messages into general health or logs.
+    reason = status.get("reason")
+    allowed = ("image_too_large", "sbom_too_large", "sbom_incomplete",
+               "image_auth_failed", "image_not_found", "image_schema_unsupported",
+               "scanner_oom_killed", "scan_timeout", "rate_limit_exceeded",
+               "sbom_generation_failed", "cve_matching_failed", "sbom_storage_failed",
+               "result_storage_failed", "result_upload_failed", "unexpected_error")
+    return reason if isinstance(reason, str) and reason in allowed else "scan_failed"
+
+
 def refresh_inventory(api, config, history):
     """Revalidate current running digests without submitting any assessment."""
     with locked(history):
@@ -884,7 +896,7 @@ class Runner:
         # Only an observed terminal status from this engine clears the durable
         # submission fence. Report validation can then fail without blocking peers.
         self.clear_fence()
-        db.require(status["state"] == "succeeded" and status["phase"] == "completed", "scan_failed")
+        db.require(status["state"] == "succeeded" and status["phase"] == "completed", scan_failure_reason(status))
         report, sbom = existing("vulnerabilitymanifests"), existing("sbomsyfts")
         db.require(report is not None and sbom is not None, "report_missing")
         result = check_report(report, sbom, row, self.expected, started, previous)

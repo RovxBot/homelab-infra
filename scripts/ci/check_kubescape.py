@@ -98,7 +98,8 @@ def check_release(release, active=False):
         "maxSBOMSize": 20971520, "scanTimeout": "5m", "cveMatchingMode": "off"}
     assert values["kubevuln"]["env"] == [
         {"name": "CA_MAX_VULN_SCAN_ROUTINES", "value": "1"},
-        {"name": "MAXQUEUEDEPTH", "value": "1"}]
+        {"name": "MAXQUEUEDEPTH", "value": "1"},
+        {"name": "MAXIMAGESIZE", "value": "1073741824"}]
     assert values["kubevuln"]["tmpDirPersistence"]["enabled"] is False
     assert values["kubescapeScheduler"]["requestBody"] == {"commands": [{
         "CommandName": "kubescapeScan", "args": {"scanV1": {
