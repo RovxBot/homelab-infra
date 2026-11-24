@@ -169,7 +169,7 @@ class KubernetesTrust:
         a pre-filtered summary and never changes the receiver's SQLite state.
         """
         require(isinstance(bearer, str) and 1 <= len(bearer) <= 8192
-                and "\\r" not in bearer and "\\n" not in bearer,
+                and "\r" not in bearer and "\n" not in bearer,
                 "bearer_invalid")
         review = self.request(TOKEN_REVIEW_PATH, body=json.dumps(
             {"apiVersion":"authentication.k8s.io/v1", "kind":"TokenReview",
