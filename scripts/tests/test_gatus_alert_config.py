@@ -119,7 +119,7 @@ class GatusAlertConfigTests(unittest.TestCase):
                     self.assertEqual(endpoint['conditions'], ['[STATUS] == 200', '[BODY].status == healthy'])
                     self.assertEqual(endpoint['alerts'], [{'type': 'github', 'failure-threshold': 3,
                                                          'success-threshold': 20, 'send-on-resolved': True}])
-                elif endpoint['name'] in ('security-collector-process', 'security-collector-sources'):
+                elif endpoint['name'] in ('security-collector-process', 'security-collector-sources', 'kyverno-policy-assurance'):
                     self.assertEqual(endpoint['alerts'], [])
                 else:
                     self.assertEqual(endpoint['alerts'], [{'type': 'github'}])
@@ -155,7 +155,7 @@ class GatusAlertConfigTests(unittest.TestCase):
         self.assertEqual(endpoint, {'name':'kyverno-policy-assurance','group':'cluster',
             'url':'http://pod-report.homepage.svc.cluster.local:80/security-reporting-health.json',
             'interval':'1m','conditions':['[STATUS] == 200','[BODY].kyvernoAssurance == healthy'],
-            'alerts':[{'type':'github'}]})
+            'alerts':[]})
 
     def test_security_receiver_transport_is_static_and_payload_free(self):
         release = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())

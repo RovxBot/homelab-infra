@@ -299,8 +299,7 @@ spec:
           conditions:
             - "[STATUS] == 200"
             - "[BODY].kyvernoAssurance == healthy"
-          alerts:
-            - type: github
+          alerts: []
         - name: cloudflared-metrics
           group: cluster
           url: http://cloudflared-metrics.cloudflared.svc.cluster.local:2000/metrics

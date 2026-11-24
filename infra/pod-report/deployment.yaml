@@ -441,7 +441,7 @@ spec:
                 remaining="${stages#*|}"
                 cve_state="${remaining%%|*}"
                 capacity_state="${remaining#*|}"
-                policy_state="$(reporter_health kyverno kyverno-github-issue-sync 5400)"
+                policy_state="$(reporter_health monitoring security-policy-publisher 5400)"
                 controllers_state="$(kyverno_controllers_health)"
                 assurance_state="$(reporter_health kyverno kyverno-policy-assurance 5400)"
                 reporting_state=healthy

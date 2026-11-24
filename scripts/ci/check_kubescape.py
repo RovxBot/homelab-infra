@@ -369,7 +369,8 @@ def check_assessment_alert(before, after):
             if matching:
                 multi = dict(reviewed, conditions=reviewed['conditions'] + [
                     '[BODY].expected_agents == 2', '[BODY].healthy_agents == 2', '[BODY].uncovered_workloads == 0'])
-                assert matching[0] == reviewed or (reviewed['name'] == 'security-collector-sources'
+                assert matching[0] == reviewed or (reviewed["name"] == "kyverno-policy-assurance"
+                                                   and matching[0] == dict(reviewed, alerts=[])) or (reviewed['name'] == 'security-collector-sources'
                                                    and matching[0] == multi), "assessment/collector alert differs"
                 endpoints.remove(matching[0])
     assert before == after, "Gatus changed outside the assessment/collector endpoints"
