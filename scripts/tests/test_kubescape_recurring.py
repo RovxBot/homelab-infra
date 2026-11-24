@@ -410,7 +410,7 @@ class BatchTests(unittest.TestCase):
         required = CONFIG["postureWorkloads"]
         summaries = [summary(*target.split("/")) for target in required] + [summary("kubescape", "shared")]
         result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
-        self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 5)
+        self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 49)
         for i in range(1, len(required)):
             with self.subTest(missing=required[i]), self.assertRaisesRegex(R.db.Rejected, "posture_scope_incomplete"):
                 R.check_posture(result, summaries[:i]+summaries[i+1:], R.db.stamp(NOW), required)
