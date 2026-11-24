@@ -26,7 +26,7 @@ spec:
     crds: Create
     remediation:
       retries: 0
-  timeout: 10m
+  timeout: 20m
   # configurationScan enables a daily CronJob independently of continuousScan.
   # The chart has no scheduler-disable value. Keep that job suspended as well.
   postRenderers:
