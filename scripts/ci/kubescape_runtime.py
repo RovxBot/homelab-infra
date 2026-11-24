@@ -79,7 +79,7 @@ def check_config(resources):
     maps = {r['metadata']['name']: r['data'] for r in resources if r['kind'] == 'ConfigMap'}
     cfg = json.loads(maps['node-agent']['config.json'])
     assert cfg['runtimeDetectionEnabled'] is True and cfg['applicationProfileServiceEnabled'] is True
-    assert cfg['includeNamespaces'] == 'memos'  # Runtime env override; scanner scope stays unchanged.
+    assert cfg['includeNamespaces'] == 'memos,homepage,koito'  # Runtime env override remains independent.
     assert cfg['exporters'] == {
         'stdoutExporter': True, 'alertManagerExporterUrls': [],
         'syslogExporterURL': '', 'httpExporterConfig': EXPORTER
