@@ -9,7 +9,7 @@ metadata:
     kubescape.io/ignore: 'true'
     app.kubernetes.io/name: kubescape-assessment
 spec:
-  schedule: 13 19 * * *
+  schedule: "13 1,10,13,19 * * *"
   timeZone: Etc/UTC
   suspend: false
   concurrencyPolicy: Forbid
