@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: security-policy-publisher
+  namespace: monitoring
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: security-policy-publisher-state
+  namespace: monitoring
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  storageClassName: longhorn
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 128Mi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: security-policy-publisher
+rules:
+  - apiGroups: ["wgpolicyk8s.io"]
+    resources: ["clusterpolicyreports", "policyreports"]
+    verbs: ["list"]
+  - apiGroups: ["policies.kyverno.io"]
+    resources: ["policyexceptions"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: security-policy-publisher
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: security-policy-publisher
+subjects:
+  - kind: ServiceAccount
+    name: security-policy-publisher
+    namespace: monitoring
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: security-policy-publisher
+  namespace: monitoring
+spec:
+  schedule: "15 * * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 240
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            homelab.cooked.beer/owner: sam
+            app.kubernetes.io/name: security-policy-publisher
+        spec:
+          serviceAccountName: security-policy-publisher
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: publisher
+              image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+              command: [python3, -B, /opt/publisher/policy.py]
+              env:
+                - name: GITEA_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: homelab-security-gitea
+                      key: token
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              volumeMounts:
+                - name: state
+                  mountPath: /state
+                - name: code
+                  mountPath: /opt/publisher
+                  readOnly: true
+          volumes:
+            - name: state
+              persistentVolumeClaim:
+                claimName: security-policy-publisher-state
+            - name: code
+              configMap:
+                name: security-incident-publisher-code
+                defaultMode: 0444
