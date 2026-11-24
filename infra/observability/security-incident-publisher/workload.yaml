@@ -1,6 +1,4 @@
-# The existing gatus-github-token is intentionally reused under the same
-# monitoring namespace. This Pod is a distinct, non-Gatus issue writer and
-# cannot fetch raw receiver events or the receiver TLS private key.
+# Private destination credential; receiver and assessment read boundaries are unchanged.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -121,10 +119,10 @@ spec:
                   value: "1"
                 - name: ENABLE_CVE_PUBLISHER
                   value: "true"
-                - name: GITHUB_TOKEN
+                - name: GITEA_TOKEN
                   valueFrom:
                     secretKeyRef:
-                      name: gatus-github-token
+                      name: homelab-security-gitea
                       key: token
               securityContext:
                 allowPrivilegeEscalation: false
