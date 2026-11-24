@@ -88,7 +88,7 @@ class ReceiverStageTests(unittest.TestCase):
                 if rule["verbs"]==["create"]:
                     self.assertEqual(role["kind"],"ClusterRole")
         bindings=[x for x in items if x["kind"].endswith("Binding")]
-        self.assertEqual(len(bindings),5)
+        self.assertEqual(len(bindings),6)
         for binding in bindings:
             self.assertEqual(binding["subjects"],[{"kind":"ServiceAccount",
                                                     "name":"security-receiver",
