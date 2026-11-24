@@ -131,5 +131,38 @@ jobs:
           PY
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home > .work/kubescape-preflight/entrypoint.yaml
+          # Flux SOPS decrypts before Kubernetes admission. kubeconform
+          # cannot validate encrypted Secret metadata/ciphertext directly.
+          # Check exact encrypted objects first, then use a schema-only copy
+          # with placeholder base64 values. No key or decryption in CI.
+          python3 - <<'PY'
+          from pathlib import Path
+          import yaml
+          src=Path('.work/kubescape-preflight/source.yaml')
+          docs=list(yaml.safe_load_all(src.read_text()))
+          allowed={'security-receiver-ca': {'receiver-ca.crt'},
+                   'security-receiver-tls': {'tls.crt','tls.key'}}
+          found=set()
+          for doc in docs:
+              if not isinstance(doc,dict) or doc.get('kind')!='Secret':
+                  continue
+              name=doc.get('metadata',{}).get('name')
+              assert name in allowed or 'sops' not in doc, 'unexpected SOPS source Secret'
+              if name not in allowed:
+                  continue
+              assert name not in found, 'duplicate receiver Secret'
+              found.add(name)
+              assert doc['metadata']['namespace']=='kubescape'
+              assert set(doc.get('data',{}))==allowed[name]
+              assert doc['sops']['encrypted_regex']=='^(data|stringData)
+
+              assert all(v.startswith('ENC[AES256_GCM,')
+                         for v in doc['data'].values()), 'unexpected plaintext in encrypted Secret'
+              doc.pop('sops')
+              doc['data']={key:'Y2ktc2NoZW1hLW9ubHk=' for key in allowed[name]}
+          assert found==set(allowed), 'missing receiver TLS/CA Secret'
+          Path('.work/kubescape-preflight/source-schema.yaml').write_text(
+              yaml.safe_dump_all(docs,sort_keys=False))
+          PY
           kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.34.0 -summary \
-            .work/kubescape-preflight/rendered.yaml .work/kubescape-preflight/source.yaml ops/kubescape/runtime-canary-test.yaml
+            .work/kubescape-preflight/rendered.yaml .work/kubescape-preflight/source-schema.yaml ops/kubescape/runtime-canary-test.yaml
