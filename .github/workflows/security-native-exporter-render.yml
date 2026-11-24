@@ -1,0 +1,51 @@
+name: Security Native Kubescape Exporter Render Proof
+
+on:
+  pull_request:
+    paths:
+      - scripts/ci/security_native_exporter_preflight.py
+      - scripts/tests/test_security_native_exporter_preflight.py
+      - infra/kubescape/helmrelease.yaml
+      - .github/workflows/security-native-exporter-render.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-exporter-render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install pinned Helm and Python YAML
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 2             https://get.helm.sh/helm-v3.20.2-linux-amd64.tar.gz -o /tmp/helm.tgz
+          tar -xzf /tmp/helm.tgz -C /tmp linux-amd64/helm
+          echo "/tmp/linux-amd64" >> "$GITHUB_PATH"
+          python3 -m pip install PyYAML==6.0.3
+      - name: Static documented feature and drift tests
+        run: |
+          python3 -m unittest discover -s scripts/tests -p 'test_security_native_exporter_preflight.py' -v
+          python3 -m py_compile scripts/ci/security_native_exporter_preflight.py
+      - name: Render exact checksum-pinned chart and generate non-deploying candidate
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/security_native_exporter_preflight.py --output /tmp/native-exporter-proof
+          test -s /tmp/native-exporter-proof/helm-post-render-candidate.yaml
+          test -s /tmp/native-exporter-proof/proof.json
+      - name: Upload source-only render proof (no TLS keys or token)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: native-exporter-chart-142-proof
+          path: |
+            /tmp/native-exporter-proof/proof.json
+            /tmp/native-exporter-proof/node-agent-base.json
+            /tmp/native-exporter-proof/node-agent-native-candidate.json
+            /tmp/native-exporter-proof/helm-post-render-candidate.yaml
+          if-no-files-found: error
+          retention-days: 14
