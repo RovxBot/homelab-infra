@@ -85,8 +85,15 @@ class ReceiverStageTests(unittest.TestCase):
         build=(ROOT/"ops/security-receiver/build-image.py").read_text()
         self.assertIn("security_receiver.service",build)
         self.assertNotIn("scripts/security_collector",build)
-        self.assertFalse((ROOT/"secrets/security-receiver-tls.enc.yaml").exists())
-        self.assertFalse((ROOT/"secrets/security-receiver-ca.enc.yaml").exists())
+        # TLS bootstrap may be completed in a later PR revision. If present,
+        # committed Secrets must be SOPS-encrypted, never plaintext.
+        for file in ("security-receiver-tls.enc.yaml","security-receiver-ca.enc.yaml"):
+            path=ROOT/"secrets"/file
+            if path.exists():
+                secret=yaml.safe_load(path.read_text())
+                self.assertIn("sops",secret)
+                self.assertNotIn("stringData",secret)
+                self.assertTrue(all("ENC[" in v for v in secret.get("data",{}).values()))
 
 
 if __name__=="__main__":
