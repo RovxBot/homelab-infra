@@ -52,7 +52,8 @@ data:
             if isinstance(candidate, str) and candidate:
                 normalized = candidate.replace("Z", "+00:00")
                 try:
-                    return datetime.fromisoformat(normalized)
+                    value = datetime.fromisoformat(normalized)
+                    return value if value.tzinfo is not None else None
                 except ValueError:
                     pass
         return None
@@ -151,6 +152,11 @@ data:
         rule = result.get("rule") or ""
         source = result.get("source", "")
         mapped = POLICY_IDENTITIES.get(policy)
+        # This independently deployed CEL policy is not a migration alias.
+        if policy == "kubescape-runtime-boundary" and source in {"KyvernoValidatingPolicy", "kyverno"}:
+            if rule in {"", "validation", "exception", policy}:
+                return policy, "validation"
+            raise ValueError("Unrecognized runtime boundary rule")
         if source == "KyvernoGeneratingPolicy" and policy == "platform-namespace-bootstrap":
             if rule not in {"", "generation", "exception", policy}:
                 raise ValueError("Unrecognized generator report rule: " + rule)
@@ -281,7 +287,7 @@ data:
             [
                 "## Persistent Kyverno failure",
                 "",
-                failure["message"],
+                "A persistent policy failure was observed. Inspect the original report privately in the cluster.",
                 "",
                 "```json",
                 json.dumps(summary, indent=2, sort_keys=True),
@@ -319,16 +325,33 @@ data:
         return key
 
 
+    # Public identities are deliberately explicit; private reports never leave the cluster.
+    PUBLIC_RESOURCES = {
+        ("Deployment", "homepage", "homepage"),
+        ("Deployment", "homepage", "homepage-assets"),
+        ("Deployment", "memos", "memos"),
+    }
+
+
+    def public_resource(key):
+        return key is not None and key[2:] in PUBLIC_RESOURCES
+
+
     def main():
+        phase = "kubernetes_reports"
         try:
             failures, passes, unknown = load_observations()
-            desired = {issue_title(v): v for v in failures.values() if v["persistent"]}
+            desired = {issue_title(v): v for k, v in failures.items()
+                       if v["persistent"] and public_resource(k)}
+            private_count = sum(not public_resource(k) for k in failures)
+            phase = "github_configuration"
             if not GITHUB_OWNER or not GITHUB_REPO or not GITHUB_TOKEN:
-                print(json.dumps({"mode": "dry-run", "reason": "missing GitHub config", "failures": list(desired)}))
-                return 0
+                print(json.dumps({"status": "unknown", "phase": phase, "writes": 0}))
+                return 0 if DRY_RUN else 1
+            phase = "github_list"
             existing = list_open_issues()
         except (ValueError, OSError, KeyError, TypeError) as error:
-            print(json.dumps({"status": "unknown", "reason": type(error).__name__, "writes": 0}))
+            print(json.dumps({"status": "unknown", "phase": phase, "reason": type(error).__name__, "writes": 0}))
             return 1
         keys = {incident_key(issue_key(title)) for title in existing}
         failed_families = {incident_key(key) for key in failures}
@@ -341,15 +364,31 @@ data:
             key = issue_key(title)
             observed = passes.get(key)
             created = parse_result_time({}, issue.get("created_at"))
-            if (key and incident_key(key) not in failed_families and incident_key(key) not in unknown_families and observed and created
+            if (public_resource(key) and incident_key(key) not in failed_families and incident_key(key) not in unknown_families and observed and created
                     and created < observed <= now and (now-observed).total_seconds() <= 900):
                 closes.append(title)
-        if not DRY_RUN:
-            for title in creates:
-                create_issue(desired[title])
-            for title in closes:
-                close_issue(existing[title])
-        print(json.dumps({"mode": "dry-run" if DRY_RUN else "apply", "create": creates, "close": closes}))
+        # Preserve ambiguous write outcomes for human investigation; the Job
+        # must not immediately retry the whole batch on an HTTP failure.
+        if len(creates) + len(closes) > 20:
+            print(json.dumps({"status": "unknown", "phase": "write_budget", "writes": 0}))
+            return 1
+        writes = 0
+        try:
+            if not DRY_RUN:
+                for title in creates:
+                    phase = "github_create"
+                    create_issue(desired[title])
+                    writes += 1
+                for title in closes:
+                    phase = "github_close"
+                    close_issue(existing[title])
+                    writes += 1
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            print(json.dumps({"status": "unknown", "phase": phase, "reason": type(error).__name__, "confirmedWrites": writes}))
+            return 1
+        print(json.dumps({"mode": "dry-run" if DRY_RUN else "apply",
+                          "create": len(creates), "close": len(closes),
+                          "privateFailures": private_count}))
         return 0
 
 
