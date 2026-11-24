@@ -44,7 +44,9 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertEqual(deploy["spec"]["strategy"],{"type":"Recreate"})
         self.assertEqual(deploy["spec"]["template"]["metadata"]["annotations"],
                          {"homelab.cooked.beer/persistence-acceptance":
-                          "r1000-receipt-20261124-01"})
+                          "r1000-receipt-20261124-01",
+                          "homelab.cooked.beer/tls-leaf-reissue":
+                          "strict-x509-aki-20261124-01"})
         spec=deploy["spec"]["template"]["spec"]
         self.assertEqual(spec["serviceAccountName"],"security-receiver")
         self.assertIs(spec["automountServiceAccountToken"],False)
