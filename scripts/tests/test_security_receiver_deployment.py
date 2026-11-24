@@ -73,6 +73,21 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertEqual(obj["PersistentVolumeClaim"]["metadata"]["annotations"]
                          ["kustomize.toolkit.fluxcd.io/prune"],"disabled")
 
+    def test_strict_x509_rotation_preserves_ca_and_private_key(self):
+        bootstrap=(ROOT/"ops/security-receiver/generate-tls-secrets.sh").read_text()
+        reissue=(ROOT/"ops/security-receiver/reissue-leaf-strict-x509.sh").read_text()
+        for source in (bootstrap,reissue):
+            self.assertIn("authorityKeyIdentifier=keyid,issuer",source)
+            self.assertIn("subjectKeyIdentifier=hash",source)
+            self.assertIn("openssl verify -x509_strict",source)
+            self.assertIn("security-receiver.kubescape.svc.cluster.local",source)
+            self.assertNotIn("insecureSkipVerify",source)
+        self.assertIn('sops set "$SECRET"',reissue)
+        self.assertIn("'[\"data\"][\"tls.crt\"]'",reissue)
+        self.assertIn('openssl pkey -in "$OUT/tls.key" -pubout',reissue)
+        self.assertNotIn('kubectl apply',reissue)
+        self.assertNotIn('kubectl delete',reissue)
+
     def test_tokenreview_and_read_only_inventory_without_secrets_or_logs(self):
         items=documents(RECEIVER/"rbac.yaml")
         roles=[x for x in items if x["kind"] in ("Role","ClusterRole")]
