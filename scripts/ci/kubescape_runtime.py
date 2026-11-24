@@ -2,6 +2,8 @@
 from copy import deepcopy
 import json
 
+from security_native_exporter_preflight import EXPORTER
+
 IMAGE = 'quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60'
 NODES = ['metal3', 'metal6']
 NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test']
@@ -74,7 +76,10 @@ def check_config(resources):
     cfg = json.loads(maps['node-agent']['config.json'])
     assert cfg['runtimeDetectionEnabled'] is True and cfg['applicationProfileServiceEnabled'] is True
     assert cfg['includeNamespaces'] == 'memos'  # Runtime env override; scanner scope stays unchanged.
-    assert cfg['exporters'] == {'stdoutExporter': True, 'alertManagerExporterUrls': [], 'syslogExporterURL': ''}
+    assert cfg['exporters'] == {
+        'stdoutExporter': True, 'alertManagerExporterUrls': [],
+        'syslogExporterURL': '', 'httpExporterConfig': EXPORTER
+    }, 'native HTTP exporter differs from the documented scoped contract'
     for k in ('hostMonitoringEnabled', 'hostSensorEnabled', 'sandboxSeccompEnabled', 'seccompServiceEnabled',
               'networkServiceEnabled', 'malwareDetectionEnabled', 'sbomGenerationEnabled', 'networkStreamingEnabled'):
         assert cfg[k] is False, k
