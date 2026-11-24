@@ -20,6 +20,15 @@ MAX_INCIDENTS = 200
 MAX_EVENTS_PER_HOUR = 1000
 MAX_DATABASE_BYTES = 64 * 1024 * 1024
 
+# The only identities allowed to cross into public GitHub issues. Never infer
+# public names from arbitrary event fields or publish the disposable R1000 Pod.
+PUBLIC_WORKLOADS = {
+    "home/homepage/Deployment/homepage/homepage": "homepage/Deployment/homepage",
+    "home/homepage/Deployment/homepage-assets/nginx": "homepage/Deployment/homepage-assets",
+    "home/memos/Deployment/memos/memos": "memos/Deployment/memos",
+}
+
+
 
 class EventStore:
     def __init__(self, path):
@@ -139,6 +148,35 @@ class EventStore:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
             raise
+
+    def public_incidents(self):
+        """Strict high-impact, allowlisted projection; never include private IDs."""
+        output = []
+        for (value,) in self.db.execute("SELECT data FROM incidents ORDER BY key"):
+            record = json.loads(value)
+            identity = PUBLIC_WORKLOADS.get(record.get("workload_key"))
+            if identity is None or record.get("severity") not in ("High", "Critical"):
+                continue
+            # All fields derive from normalized private events; fail closed
+            # if storage is malformed, rather than interpolate arbitrary text.
+            key, rule = record.get("key"), record.get("rule")
+            first, last = record.get("first"), record.get("last")
+            count = record.get("count")
+            require(isinstance(key, str) and len(key) == 64
+                    and all(c in "0123456789abcdef" for c in key)
+                    and isinstance(rule, str) and len(rule) == 5
+                    and rule[0] == "R" and rule[1:].isdigit()
+                    and record.get("status") == "open"
+                    and type(count) is int and 1 <= count <= 2**63-1
+                    and isinstance(first, str) and len(first) <= 40
+                    and isinstance(last, str) and len(last) <= 40
+                    and utc(first) <= utc(last),
+                    "publication_record_invalid")
+            output.append({"key":key, "workload":identity, "rule":rule,
+                           "severity":record["severity"], "first":first,
+                           "last":last, "count":count, "state":"open"})
+            require(len(output) <= 30, "publication_capacity")
+        return {"schema":1, "source":"kubescape-native", "incidents":output}
 
     def health(self):
         try:

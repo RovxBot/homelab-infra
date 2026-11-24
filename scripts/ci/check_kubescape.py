@@ -319,7 +319,15 @@ def check_post_render(raw, rendered):
 
 def check_scope(changed_paths):
     protected = ("infra/kyverno/", "infra/kyverno-policies/", "infra/observability/", "infra/cilium/")
-    return [p for p in changed_paths if p.startswith(protected) and p not in {"infra/observability/gatus-helmrelease.yaml", "infra/kyverno-policies/kustomization.yaml"}]
+    # The publisher lives in its own static monitoring subtree and is
+    # qualified separately; unrelated observability/kyverno changes remain blocked.
+    allowed = {"infra/observability/gatus-helmrelease.yaml",
+               "infra/kyverno-policies/kustomization.yaml",
+               "infra/observability/kustomization.yaml",
+               "infra/observability/security-incident-publisher/kustomization.yaml",
+               "infra/observability/security-incident-publisher/workload.yaml",
+               "infra/observability/security-incident-publisher/publisher.py"}
+    return [p for p in changed_paths if p.startswith(protected) and p not in allowed]
 
 
 def check_assessment_alert(before, after):
@@ -434,6 +442,15 @@ def run(args):
                 before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + policy_source], cwd=ROOT))
                 before["resources"].append("../kubescape/runtime/admission.yaml")
                 assert before == yaml.safe_load((ROOT / policy_source).read_text()), "policy composition changed outside the runtime boundary"
+            publisher_parent = "infra/observability/kustomization.yaml"
+            if publisher_parent in paths:
+                before_parent = yaml.safe_load(subprocess.check_output(
+                    ["git", "show", args.base_ref + ":" + publisher_parent], cwd=ROOT))
+                after_parent = yaml.safe_load((ROOT / publisher_parent).read_text())
+                assert after_parent["resources"] == before_parent["resources"] + [
+                    "security-incident-publisher"], "publisher changed other monitoring resources"
+                assert {k:v for k,v in after_parent.items() if k != "resources"} == {
+                    k:v for k,v in before_parent.items() if k != "resources"}
             alert_path = "infra/observability/gatus-helmrelease.yaml"
             if alert_path in paths:
                 before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + alert_path], cwd=ROOT))

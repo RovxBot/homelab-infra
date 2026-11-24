@@ -55,7 +55,7 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
         self.assertEqual(container["securityContext"]["capabilities"]["drop"],["ALL"])
         self.assertEqual(container["image"],
-            "ghcr.io/rovxbot/security-receiver@sha256:f1e05b419c614a8d3f843b4fcfa332f44bd74edbb9e61cee2b0e820dcab02b2e")
+            "ghcr.io/rovxbot/security-receiver@sha256:5f16fad236d04a3360aa84fba760c76e9313f74053fd03e7271ccb3fe532b33e")
         self.assertEqual(obj["Service"]["spec"]["type"],"ClusterIP")
         self.assertTrue(all(p["httpGet"]["scheme"]=="HTTPS"
                             for p in (container["startupProbe"],container["readinessProbe"],
@@ -88,7 +88,7 @@ class ReceiverStageTests(unittest.TestCase):
                 if rule["verbs"]==["create"]:
                     self.assertEqual(role["kind"],"ClusterRole")
         bindings=[x for x in items if x["kind"].endswith("Binding")]
-        self.assertEqual(len(bindings),5)
+        self.assertEqual(len(bindings),6)
         for binding in bindings:
             self.assertEqual(binding["subjects"],[{"kind":"ServiceAccount",
                                                     "name":"security-receiver",

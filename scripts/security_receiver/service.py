@@ -46,6 +46,11 @@ class Receiver:
     def health(self):
         return self.store.health()
 
+    def publication(self, bearer):
+        # A different, bound Kubernetes SA from the event-ingesting agents.
+        self.api.authenticate_publisher(bearer)
+        return self.store.public_incidents()
+
 
 def make_handler(receiver):
     class Handler(BaseHTTPRequestHandler):
@@ -59,6 +64,20 @@ def make_handler(receiver):
             self.wfile.write(data)
 
         def do_GET(self):
+            if self.path == "/v1/public-incidents":
+                auths = self.headers.get_all("Authorization", [])
+                if len(auths) != 1 or not TOKEN.fullmatch(auths[0]):
+                    return self.send_json(401, {"error":"unauthenticated"})
+                try:
+                    return self.send_json(200, receiver.publication(
+                        TOKEN.fullmatch(auths[0]).group(1)))
+                except Rejected as exc:
+                    if str(exc) in ("kubernetes_unavailable", "database_capacity",
+                                    "database_integrity_failed", "publication_capacity"):
+                        return self.send_json(503, {"error":"temporarily_unavailable"})
+                    return self.send_json(403, {"error":"unauthenticated"})
+                except (OSError, ValueError, sqlite3.Error):
+                    return self.send_json(503, {"error":"temporarily_unavailable"})
             if self.path == "/livez":
                 return self.send_json(200, {"alive": True})
             if self.path in ("/readyz", "/healthz"):
