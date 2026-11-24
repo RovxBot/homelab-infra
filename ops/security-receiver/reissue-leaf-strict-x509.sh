@@ -22,7 +22,7 @@ DEPLOYMENT="infra/kubescape/receiver/workload.yaml"
 for file in "$OUT/root.key" "$OUT/root.crt" "$OUT/tls.key" "$SECRET" "$CA_SECRET"; do
   [[ -s "$file" ]] || { printf 'Missing original PKI input: %s\n' "$file" >&2; exit 1; }
 done
-git diff --quiet -- "$SECRET" "$CA_SECRET" || {
+git diff HEAD --quiet -- "$SECRET" "$CA_SECRET" || {
   echo "Receiver SOPS Secrets already have uncommitted changes; review first." >&2
   exit 1
 }
@@ -94,6 +94,10 @@ done
 # ciphertext. No plaintext Secret YAML is written to disk.
 sops set "$SECRET" '["data"]["tls.crt"]' \
   "\"$(base64 -w 0 "$TMP/leaf.crt")\""
+
+# Decrypt only to /dev/null so that SOPS verifies the ciphertext MAC.
+# Never print or write the plaintext secret.
+sops decrypt "$SECRET" >/dev/null
 
 grep -Fq 'tls.crt: ENC[' "$SECRET" &&
 grep -Fq 'tls.key: ENC[' "$SECRET" || {
