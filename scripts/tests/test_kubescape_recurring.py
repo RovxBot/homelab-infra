@@ -708,6 +708,16 @@ class SubmissionTests(unittest.TestCase):
     def test_terminal_failure_does_not_resubmit_and_clears_intent(self):
         self.submission_case("failed", "scan_failed")
 
+    def test_size_rejection_remains_failed_without_resubmission(self):
+        self.submission_case("failed", "image_too_large", terminal_reason="image_too_large")
+        self.submission_case("failed", "sbom_too_large", terminal_reason="sbom_too_large")
+        self.submission_case("failed", "scan_failed", terminal_reason="untrusted error with private data")
+
+    def test_failure_reason_allowlist_is_bounded(self):
+        for reason in (None, {}, [], "unknown_reason", "image_too_large\nprivate"):
+            self.assertEqual(R.scan_failure_reason({"reason": reason}), "scan_failed")
+        self.assertEqual(R.scan_failure_reason({"reason": "image_auth_failed"}), "image_auth_failed")
+
     def test_missing_report_cannot_pass_a_successful_api_job(self):
         self.submission_case("succeeded", "report_missing")
 
@@ -723,7 +733,7 @@ class SubmissionTests(unittest.TestCase):
     def test_lost_post_response_queries_id_without_post_retry(self):
         self.submission_case("succeeded", "report_missing", lost=True)
 
-    def submission_case(self, status_state, reason, timeout=False, restarted=False, lost=False):
+    def submission_case(self, status_state, reason, timeout=False, restarted=False, lost=False, terminal_reason=None):
         with tempfile.TemporaryDirectory() as path:
             api = mock.Mock()
             api.items.return_value = []  # No full report/SBOM persisted.
@@ -735,7 +745,8 @@ class SubmissionTests(unittest.TestCase):
                     if lost:
                         raise OSError("lost response")
                     return {"accepted": True}
-                return {"state": status_state, "phase": "completed" if status_state == "succeeded" else "scanning"}
+                return {"state": status_state, "phase": "completed" if status_state == "succeeded" else "scanning",
+                        "reason": terminal_reason}
             audit = {"podUID": "engine-uid"}
             with mock.patch.object(runner, "preflight"), mock.patch.object(runner, "gate"), \
                     mock.patch.object(runner, "observe"), mock.patch.object(R, "service", side_effect=service), \
