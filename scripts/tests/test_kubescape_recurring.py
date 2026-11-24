@@ -51,6 +51,24 @@ class CoverageTests(unittest.TestCase):
         inventory = R.coverage([copy.deepcopy(current)], {}, config, NOW)
         self.assertIn("validUntil", inventory)
 
+    def test_cohort_health_rejects_missing_rolling_and_stale_targets(self):
+        config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+        current = row()
+        records = {R.row_key(current): {"createdAt": R.db.stamp(NOW-timedelta(hours=71)),
+                                       "database": EXPECTED["metadata"]}}
+        def evaluate(rows):
+            return R.cohort_health(R.coverage(rows, records, config, NOW), config)
+        complete = evaluate([copy.deepcopy(current)])
+        self.assertEqual(complete["state"], "healthy")
+        self.assertEqual(R.db.timestamp(complete["validUntil"]), NOW+timedelta(hours=1))
+        self.assertEqual(complete["healthy"], 1)
+        for rows in ([], [{**current, "ready": False}], [copy.deepcopy(current), copy.deepcopy(current)],
+                     [{**current, "runningDigest": "registry/image@sha256:"+"f"*64}]):
+            with self.subTest(rows=rows):
+                result=evaluate(rows)
+                self.assertEqual(result["state"], "unknown")
+                self.assertEqual(result["healthy"], 0)
+
     def test_new_digest_cannot_inherit_old_workload_coverage(self):
         previous = row()
         changed = {**previous, "runningDigest": "docker.io/image@sha256:" + "f" * 64}
