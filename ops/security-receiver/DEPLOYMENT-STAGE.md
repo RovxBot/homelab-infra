@@ -24,7 +24,7 @@ Files:
 - `ops/security-receiver/generate-tls-secrets.sh`: local one-time keypair bootstrap and SOPS-encrypted Secrets. NO cluster writes.
 - `scripts/tests/test_security_receiver_deployment.py`: confirms no accidental activation, narrow RBAC, TLS-only service, dedicated PVC and encrypted Secrets.
 
-The staged receiver image `ghcr.io/rovxbot/security-receiver:staging-not-deployable` is **deliberately invalid as a release**. Do not add `receiver` to `infra/kubescape/kustomization.yaml` until this is replaced with a real `@sha256:…` digest from the successful, anonymously retrievable build.
+The receiver image is now pinned to **`ghcr.io/rovxbot/security-receiver@sha256:9c92582e2428fa9ae85ae08039dd6dd4b8a1fa82ef347404ffed1e19b7d58f84`**, built and anonymously pulled by the dedicated PR workflow. The CI image job checks that the image digest is exactly reproducible from the current source. **This remains an off-by-default staging manifest**: do not add `receiver` to `infra/kubescape/kustomization.yaml` until the encrypted TLS Secrets, chart exporter configuration and Kyverno policy are qualified.
 
 ## Stage B — one-time operator TLS bootstrap
 
@@ -55,7 +55,7 @@ For the HTTP path, require `enableAlertBulking=false` for canary: current receiv
 ## Stage D — activation PR review/acceptance
 
 **Do not merge/activate until all prerequisites are satisfied:**
-1. Build workflow is green and GHCR image digest independently verified; replace the staging image with exactly `ghcr.io/rovxbot/security-receiver@sha256:…`. Verify source file hashes match the current PR head.
+1. Build workflow is green and GHCR image digest independently verified; this PR now pins the qualified `@sha256:9c92582e…` image. Rerun the image proof on the final PR head and require exactly matching source hashes and digest before activation.
 2. Review encrypted Secrets and certificate DNS SAN/expiry, apply via Flux, check CA mount and non-leaking output.
 3. Render the exact Kubescape Helm chart with native HTTP exporter config and verify node-agent exporter URL, CA, projected token mount and existing eBPF/CEL strict security boundary. Update narrowly scoped Kyverno boundary to permit the approved public-CA Secret mount, preserving all existing controls. A chart or admission failure blocks rollout.
 4. Add the receiver Kustomization to the Flux-owned Kubescape manifest only after Secrets exist, safe pinned image is available and preflight passes. Keep existing log collector running until native delivery passes.
