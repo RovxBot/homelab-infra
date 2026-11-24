@@ -150,7 +150,11 @@ def check_boundary(kyverno, work, resources, root):
     trusted_ca['spec']['containers'][0]['volumeMounts'].append({
         'name': 'extra-ca-certificates', 'mountPath': '/etc/ssl/certs/receiver-ca.crt',
         'subPath': 'receiver-ca.crt', 'readOnly': True})
-    fixtures = [agent, pod, *allowed_node_pods, trusted_ca]
+    # The next exact scope is pre-authorized, but not enabled in chart values.
+    next_scope = deepcopy(pod)
+    next_scope['metadata']['name'] = 'agent-next-scope-positive'
+    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test,koito'
+    fixtures = [agent, pod, *allowed_node_pods, trusted_ca, next_scope]
     bound_ds = deepcopy(agent)
     bound_ds['metadata']['name'] = 'node-agent'
     bound_ds['spec']['template']['spec']['nodeName'] = 'metal3'
@@ -166,6 +170,8 @@ def check_boundary(kyverno, work, resources, root):
         'extra-capability': lambda p: p['containers'][0]['securityContext']['capabilities']['add'].append('SYS_MODULE'),
         'privileged': lambda p: p['containers'][0]['securityContext'].update(privileged=True),
         'command': lambda p: p['containers'][0].update(command=['sh']),
+        'scope-unbounded': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value=''),
+        'scope-private': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value='homepage,memos,kubescape-runtime-test,gitea'),
         'injected-env': lambda p: p['containers'][0]['env'].append({'name': 'LD_PRELOAD', 'value': '/host/tmp/lib.so'}),
         'writable-root': lambda p: next(m for m in p['containers'][0]['volumeMounts'] if m['name'] == 'host').update(readOnly=False),
         'extra-hostpath': lambda p: p['volumes'].append({'name': 'extra', 'hostPath': {'path': '/etc'}}),
@@ -203,11 +209,11 @@ def check_boundary(kyverno, work, resources, root):
     assert 'apiVersion:' in output, run.stderr[:400]
     (work / 'runtime-admission-report.yaml').write_text(output)
     report = yaml.safe_load(output[output.index('apiVersion:'):])
-    assert report['summary'] == {'pass': 4 + len(NODES) - 1, 'fail': len(changes) + len(ca_attacks) + 5, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
+    assert report['summary'] == {'pass': 5 + len(NODES) - 1, 'fail': len(changes) + len(ca_attacks) + 5, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
     for result in report['results']:
         name = result['resources'][0]['name']
         expected_passes = {'node-agent', 'agent-positive', 'agent-receiver-ca-positive',
-                           'scanner-positive'} | {f'{node}-positive' for node in NODES if node != 'metal6'}
+                           'scanner-positive', 'agent-next-scope-positive'} | {f'{node}-positive' for node in NODES if node != 'metal6'}
         assert result['result'] == ('pass' if name in expected_passes else 'fail'), name
     bound_path = work / 'runtime-bound-daemonset.yaml'
     bound_path.write_text(yaml.safe_dump(bound_ds))
