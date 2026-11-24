@@ -40,7 +40,7 @@ Requires local `openssl`, `kubectl` (only `--dry-run=client`) and `sops`. The sc
 
 `.work/` is ignored by Git. **Back up the CA signing key privately; never attach or commit plaintext key material.** Review `sops` metadata and ensure PEMs are not in diffs before committing. Do not run the script twice for rotation.
 
-For GitOps, add these encrypted paths to the **infrastructure Flux Kustomization**'s referenced manifests (`clusters/home/infrastructure/kustomization.yaml`), where SOPS decryption is enabled and precedes Kubescape through its `dependsOn` relationship. Existing cluster namespace `kubescape` is present. Validate fresh-cluster namespace ordering if modifying bootstrap semantics. Install `security-receiver-ca` before a chart Helm render uses its `lookup` function.
+**Completed in PR #2214:** both encrypted Secret paths are included in `infra/kubescape/kustomization.yaml`, alongside the same reconciliation's `namespace.yaml`. The dedicated `clusters/home/infrastructure/kubescape-kustomization.yaml` now has the standard Flux `decryption.provider: sops` and existing `sops-age` key reference. **Do not duplicate these Secret paths in the parent infrastructure Kustomization.** This keeps clean-cluster namespace creation and receiver identity together. The receiver Deployment and node-agent exporter remain inactive. Before the chart enables `global.extraCaCertificates`, verify that the `security-receiver-ca` Secret already exists; the chart uses an API `lookup` of that Secret at render time.
 
 ## Stage C — prove the documented native HTTP configuration
 
