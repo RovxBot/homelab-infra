@@ -274,6 +274,15 @@ spec:
             - "[BODY].status == healthy"
           alerts:
             - type: github
+        - name: security-cve-reporting
+          group: cluster
+          url: http://pod-report.homepage.svc.cluster.local:80/security-reporting-health.json
+          interval: 1m
+          conditions:
+            - "[STATUS] == 200"
+            - "[BODY].cvePublisher == healthy"
+          alerts:
+            - type: github
         - name: cloudflared-metrics
           group: cluster
           url: http://cloudflared-metrics.cloudflared.svc.cluster.local:2000/metrics
