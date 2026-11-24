@@ -85,6 +85,33 @@ class PublisherTests(unittest.TestCase):
         values = pub.validate(envelope(entry or self.entry))
         return self.writer.sync(values[0])
 
+    def test_safe_failure_diagnostics_never_include_token_or_remote_exception(self):
+        class RefusingOpener:
+            def __init__(self, failure):
+                self.failure = failure
+
+            def open(self, *unused, **kwargs):
+                raise self.failure
+
+        import urllib.error
+        examples = [
+            (TimeoutError("Bearer TOP_SECRET"), "receiver_api_timeout"),
+            (urllib.error.HTTPError("https://private.example", 403,
+                                   "Bearer TOP_SECRET", {}, None),
+             "receiver_api_http_403"),
+            (urllib.error.URLError("TOKEN_UNTRUSTED_HOST"),
+             "receiver_api_connection"),
+        ]
+        for error, expected in examples:
+            with self.subTest(expected=expected):
+                with self.assertRaises(pub.PublisherFailure) as raised:
+                    pub.request_json(RefusingOpener(error), pub.RECEIVER,
+                                     "PRIVATE_TOKEN", phase="receiver_api")
+                self.assertEqual(raised.exception.code, expected)
+                self.assertNotIn("SECRET", str(raised.exception))
+                self.assertNotIn("TOKEN", str(raised.exception))
+                self.assertNotIn("private.example", str(raised.exception))
+
     def test_allowlist_and_adversarial_event_are_rejected(self):
         bad = [
             {"workload":"git/Deployment/private"},
