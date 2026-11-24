@@ -85,6 +85,55 @@ class PublisherTests(unittest.TestCase):
         values = pub.validate(envelope(entry or self.entry))
         return self.writer.sync(values[0])
 
+    def test_safe_failure_diagnostics_never_include_token_or_remote_exception(self):
+        class RefusingOpener:
+            def __init__(self, failure):
+                self.failure = failure
+
+            def open(self, *unused, **kwargs):
+                raise self.failure
+
+        import urllib.error
+        examples = [
+            (TimeoutError("Bearer TOP_SECRET"), "receiver_api_timeout"),
+            (urllib.error.HTTPError("https://private.example", 403,
+                                   "Bearer TOP_SECRET", {}, None),
+             "receiver_api_http_403"),
+            (urllib.error.URLError("TOKEN_UNTRUSTED_HOST"),
+             "receiver_api_connection"),
+        ]
+        for error, expected in examples:
+            with self.subTest(expected=expected):
+                with patch.object(pub.time, "sleep"):
+                    with self.assertRaises(pub.PublisherFailure) as raised:
+                        pub.request_json(RefusingOpener(error), pub.RECEIVER,
+                                         "PRIVATE_TOKEN", phase="receiver_api")
+                self.assertEqual(raised.exception.code, expected)
+                self.assertNotIn("SECRET", str(raised.exception))
+                self.assertNotIn("TOKEN", str(raised.exception))
+                self.assertNotIn("private.example", str(raised.exception))
+
+    def test_bounded_read_only_retry_never_replays_github_writes(self):
+        class SometimesUnavailable:
+            def __init__(self):
+                self.calls=0
+            def open(self, *args, **kwargs):
+                self.calls+=1
+                raise TimeoutError("PRIVATE_BEARER_TOKEN")
+
+        for method, phase, expected_calls in (("GET","receiver_api",2),
+                                               ("GET","kubernetes_api",2),
+                                               ("POST","github_api",1),
+                                               ("GET","github_api",1)):
+            with self.subTest(method=method, phase=phase):
+                opener=SometimesUnavailable()
+                with patch.object(pub.time, "sleep") as sleeping:
+                    with self.assertRaises(pub.PublisherFailure):
+                        pub.request_json(opener, pub.RECEIVER, "PRIVATE_TOKEN",
+                                         method=method, phase=phase)
+                self.assertEqual(opener.calls, expected_calls)
+                self.assertEqual(sleeping.call_count, expected_calls-1)
+
     def test_allowlist_and_adversarial_event_are_rejected(self):
         bad = [
             {"workload":"git/Deployment/private"},
