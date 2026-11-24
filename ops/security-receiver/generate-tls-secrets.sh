@@ -19,7 +19,8 @@ openssl req -new -x509 -sha256 -days 3650 \
   -key "$OUT/root.key" -out "$OUT/root.crt" \
   -subj "/CN=Homelab Kubescape Receiver Root" \
   -addext "basicConstraints=critical,CA:TRUE" \
-  -addext "keyUsage=critical,keyCertSign,cRLSign"
+  -addext "keyUsage=critical,keyCertSign,cRLSign" \
+  -addext "subjectKeyIdentifier=hash"
 openssl genrsa -out "$OUT/tls.key" 3072
 openssl req -new -sha256 -key "$OUT/tls.key" -out "$OUT/tls.csr" \
   -subj "/CN=security-receiver.kubescape.svc"
@@ -28,12 +29,18 @@ basicConstraints=critical,CA:FALSE
 keyUsage=critical,digitalSignature,keyEncipherment
 extendedKeyUsage=serverAuth
 subjectAltName=DNS:security-receiver.kubescape.svc,DNS:security-receiver.kubescape.svc.cluster.local
+# Python 3.13+ enables X509_STRICT and requires the issuer's key identifier.
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer
 EOF
 openssl x509 -req -sha256 -days 825 \
   -in "$OUT/tls.csr" -CA "$OUT/root.crt" -CAkey "$OUT/root.key" \
   -CAcreateserial -out "$OUT/tls.crt" -extfile "$OUT/tls.ext"
-openssl verify -CAfile "$OUT/root.crt" "$OUT/tls.crt"
-openssl x509 -in "$OUT/tls.crt" -noout -checkhost security-receiver.kubescape.svc
+# Check the same strict chain + hostname validation used by Python's TLS client.
+for hostname in security-receiver.kubescape.svc security-receiver.kubescape.svc.cluster.local; do
+  openssl verify -x509_strict -purpose sslserver -verify_hostname "$hostname" \
+    -CAfile "$OUT/root.crt" "$OUT/tls.crt"
+done
 # The CA Secret contains ONLY a PUBLIC CA certificate. The leaf private key
 # remains exclusively inside the encrypted receiver-tls Secret and local .work.
 kubectl -n kubescape create secret tls security-receiver-tls \

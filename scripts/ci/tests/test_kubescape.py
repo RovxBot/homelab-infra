@@ -70,6 +70,28 @@ def corrected_resources(raw):
     return resources
 
 
+class LeafCiphertextTests(unittest.TestCase):
+    def test_only_leaf_and_sops_bookkeeping_can_change(self):
+        before = {"data": {"tls.crt": "ENC[AES256_GCM,old]",
+                           "tls.key": "ENC[AES256_GCM,key]"},
+                  "metadata": {"name": "security-receiver-tls"},
+                  "sops": {"age": ["recipient"], "mac": "old"}}
+        after = copy.deepcopy(before)
+        after["data"]["tls.crt"] = "ENC[AES256_GCM,new]"
+        after["sops"]["mac"] = "new"
+        CHECK.check_leaf_ciphertext(before, after)
+        for path, value in ((("data", "tls.crt"), before["data"]["tls.crt"]),
+                            (("data", "tls.key"), "ENC[AES256_GCM,other]"),
+                            (("data", "tls.crt"), "plaintext"),
+                            (("metadata", "name"), "other"),
+                            (("sops", "age"), ["other"])):
+            with self.subTest(path=path, value=value):
+                changed = copy.deepcopy(after)
+                changed[path[0]][path[1]] = value
+                with self.assertRaises(AssertionError):
+                    CHECK.check_leaf_ciphertext(before, changed)
+
+
 class StagedReleaseTests(unittest.TestCase):
     def setUp(self):
         self.release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
