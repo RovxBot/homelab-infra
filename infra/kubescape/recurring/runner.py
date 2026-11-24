@@ -359,7 +359,7 @@ def check_report(report, sbom, row, expected, started, previous=None):
             "lastAttempt": {"state": "healthy", "checkedAt": db.stamp(db.utcnow())}}
 
 
-def check_posture(result, summaries, started):
+def check_posture(result, summaries, started, required_workloads=()):
     # Full scanner response is authoritative for Action Required / Not Evaluated.
     db.require(isinstance(result, dict) and result.get("summaryDetails"), "posture_result_incomplete")
     frameworks = result["summaryDetails"].get("frameworks", [])
@@ -399,7 +399,10 @@ def check_posture(result, summaries, started):
         db.require(bool(summary["spec"].get("controls")), "posture_controls_empty")
     db.require(any(s["metadata"].get("namespace") == "memos" and s["metadata"]["name"] == "deployment-memos" for s in summaries), "posture_memos_missing")
     db.require(any(s["metadata"].get("namespace") == NS for s in summaries), "posture_shared_rbac_missing")
+    observed = {s["metadata"].get("namespace", "") + "/" + s["metadata"]["name"] for s in summaries}
+    db.require(set(required_workloads) <= observed, "posture_scope_incomplete")
     return {"framework": "nsa", "controls": dict(statuses), "storedSummaries": len(summaries),
+            "requiredWorkloadCount": len(required_workloads),
             "coverage": {"notEvaluatedControls": len(not_evaluated), "notEvaluatedControlIDs": not_evaluated,
                          "incompleteCoverageControls": len(incomplete_coverage),
                          "incompleteCoverageControlIDs": incomplete_coverage},
@@ -795,7 +798,7 @@ class Runner:
             result = json.loads(result)
         summaries = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"])
                      for s in self.api.items(STORAGE, "workloadconfigurationscansummaries")]
-        assessed = check_posture(result, summaries, started)
+        assessed = check_posture(result, summaries, started, self.config["postureWorkloads"])
         self.save("persisted-posture", summaries)
         again = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"]) for s in summaries]
         db.require(again == summaries, "posture_reread_mismatch")
