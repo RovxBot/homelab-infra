@@ -11,6 +11,8 @@ resources:
   - recurring/rbac.yaml
   - recurring/cronjobs.yaml
   - collector
+  # Independent, authenticated HTTPS receiver; no exporter cutover yet.
+  - receiver
   # Explicitly approved disposable R1000 runtime acceptance on metal3.
   - ../../ops/security-collector/acceptance/trigger
 configMapGenerator:
