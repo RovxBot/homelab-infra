@@ -21,6 +21,7 @@ class ReportMigrationTests(unittest.TestCase):
         self.legacy=dict(source='kyverno',policy='platform-pod-standards',rule='require-owner-label',result='fail',timestamp={'seconds':int((self.now-timedelta(days=2)).timestamp())})
         self.cel={**self.legacy,'source':'KyvernoValidatingPolicy','policy':'platform-pod-standards-require-owner-label','rule':'validation'}
         self.scope=dict(kind='Deployment',namespace='app',name='app')
+        self.h['PUBLIC_RESOURCES']={('Deployment','app','app'),('Namespace','cluster','enrolled')}
         self.reports=[];self.issues={};self.writes=[]
         self.h['list_kubernetes_resource']=lambda path:{'items':self.reports} if path.endswith('/policyreports') else {'items':[]}
         self.h['list_open_issues']=lambda:self.issues
@@ -129,6 +130,26 @@ class ReportMigrationTests(unittest.TestCase):
             if row['name'] in ['background-report','flux-audit-report']:
                 for finding in row['results']:
                     self.assertIn(self.h['canonical_identity'](finding),[('platform-pod-standards','require-owner-label'),('platform-flux-guardrails','audit-manual-edits-to-flux-managed-resources')])
+
+    def test_runtime_boundary_is_recognized(self):
+        finding={**self.cel,'policy':'kubescape-runtime-boundary'}
+        self.assertEqual(self.h['canonical_identity'](finding),('kubescape-runtime-boundary','validation'))
+
+    def test_missing_live_credentials_fail_without_writes(self):
+        self.h['GITHUB_TOKEN']=''
+        self.assertEqual(self.invoke(),1)
+        self.assertEqual(self.writes,[])
+
+    def test_private_resource_is_not_published_and_message_is_redacted(self):
+        self.scope=dict(kind='Deployment',namespace='private',name='private-workload')
+        self.reports=[self.report({**self.cel,'message':'private raw message'})]
+        self.assertEqual(self.invoke(),0)
+        self.assertEqual(self.writes,[])
+        self.scope=dict(kind='Deployment',namespace='app',name='app')
+        self.reports=[self.report({**self.cel,'message':'private raw message'})]
+        self.assertEqual(self.invoke(),0)
+        self.assertEqual(len(self.writes),1)
+        self.assertNotIn('private raw message',self.writes[0][1]['payload']['body'])
 
     def test_rbac_reads_reports_without_policy_or_secret_privileges(self):
         import yaml

@@ -334,9 +334,59 @@ spec:
                 mv /work/kubescape-health.json.tmp /work/kubescape-health.json
               }
 
+              reporter_health() {
+                # Existing list-only Job RBAC; select the exact CronJob controller owner.
+                # Latest attempt wins, even if an older successful Job is retained.
+                rows="$(kubectl --request-timeout=15s get jobs -n "$1" -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"|"}{range .metadata.ownerReferences[?(@.controller==true)]}{.kind}{"/"}{.name}{end}{"|"}{range .status.conditions[?(@.type=="Complete")]}{.status}{end}{"|"}{range .status.conditions[?(@.type=="Failed")]}{.status}{end}{"|"}{.status.completionTime}{"\n"}{end}' 2>/dev/null)" || { printf unknown; return; }
+                latest="$(printf '%s\n' "$rows" | awk -F '|' -v owner="CronJob/$2" '$2 == owner' | sort -r | head -n 1)"
+                [ -n "$latest" ] || { printf unknown; return; }
+                IFS='|' read -r created owner complete failed finished <<EOF
+              $latest
+              EOF
+                case "$created" in ????-??-??T*Z) ;; *) printf unknown; return ;; esac
+                started="$(date -u -d "$created" +%s 2>/dev/null)" || { printf unknown; return; }
+                current="$(date -u +%s)"
+                [ "$started" -le "$current" ] || { printf unknown; return; }
+                [ "$failed" != True ] || { printf failed; return; }
+                [ "$complete" = True ] || { printf unknown; return; }
+                case "$finished" in ????-??-??T*Z) ;; *) printf unknown; return ;; esac
+                ended="$(date -u -d "$finished" +%s 2>/dev/null)" || { printf unknown; return; }
+                [ "$ended" -ge "$started" ] && [ "$ended" -le "$current" ] || { printf unknown; return; }
+                [ "$((current - started))" -le "$3" ] || { printf stale; return; }
+                printf healthy
+              }
+
+              kyverno_controllers_health() {
+                rows="$(kubectl --request-timeout=15s get deployments -n kyverno -o jsonpath='{range .items[*]}{.metadata.name}{"|"}{.metadata.generation}{"|"}{.status.observedGeneration}{"|"}{.spec.replicas}{"|"}{.status.availableReplicas}{"\n"}{end}' 2>/dev/null)" || { printf unknown; return; }
+                printf '%s\n' "$rows" | awk -F '|' '
+                  BEGIN { required["kyverno-admission-controller"]=2; required["kyverno-background-controller"]=1;
+                          required["kyverno-reports-controller"]=1; required["kyverno-cleanup-controller"]=1 }
+                  $1 in required {
+                    seen[$1]++
+                    if (NF != 5 || $2 !~ /^[0-9]+$/ || $3 !~ /^[0-9]+$/ || $4 !~ /^[0-9]+$/) unknown=1
+                    else if ($2 != $3 || $4+0 < required[$1] || $5+0 != $4+0) failed=1
+                  }
+                  END { for (name in required) if (seen[name] != 1) unknown=1;
+                        print (failed ? "failed" : unknown ? "unknown" : "healthy") }
+                '
+              }
+
+              security_reporting_health() {
+                native_state="$(reporter_health monitoring security-incident-publisher 1200)"
+                policy_state="$(reporter_health kyverno kyverno-github-issue-sync 5400)"
+                controllers_state="$(kyverno_controllers_health)"
+                reporting_state=healthy
+                for state in "$native_state" "$policy_state" "$controllers_state"; do
+                  [ "$state" = healthy ] || reporting_state=unhealthy
+                done
+                printf '{"status":"%s","observedAt":"%s","nativePublisher":"%s","kyvernoPublisher":"%s","kyvernoControllers":"%s"}\n' "$reporting_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$native_state" "$policy_state" "$controllers_state" > /work/security-reporting-health.json.tmp
+                mv /work/security-reporting-health.json.tmp /work/security-reporting-health.json
+              }
+
               while true; do
                 now="$(date -u '+%Y-%m-%d %H:%M:%SZ')"
                 assessment_health
+                security_reporting_health
                 evaluate_health
                 {
                   cat <<'HTML'

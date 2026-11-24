@@ -12,6 +12,8 @@ spec:
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 86400
+      backoffLimit: 0
+      activeDeadlineSeconds: 300
       template:
         spec:
           serviceAccountName: kyverno-github-issue-sync
@@ -19,7 +21,7 @@ spec:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-          restartPolicy: OnFailure
+          restartPolicy: Never
           containers:
             - name: sync
               image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
@@ -53,7 +55,7 @@ spec:
                     secretKeyRef:
                       name: kyverno-github-issue-sync
                       key: token
-                      optional: true
+                      optional: false
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:

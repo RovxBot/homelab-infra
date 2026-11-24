@@ -125,6 +125,14 @@ class GatusAlertConfigTests(unittest.TestCase):
                     self.assertEqual(endpoint['alerts'], [{'type': 'github'}])
         self.assertEqual(config['storage'], {'type': 'sqlite', 'path': '/data/data.db'})
 
+    def test_security_reporting_endpoint(self):
+        release = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())
+        endpoint, = [ep for ep in release['spec']['values']['config']['endpoints'] if ep['name'] == 'security-reporting']
+        self.assertEqual(endpoint, {'name':'security-reporting','group':'cluster',
+            'url':'http://pod-report.homepage.svc.cluster.local:80/security-reporting-health.json',
+            'interval':'1m','conditions':['[STATUS] == 200','[BODY].status == healthy'],
+            'alerts':[{'type':'github'}]})
+
     def test_security_receiver_transport_is_static_and_payload_free(self):
         release = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())
         endpoints = release['spec']['values']['config']['endpoints']
