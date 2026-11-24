@@ -179,6 +179,13 @@ print(int(value.timestamp()) if args[-1] == '+%s' else value.strftime('%Y-%m-%dT
         self.assertEqual(result['status'],'healthy')
         self.assertEqual(result['kyvernoAssurance'],'failed')
         self.assertEqual(self.reporting(native,policy,controllers)['kyvernoAssurance'],'unknown')
+        advisory = policy.replace('kyverno-github-issue-sync','security-advisory-publisher')
+        self.assertEqual(self.reporting(native+'\n'+advisory,policy,controllers)['advisoryPublisher'],'healthy')
+        failed_advisory = '2026-11-22T07:55:00Z|CronJob/security-advisory-publisher||True|'
+        result = self.reporting(native+'\n'+advisory+'\n'+failed_advisory,policy,controllers)
+        self.assertEqual(result['advisoryPublisher'],'failed')
+        self.assertEqual(result['status'],'healthy')
+        self.assertEqual(self.reporting(native,policy,controllers)['advisoryPublisher'],'unknown')
         failed = '2026-11-22T07:59:00Z|security-incident-publisher-2|uid-2|CronJob/security-incident-publisher||True'
         active = '2026-11-22T07:59:00Z|security-incident-publisher-2|uid-2|CronJob/security-incident-publisher||'
         failed_pod = 'Job/security-incident-publisher-2|uid-2|1|security-v1|failed|healthy'
