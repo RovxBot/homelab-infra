@@ -20,6 +20,15 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertIn("collector",infra["resources"])
         self.assertNotIn("receiver",infra["resources"])
         self.assertIn("../../ops/security-collector/acceptance/trigger", infra["resources"])
+        self.assertIn("../../secrets/security-receiver-ca.enc.yaml",infra["resources"])
+        self.assertIn("../../secrets/security-receiver-tls.enc.yaml",infra["resources"])
+        # Kubescape's own source owns Namespace creation and SOPS decryption;
+        # don't depend on the infra parent applying a Secret first.
+        flux=yaml.safe_load((ROOT/"clusters/home/infrastructure/kubescape-kustomization.yaml").read_text())
+        self.assertEqual(flux["spec"]["decryption"],
+                         {"provider":"sops","secretRef":{"name":"sops-age"}})
+        parent=yaml.safe_load((ROOT/"clusters/home/infrastructure/kustomization.yaml").read_text())
+        self.assertFalse(any("security-receiver" in path for path in parent["resources"]))
         manifest=yaml.safe_load((RECEIVER/"kustomization.yaml").read_text())
         self.assertEqual(set(manifest["resources"]),{"rbac.yaml","workload.yaml"})
 
