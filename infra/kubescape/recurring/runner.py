@@ -1043,6 +1043,10 @@ class Runner:
             current = {row_key(r): r for r in targets(workload_rows(self.api), self.config)}
         except Exception:
             return
+        observed_source = current.get(row_key(source))
+        if (observed_source is None or observed_source["generation"] != source["generation"]
+                or sorted(observed_source["podUIDs"]) != sorted(source["podUIDs"])):
+            return
         for peer in peers:
             observed = current.get(row_key(peer))
             if (observed is None or observed["generation"] != peer["generation"]

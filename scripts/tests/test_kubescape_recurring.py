@@ -304,6 +304,12 @@ class BatchTests(unittest.TestCase):
                             {**record,"createdAt":R.db.stamp(NOW-timedelta(hours=73))}):
                 with self.assertRaises(R.db.Rejected):
                     R.shared_image_record(source,peer,invalid,config,NOW)
+            for observed in ([source,{**peer,"generation":2}],
+                             [{**source,"podUIDs":["changed"]},peer], [source,peer,copy.deepcopy(peer)]):
+                runner.records.pop(R.row_key(peer),None)
+                with mock.patch.object(R,"workload_rows",return_value=observed):
+                    runner.reuse_batch_image(source,[source,peer],outcomes)
+                self.assertNotIn(R.row_key(peer),runner.records)
             runner.records[R.row_key(peer)]={"lastAttempt":{"state":"failed"}}
             with mock.patch.object(R,"workload_rows",return_value=[source,peer]):
                 runner.reuse_batch_image(source,[source,peer],outcomes)
