@@ -12,6 +12,13 @@ metadata:
   namespace: kubescape
 data: {}
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubescape-public-cve
+  namespace: kubescape
+data: {}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -33,7 +40,7 @@ rules:
     verbs: [get]
   - apiGroups: [""]
     resources: [configmaps]
-    resourceNames: [kubescape-assessment-status]
+    resourceNames: [kubescape-assessment-status, kubescape-public-cve]
     verbs: [get, update]
   - apiGroups: [helm.toolkit.fluxcd.io]
     resources: [helmreleases]
