@@ -411,8 +411,11 @@ class BatchTests(unittest.TestCase):
         summaries = [summary(*target.split("/")) for target in required] + [summary("kubescape", "shared")]
         result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
         self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 49)
-        for i in range(1, len(required)):
-            with self.subTest(missing=required[i]), self.assertRaisesRegex(R.db.Rejected, "posture_scope_incomplete"):
+        for i, target in enumerate(required):
+            # Memos retains its earlier explicit prerequisite; all other missing
+            # workload summaries fail the expanded scope check.
+            reason = "posture_memos_missing" if target == "memos/deployment-memos" else "posture_scope_incomplete"
+            with self.subTest(missing=target), self.assertRaisesRegex(R.db.Rejected, reason):
                 R.check_posture(result, summaries[:i]+summaries[i+1:], R.db.stamp(NOW), required)
 
     def test_missing_vulnerability_targets_do_not_gate_posture(self):
