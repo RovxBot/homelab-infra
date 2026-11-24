@@ -13,14 +13,14 @@ data:
     from pathlib import Path
     import urllib.parse
     import urllib.request
-    
+
     EXPECTED = [["ValidatingPolicy","","platform-pod-standards-require-owner-label","Deny"],["ValidatingPolicy","","platform-pod-standards-require-requests-and-limits","Deny"],["ValidatingPolicy","","platform-pod-standards-require-runtime-hardening","Deny"],["ValidatingPolicy","","platform-pod-standards-disallow-host-network","Deny"],["ValidatingPolicy","","platform-pod-standards-require-digest-pinned-images","Deny"],["ValidatingPolicy","","platform-pod-standards-disallow-latest-tags","Deny"],["ValidatingPolicy","","platform-pod-standards-require-probes","Deny"],["ValidatingPolicy","","platform-namespace-standards","Deny"],["ValidatingPolicy","","platform-flux-guardrails","Audit"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-restricted-with-sanitizer-capability","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-bound-job-environment","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-one-job-container","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-drop-all-and-only-allow-ptrace","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-ptrace-only-in-sanitizer-jobs","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-ordinary-job-identity","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-bounded-sanitizer-identity","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-no-extra-job-credentials","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-restricted-with-sanitizer-capability","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-bound-job-environment","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-one-job-container","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-bounded-toolchain-capabilities","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-no-extra-job-credentials","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-no-mounted-registry-credential","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-no-registry-credential-in-environment","Deny"],["ValidatingPolicy","","kubescape-runtime-boundary","Deny"]]
     EXCEPTIONS = {"chart-managed-workloads", "gpu-operator-workloads", "home-assistant",
                   "mutable-image-tags", "privileged-namespaces", "wotlk-latest-tag"}
     BASE = "/apis/policies.kyverno.io/v1/"
     WARNING_DAYS = 14
-    
-    
+
+
     def inventory(get, today):
         findings = {"policyInventory": 0, "policyConfiguration": 0, "policyReadiness": 0,
                     "exceptionInventory": 0, "exceptionMetadata": 0,
@@ -75,21 +75,31 @@ data:
                 findings["exceptionDue"] += 1
         findings["exceptionInventory"] += len(EXCEPTIONS - seen)
         return findings
-    
-    
+
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+
+
     def main():
         try:
             root = Path("/var/run/secrets/kubernetes.io/serviceaccount")
             token = (root / "token").read_text().strip()
             context = ssl.create_default_context(cafile=str(root / "ca.crt"))
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect(),
+                                                  urllib.request.HTTPSHandler(context=context))
             def get(path):
                 items, cursor = [], ""
                 for _ in range(10):
                     query = urllib.parse.urlencode({"limit": 100, "continue": cursor})
                     request = urllib.request.Request("https://kubernetes.default.svc" + path + "?" + query,
                                                      headers={"Authorization": "Bearer " + token})
-                    with urllib.request.urlopen(request, context=context, timeout=10) as response:
-                        value = json.load(response)
+                    with opener.open(request, timeout=10) as response:
+                        body = response.read(8 * 1024**2 + 1)
+                        if len(body) > 8 * 1024**2:
+                            raise ValueError()
+                        value = json.loads(body)
                     if not isinstance(value.get("items"), list):
                         raise ValueError()
                     items.extend(value["items"])
@@ -104,8 +114,8 @@ data:
         except Exception:
             print('{"status":"unknown","phase":"policy_inventory"}', flush=True)
             return 1
-    
-    
+
+
     if __name__ == "__main__":
         raise SystemExit(main())
 ---
