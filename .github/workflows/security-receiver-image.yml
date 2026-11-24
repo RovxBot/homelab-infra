@@ -120,6 +120,6 @@ jobs:
         if: always()
         with:
           name: receiver-scan-provenance
-          path: .work/receiver-scan/provenance.json
+          path: .work/image-scan/provenance.json
           if-no-files-found: error
           retention-days: 14
