@@ -26,6 +26,10 @@ def binding_spec():
 
 
 def check_values(values):
+    assert values['global']['extraCaCertificates'] == {
+        'enabled': True, 'secretName': 'security-receiver-ca'
+    }, 'only the documented receiver CA Secret may be added to node-agent'
+    assert values['global']['apiAuth']['enabled'] is True
     agent = values['nodeAgent']
     assert agent['image']['tag'] == IMAGE.split(':', 1)[1]
     assert agent['nodeSelector'] == {'kubernetes.io/os': 'linux'}
@@ -127,7 +131,19 @@ def check_boundary(kyverno, work, resources, root):
     second['metadata']['name'] = 'metal3-positive'
     second['spec']['affinity'] = affinity('metal3')
     second['spec']['nodeName'] = 'metal3'
-    fixtures = [agent, pod, second]
+    # The chart's documented extraCaCertificates uses Secret
+    # security-receiver-ca with one receiver-ca.crt key. Helm 'lookup' hides
+    # this mount during offline chart rendering, so prove the exact shape
+    # under Kyverno CEL with a synthetic positive and denial fixtures.
+    trusted_ca = deepcopy(pod)
+    trusted_ca['metadata']['name'] = 'agent-receiver-ca-positive'
+    trusted_ca['spec']['volumes'].append({
+        'name': 'extra-ca-certificates',
+        'secret': {'secretName': 'security-receiver-ca'}})
+    trusted_ca['spec']['containers'][0]['volumeMounts'].append({
+        'name': 'extra-ca-certificates', 'mountPath': '/etc/ssl/certs/receiver-ca.crt',
+        'subPath': 'receiver-ca.crt', 'readOnly': True})
+    fixtures = [agent, pod, second, trusted_ca]
     bound_ds = deepcopy(agent)
     bound_ds['metadata']['name'] = 'node-agent'
     bound_ds['spec']['template']['spec']['nodeName'] = 'metal3'
@@ -153,6 +169,14 @@ def check_boundary(kyverno, work, resources, root):
     }
     for name, change in changes.items():
         doc = deepcopy(pod); doc['metadata']['name'] = name; change(doc['spec']); fixtures.append(doc)
+    ca_attacks = {
+        'ca-wrong-secret': lambda p: next(v for v in p['volumes'] if v['name'] == 'extra-ca-certificates')['secret'].update(secretName='arbitrary'),
+        'ca-writable': lambda p: next(m for m in p['containers'][0]['volumeMounts'] if m['name'] == 'extra-ca-certificates').update(readOnly=False),
+        'ca-other-path': lambda p: next(m for m in p['containers'][0]['volumeMounts'] if m['name'] == 'extra-ca-certificates').update(mountPath='/etc/credentials/receiver-ca.crt'),
+    }
+    for name, change in ca_attacks.items():
+        doc = deepcopy(trusted_ca); doc['metadata']['name'] = name
+        change(doc['spec']); fixtures.append(doc)
     ordinary = next(r for r in resources if r['kind'] == 'Deployment' and r['metadata']['name'] == 'kubescape')
     safe = {'apiVersion': 'v1', 'kind': 'Pod', 'metadata': {'name': 'scanner-positive', 'namespace': 'kubescape'},
             'spec': deepcopy(ordinary['spec']['template']['spec'])}
@@ -172,10 +196,11 @@ def check_boundary(kyverno, work, resources, root):
     assert 'apiVersion:' in output, run.stderr[:400]
     (work / 'runtime-admission-report.yaml').write_text(output)
     report = yaml.safe_load(output[output.index('apiVersion:'):])
-    assert report['summary'] == {'pass': 4, 'fail': len(changes) + 5, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
+    assert report['summary'] == {'pass': 5, 'fail': len(changes) + len(ca_attacks) + 5, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
     for result in report['results']:
         name = result['resources'][0]['name']
-        assert result['result'] == ('pass' if name in {'node-agent', 'agent-positive', 'metal3-positive', 'scanner-positive'} else 'fail'), name
+        assert result['result'] == ('pass' if name in {'node-agent', 'agent-positive', 'metal3-positive',
+                                                  'agent-receiver-ca-positive', 'scanner-positive'} else 'fail'), name
     bound_path = work / 'runtime-bound-daemonset.yaml'
     bound_path.write_text(yaml.safe_dump(bound_ds))
     denied = subprocess.run([kyverno, 'apply', str(root / 'infra/kubescape/runtime/admission.yaml'),
