@@ -715,8 +715,8 @@ class SubmissionTests(unittest.TestCase):
                 self.assertEqual(duplicate.run(), 4)
             self.assertEqual(duplicate.result["reasons"], ["duplicate_execution"])
             self.assertEqual(len(posted), 1)
-            # Yesterday's completion and report cannot suppress a new daily scan.
-            clock.return_value = NOW + timedelta(days=1)
+            # A completed earlier slot cannot suppress the next scheduled batch.
+            clock.return_value = NOW + timedelta(hours=6)
             tomorrow = R.Runner(api, config, EXPECTED, history, "vulnerability")
             with mock.patch.object(tomorrow, "preflight", return_value={}), \
                     mock.patch.object(tomorrow, "audit", return_value={"podUID": "engine-uid", "checkedAt": R.db.stamp(clock.return_value)}), \
