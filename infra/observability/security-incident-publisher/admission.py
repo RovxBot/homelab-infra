@@ -192,7 +192,7 @@ def delta(previous, current):
 
 def observe(db, current, now):
     db.execute("CREATE TABLE IF NOT EXISTS baseline (id INTEGER PRIMARY KEY CHECK(id=1), at INTEGER NOT NULL, data TEXT NOT NULL)")
-    db.execute("CREATE TABLE IF NOT EXISTS daily (day TEXT PRIMARY KEY, count INTEGER NOT NULL, last INTEGER NOT NULL, sent INTEGER NOT NULL DEFAULT 0)")
+    db.execute("CREATE TABLE IF NOT EXISTS daily (day TEXT PRIMARY KEY, count INTEGER NOT NULL, last INTEGER NOT NULL, sent INTEGER NOT NULL DEFAULT 0, published_at INTEGER NOT NULL DEFAULT 0)")
     old = db.execute("SELECT at,data FROM baseline WHERE id=1").fetchone()
     change = None
     if old:
@@ -224,13 +224,12 @@ def render_admission(item):
 
 def publish(db, client, now):
     writer = DurablePublisher(db,client,now=now,renderer=render_admission,fingerprint=revision)
-    rows = db.execute("SELECT day,count,last,sent FROM daily WHERE sent!=last ORDER BY day").fetchall()
+    rows = db.execute("SELECT day,count,last,sent,published_at FROM daily WHERE sent!=last ORDER BY day").fetchall()
     outcomes=[]
-    for day,count,last,sent in rows:
+    for day,count,last,sent,published_at in rows:
         # First positive daily observation creates one issue; aggregate updates
         # at most hourly, with a final update after the observation day ends.
-        today=datetime.fromtimestamp(now,timezone.utc).date().isoformat()
-        if sent and day==today and now-sent < 3600:
+        if published_at and now-published_at < 3600:
             continue
         item={"key":hashlib.sha256(("kyverno-admission-day:"+day).encode()).hexdigest(),
               "day":day,"count":count}
@@ -238,7 +237,7 @@ def publish(db, client, now):
         outcomes.append(outcome)
         if outcome in {"created","updated","unchanged","human_closed"}:
             with db:
-                db.execute("UPDATE daily SET sent=last WHERE day=?",(day,))
+                db.execute("UPDATE daily SET sent=last,published_at=? WHERE day=?",(now,day))
     pending=db.execute("SELECT count(*) FROM issues WHERE pending_create!=0 OR pending_update IS NOT NULL").fetchone()[0]
     return outcomes,pending
 
@@ -260,6 +259,8 @@ def main():
         db.execute("PRAGMA journal_mode=DELETE")
         db.execute("PRAGMA synchronous=FULL")
         require(db.execute("PRAGMA quick_check").fetchone()[0]=="ok")
+        size=db.execute("PRAGMA page_size").fetchone()[0]
+        require(db.execute(f"PRAGMA max_page_count={16*1024**2//size}").fetchone()[0] <= 16*1024**2//size)
         now=int(datetime.now(timezone.utc).timestamp())
         change=observe(db,{identity:row["counters"] for identity,row in rows.items()},now)
         phase="destination"
@@ -268,7 +269,7 @@ def main():
                           "replicas":len(rows),"intervalQualified":change is not None,
                           "created":outcomes.count("created"),"updated":outcomes.count("updated"),
                           "pending":pending}),flush=True)
-        return int(bool(pending))
+        return int(bool(pending) or change is None)
     except Exception:
         print(json.dumps({"state":"unknown","phase":phase}),flush=True)
         return 1
