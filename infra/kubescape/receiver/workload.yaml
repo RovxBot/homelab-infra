@@ -67,7 +67,7 @@ spec:
         - name: receiver
           # Candidate immutable digest; receiver-image CI must qualify and verify
           # anonymous retrieval before this change is merged.
-          image: ghcr.io/rovxbot/security-receiver@sha256:7af9f3e065b421e9fc9a09cc0c7ded0efd930293f9e54561b74eed762757eedb
+          image: ghcr.io/rovxbot/security-receiver@sha256:68d32d0f951f5ee50ace2ea5789b70296ce9ecca965a1b2c7890aed877ea4b32
           imagePullPolicy: IfNotPresent
           args: ["--config", "/config/config.json"]
           ports:
