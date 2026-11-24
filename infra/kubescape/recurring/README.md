@@ -68,6 +68,24 @@ Database replacement separately retains its larger budget:
 charged as used. Passing the scan threshold does not approve replacement.
 Database growth and additional cohorts require requalification.
 
+## Live inventory freshness
+
+The inventory-only refresh runs at minutes 7 and 37 UTC each hour. It
+uses the existing assessment identity, read/write lock file and history
+subPath on the existing RWO PVC, without the scanner-audience token.
+Its only persistent writes are the existing two named status ConfigMaps
+and the lock file; it does not replace scan outcomes, launch scans, or
+archive new reports. An active scan may cause an intentional skip; this
+does not renew evidence. Unresolved request intents block refresh.
+
+Each observation expires after 65 minutes independently of the 72-hour
+image scan age. Changed running digest or workload UID, missing targets,
+or incomplete Deployment rollout cannot inherit healthy coverage. The
+CVE publisher refuses projections older than 65 minutes. A deployment
+change can still precede the next inventory observation; this is a
+bounded periodic check, not a synchronous admission or event watcher.
+No finding is automatically closed on missing evidence.
+
 ## Trust, authentication and persisted results
 
 Before submitting, require Helm observed generation/Ready, scanner/storage
