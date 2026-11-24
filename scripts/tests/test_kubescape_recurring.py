@@ -92,6 +92,62 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(outcomes[1]["state"], "unsupported")
 
 
+class RefreshTests(unittest.TestCase):
+    def test_deployment_requires_current_template_and_all_updated_replicas(self):
+        container = {"name": "memos", "image": "registry/memos@sha256:"+"a"*64}
+        workload = {"metadata": {"generation": 2},
+                    "spec": {"replicas": 1, "template": {"spec": {"containers": [container]}}},
+                    "status": {"observedGeneration": 2, "replicas": 1, "updatedReplicas": 1,
+                               "readyReplicas": 1, "availableReplicas": 1}}
+        self.assertTrue(R.deployment_current(workload, container))
+        for status in ({"observedGeneration": 1}, {"updatedReplicas": 0},
+                       {"replicas": 2}, {"availableReplicas": 0}, {"readyReplicas": 0}):
+            self.assertFalse(R.deployment_current({**workload,"status":{**workload["status"],**status}},container))
+        self.assertFalse(R.deployment_current(workload,{**container,"image":"old-image"}))
+
+    def test_refresh_rechecks_digest_preserves_scan_outcomes_and_does_not_scan(self):
+        config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+        current = row()
+        record = {"createdAt": R.db.stamp(NOW-timedelta(hours=1)),
+                  "database": EXPECTED["metadata"],
+                  "publicCve":{"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":0}}
+        status_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
+        public_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db,"utcnow",return_value=NOW):
+            history=Path(path)
+            records={R.row_key(current):record}
+            R.atomic(history/"records.json",records)
+            original={"vulnerability.state":"failed","posture.state":"healthy",
+                      "posture.lastSuccessfulAssessmentAt":R.db.stamp(NOW-timedelta(hours=2))}
+            objects={status_path:{"data":dict(original)},public_path:{"data":{}}}
+            def request(url,body=None,method=None):
+                if method=="PUT":
+                    objects[url]=copy.deepcopy(body)
+                return copy.deepcopy(objects[url])
+            api=mock.Mock()
+            api.call.side_effect=request
+            with mock.patch.object(R,"workload_rows",return_value=[copy.deepcopy(current)]) as rows, \
+                    mock.patch.object(R,"service",side_effect=AssertionError("refresh must not scan")) as service, \
+                    mock.patch("builtins.print"):
+                self.assertEqual(R.refresh_inventory(api,config,history),0)
+                data=objects[status_path]["data"]
+                self.assertEqual(data["coverage.state"],"healthy")
+                self.assertEqual(data["coverage.observedAt"],R.db.stamp(NOW))
+                self.assertEqual(data["coverage.validUntil"],R.db.stamp(NOW+timedelta(minutes=65)))
+                self.assertTrue(all(data[k]==v for k,v in original.items()))
+                self.assertIn("CVE-2026-4738",objects[public_path]["data"]["projection.json"])
+                rows.return_value=[{**current,"runningDigest":"registry/image@sha256:"+"f"*64}]
+                self.assertEqual(R.refresh_inventory(api,config,history),0)
+                self.assertEqual(objects[status_path]["data"]["coverage.state"],"unknown")
+                self.assertNotIn("CVE-2026-4738",objects[public_path]["data"]["projection.json"])
+                self.assertEqual(json.loads((history/"records.json").read_text()),records)
+                self.assertFalse((history/"latest-vulnerability.json").exists())
+                service.assert_not_called()
+                R.atomic(history/"inflight.json",{"mode":"vulnerability"})
+                with self.assertRaises(R.db.Rejected):
+                    R.refresh_inventory(api,config,history)
+
+
 class BatchTests(unittest.TestCase):
     def rows(self):
         result = []
