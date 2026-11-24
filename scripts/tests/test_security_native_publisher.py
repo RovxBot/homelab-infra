@@ -1,5 +1,6 @@
 """Focused tests for the separate native GitHub publisher. No network."""
 import copy
+from datetime import datetime, timezone
 import importlib.util
 import pathlib
 import sqlite3
