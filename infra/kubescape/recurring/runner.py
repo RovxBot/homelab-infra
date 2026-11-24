@@ -587,9 +587,9 @@ def completion_markers(history, mode, now, digest):
         return legacy, (legacy,)
     slot = now.hour // 6
     marker = history / (mode + "-" + day + "-slot" + str(slot) + "-" + digest + ".done")
-    # The old daily schedule ran at 19:13 UTC. Respect its completion in
-    # the corresponding slot on the cutover day without deleting history.
-    return marker, (marker, legacy) if slot == 3 else (marker,)
+    # A legacy daily marker may originate from a manually started Job.
+    # Conservatively block all remaining slots on that UTC cutover day.
+    return marker, (marker, legacy)
 
 
 class Runner:
