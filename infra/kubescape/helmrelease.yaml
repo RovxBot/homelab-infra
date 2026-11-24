@@ -423,7 +423,8 @@ spec:
         enabled: false
       config:
         grypeDbPersistence: true
-        maxImageSize: 536870912
+        # Bounded larger-image qualification; retain the 3Gi Pod limits and one worker.
+        maxImageSize: 1073741824
         maxSBOMSize: 20971520
         scanTimeout: 5m
         cveMatchingMode: "off"
