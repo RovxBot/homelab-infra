@@ -261,6 +261,23 @@ def coverage(rows, records, config, now=None):
             "healthMeaning": "Assessment freshness and integrity, not absence of vulnerabilities"}
 
 
+def cohort_health(inventory, config):
+    """Require one current, healthy row for every selected target."""
+    expected = {t["identity"] for t in config["targets"]}
+    healthy = 0
+    expiry = db.timestamp(inventory["validUntil"])
+    for target in expected:
+        matches = [row for row in inventory["rows"] if target_key(row) == target
+                   and row["containerType"] == "containers"]
+        if len(matches) != 1 or matches[0]["assessmentState"] != "healthy":
+            continue
+        healthy += 1
+        expiry = min(expiry, db.timestamp(matches[0]["lastSuccessfulScan"])
+                     + timedelta(hours=config["maximumScanAgeHours"]))
+    return {"state": "healthy" if expected and healthy == len(expected) else "unknown",
+            "expected": len(expected), "healthy": healthy, "validUntil": db.stamp(expiry)}
+
+
 # Publication is a separate, explicit trust boundary. Do not include raw
 # package names, versions, digests, paths, report IDs or non-allowlisted rows.
 PUBLIC_CVE_TARGETS = {
@@ -462,6 +479,11 @@ class Runner:
             status = self.api.call(path)
             status.setdefault("data", {})[self.mode + ".json"] = json.dumps(self.result, separators=(",", ":"))
             status["data"]["coverage.json"] = json.dumps(inventory, separators=(",", ":"))
+            cohort = cohort_health(inventory, self.config)
+            status["data"]["coverage.state"] = cohort["state"]
+            status["data"]["coverage.validUntil"] = cohort["validUntil"]
+            status["data"]["coverage.expected"] = str(cohort["expected"])
+            status["data"]["coverage.healthy"] = str(cohort["healthy"])
             # Upgrade the already persisted result of the other mode to scalar
             # health fields without requesting another assessment during rollout.
             other = "posture" if self.mode == "vulnerability" else "vulnerability"
