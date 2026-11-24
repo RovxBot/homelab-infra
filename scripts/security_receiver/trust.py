@@ -133,10 +133,10 @@ class KubernetesTrust:
                 and pod.get("metadata", {}).get("namespace") == "kubescape"
                 and pod.get("spec", {}).get("serviceAccountName") == "node-agent",
                 "agent_identity_invalid")
-        require(owner(pod, "DaemonSet", (self.get("kubescape", "daemonsets",
-                                                 "node-agent")).get("metadata", {}).get("uid")),
-                "agent_owner_invalid")
         ds = self.get("kubescape", "daemonsets", "node-agent")
+        ds_uid = ds.get("metadata", {}).get("uid")
+        require(isinstance(ds_uid, str) and bool(ds_uid)
+                and owner(pod, "DaemonSet", ds_uid), "agent_owner_invalid")
         require(ds.get("spec", {}).get("template", {}).get("spec", {})
                 .get("serviceAccountName") == "node-agent"
                 and one(ds["spec"]["template"]["spec"]["containers"],
