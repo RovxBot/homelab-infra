@@ -48,7 +48,7 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
         self.assertEqual(container["securityContext"]["capabilities"]["drop"],["ALL"])
         self.assertEqual(container["image"],
-            "ghcr.io/rovxbot/security-receiver@sha256:9c92582e2428fa9ae85ae08039dd6dd4b8a1fa82ef347404ffed1e19b7d58f84")
+            "ghcr.io/rovxbot/security-receiver@sha256:f1e05b419c614a8d3f843b4fcfa332f44bd74edbb9e61cee2b0e820dcab02b2e")
         self.assertEqual(obj["Service"]["spec"]["type"],"ClusterIP")
         self.assertTrue(all(p["httpGet"]["scheme"]=="HTTPS"
                             for p in (container["startupProbe"],container["readinessProbe"],
