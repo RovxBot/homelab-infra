@@ -57,9 +57,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: receiver
-          # Staged only. Replace with the proved, anonymously pullable GHCR
-          # sha256 digest from the receiver-image workflow before activating.
-          image: ghcr.io/rovxbot/security-receiver:staging-not-deployable
+          # Exact digest qualified and anonymously pulled by receiver-image CI.
+          # Still NOT deployed: receiver absent from live Kubescape composition.
+          image: ghcr.io/rovxbot/security-receiver@sha256:9c92582e2428fa9ae85ae08039dd6dd4b8a1fa82ef347404ffed1e19b7d58f84
           imagePullPolicy: IfNotPresent
           args: ["--config", "/config/config.json"]
           ports:
