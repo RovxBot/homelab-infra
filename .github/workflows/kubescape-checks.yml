@@ -133,7 +133,7 @@ jobs:
           count = source['resources'].count(trigger)
           assert count in (0, 1), 'unexpected duplicate R1000 fixture'
           assert source['resources'].count('receiver') == 1, 'receiver activation missing/duplicated'
-          expected = 20 + 8 * count + 7
+          expected = 20 + 8 * count + 7 + 6  # reviewed inventory-refresh CronJob
           assert report['summary'] == {'pass': expected, 'fail': 0, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
           PY
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
