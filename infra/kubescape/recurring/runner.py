@@ -40,6 +40,7 @@ TERMINAL = {"succeeded", "failed", "abandoned"}
 LABELS = {"homelab.cooked.beer/owner": "sam", "kubescape.io/ignore": "true"}
 IDLE_WAIT_SECONDS = 120
 IDLE_POLL_SECONDS = 5
+INVENTORY_MAX_AGE_MINUTES = 65
 
 
 class APIError(Exception):
@@ -123,6 +124,19 @@ def component_pod(api, component):
     return pods[0]
 
 
+def deployment_current(workload, container):
+    """Reject old ready replicas during a Deployment rollout."""
+    spec, status = workload["spec"], workload.get("status", {})
+    replicas = spec.get("replicas", 1)
+    if (type(replicas) is not int or replicas < 1
+            or status.get("observedGeneration") != workload["metadata"].get("generation")
+            or any(status.get(key, 0) != replicas for key in
+                   ("replicas", "updatedReplicas", "readyReplicas", "availableReplicas"))):
+        return False
+    return any(c["name"] == container["name"] and c["image"] == container["image"]
+               for c in spec["template"]["spec"].get("containers", []))
+
+
 def workload_rows(api):
     """Resolve actual controller UIDs; include init/ephemeral and nonrunning specs."""
     objects = {}
@@ -153,7 +167,9 @@ def workload_rows(api):
                        "workloadUID": workload["metadata"]["uid"], "generation": workload["metadata"].get("generation"),
                        "container": container["name"], "containerType": field, "runningDigest": digest,
                        "declaredImage": container["image"], "podUIDs": [pod["metadata"]["uid"]],
-                       "ready": ready(pod) and status.get("ready", False)}
+                       "ready": ready(pod) and status.get("ready", False)
+                                and (workload["kind"] != "Deployment" or field != "containers"
+                                     or deployment_current(workload, container))}
                 key = row_key(row)
                 if key in seen:
                     previous = next(r for r in rows if row_key(r) == key)
@@ -256,7 +272,7 @@ def coverage(rows, records, config, now=None):
         elif record.get("createdAt"):
             row["assessmentState"] = "unknown" if invalid else "healthy" if current else "stale"
     return {"schemaVersion": 1, "generatedAt": db.stamp(now),
-            "validUntil": db.stamp(now + timedelta(hours=26)), "rows": rows,
+            "validUntil": db.stamp(now + timedelta(minutes=INVENTORY_MAX_AGE_MINUTES)), "rows": rows,
             "counts": dict(Counter(r["assessmentState"] for r in rows)),
             "healthMeaning": "Assessment freshness and integrity, not absence of vulnerabilities"}
 
@@ -434,6 +450,43 @@ def locked(history):
         yield
 
 
+def coverage_status(api, inventory, records, config):
+    """Publish the separate public projection and prepare private status."""
+    path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
+    public_path = CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
+    projection = dict(api.call(public_path))
+    projection["data"] = {"projection.json": json.dumps(public_cve_projection(inventory, records), separators=(",", ":"))}
+    db.require(len(json.dumps(projection)) < 100000, "public_projection_too_large")
+    api.call(public_path, projection, "PUT")
+    status = api.call(path)
+    data = status.setdefault("data", {})
+    data["coverage.json"] = json.dumps(inventory, separators=(",", ":"))
+    cohort = cohort_health(inventory, config)
+    data["coverage.state"] = cohort["state"]
+    data["coverage.validUntil"] = cohort["validUntil"]
+    data["coverage.expected"] = str(cohort["expected"])
+    data["coverage.healthy"] = str(cohort["healthy"])
+    data["coverage.observedAt"] = inventory["generatedAt"]
+    return path, status
+
+
+def refresh_inventory(api, config, history):
+    """Revalidate current running digests without submitting any assessment."""
+    with locked(history):
+        db.require(not (history / "inflight.json").exists(), "uncertain_previous_request")
+        source = history / "records.json"
+        records = json.loads(source.read_text()) if source.exists() else {}
+        inventory = coverage(workload_rows(api), records, config)
+        path, status = coverage_status(api, inventory, records, config)
+        db.require(len(json.dumps(status)) < 900000, "inventory_too_large")
+        api.call(path, status, "PUT")
+        # Never publish raw inventory in logs. This is a successful observation,
+        # not proof every workload has a current successful vulnerability scan.
+        print(json.dumps({"mode": "refresh", "state": "observed",
+                          "coverage": cohort_health(inventory, config)}), flush=True)
+        return 0
+
+
 class Runner:
     def __init__(self, api, config, expected, history, mode):
         self.api, self.config, self.expected, self.history, self.mode = api, config, expected, history, mode
@@ -472,21 +525,8 @@ class Runner:
         try:
             inventory = coverage(workload_rows(self.api), self.records, self.config)
             atomic(self.history / "coverage.json", inventory)
-            path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
-            # Only this distinct ConfigMap is readable by the GitHub publisher.
-            public_path = CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
-            projection = dict(self.api.call(public_path))
-            projection["data"] = {"projection.json": json.dumps(public_cve_projection(inventory, self.records), separators=(",", ":"))}
-            db.require(len(json.dumps(projection)) < 100000, "public_projection_too_large")
-            self.api.call(public_path, projection, "PUT")
-            status = self.api.call(path)
-            status.setdefault("data", {})[self.mode + ".json"] = json.dumps(self.result, separators=(",", ":"))
-            status["data"]["coverage.json"] = json.dumps(inventory, separators=(",", ":"))
-            cohort = cohort_health(inventory, self.config)
-            status["data"]["coverage.state"] = cohort["state"]
-            status["data"]["coverage.validUntil"] = cohort["validUntil"]
-            status["data"]["coverage.expected"] = str(cohort["expected"])
-            status["data"]["coverage.healthy"] = str(cohort["healthy"])
+            path, status = coverage_status(self.api, inventory, self.records, self.config)
+            status["data"][self.mode + ".json"] = json.dumps(self.result, separators=(",", ":"))
             # Upgrade the already persisted result of the other mode to scalar
             # health fields without requesting another assessment during rollout.
             other = "posture" if self.mode == "vulnerability" else "vulnerability"
@@ -889,7 +929,7 @@ class Runner:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("vulnerability", "posture", "inventory"))
+    parser.add_argument("mode", choices=("vulnerability", "posture", "inventory", "refresh"))
     parser.add_argument("--config", type=Path, default=Path("/config/config.json"))
     parser.add_argument("--expected", type=Path, default=Path("/config/grype-database.json"))
     parser.add_argument("--history", type=Path, default=Path("/history"))
@@ -904,6 +944,16 @@ def main():
             print(json.dumps(coverage(workload_rows(api), records, config), sort_keys=True))
             return 0
         db.require(not args.local, "local_read_only")
+        if args.mode == "refresh":
+            try:
+                return refresh_inventory(api, config, args.history)
+            except db.Rejected as error:
+                if error.reason != "duplicate_execution":
+                    raise
+                # A concurrent qualified scan owns the lock. Do not renew
+                # evidence or trigger a redundant Job failure for this skip.
+                print(json.dumps({"mode": "refresh", "state": "skipped", "reason": "assessment_active"}))
+                return 0
         return Runner(api, config, expected, args.history, args.mode).run()
     except Exception as error:
         print(json.dumps({"state": "failed", "reasons": [getattr(error, "reason", "runner_unavailable")], "errorType": type(error).__name__}))

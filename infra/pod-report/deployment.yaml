@@ -280,8 +280,8 @@ spec:
               }
 
               assessment_health() {
-                assessment_rows="$(kubectl --request-timeout=15s get configmap kubescape-assessment-status -n kubescape -o go-template='{{index .data "vulnerability.lastSuccessfulAssessmentAt"}}|{{index .data "posture.lastSuccessfulAssessmentAt"}}|{{index .data "vulnerability.state"}}|{{index .data "posture.state"}}|{{index .data "database.built"}}|{{index .data "coverage.state"}}|{{index .data "coverage.validUntil"}}|{{index .data "coverage.expected"}}|{{index .data "coverage.healthy"}}|{{index .data "posture.scopeCount"}}')" || assessment_rows="|||||||||"
-                IFS='|' read -r vulnerability_time posture_time vulnerability_state posture_state database_built coverage_state coverage_until coverage_expected coverage_healthy posture_scope <<EOF
+                assessment_rows="$(kubectl --request-timeout=15s get configmap kubescape-assessment-status -n kubescape -o go-template='{{index .data "vulnerability.lastSuccessfulAssessmentAt"}}|{{index .data "posture.lastSuccessfulAssessmentAt"}}|{{index .data "vulnerability.state"}}|{{index .data "posture.state"}}|{{index .data "database.built"}}|{{index .data "coverage.state"}}|{{index .data "coverage.validUntil"}}|{{index .data "coverage.expected"}}|{{index .data "coverage.healthy"}}|{{index .data "posture.scopeCount"}}|{{index .data "coverage.observedAt"}}')" || assessment_rows="||||||||||"
+                IFS='|' read -r vulnerability_time posture_time vulnerability_state posture_state database_built coverage_state coverage_until coverage_expected coverage_healthy posture_scope coverage_observed <<EOF
               $assessment_rows
               EOF
                 assessment_now="$(date -u +%s)"
@@ -348,6 +348,16 @@ spec:
                       fi
                     fi ;;
                 esac
+                # A recent inventory observation is required independently of the scan age.
+                observed_epoch=""
+                case "$coverage_observed" in
+                  ????-??-??T??:??:??Z|????-??-??T??:??:??.??????Z) observed_epoch="$(date -u -d "$coverage_observed" +%s 2>/dev/null)" || observed_epoch="" ;;
+                esac
+                if [ -z "$observed_epoch" ] || [ "$observed_epoch" -gt "$assessment_now" ]; then
+                  cohort_state=unknown
+                elif [ "$((assessment_now - observed_epoch))" -gt 3900 ]; then
+                  cohort_state=stale
+                fi
                 assessment_state="$cohort_state"
                 case "$vulnerability_health$posture_health$database_health" in *'"state":"stale"'*) assessment_state=stale ;; esac
                 case "$vulnerability_health$posture_health$database_health" in *'"state":"unknown"'*) assessment_state=unknown ;; esac

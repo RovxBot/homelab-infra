@@ -239,6 +239,12 @@ class CVEPublisherTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             pub.validate_cve(projection,datetime(2026,11,26,tzinfo=timezone.utc))
 
+    def test_projection_observation_expires_before_assessment(self):
+        projection=self.fixture()
+        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),3)
+        with self.assertRaises(ValueError):
+            pub.validate_cve(projection,datetime(2026,11,24,7,6,tzinfo=timezone.utc))
+
     def test_repeat_scan_same_findings_is_not_a_new_comment(self):
         entry=pub.validate_cve(self.fixture(),datetime(2026,11,24,6,1,tzinfo=timezone.utc))[0]
         github=FakeGitHub()
