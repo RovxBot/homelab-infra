@@ -8,3 +8,4 @@ resources:
   - gatus-github-issue-sync-rbac.yaml
   - gatus-github-issue-sync-cronjob.yaml
   - security-incident-publisher
+  - security-advisory-publisher
