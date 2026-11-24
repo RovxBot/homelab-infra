@@ -154,8 +154,7 @@ jobs:
               found.add(name)
               assert doc['metadata']['namespace']=='kubescape'
               assert set(doc.get('data',{}))==allowed[name]
-              assert doc['sops']['encrypted_regex']=='^(data|stringData)
-
+              assert doc['sops']['encrypted_regex']==('^(data|stringData)' + chr(36))
               assert all(v.startswith('ENC[AES256_GCM,')
                          for v in doc['data'].values()), 'unexpected plaintext in encrypted Secret'
               doc.pop('sops')
