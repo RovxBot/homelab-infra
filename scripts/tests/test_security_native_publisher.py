@@ -1,5 +1,6 @@
 """Focused tests for the separate native GitHub publisher. No network."""
 import copy
+from datetime import datetime, timezone
 import importlib.util
 import pathlib
 import sqlite3
@@ -215,6 +216,48 @@ class PublisherTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.sync(dict(self.entry,key="f"*64))
         self.assertEqual(self.github.create_calls,3)
+
+
+class CVEPublisherTests(unittest.TestCase):
+    def fixture(self):
+        return {"schema":1,"source":"kubescape-cve","generatedAt":"2026-11-24T06:00:00Z","entries":[
+            {"workload":w,"state":"complete","assessedAt":"2026-11-24T05:00:00Z",
+             "findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],
+             "otherHighCriticalMatches":0} for w in sorted(pub.ALLOWED)]}
+
+    def test_freshness_privacy_and_exact_fields(self):
+        projection = self.fixture()
+        now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        self.assertEqual(len(pub.validate_cve(projection,now)),3)
+        for change in ({"workload":"gitea/Deployment/private"},
+                       {"findings":[{"id":"CVE-2026-4738","severity":"High","fixAvailable":True,"package":"secret"}]},
+                       {"assessedAt":"2026-11-20T05:00:00Z"}):
+            bad=copy.deepcopy(projection)
+            bad["entries"][0].update(change)
+            with self.assertRaises((ValueError,TypeError)):
+                pub.validate_cve(bad,now)
+        with self.assertRaises(ValueError):
+            pub.validate_cve(projection,datetime(2026,11,26,tzinfo=timezone.utc))
+
+    def test_repeat_scan_same_findings_is_not_a_new_comment(self):
+        entry=pub.validate_cve(self.fixture(),datetime(2026,11,24,6,1,tzinfo=timezone.utc))[0]
+        github=FakeGitHub()
+        with sqlite3.connect(":memory:") as connection:
+            writer=pub.DurablePublisher(connection,github,renderer=pub.render_cve,fingerprint=pub.cve_revision,owns=pub.owns_cve)
+            self.assertEqual(writer.sync(entry),"created")
+            self.assertEqual(writer.sync(dict(entry,assessedAt="2026-11-24T05:01:00Z")),"unchanged")
+            self.assertEqual(github.create_calls,1)
+            self.assertEqual(github.comments_written,0)
+            issue=next(iter(github.issues.values()))
+            self.assertIn("CVE-2026-4738",issue["body"])
+            self.assertNotIn("sha256:",issue["body"])
+
+    def test_manual_memos_issue_identity_is_exact(self):
+        key=pub.cve_key("memos/Deployment/memos")
+        issue={"number":2181,"title":pub.MEMOS_TITLE,"body":"Existing triage for memos/Deployment/memos"}
+        self.assertTrue(pub.owns_cve(issue,key))
+        self.assertFalse(pub.owns_cve(dict(issue,number=999),key))
+        self.assertFalse(pub.owns_cve(issue,pub.cve_key("homepage/Deployment/homepage")))
 
 
 if __name__=="__main__":

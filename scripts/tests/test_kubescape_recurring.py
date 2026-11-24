@@ -136,6 +136,34 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(restarted.records, runner.records)
             self.assertEqual(restarted.result["lastSuccessfulAssessmentAt"], R.db.stamp(NOW))
 
+    def test_public_projection_and_private_status_are_distinct_writes(self):
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
+            api = mock.Mock()
+            status_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
+            public_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
+            objects = {
+                status_path: {"metadata": {"name": "kubescape-assessment-status"},
+                              "data": {"posture.json": "retained", "private": "private evidence"}},
+                public_path: {"metadata": {"name": "kubescape-public-cve"}, "data": {}},
+            }
+            writes = []
+            def request(url, body=None, method=None):
+                if method == "PUT":
+                    writes.append((url, copy.deepcopy(body)))
+                    objects[url] = copy.deepcopy(body)
+                    return objects[url]
+                return copy.deepcopy(objects[url])
+            api.call.side_effect = request
+            runner = R.Runner(api, self.config(), EXPECTED, Path(path), "vulnerability")
+            with mock.patch.object(R, "workload_rows", return_value=[]), mock.patch("builtins.print"):
+                runner.publish()
+            self.assertEqual([url for url, _ in writes], [public_path, status_path])
+            self.assertEqual(set(objects[public_path]["data"]), {"projection.json"})
+            self.assertNotIn("private evidence", json.dumps(objects[public_path]))
+            self.assertEqual(objects[status_path]["data"]["posture.json"], "retained")
+            self.assertEqual(objects[status_path]["data"]["private"], "private evidence")
+            self.assertNotIn("projection.json", objects[status_path]["data"])
+
     def test_ambiguous_later_request_preserves_peer_success_and_stops_batch(self):
         rows, config = self.rows()[:3], {**self.config(), "targets": CONFIG["targets"][:3]}
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
@@ -393,6 +421,33 @@ class FailureTests(unittest.TestCase):
         result["summaryDetails"]["frameworks"][0]["controls"]["C-1"]["statusInfo"]["status"] = "unknownNewStatus"
         with self.assertRaisesRegex(R.db.Rejected, "posture_status_unrecognised"):
             R.check_posture(result, summaries, R.db.stamp(NOW))
+
+class PublicCVEProjectionTests(unittest.TestCase):
+    def test_only_bounded_high_critical_cves_and_fix_flags(self):
+        result = R.public_cve_findings([
+            {"vulnerability":{"id":"CVE-2026-4738","severity":"High","fix":{"state":"not-fixed"}}, "artifact":{"name":"private"}},
+            {"vulnerability":{"id":"CVE-2026-4738","severity":"Critical","fix":{"state":"fixed"}}},
+            {"vulnerability":{"id":"CVE-2026-1234","severity":"Medium"}},
+            {"vulnerability":{"id":"PRIVATE-ADVISORY","severity":"High"}},
+        ])
+        self.assertEqual(result, {"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":1})
+        self.assertNotIn("PRIVATE", json.dumps(result))
+        self.assertEqual(R.public_cve_findings([{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}} for i in range(101)])["state"], "overflow")
+
+    def test_projection_rejects_old_records_and_private_workloads(self):
+        current = row()
+        private = {**current,"namespace":"gitea","workload":"private-repo"}
+        record = {"createdAt":R.db.stamp(NOW),"publicCve":{"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":0}}
+        inventory = {"generatedAt":R.db.stamp(NOW),"rows":[{**current,"assessmentState":"healthy"},{**private,"assessmentState":"healthy"}]}
+        records = {R.row_key(current):record,R.row_key(private):record}
+        result = R.public_cve_projection(inventory, records)
+        memos = next(x for x in result["entries"] if x["workload"]=="memos/Deployment/memos")
+        self.assertEqual(memos["state"],"complete")
+        self.assertNotIn("private-repo",json.dumps(result))
+        inventory["rows"][0]["assessmentState"]="stale"
+        result=R.public_cve_projection(inventory,records)
+        self.assertTrue(all(x["state"]=="unknown" for x in result["entries"]))
+
 
 class SubmissionTests(unittest.TestCase):
     """Drive the actual POST/poll/report path, including ambiguous acceptance."""
