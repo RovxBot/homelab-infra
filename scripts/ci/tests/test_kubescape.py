@@ -164,10 +164,11 @@ class StagedReleaseTests(unittest.TestCase):
         # The two encrypted receiver TLS/CA Secrets are intentionally owned
         # by this namespace's SOPS-enabled Flux Kustomization. Keep all other
         # resource additions fail-closed until independently reviewed.
-        secret_paths = {"../../secrets/security-receiver-ca.enc.yaml",
-                        "../../secrets/security-receiver-tls.enc.yaml"}
-        for secret_path in secret_paths:
-            secret = yaml.safe_load((ROOT / "infra/kubescape" / secret_path).read_text())
+        secret_kustomization = yaml.safe_load((ROOT / "secrets/kustomization.yaml").read_text())
+        self.assertEqual(set(secret_kustomization["resources"]),
+                         {"security-receiver-ca.enc.yaml","security-receiver-tls.enc.yaml"})
+        for filename in secret_kustomization["resources"]:
+            secret = yaml.safe_load((ROOT / "secrets" / filename).read_text())
             self.assertEqual(secret["kind"], "Secret")
             self.assertEqual(secret["metadata"]["namespace"], "kubescape")
             self.assertEqual(secret["sops"]["encrypted_regex"], "^(data|stringData)$")
@@ -178,7 +179,8 @@ class StagedReleaseTests(unittest.TestCase):
         trigger = "../../ops/security-collector/acceptance/trigger"
         resources = set(source["resources"])
         self.assertEqual(len(resources), len(source["resources"]), "duplicate Kubescape resource include")
-        self.assertIn(resources, (baseline | secret_paths, baseline | secret_paths | {trigger}))
+        self.assertIn(resources, (baseline | {"../../secrets"},
+                                  baseline | {"../../secrets",trigger}))
         collector = json.loads((ROOT / "infra/kubescape/collector/collector.json").read_text())
         test_workloads = [w for w in collector["workloads"] if w["namespace"] == "kubescape-runtime-test"]
         if trigger in resources:
