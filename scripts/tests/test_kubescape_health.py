@@ -45,7 +45,7 @@ except Exception:
             if len(values) == 5:
                 values = [*values, 'healthy', stamp(-1), '9', '9']
             if len(values) == 9:
-                values = [*values, '5']
+                values = [*values, '49']
             if len(values) == 10:
                 values = [*values, stamp(0)]
             result = subprocess.run(['sh', '-c', 'set -eu\n' + source.replace('/work/', str(root) + '/') + '\nassessment_health\n'],
@@ -105,7 +105,7 @@ except Exception:
 
     def test_inventory_observation_is_required_and_expires_independently(self):
         base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24),
-                'healthy', stamp(-1), '9', '9', '5']
+                'healthy', stamp(-1), '9', '9', '49']
         for observed, state in ((stamp(0),'healthy'), (stamp(2),'stale'),
                                 (stamp(-1),'unknown'), ('','unknown'), ('private','unknown')):
             with self.subTest(observed=observed):
@@ -117,7 +117,7 @@ except Exception:
     def test_previous_canary_posture_cannot_pass_expanded_scope(self):
         base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24),
                 'healthy', stamp(-1), '9', '9']
-        for scope in ('', '1', '4', '6', 'private'):
+        for scope in ('', '1', '5', '48', '50', 'private'):
             with self.subTest(scope=scope):
                 result = self.health(base + [scope])
                 self.assertEqual(result['posture']['state'], 'unknown')

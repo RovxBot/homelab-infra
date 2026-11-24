@@ -79,7 +79,7 @@ def check_config(resources):
     maps = {r['metadata']['name']: r['data'] for r in resources if r['kind'] == 'ConfigMap'}
     cfg = json.loads(maps['node-agent']['config.json'])
     assert cfg['runtimeDetectionEnabled'] is True and cfg['applicationProfileServiceEnabled'] is True
-    assert cfg['includeNamespaces'] == 'memos,homepage,koito'  # Runtime env override remains independent.
+    assert cfg['includeNamespaces'] == 'birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mop,mqtt,openbrew,security,stirling-pdf,wger,wireguard,wotlk'  # Runtime env override remains independent.
     assert cfg['exporters'] == {
         'stdoutExporter': True, 'alertManagerExporterUrls': [],
         'syslogExporterURL': '', 'httpExporterConfig': EXPORTER

@@ -314,7 +314,7 @@ spec:
                   printf '"%s":{"state":"%s","evidenceAgeSeconds":%s,"maximumAgeSeconds":%s,"lastAttemptState":"%s"}' "$1" "$mode_state" "$evidence_age" "$3" "$attempt_state"
                 }
                 vulnerability_health="$(mode_health vulnerability "$vulnerability_time" 259200 "$vulnerability_state")"
-                [ "$posture_scope" = 5 ] || posture_state=unknown
+                [ "$posture_scope" = 49 ] || posture_state=unknown
                 posture_health="$(mode_health posture "$posture_time" 93600 "$posture_state")"
                 database_health="$(mode_health database "$database_built" 1209600 unknown)"
                 database_epoch="$(date -u -d "$database_built" +%s 2>/dev/null)" || database_epoch=""
