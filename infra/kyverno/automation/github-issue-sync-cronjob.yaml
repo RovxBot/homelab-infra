@@ -5,7 +5,8 @@ metadata:
   namespace: kyverno
 spec:
   schedule: 15 * * * *
-  suspend: false
+  # Public security writing retired pending private reporter qualification.
+  suspend: true
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
@@ -31,7 +32,7 @@ spec:
                 - /opt/kyverno-github-issue-sync/sync.py
               env:
                 - name: DRY_RUN
-                  value: "false"
+                  value: "true"
                 - name: PERSIST_FOR_HOURS
                   value: "24"
                 - name: PYTHONDONTWRITEBYTECODE
@@ -50,12 +51,6 @@ spec:
                   value: platform-flux-guardrails
                 - name: EXCLUDE_NAMESPACES_RE
                   value: ^(flux-system|kube-.*|kyverno|sops)$
-                - name: GITHUB_TOKEN
-                  valueFrom:
-                    secretKeyRef:
-                      name: kyverno-github-issue-sync
-                      key: token
-                      optional: false
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:

@@ -282,12 +282,85 @@ class CVEPublisherTests(unittest.TestCase):
         error=urllib.error.HTTPError("https://private.example",403,"private-token",{},None)
         self.assertEqual(pub.boundary_failure("cve_api",error).code,"cve_api_http_403")
 
-    def test_manual_memos_issue_identity_is_exact(self):
+    def test_old_public_issue_number_is_never_adopted(self):
         key=pub.cve_key("memos/Deployment/memos")
-        issue={"number":2181,"title":pub.MEMOS_TITLE,"body":"Existing triage for memos/Deployment/memos"}
-        self.assertTrue(pub.owns_cve(issue,key))
-        self.assertFalse(pub.owns_cve(dict(issue,number=999),key))
-        self.assertFalse(pub.owns_cve(issue,pub.cve_key("homepage/Deployment/homepage")))
+        issue={"number":2181,"body":"Existing public triage for memos/Deployment/memos"}
+        self.assertFalse(pub.owns_cve(issue,key))
+        self.assertTrue(pub.owns_cve(dict(issue,body=pub.marker(key)),key))
+        self.assertFalse(pub.owns_cve(dict(issue,body=pub.marker(key)*2),key))
+
+
+class PrivateDestinationTests(unittest.TestCase):
+    def setUp(self):
+        self.repo={"id":pub.REPO_ID,"full_name":pub.REPO,"private":True,
+                   "has_issues":True,"archived":False}
+        self.calls=[]
+        self.issues=[]
+
+    def request(self, opener, url, token, *, method="GET", payload=None):
+        self.calls.append((url,method,payload))
+        if url==pub.GITEA+pub.REPO_PATH:
+            return dict(self.repo)
+        if method=="GET" and "?state=all&" in url:
+            return self.issues
+        if method=="POST":
+            return {"number":1, **payload}
+        raise AssertionError("Unexpected request")
+
+    def test_private_repository_identity_verified_before_every_write(self):
+        client=pub.PrivateGitea("test-token",requester=self.request)
+        client.create("title","body")
+        self.assertEqual([method for _,method,_ in self.calls],["GET","GET","POST"])
+        self.repo["private"]=False
+        with self.assertRaises(ValueError):
+            client.create("title","body")
+        self.assertEqual([method for _,method,_ in self.calls].count("POST"),1)
+        for changed in ({"private":False},{"id":999},{"full_name":"other/repo"},
+                        {"has_issues":False},{"archived":True}):
+            with self.subTest(changed=changed):
+                self.repo.update(private=True,id=pub.REPO_ID,full_name=pub.REPO,
+                                 has_issues=True,archived=False)
+                self.repo.update(changed)
+                with self.assertRaises(ValueError):
+                    pub.PrivateGitea("test-token",requester=self.request)
+
+    def test_fixed_endpoint_no_arbitrary_routes_or_methods(self):
+        client=pub.PrivateGitea("test-token",requester=self.request)
+        for path,method in (("/repos/other/repo/issues","POST"),
+                            ("/repos/"+pub.REPO+"/security-advisories","POST"),
+                            (pub.ISSUE_PATH+"/1","PATCH"),
+                            (pub.ISSUE_PATH+"/../issues","GET")):
+            with self.subTest(path=path,method=method), self.assertRaises(ValueError):
+                client.call(path,method,{"body":"forbidden"} if method!="GET" else None)
+        self.assertEqual(len(self.calls),1)
+
+    def test_dedup_includes_closed_and_refuses_duplicate_markers(self):
+        client=pub.PrivateGitea("test-token",requester=self.request)
+        key="a"*64
+        self.issues=[{"number":12,"state":"closed","body":pub.marker(key)}]
+        self.assertEqual(client.search(key)["number"],12)
+        self.issues.append({"number":13,"body":pub.marker(key)})
+        with self.assertRaises(ValueError):
+            client.search(key)
+
+    def test_old_public_databases_not_reused_and_credential_isolated(self):
+        import yaml
+        manifest=list(yaml.safe_load_all((SOURCE.parent/"workload.yaml").read_text()))
+        job=next(d for d in manifest if d["kind"]=="CronJob")
+        env=job["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]["env"]
+        credential=next(e for e in env if e["name"]=="GITEA_TOKEN")
+        self.assertEqual(credential["valueFrom"]["secretKeyRef"]["name"],"homelab-security-gitea")
+        self.assertFalse(any(e["name"]=="GITHUB_TOKEN" for e in env))
+        source=SOURCE.read_text()
+        self.assertIn("/state/gitea-native-publisher.sqlite",source)
+        self.assertIn("/state/gitea-cve-publisher.sqlite",source)
+        self.assertNotIn('"/state/publisher.sqlite"',source)
+        self.assertNotIn('"/state/cve-publisher.sqlite"',source)
+        self.assertNotIn("api.github.com",source)
+        old=yaml.safe_load((ROOT/"infra/kyverno/automation/github-issue-sync-cronjob.yaml").read_text())
+        self.assertIs(old["spec"]["suspend"],True)
+        oldenv=old["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]["env"]
+        self.assertFalse(any(e["name"]=="GITHUB_TOKEN" for e in oldenv))
 
 
 class StageHealthTests(unittest.TestCase):
