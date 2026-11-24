@@ -144,15 +144,26 @@ def request_json(opener, url, token, *, method="GET", payload=None, phase="githu
         "Accept-Encoding": "identity",
         "User-Agent": "security-native-publisher",
     })
-    try:
-        with opener.open(req, timeout=15) as response:
-            require(response.status in (200, 201) and
-                    response.headers.get("Content-Encoding", "identity") == "identity")
-            data = response.read(MAX_BODY + 1)
-            require(len(data) <= MAX_BODY)
-            return json.loads(data)
-    except (HTTPError, URLError, OSError, UnicodeError, ValueError) as exc:
-        raise boundary_failure(phase, exc) from None
+    # The Kubernetes API and receiver are READ-ONLY sources: one bounded
+    # retry is safe for transient timeouts/5xx. GitHub POSTs are never retried
+    # because the remote write may already have succeeded.
+    attempts = 2 if method == "GET" and phase in ("kubernetes_api", "receiver_api") else 1
+    for attempt in range(attempts):
+        try:
+            with opener.open(req, timeout=15) as response:
+                require(response.status in (200, 201) and
+                        response.headers.get("Content-Encoding", "identity") == "identity")
+                data = response.read(MAX_BODY + 1)
+                require(len(data) <= MAX_BODY)
+                return json.loads(data)
+        except (HTTPError, URLError, OSError, UnicodeError, ValueError) as exc:
+            failure = boundary_failure(phase, exc)
+            transient = failure.code.endswith(("_timeout", "_connection",
+                                                 "_http_429", "_http_503", "_http_504"))
+            if transient and attempt + 1 < attempts:
+                time.sleep(1)
+                continue
+            raise failure from None
 
 
 def fetch_projection():
