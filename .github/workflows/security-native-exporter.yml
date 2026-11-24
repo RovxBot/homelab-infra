@@ -1,0 +1,27 @@
+name: Security Native Exporter Contract
+
+on:
+  pull_request:
+    paths:
+      - scripts/security_receiver/**
+      - scripts/tests/test_security_receiver_*.py
+      - ops/security-receiver/**
+      - .github/workflows/security-native-exporter.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Run bounded native exporter contract tests
+        run: python3 -m unittest discover -s scripts/tests -p 'test_security_receiver_*.py' -v
+      - name: Syntax checks
+        run: python3 -m py_compile scripts/security_receiver/native.py scripts/tests/test_security_receiver_native.py
