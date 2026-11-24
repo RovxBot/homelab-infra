@@ -1,8 +1,8 @@
 # Security receiver staging and cutover — operator runbook
 
-**State: staging only, not an active runtime receiver.** No exporter configuration, node-agent, Kyverno/PSA, Gatus, Renovate, Cilium, scanner or existing collector behavior is changed by this stage.
+**State: receiver-only activation candidate; not yet merged/reconciled.** On merge, Flux applies the encrypted TLS/CA Secrets and starts the private HTTPS receiver, without enabling the Kubescape exporter. No node-agent, Kyverno/PSA, Gatus, Renovate, Cilium, scanner or existing collector behavior is changed.
 
-The validated native receiver code was merged in #2212 and #2213. This staging layer adds reproducible image creation, least-privilege RBAC and an off-by-default HTTPS/SQLite deployment manifest.
+The validated native receiver code was merged in #2212 and #2213. This PR adds the reproducible image, least-privilege RBAC, SOPS-managed TLS Secrets and a receiver-only HTTPS/SQLite deployment. **Actual runtime event delivery will remain disabled until a later reviewed change to the documented exporter configuration.**
 
 ## Exact deployment boundary
 
@@ -20,11 +20,11 @@ The validated native receiver code was merged in #2212 and #2213. This staging l
 Files:
 - `ops/security-receiver/build-image.py`: isolated deterministic stdlib Python image using the same reviewed pinned Python base and checksum-pinned crane as existing collector build.
 - `.github/workflows/security-receiver-image.yml`: unit/contract tests; non-root/read-only/no-network smoke, digest proof, GHCR push and anonymous digest retrieval. **The first GHCR package may need an operator to set package visibility public.** This is distinct from publishing any private security evidence.
-- `infra/kubescape/receiver/{config.json,workload.yaml,rbac.yaml,kustomization.yaml}`: native receiver staged behind no active Flux reference.
+- `infra/kubescape/receiver/{config.json,workload.yaml,rbac.yaml,kustomization.yaml}`: native receiver explicitly included in the Kubescape Flux Kustomization; no exporter or agent changes.
 - `ops/security-receiver/generate-tls-secrets.sh`: local one-time keypair bootstrap and SOPS-encrypted Secrets. NO cluster writes.
 - `scripts/tests/test_security_receiver_deployment.py`: confirms no accidental activation, narrow RBAC, TLS-only service, dedicated PVC and encrypted Secrets.
 
-The receiver image is now pinned to **`ghcr.io/rovxbot/security-receiver@sha256:f1e05b419c614a8d3f843b4fcfa332f44bd74edbb9e61cee2b0e820dcab02b2e`**, built and anonymously pulled by the dedicated PR workflow. The CI image job checks that the image digest is exactly reproducible from the current source. **This remains an off-by-default staging manifest**: do not add `receiver` to `infra/kubescape/kustomization.yaml` until the encrypted TLS Secrets, chart exporter configuration and Kyverno policy are qualified.
+The receiver image is now pinned to **`ghcr.io/rovxbot/security-receiver@sha256:f1e05b419c614a8d3f843b4fcfa332f44bd74edbb9e61cee2b0e820dcab02b2e`**, built and anonymously pulled by the dedicated PR workflow. The CI image job checks that the image digest is exactly reproducible from the current source. **Receiver-only activation is enabled in this PR's GitOps source**, along with the encrypted TLS Secrets. The node-agent exporter is still disabled, so no alert transport cutover occurs on merge.
 
 ## Stage B — one-time operator TLS bootstrap
 
@@ -40,7 +40,7 @@ Requires local `openssl`, `kubectl` (only `--dry-run=client`) and `sops`. The sc
 
 `.work/` is ignored by Git. **Back up the CA signing key privately; never attach or commit plaintext key material.** Review `sops` metadata and ensure PEMs are not in diffs before committing. Do not run the script twice for rotation.
 
-**Completed in PR #2214:** `infra/kubescape/kustomization.yaml` includes the `../../secrets` directory Kustomization, which explicitly lists only the two encrypted receiver Secrets. Their names and SOPS metadata are regression-tested. The same reconciliation owns `namespace.yaml`. The dedicated `clusters/home/infrastructure/kubescape-kustomization.yaml` now has the standard Flux `decryption.provider: sops` and existing `sops-age` key reference. **Do not duplicate these Secret paths in the parent infrastructure Kustomization.** This keeps clean-cluster namespace creation and receiver identity together. The receiver Deployment and node-agent exporter remain inactive. Before the chart enables `global.extraCaCertificates`, verify that the `security-receiver-ca` Secret already exists; the chart uses an API `lookup` of that Secret at render time.
+**Completed in PR #2214:** `infra/kubescape/kustomization.yaml` includes the `../../secrets` directory Kustomization, which explicitly lists only the two encrypted receiver Secrets. Their names and SOPS metadata are regression-tested. The same reconciliation owns `namespace.yaml`. The dedicated `clusters/home/infrastructure/kubescape-kustomization.yaml` now has the standard Flux `decryption.provider: sops` and existing `sops-age` key reference. **Do not duplicate these Secret paths in the parent infrastructure Kustomization.** This keeps clean-cluster namespace creation and receiver identity together. The receiver Deployment is now included in the Kubescape GitOps composition and will start after merge. The node-agent exporter remains inactive. Before the chart enables `global.extraCaCertificates`, verify that the `security-receiver-ca` Secret already exists; the chart uses an API `lookup` of that Secret at render time.
 
 ## Stage C — prove the documented native HTTP configuration
 
@@ -54,11 +54,11 @@ For the HTTP path, require `enableAlertBulking=false` for canary: current receiv
 
 ## Stage D — activation PR review/acceptance
 
-**Do not merge/activate until all prerequisites are satisfied:**
+**Merge receiver-only phase after its CI, secret and policy checks pass; keep exporter activation gated on additional prerequisites:**
 1. Build workflow is green and GHCR image digest independently verified; this PR now pins the qualified `@sha256:9c92582e…` image. Rerun the image proof on the final PR head and require exactly matching source hashes and digest before activation.
 2. Review encrypted Secrets and certificate DNS SAN/expiry, apply via Flux, check CA mount and non-leaking output.
 3. Render the exact Kubescape Helm chart with native HTTP exporter config and verify node-agent exporter URL, CA, projected token mount and existing eBPF/CEL strict security boundary. Update narrowly scoped Kyverno boundary to permit the approved public-CA Secret mount, preserving all existing controls. A chart or admission failure blocks rollout.
-4. Add the receiver Kustomization to the Flux-owned Kubescape manifest only after Secrets exist, safe pinned image is available and preflight passes. Keep existing log collector running until native delivery passes.
+4. **Receiver-only phase (this PR):** Flux reconciles the two encrypted Secrets, private Service, receiver Deployment, restricted RBAC and separate PVC. Validate the receiver is Ready with independently trusted TLS; do not change node-agent exporters or the old collector.
 5. Validate Kubernetes TokenReview with the bound Pod token, wrong-audience/wrong-SA denial, TLS chain rejection and valid trust.
 6. Execute a **new** harmless R1000 and verify a native HTTP request, 200 only after SQLite commit, one private incident+receipt, exact replay deduplication and restart persistence. Historical R1000 seen only in stdout is detector evidence, **not** native HTTP acceptance.
 7. Validate agent/receiver freshness and Gatus semantics, DB capacity, retry/drop limits, no payload/credential exposure and no public GitHub writes.
@@ -75,3 +75,27 @@ Only then create a **separate reviewed 2→8 rollout**. Security event GitHub pu
 - [SOPS secret protection](https://fluxcd.io/flux/guides/mozilla-sops/)
 
 **Rollback:** remove only the receiver from Flux and stop native exporter delivery, preserving old collector, scanner, rules, Kyverno and both PVCs. Do not delete either Secret without confirming no bound consumer; do not delete CA signing key. No automatic incident closure or destructive remediation.
+
+## Receiver-only live acceptance (immediately after merging this PR)
+
+The receiver Service is internal; do not publish it through Cloudflare Tunnel or create an Ingress. After Flux reconciles, confirm:
+```sh
+kubectl -n flux-system get kustomization kubescape
+kubectl -n kubescape get secret security-receiver-tls security-receiver-ca
+kubectl -n kubescape get deploy/security-receiver svc/security-receiver pvc/security-receiver-state
+kubectl -n kubescape rollout status deployment/security-receiver --timeout=180s
+```
+Check the server certificate from your local **public** CA certificate using a loopback-only port forward. In one terminal:
+```sh
+kubectl -n kubescape port-forward service/security-receiver 8443:8443
+```
+In another terminal, from the original workstation checkout (where `.work/security-receiver-pki/root.crt` was created):
+```sh
+HTTPS_PROXY= HTTP_PROXY= ALL_PROXY= curl --fail --show-error --silent \
+  --cacert .work/security-receiver-pki/root.crt \
+  --resolve security-receiver.kubescape.svc:8443:127.0.0.1 \
+  https://security-receiver.kubescape.svc:8443/healthz
+```
+Expect HTTP 200 with `receiver_ready=true`, `database_ok` implicit and `delivery_coverage=unverified`. **That status is intentionally not evidence of Kubescape runtime alert delivery.**
+
+If the Deployment fails readiness, inspect Pod events and restart reason (never print bearer tokens or decrypted Secret values). Roll back only the receiver GitOps resource as necessary; leave both PVCs unpruned. Do **not** merge an exporter-config change until this test is accepted and Kyverno allows only the documented CA mount.
