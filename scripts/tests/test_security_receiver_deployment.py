@@ -38,6 +38,13 @@ class ReceiverStageTests(unittest.TestCase):
         items=documents(RECEIVER/"workload.yaml")
         obj={x["kind"]:x for x in items}
         deploy=obj["Deployment"]
+        # This must be a single Pod-template rotation, not a PVC/Service
+        # mutation or an image/rbac change.
+        self.assertEqual(deploy["spec"]["replicas"],1)
+        self.assertEqual(deploy["spec"]["strategy"],{"type":"Recreate"})
+        self.assertEqual(deploy["spec"]["template"]["metadata"]["annotations"],
+                         {"homelab.cooked.beer/persistence-acceptance":
+                          "r1000-receipt-20261124-01"})
         spec=deploy["spec"]["template"]["spec"]
         self.assertEqual(spec["serviceAccountName"],"security-receiver")
         self.assertIs(spec["automountServiceAccountToken"],False)
