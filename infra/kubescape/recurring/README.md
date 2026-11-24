@@ -203,3 +203,7 @@ unattended run is still required.
 Failure tests use isolated fault injection; they do not claim destructive
 production outages were induced. Committed acceptance records actual production
 checks, resource/storage growth and remaining unattended observations.
+
+### Bounded same-batch immutable image reuse
+
+The four-request budget now counts distinct exact registry image digests within the reviewed Deployment cohort. A directly qualified result (including fresh scanner-generated WLID summary, independent report/SBOM rereads, current DB and stable workload identity) can supply separately labelled `sharedImage` evidence for another currently ready Deployment container using the identical full registry digest. Re-resolve peer inventory independently after the direct scan. Preserve original assessment time, source job ID and peer UID/generation/Pod membership; do not invent a native summary or submit another request. A changed peer identity invalidates shared evidence; a failed or uncertain peer requires a direct retry. No cross-run archive reuse, cross-registry digest equivalence, new scope, automatic remediation or private finding expansion is authorized by this change. Full live qualification remains required.

@@ -263,6 +263,52 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(len(rows), 9)
         self.assertEqual(R.PRIVATE_CVE_TARGETS, {t['identity'] for t in CONFIG['targets']})
 
+    def test_same_digest_budgets_one_direct_request_and_preserves_peer_attribution(self):
+        source, peer = self.rows()[:2]
+        peer["runningDigest"] = source["runningDigest"]
+        config = self.config()
+        config["targets"] = config["targets"][:2]
+        self.assertEqual(R.select_batch([source, peer], {}, config), [source])
+        record = {"evidenceKind":"direct", "jobID":"recurring-"+"a"*32,
+                  "imageDigest":source["runningDigest"], "workloadUID":source["workloadUID"],
+                  "container":source["container"], "createdAt":R.db.stamp(NOW),
+                  "database":EXPECTED["metadata"], "severities":{}, "fixesAvailable":False,
+                  "manifestDigest":"sha256:"+"a"*64, "configDigest":"sha256:"+"b"*64,
+                  "lastAttempt":{"state":"healthy","checkedAt":R.db.stamp(NOW)},
+                  "privateCve":{"state":"complete","findings":[],"otherHighCriticalMatches":0}}
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db,"utcnow",return_value=NOW):
+            runner=R.Runner(mock.Mock(),config,EXPECTED,Path(path),"vulnerability")
+            def scan(r,audit):
+                runner.records[R.row_key(r)] = copy.deepcopy(record)
+                runner.result["assessments"].append(record)
+            selected,outcomes=R.resolve_targets([source,peer],config)
+            with mock.patch.object(R,"workload_rows",return_value=[source,peer]), \
+                    mock.patch.object(runner,"publish"), \
+                    mock.patch.object(runner,"vulnerability",side_effect=scan) as direct:
+                runner.batch(selected,outcomes,{"checkedAt":R.db.stamp(NOW)})
+            direct.assert_called_once()
+            shared=runner.records[R.row_key(peer)]
+            self.assertEqual(shared["evidenceKind"],"sharedImage")
+            self.assertEqual(shared["sourceJobID"],record["jobID"])
+            self.assertNotIn("jobID",shared)
+            self.assertEqual(shared["createdAt"],record["createdAt"])
+            self.assertEqual(shared["workloadUID"],peer["workloadUID"])
+            self.assertEqual(len(runner.result["assessments"]),1)
+            self.assertEqual(outcomes[1]["state"],"healthy")
+            for changed in ({**peer,"generation":2},{**peer,"podUIDs":["new-pod"]},
+                            {**peer,"runningDigest":"registry/image@sha256:"+"f"*64}):
+                view=R.coverage([changed],runner.records,config,NOW)
+                self.assertEqual(view["rows"][0]["assessmentState"],"unknown")
+            for invalid in ({**record,"evidenceKind":"sharedImage"},
+                            {**record,"database":{**EXPECTED["metadata"],"checksum":"wrong"}},
+                            {**record,"createdAt":R.db.stamp(NOW-timedelta(hours=73))}):
+                with self.assertRaises(R.db.Rejected):
+                    R.shared_image_record(source,peer,invalid,config,NOW)
+            runner.records[R.row_key(peer)]={"lastAttempt":{"state":"failed"}}
+            with mock.patch.object(R,"workload_rows",return_value=[source,peer]):
+                runner.reuse_batch_image(source,[source,peer],outcomes)
+            self.assertEqual(runner.records[R.row_key(peer)]["lastAttempt"]["state"],"failed")
+
     def test_batch_rotates_unscanned_changed_stale_and_failures(self):
         rows, config = self.rows(), self.config()
         self.assertEqual(R.select_batch(rows, {}, config), rows[:4])
