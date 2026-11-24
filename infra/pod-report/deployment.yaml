@@ -393,15 +393,48 @@ spec:
                 '
               }
 
+              publisher_stages_health() {
+                # Use the exact latest CronJob-owned Job and its controller UID.
+                # A missing, active, ambiguous or old result cannot assert success.
+                unknown_stages() { printf 'unknown|unknown'; }
+                rows="$(kubectl --request-timeout=15s get jobs -n monitoring -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"|"}{.metadata.name}{"|"}{.metadata.uid}{"|"}{range .metadata.ownerReferences[?(@.controller==true)]}{.kind}{"/"}{.name}{end}{"|"}{range .status.conditions[?(@.type=="Complete")]}{.status}{end}{"|"}{range .status.conditions[?(@.type=="Failed")]}{.status}{end}{"\n"}{end}' 2>/dev/null)" || { unknown_stages; return; }
+                latest="$(printf '%s\n' "$rows" | awk -F '|' '$4 == "CronJob/security-incident-publisher"' | sort -r | head -n 1)"
+                [ -n "$latest" ] || { unknown_stages; return; }
+                IFS='|' read -r created job uid owner complete failed <<EOF
+              $latest
+              EOF
+                case "$job" in security-incident-publisher-*) ;; *) unknown_stages; return ;; esac
+                [ -n "$uid" ] || { unknown_stages; return; }
+                started="$(date -u -d "$created" +%s 2>/dev/null)" || { unknown_stages; return; }
+                current="$(date -u +%s)"
+                [ "$started" -le "$current" ] || { unknown_stages; return; }
+                [ "$((current - started))" -le 1200 ] || { printf 'stale|stale'; return; }
+                if [ "$complete" != True ] && [ "$failed" != True ]; then unknown_stages; return; fi
+                pods="$(kubectl --request-timeout=15s get pods -n monitoring -l app.kubernetes.io/name=security-incident-publisher -o jsonpath='{range .items[*]}{range .metadata.ownerReferences[?(@.controller==true)]}{.kind}{"/"}{.name}{"|"}{.uid}{end}{"|"}{range .status.containerStatuses[?(@.name=="publisher")]}{.state.terminated.exitCode}{"|"}{.state.terminated.message}{end}{"\n"}{end}' 2>/dev/null)" || { unknown_stages; return; }
+                # Only emit an exact code-owned enum combination, not the message.
+                message="$(printf '%s\n' "$pods" | awk -F '|' -v job="Job/$job" -v uid="$uid" '$1==job && $2==uid {n++; if(NF==6 && $3~/^[01]$/ && $4=="security-v1" && $5~/^(healthy|failed|unknown)$/ && $6~/^(healthy|failed|unknown)$/) {value=$5 "|" $6; code=$3}} END {if(n==1 && value!="") print code "|" value}')"
+                case "$message:$complete:$failed" in
+                  '0|healthy|healthy:True:') printf 'healthy|healthy' ;;
+                  1\|*::True)
+                    case "$message" in
+                      '1|healthy|healthy') unknown_stages ;;
+                      *) printf '%s' "${message#*|}" ;;
+                    esac ;;
+                  *) unknown_stages ;;
+                esac
+              }
+
               security_reporting_health() {
-                native_state="$(reporter_health monitoring security-incident-publisher 1200)"
+                stages="$(publisher_stages_health)"
+                native_state="${stages%%|*}"
+                cve_state="${stages#*|}"
                 policy_state="$(reporter_health kyverno kyverno-github-issue-sync 5400)"
                 controllers_state="$(kyverno_controllers_health)"
                 reporting_state=healthy
                 for state in "$native_state" "$policy_state" "$controllers_state"; do
                   [ "$state" = healthy ] || reporting_state=unhealthy
                 done
-                printf '{"status":"%s","observedAt":"%s","nativePublisher":"%s","kyvernoPublisher":"%s","kyvernoControllers":"%s"}\n' "$reporting_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$native_state" "$policy_state" "$controllers_state" > /work/security-reporting-health.json.tmp
+                printf '{"status":"%s","observedAt":"%s","nativePublisher":"%s","cvePublisher":"%s","kyvernoPublisher":"%s","kyvernoControllers":"%s"}\n' "$reporting_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$native_state" "$cve_state" "$policy_state" "$controllers_state" > /work/security-reporting-health.json.tmp
                 mv /work/security-reporting-health.json.tmp /work/security-reporting-health.json
               }
 
