@@ -41,6 +41,9 @@ spec:
       # recreate or prune the Longhorn PVC or its SQLite database.
       annotations:
         homelab.cooked.beer/persistence-acceptance: "r1000-receipt-20261124-01"
+        # Recreate the receiver only after the SOPS-encrypted strict-X509
+        # leaf is included in this same GitOps PR; keep Longhorn state.
+        homelab.cooked.beer/tls-leaf-reissue: "strict-x509-aki-20261124-01"
       labels:
         app.kubernetes.io/name: security-receiver
         homelab.cooked.beer/owner: sam
