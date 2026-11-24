@@ -46,6 +46,8 @@ except Exception:
                 values = [*values, 'healthy', stamp(-1), '9', '9']
             if len(values) == 9:
                 values = [*values, '5']
+            if len(values) == 10:
+                values = [*values, stamp(0)]
             result = subprocess.run(['sh', '-c', 'set -eu\n' + source.replace('/work/', str(root) + '/') + '\nassessment_health\n'],
                                     env=dict(os.environ, PATH=str(root) + ':' + os.environ['PATH'],
                                              ASSESSMENT_FIXTURE='|'.join(values), ASSESSMENT_ERROR=str(int(error))),
@@ -100,6 +102,17 @@ except Exception:
                 self.assertEqual(result['status'], expected)
                 self.assertEqual(result['coverage']['state'], expected)
                 self.assertNotIn('private', json.dumps(result))
+
+    def test_inventory_observation_is_required_and_expires_independently(self):
+        base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24),
+                'healthy', stamp(-1), '9', '9', '5']
+        for observed, state in ((stamp(0),'healthy'), (stamp(2),'stale'),
+                                (stamp(-1),'unknown'), ('','unknown'), ('private','unknown')):
+            with self.subTest(observed=observed):
+                result=self.health(base+[observed])
+                self.assertEqual(result['coverage']['state'],state)
+                self.assertEqual(result['status'],state)
+                self.assertNotIn('private',json.dumps(result))
 
     def test_previous_canary_posture_cannot_pass_expanded_scope(self):
         base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24),
