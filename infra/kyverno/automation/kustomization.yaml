@@ -4,3 +4,4 @@ resources:
   - github-issue-sync-rbac.yaml
   - github-issue-sync-configmap.yaml
   - github-issue-sync-cronjob.yaml
+  - policy-assurance.yaml
