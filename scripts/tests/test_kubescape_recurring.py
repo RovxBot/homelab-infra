@@ -1,5 +1,6 @@
 """Exercise production runner failure boundaries without disrupting applications."""
 import copy
+import gzip
 from datetime import datetime, timedelta, timezone
 import importlib.util
 import json
@@ -26,6 +27,64 @@ def row():
     return {"namespace": "memos", "kind": "Deployment", "workload": "memos", "container": "memos",
             "workloadUID": "workload-uid", "generation": 1, "podUIDs": ["pod-uid"], "ready": True,
             "containerType": "containers", "runningDigest": R.client.MEMOS_IMAGE}
+
+
+class RetainedProjectionTests(unittest.TestCase):
+    def test_recover_only_verified_matching_archive(self):
+        fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
+        current = row()
+        report, sbom = fixture["report"], fixture["sbom"]
+        report["metadata"]["name"] = R.client.REPORT
+        report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(NOW)
+        checked = R.check_report(report,sbom,current,EXPECTED,R.db.stamp(NOW))
+        job = "recurring-" + "a"*32
+        record = dict(checked,jobID=job,workloadUID=current["workloadUID"],
+                      imageDigest=current["runningDigest"],container=current["container"])
+        config = {**CANARY_CONFIG,"databaseChecksum":EXPECTED["metadata"]["checksum"]}
+        inventory = {"rows":[dict(current,assessmentState="healthy")],"generatedAt":R.db.stamp(NOW)}
+        summary = {"metadata":{"annotations":{"kubescape.io/image-id":current["runningDigest"],
+                    "kubescape.io/workload-container-name":current["container"],
+                    "kubescape.io/wlid":"wlid://cluster-home/namespace-memos/deployment-memos"}},
+                    "spec":{"vulnerabilitiesRef":{"all":{"name":R.client.REPORT}}}}
+        with tempfile.TemporaryDirectory() as tmp:
+            history = Path(tmp)
+            run = history/"vulnerability-fixture"
+            run.mkdir()
+            def write(name,value):
+                with gzip.open(run/(name+"-"+job+".json.gz"),"wt") as stream:
+                    json.dump(value,stream)
+            write("reports",{"vulnerability":report,"sbom":sbom})
+            write("summary",summary)
+            R.atomic(run/("terminal-"+job+".json"),{"state":"succeeded","phase":"completed"})
+            for mutate in ("stale","wrong_uid","wrong_summary","missing_terminal","valid"):
+                records = {R.row_key(current):copy.deepcopy(record)}
+                view = copy.deepcopy(inventory)
+                if mutate == "stale":
+                    view["rows"][0]["assessmentState"]="stale"
+                elif mutate == "wrong_uid":
+                    records[R.row_key(current)]["workloadUID"]="different"
+                elif mutate == "wrong_summary":
+                    wrong=copy.deepcopy(summary)
+                    wrong["metadata"]["annotations"]["kubescape.io/wlid"]="other"
+                    write("summary",wrong)
+                elif mutate == "missing_terminal":
+                    write("summary",summary)
+                    (run/("terminal-"+job+".json")).unlink()
+                else:
+                    R.atomic(run/("terminal-"+job+".json"),{"state":"succeeded","phase":"completed"})
+                self.assertEqual(R.recover_private_projection(history,view,records,config),int(mutate=="valid"))
+                if mutate=="valid":
+                    self.assertEqual(records[R.row_key(current)]["privateCve"],
+                                     R.private_cve_findings(report["spec"]["payload"]["matches"]))
+                    self.assertEqual(records[R.row_key(current)]["createdAt"],record["createdAt"])
+                else:
+                    self.assertNotIn("privateCve",records[R.row_key(current)])
+
+    def test_strip_projection_details_only(self):
+        evidence={"privateCve":{"findings":["PRIVATE-ID"]},"publicCve":{"findings":["LEGACY-ID"]},"state":"healthy"}
+        self.assertEqual(R.status_safe({"assessments":[evidence],"state":"healthy"}),
+                         {"assessments":[{"state":"healthy"}],"state":"healthy"})
+        self.assertIn("privateCve",evidence)
 
 
 class CoverageTests(unittest.TestCase):
@@ -250,8 +309,12 @@ class BatchTests(unittest.TestCase):
                 return copy.deepcopy(objects[url])
             api.call.side_effect = request
             runner = R.Runner(api, self.config(), EXPECTED, Path(path), "vulnerability")
-            with mock.patch.object(R, "workload_rows", return_value=[]), mock.patch("builtins.print"):
+            runner.result["assessments"]=[{"createdAt":R.db.stamp(NOW),"privateCve":{"findings":["PRIVATE-ID"]}}]
+            with mock.patch.object(R, "workload_rows", return_value=[]), mock.patch("builtins.print") as logged:
                 runner.publish()
+            self.assertNotIn("PRIVATE-ID",json.dumps(objects[status_path]))
+            self.assertNotIn("PRIVATE-ID",str(logged.call_args))
+            self.assertIn("PRIVATE-ID",(Path(path)/"latest-vulnerability.json").read_text())
             self.assertEqual([url for url, _ in writes], [public_path, status_path])
             self.assertEqual(set(objects[public_path]["data"]), {"projection.json"})
             self.assertNotIn("private evidence", json.dumps(objects[public_path]))

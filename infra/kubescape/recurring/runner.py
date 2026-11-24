@@ -463,6 +463,76 @@ def locked(history):
         yield
 
 
+def status_safe(value):
+    """Finding content is confined to retained history and the named projection."""
+    if isinstance(value, dict):
+        return {k: status_safe(v) for k, v in value.items()
+                if k not in {"privateCve", "publicCve"}}
+    if isinstance(value, list):
+        return [status_safe(v) for v in value]
+    return value
+
+
+ARCHIVE_LIMIT = 16 * 1024**2
+
+
+def read_retained(path):
+    db.require(path.is_file() and not path.is_symlink() and not path.parent.is_symlink(),
+               "archive_unavailable")
+    with gzip.open(path, "rb") as stream:
+        body = stream.read(ARCHIVE_LIMIT + 1)
+    db.require(len(body) <= ARCHIVE_LIMIT, "archive_budget")
+    return json.loads(body)
+
+
+def recover_private_projection(history, inventory, records, config):
+    """Reuse only already-qualified, exact current retained reports; no new scan."""
+    recovered = 0
+    for row in inventory["rows"]:
+        if (row["assessmentState"] != "healthy" or target_key(row) not in PRIVATE_CVE_TARGETS):
+            continue
+        record = records.get(row_key(row), {})
+        if "privateCve" in record or ("publicCve" in record and target_key(row) in LEGACY_PUBLIC_CVE_TARGETS):
+            continue
+        job = record.get("jobID", "")
+        if not isinstance(job, str) or not re.fullmatch(r"recurring-[a-f0-9]{32}", job):
+            continue
+        try:
+            paths = list(history.glob("vulnerability-*/reports-" + job + ".json.gz"))
+            db.require(len(paths) == 1, "archive_ambiguous")
+            path = paths[0]
+            db.require(record["workloadUID"] == row["workloadUID"]
+                       and record["imageDigest"] == row["runningDigest"]
+                       and record["container"] == row["container"]
+                       and record["database"]["checksum"] == config["databaseChecksum"],
+                       "archive_identity_mismatch")
+            pair = read_retained(path)
+            report, sbom = pair["vulnerability"], pair["sbom"]
+            checked = check_report(report, sbom, row, {"metadata": record["database"]}, record["createdAt"])
+            for key in ("createdAt","database","severities","fixesAvailable","manifestDigest","configDigest"):
+                db.require(checked[key] == record[key], "archive_record_mismatch")
+            summary = read_retained(path.parent / ("summary-" + job + ".json.gz"))
+            annotations = summary["metadata"]["annotations"]
+            db.require(annotations["kubescape.io/image-id"] == row["runningDigest"]
+                       and annotations["kubescape.io/workload-container-name"] == row["container"]
+                       and annotations["kubescape.io/wlid"] ==
+                           f"wlid://cluster-home/namespace-{row['namespace']}/deployment-{row['workload']}"
+                       and summary["spec"]["vulnerabilitiesRef"]["all"]["name"] == report["metadata"]["name"],
+                       "archive_summary_mismatch")
+            terminal_path = path.parent / ("terminal-" + job + ".json")
+            db.require(terminal_path.is_file() and not terminal_path.is_symlink()
+                       and terminal_path.stat().st_size <= 65536, "archive_terminal_missing")
+            terminal = json.loads(terminal_path.read_text())
+            db.require(terminal["state"] == "succeeded" and terminal["phase"] == "completed",
+                       "archive_terminal_invalid")
+            record["privateCve"] = private_cve_findings(report["spec"]["payload"]["matches"])
+            recovered += 1
+        except (db.Rejected, OSError, ValueError, TypeError, KeyError, EOFError):
+            # Never promote missing, malformed, oversized or inconsistent retained evidence.
+            continue
+    return recovered
+
+
 def coverage_status(api, inventory, records, config):
     """Publish the dedicated private issue projection and prepare private status."""
     path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
@@ -473,6 +543,12 @@ def coverage_status(api, inventory, records, config):
     api.call(private_path, projection, "PUT")
     status = api.call(path)
     data = status.setdefault("data", {})
+    # Clean any older projection embedded in the general vulnerability status.
+    if "vulnerability.json" in data:
+        try:
+            data["vulnerability.json"] = json.dumps(status_safe(json.loads(data["vulnerability.json"])), separators=(",", ":"))
+        except (ValueError, TypeError):
+            data.pop("vulnerability.json")
     data["coverage.json"] = json.dumps(inventory, separators=(",", ":"))
     cohort = cohort_health(inventory, config)
     data["coverage.state"] = cohort["state"]
@@ -490,13 +566,16 @@ def refresh_inventory(api, config, history):
         source = history / "records.json"
         records = json.loads(source.read_text()) if source.exists() else {}
         inventory = coverage(workload_rows(api), records, config)
+        recovered = recover_private_projection(history, inventory, records, config)
+        if recovered:
+            atomic(source, records)
         path, status = coverage_status(api, inventory, records, config)
         db.require(len(json.dumps(status)) < 900000, "inventory_too_large")
         api.call(path, status, "PUT")
         # Never publish raw inventory in logs. This is a successful observation,
         # not proof every workload has a current successful vulnerability scan.
         print(json.dumps({"mode": "refresh", "state": "observed",
-                          "coverage": cohort_health(inventory, config)}), flush=True)
+                          "coverage": cohort_health(inventory, config), "recoveredProjections": recovered}), flush=True)
         return 0
 
 
@@ -539,7 +618,7 @@ class Runner:
             inventory = coverage(workload_rows(self.api), self.records, self.config)
             atomic(self.history / "coverage.json", inventory)
             path, status = coverage_status(self.api, inventory, self.records, self.config)
-            status["data"][self.mode + ".json"] = json.dumps(self.result, separators=(",", ":"))
+            status["data"][self.mode + ".json"] = json.dumps(status_safe(self.result), separators=(",", ":"))
             # Upgrade the already persisted result of the other mode to scalar
             # health fields without requesting another assessment during rollout.
             other = "posture" if self.mode == "vulnerability" else "vulnerability"
@@ -566,7 +645,7 @@ class Runner:
             self.result.update(state="unknown", reasons=self.result["reasons"] + ["status_publish_unavailable"])
             atomic(self.history / ("latest-" + self.mode + ".json"), self.result)
             self.save("result", self.result)
-        print(json.dumps(self.result, sort_keys=True), flush=True)
+        print(json.dumps(status_safe(self.result), sort_keys=True), flush=True)
 
     def preflight(self):
         db.metadata(self.expected["metadata"])
