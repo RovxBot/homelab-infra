@@ -283,8 +283,14 @@ class PrivateGitea:
         return self.call(ISSUE_PATH + "/" + str(number) + "/comments", "POST", {"body": body})
 
 
+class WriteBudgetDeferred(ValueError):
+    """A local budget was exhausted before any write intent or remote POST."""
+
+
 class DurablePublisher:
-    def __init__(self, connection, github, now=None, renderer=render, fingerprint=revision, owns=None):
+    def __init__(self, connection, github, now=None, renderer=render, fingerprint=revision, owns=None, create_limit=3):
+        require(type(create_limit) is int and 1 <= create_limit <= 9)
+        self.create_limit = create_limit
         self.renderer, self.fingerprint = renderer, fingerprint
         self.owns = owns or (lambda issue, key: issue["body"].count(marker(key)) == 1)
         self.db = connection
@@ -302,7 +308,8 @@ class DurablePublisher:
             hourly = self.db.execute("SELECT count(*) FROM writes WHERE at >= ?",
                                      (self.now-3600,)).fetchone()[0]
             creates = self.db.execute("SELECT count(*) FROM writes WHERE action='create'").fetchone()[0]
-            require(hourly < 10 and (action != "create" or creates < 3))
+            if hourly >= 10 or (action == "create" and creates >= self.create_limit):
+                raise WriteBudgetDeferred("write_budget_deferred")
             self.db.execute("INSERT INTO writes VALUES (?,?)", (self.now, action))
 
     def sync(self, item):
@@ -484,6 +491,20 @@ def fetch_cve_projection():
         raise PublisherFailure("cve_projection_invalid") from None
 
 
+def sync_cve_entries(publisher, ready):
+    outcomes = []
+    for entry in ready:
+        if not (entry["findings"] or entry["otherHighCriticalMatches"]):
+            continue
+        try:
+            outcomes.append(publisher.sync(entry))
+        except WriteBudgetDeferred:
+            # No intent or POST occurred. Continue reconciling other keys;
+            # a later scheduled run may safely retry this bounded backlog.
+            outcomes.append("deferred")
+    return outcomes
+
+
 def cve_main(token):
     ready = fetch_cve_projection()
     fd = None
@@ -497,17 +518,20 @@ def cve_main(token):
         conn.execute("PRAGMA synchronous=FULL")
         require(conn.execute("PRAGMA quick_check").fetchone()[0] == "ok")
         publisher = DurablePublisher(conn, PrivateGitea(token), renderer=render_cve,
-                                     fingerprint=cve_revision, owns=owns_cve)
+                                     fingerprint=cve_revision, owns=owns_cve, create_limit=len(CVE_ALLOWED))
         # Zero findings is not a resolution signal. Only positive findings
         # cause writes, and no issue is ever closed or reopened by this source.
         phase = "cve_sync"
-        outcomes = [publisher.sync(e) for e in ready if e["findings"] or e["otherHighCriticalMatches"]]
+        outcomes = sync_cve_entries(publisher, ready)
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(CVE_ALLOWED), "created": outcomes.count("created"),
-                          "updated": outcomes.count("updated"), "pending": pending}), flush=True)
+                          "updated": outcomes.count("updated"), "pending": pending,
+                          "deferred": outcomes.count("deferred")}), flush=True)
         if pending:
             raise PublisherFailure("cve_pending")
+        if "deferred" in outcomes:
+            raise PublisherFailure("cve_sync_budget_deferred")
         if len(ready) != len(CVE_ALLOWED):
             raise PublisherFailure("cve_coverage_incomplete")
     except PublisherFailure:
