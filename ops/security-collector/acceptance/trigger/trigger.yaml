@@ -11,6 +11,8 @@ spec:
           args:
             - |
               import subprocess, time
+              # Native HTTPS exporter acceptance: 2026-11-24 one-shot run 001.
+              # Changed only this comment to cause a fresh Deployment Pod UID.
               # Permit inventory and collector enrollment to settle after Recreate.
               time.sleep(180)
               subprocess.run(['/bin/true'], cwd='/dev/shm', check=True)
