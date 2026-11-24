@@ -49,6 +49,32 @@ subjects:
     name: security-incident-publisher
     namespace: monitoring
 ---
+# Only the sanitized projection, not the full assessment inventory or reports.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-incident-publisher-public-cve
+  namespace: kubescape
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [kubescape-public-cve]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-incident-publisher-public-cve
+  namespace: kubescape
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-incident-publisher-public-cve
+subjects:
+  - kind: ServiceAccount
+    name: security-incident-publisher
+    namespace: monitoring
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -93,6 +119,8 @@ spec:
               env:
                 - name: PYTHONDONTWRITEBYTECODE
                   value: "1"
+                - name: ENABLE_CVE_PUBLISHER
+                  value: "true"
                 - name: GITHUB_TOKEN
                   valueFrom:
                     secretKeyRef:
