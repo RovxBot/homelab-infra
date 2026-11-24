@@ -36,7 +36,8 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
         self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
         self.assertEqual(container["securityContext"]["capabilities"]["drop"],["ALL"])
-        self.assertIn("staging-not-deployable",container["image"])
+        self.assertEqual(container["image"],
+            "ghcr.io/rovxbot/security-receiver@sha256:9c92582e2428fa9ae85ae08039dd6dd4b8a1fa82ef347404ffed1e19b7d58f84")
         self.assertEqual(obj["Service"]["spec"]["type"],"ClusterIP")
         self.assertTrue(all(p["httpGet"]["scheme"]=="HTTPS"
                             for p in (container["startupProbe"],container["readinessProbe"],
