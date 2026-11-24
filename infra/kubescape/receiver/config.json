@@ -1,7 +1,7 @@
 {
   "namespaces": ["homepage", "memos", "kubescape-runtime-test"],
   "nodes": ["metal3", "metal6"],
-  "state_dir": "/state/private",
+  "state_dir": "/state",
   "tls_cert": "/tls/tls.crt",
   "tls_key": "/tls/tls.key"
 }
