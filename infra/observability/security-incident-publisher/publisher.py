@@ -370,7 +370,7 @@ def validate_cve(projection, now=None):
     require(isinstance(projection, dict) and set(projection) == {"schema", "source", "generatedAt", "entries"})
     require(projection["schema"] == 1 and projection["source"] == "kubescape-cve")
     generated = datetime.fromisoformat(normalize_date(projection["generatedAt"]).replace("Z", "+00:00"))
-    require(timedelta(0) <= now-generated <= timedelta(hours=26))
+    require(timedelta(0) <= now-generated <= timedelta(minutes=65))
     entries = projection["entries"]
     require(isinstance(entries, list) and len(entries) == len(ALLOWED))
     seen, ready = set(), []
