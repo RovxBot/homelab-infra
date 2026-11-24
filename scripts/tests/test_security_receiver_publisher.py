@@ -82,6 +82,22 @@ class ProjectionTests(unittest.TestCase):
                         "running_digest", "kubescape-runtime-test", "memos"):
             self.assertNotIn(private,data)
 
+    def test_private_projection_expands_only_reviewed_runtime_cohort(self):
+        for i, identity in enumerate((
+                "home/koito/Deployment/koito/koito",
+                "home/koito/Deployment/koito-lastfm-bridge/multi-scrobbler",
+                "home/kubescape-runtime-test/Deployment/runtime-acceptance/test",
+                "home/gitea/Deployment/private/private")):
+            self.store.record(self.sample(identity,event_id=str(i+1)*64),self.now)
+        self.assertEqual(self.receiver.publication("bound-test-token")["incidents"],[])
+        result=self.receiver.publication("bound-test-token",private=True)
+        self.assertEqual({r["workload"] for r in result["incidents"]},
+                         {"koito/Deployment/koito","koito/Deployment/koito-lastfm-bridge"})
+        self.assertNotIn("PRIVATE_",json.dumps(result))
+        self.trust.user="system:serviceaccount:monitoring:gatus-github-issue-sync"
+        with self.assertRaises(Rejected):
+            self.receiver.publication("untrusted",private=True)
+
     def test_token_principal_image_uid_and_ready_status_fail_closed(self):
         variants=[
             ("user","system:serviceaccount:kubescape:node-agent"),
