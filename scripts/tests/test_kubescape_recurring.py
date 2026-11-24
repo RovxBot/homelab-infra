@@ -244,7 +244,9 @@ class BatchTests(unittest.TestCase):
         def summary(namespace, name):
             return {"metadata": {"namespace": namespace, "name": name,
                     "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}}, "spec": {"controls": {"x": {}}}}
-        summaries = [summary("memos", "deployment-memos"), summary("kubescape", "shared")]
+        summaries = [summary(namespace, name) for namespace, name in
+                     (target.split("/") for target in CONFIG["postureWorkloads"])]
+        summaries.append(summary("kubescape", "shared"))
         result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
             api = mock.Mock()
@@ -258,6 +260,19 @@ class BatchTests(unittest.TestCase):
                 runner.posture({})
             self.assertEqual(runner.result["lastSuccessfulAssessmentAt"], R.db.stamp(NOW))
             self.assertFalse((Path(path) / "inflight.json").exists())
+
+    def test_expanded_posture_requires_fresh_summary_for_each_reviewed_workload(self):
+        def summary(namespace, name):
+            return {"metadata": {"namespace": namespace, "name": name,
+                    "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}},
+                    "spec": {"controls": {"x": {}}}}
+        required = CONFIG["postureWorkloads"]
+        summaries = [summary(*target.split("/")) for target in required] + [summary("kubescape", "shared")]
+        result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
+        self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 5)
+        for i in range(1, len(required)):
+            with self.subTest(missing=required[i]), self.assertRaisesRegex(R.db.Rejected, "posture_scope_incomplete"):
+                R.check_posture(result, summaries[:i]+summaries[i+1:], R.db.stamp(NOW), required)
 
     def test_missing_vulnerability_targets_do_not_gate_posture(self):
         with tempfile.TemporaryDirectory() as path:
