@@ -36,7 +36,7 @@ admissionController httpDetection seccompProfileService sandboxSeccomp manageWor
 syncSBOM agentRuntimePosture riskAcceptance remediation autoUpgrading prometheusExporter""".split())
 CERTGEN_NAMES = {"certgen-create", "certgen-patch"}
 APISERVICE = "v1beta1.spdx.softwarecomposition.kubescape.io"
-CANARY_NAMESPACE = "memos"
+CANARY_NAMESPACE = "memos,homepage,koito"
 CERTGEN_BUDGET = {"requests": {"cpu": "10m", "memory": "32Mi"},
                   "limits": {"cpu": "100m", "memory": "128Mi"}}
 WORKLOADS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}
@@ -84,7 +84,7 @@ def check_release(release, active=False):
     assert values["kubescape"]["skipUpdateCheck"] is True
     assert values["operator"]["triggerSecurityFramework"] is False
     assert values["operator"]["rulesUpdateConfig"]["enabled"] is False
-    assert values["includeNamespaces"] == CANARY_NAMESPACE, "canary scope expanded"
+    assert values["includeNamespaces"] == CANARY_NAMESPACE, "reviewed posture scope differs"
     assert values["defaultFrameworks"] == ["nsa"], "canary framework changed"
     assert values["persistence"]["size"]["backingStorage"] == "5Gi"
     assert values["persistence"]["accessMode"] == "ReadWriteOnce"

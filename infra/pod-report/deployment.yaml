@@ -280,8 +280,8 @@ spec:
               }
 
               assessment_health() {
-                assessment_rows="$(kubectl --request-timeout=15s get configmap kubescape-assessment-status -n kubescape -o go-template='{{index .data "vulnerability.lastSuccessfulAssessmentAt"}}|{{index .data "posture.lastSuccessfulAssessmentAt"}}|{{index .data "vulnerability.state"}}|{{index .data "posture.state"}}|{{index .data "database.built"}}|{{index .data "coverage.state"}}|{{index .data "coverage.validUntil"}}|{{index .data "coverage.expected"}}|{{index .data "coverage.healthy"}}')" || assessment_rows="||||||||"
-                IFS='|' read -r vulnerability_time posture_time vulnerability_state posture_state database_built coverage_state coverage_until coverage_expected coverage_healthy <<EOF
+                assessment_rows="$(kubectl --request-timeout=15s get configmap kubescape-assessment-status -n kubescape -o go-template='{{index .data "vulnerability.lastSuccessfulAssessmentAt"}}|{{index .data "posture.lastSuccessfulAssessmentAt"}}|{{index .data "vulnerability.state"}}|{{index .data "posture.state"}}|{{index .data "database.built"}}|{{index .data "coverage.state"}}|{{index .data "coverage.validUntil"}}|{{index .data "coverage.expected"}}|{{index .data "coverage.healthy"}}|{{index .data "posture.scopeCount"}}')" || assessment_rows="|||||||||"
+                IFS='|' read -r vulnerability_time posture_time vulnerability_state posture_state database_built coverage_state coverage_until coverage_expected coverage_healthy posture_scope <<EOF
               $assessment_rows
               EOF
                 assessment_now="$(date -u +%s)"
@@ -314,6 +314,7 @@ spec:
                   printf '"%s":{"state":"%s","evidenceAgeSeconds":%s,"maximumAgeSeconds":%s,"lastAttemptState":"%s"}' "$1" "$mode_state" "$evidence_age" "$3" "$attempt_state"
                 }
                 vulnerability_health="$(mode_health vulnerability "$vulnerability_time" 259200 "$vulnerability_state")"
+                [ "$posture_scope" = 5 ] || posture_state=unknown
                 posture_health="$(mode_health posture "$posture_time" 93600 "$posture_state")"
                 database_health="$(mode_health database "$database_built" 1209600 unknown)"
                 database_epoch="$(date -u -d "$database_built" +%s 2>/dev/null)" || database_epoch=""

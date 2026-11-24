@@ -2,7 +2,8 @@
   "namespaces": [
     "homepage",
     "memos",
-    "kubescape-runtime-test"
+    "kubescape-runtime-test",
+    "koito"
   ],
   "nodes": [
     "metal0",

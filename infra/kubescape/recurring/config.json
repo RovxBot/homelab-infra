@@ -47,5 +47,12 @@
       "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
     }
   ],
-  "maximumImagesPerRun": 4
+  "maximumImagesPerRun": 4,
+  "postureWorkloads": [
+    "memos/deployment-memos",
+    "homepage/deployment-homepage",
+    "homepage/deployment-homepage-assets",
+    "koito/deployment-koito",
+    "koito/deployment-koito-lastfm-bridge"
+  ]
 }

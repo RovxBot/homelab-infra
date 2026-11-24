@@ -33,6 +33,8 @@ def check(resources):
     config = json.loads((ROOT / "infra/kubescape/recurring/config.json").read_text())
     evidence = json.loads((ROOT / "infra/kubescape/recurring/resource-qualification.json").read_text())
     assert config["resourceBudgetQualified"] is True and evidence["status"] == "verified"
+    assert config["postureWorkloads"] == ["memos/deployment-memos", "homepage/deployment-homepage",
+        "homepage/deployment-homepage-assets", "koito/deployment-koito", "koito/deployment-koito-lastfm-bridge"]
     selected = {t["identity"] for t in config["targets"]}
     assert "memos/Deployment/memos/memos" in selected
     assert selected <= {"memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx",
