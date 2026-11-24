@@ -501,6 +501,10 @@ class Runner:
                     pass
             status["data"][self.mode + ".lastSuccessfulAssessmentAt"] = self.result["lastSuccessfulAssessmentAt"] or ""
             status["data"][self.mode + ".state"] = self.result["state"]
+            if self.mode == "posture":
+                # Only a newly verified report under this scope can satisfy it.
+                status["data"]["posture.scopeCount"] = str(max(
+                    (a.get("requiredWorkloadCount", 0) for a in self.result["assessments"]), default=0))
             if self.mode == "vulnerability":
                 status["data"]["database.built"] = self.expected["metadata"]["built"]
             db.require(len(json.dumps(status)) < 900000, "inventory_too_large")
