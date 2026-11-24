@@ -186,6 +186,37 @@ class RefreshTests(unittest.TestCase):
             self.assertFalse(R.deployment_current({**workload,"status":{**workload["status"],**status}},container))
         self.assertFalse(R.deployment_current(workload,{**container,"image":"old-image"}))
 
+    def test_statefulset_and_daemonset_require_complete_current_controller(self):
+        container = {"name":"mysql","image":"registry/image@sha256:"+"a"*64}
+        pod = {"metadata":{"labels":{"controller-revision-hash":"revision"}}}
+        for kind, status in (
+                ("StatefulSet", {"observedGeneration":2,"replicas":2,"updatedReplicas":2,
+                    "readyReplicas":2,"availableReplicas":2,"currentReplicas":2,
+                    "currentRevision":"revision","updateRevision":"revision"}),
+                ("DaemonSet", {"observedGeneration":2,"desiredNumberScheduled":2,
+                    "currentNumberScheduled":2,"updatedNumberScheduled":2,"numberReady":2,
+                    "numberAvailable":2})):
+            workload={"kind":kind,"metadata":{"generation":2},"spec":{"replicas":2,
+                "template":{"spec":{"containers":[container]}}},"status":status}
+            self.assertTrue(R.controller_current(workload,container,pod))
+            for changed in ({"observedGeneration":1},
+                    {"updatedReplicas":1} if kind=="StatefulSet" else {"updatedNumberScheduled":1},
+                    {"currentRevision":"old"} if kind=="StatefulSet" else {"numberMisscheduled":1}):
+                self.assertFalse(R.controller_current({**workload,"status":{**status,**changed}},container,pod))
+            self.assertFalse(R.controller_current(workload,{**container,"image":"wrong"},pod))
+            if kind=="StatefulSet":
+                self.assertFalse(R.controller_current(workload,container,
+                    {"metadata":{"labels":{"controller-revision-hash":"old"}}}))
+            target={**row(),"kind":kind,"workload":"example","container":"mysql"}
+            config={**CONFIG,"targets":[{"identity":R.target_key(target)}]}
+            self.assertEqual(R.resolve_targets([target],config)[0],[target])
+            self.assertEqual(R.workload_wlid(target),"wlid://cluster-home/namespace-memos/"+kind.lower()+"-example")
+            self.assertEqual(R.native_summary_name(target),kind.lower()+"-example-mysql")
+            self.assertEqual(R.resolve_targets([{**target,"ready":False}],config)[0],[])
+            self.assertEqual(R.resolve_targets([target,copy.deepcopy(target)],config)[0],[])
+            with self.assertRaises(R.db.Rejected):
+                R.native_summary_name({**target,"workload":"x"*253})
+
     def test_refresh_rechecks_digest_preserves_scan_outcomes_and_does_not_scan(self):
         config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
         current = row()
@@ -722,8 +753,13 @@ class PrivateCVEProjectionTests(unittest.TestCase):
 class SubmissionTests(unittest.TestCase):
     """Drive the actual POST/poll/report path, including ambiguous acceptance."""
     def test_full_production_path_requires_actual_result_then_deduplicates(self):
+        for kind in ("Deployment","StatefulSet","DaemonSet"):
+            with self.subTest(kind=kind):
+                self.production_path(kind)
+
+    def production_path(self, kind):
         fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
-        current = row()
+        current = {**row(), "kind":kind}
         report, sbom = fixture["report"], fixture["sbom"]
         for obj in (report, sbom):
             obj["metadata"].update(name=R.client.REPORT)
@@ -733,9 +769,11 @@ class SubmissionTests(unittest.TestCase):
         summary = {"metadata": {"annotations": {
             "kubescape.io/image-id": current["runningDigest"],
             "kubescape.io/workload-container-name": "memos",
-            "kubescape.io/wlid": "wlid://cluster-home/namespace-memos/deployment-memos"}},
+            "kubescape.io/wlid": "wlid://cluster-home/namespace-memos/"+kind.lower()+"-memos"}},
             "spec": {"vulnerabilitiesRef": {"all": {"name": R.client.REPORT}}}}
         def get(base, resource, *args, **kwargs):
+            if resource == "vulnerabilitymanifestsummaries":
+                self.assertEqual(args, (kind.lower()+"-memos-memos","memos"))
             return copy.deepcopy(summary if resource == "vulnerabilitymanifestsummaries" else sbom if resource == "sbomsyfts" else report)
         api.get.side_effect = get
         api.call.return_value = {"metadata": {"name": "kubescape-assessment-status"}, "data": {}}
@@ -744,6 +782,7 @@ class SubmissionTests(unittest.TestCase):
             if value is not None:
                 posted.append(value)
                 self.assertIs(value["args"]["forceRescan"], True)
+                self.assertEqual(value["wlid"],"wlid://cluster-home/namespace-memos/"+kind.lower()+"-memos")
                 report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(clock.return_value)
                 return {"accepted": True}
             return {"state": "succeeded", "phase": "completed", "startedAt": R.db.stamp(clock.return_value),
@@ -752,7 +791,8 @@ class SubmissionTests(unittest.TestCase):
                 mock.patch.object(R, "workload_rows", return_value=[current]), mock.patch.object(R, "service", side_effect=service), \
                 mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "engine-uid"}}):
             history = Path(path)
-            config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
+            config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"],
+                      "targets":[{"identity":R.target_key(current)}]}
             runner = R.Runner(api, config, EXPECTED, history, "vulnerability")
             with mock.patch.object(runner, "preflight", return_value={}), \
                     mock.patch.object(runner, "audit", return_value={"podUID": "engine-uid", "checkedAt": R.db.stamp(NOW)}), \

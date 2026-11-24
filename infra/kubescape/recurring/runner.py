@@ -137,6 +137,56 @@ def deployment_current(workload, container):
                for c in spec["template"]["spec"].get("containers", []))
 
 
+DIRECT_SCAN_KINDS = frozenset(("Deployment", "StatefulSet", "DaemonSet"))
+
+
+def controller_current(workload, container, pod):
+    """Require an observed, fully updated controller and matching Pod template."""
+    kind = workload["kind"]
+    if kind == "Deployment":
+        return deployment_current(workload, container)
+    spec, status = workload["spec"], workload.get("status", {})
+    if status.get("observedGeneration") != workload["metadata"].get("generation"):
+        return False
+    if kind == "StatefulSet":
+        count = spec.get("replicas", 1)
+        if type(count) is not int or count < 1:
+            return False
+        if any(status.get(key, 0) != count for key in
+               ("replicas", "updatedReplicas", "readyReplicas", "currentReplicas", "availableReplicas")):
+            return False
+        revision = status.get("updateRevision")
+        if (not revision or status.get("currentRevision") != revision
+                or pod["metadata"].get("labels", {}).get("controller-revision-hash") != revision):
+            return False
+    elif kind == "DaemonSet":
+        count = status.get("desiredNumberScheduled", 0)
+        if type(count) is not int or count < 1:
+            return False
+        if any(status.get(key, 0) != count for key in
+               ("currentNumberScheduled", "updatedNumberScheduled", "numberReady", "numberAvailable")):
+            return False
+        if status.get("numberMisscheduled", 0) or status.get("numberUnavailable", 0):
+            return False
+    else:
+        return False
+    return any(c["name"] == container["name"] and c["image"] == container["image"]
+               for c in spec["template"]["spec"].get("containers", []))
+
+
+def native_summary_name(row):
+    db.require(row["kind"] in DIRECT_SCAN_KINDS, "unsupported_workload")
+    name = "-".join((row["kind"].lower(), row["workload"], row["container"]))
+    db.require(len(name) <= 253 and all(re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", label)
+               for label in name.split(".")), "unsupported_summary_name")
+    return name
+
+
+def workload_wlid(row):
+    db.require(row["kind"] in DIRECT_SCAN_KINDS, "unsupported_workload")
+    return f"wlid://cluster-home/namespace-{row['namespace']}/{row['kind'].lower()}-{row['workload']}"
+
+
 def workload_rows(api):
     """Resolve actual controller UIDs; include init/ephemeral and nonrunning specs."""
     objects = {}
@@ -168,8 +218,8 @@ def workload_rows(api):
                        "container": container["name"], "containerType": field, "runningDigest": digest,
                        "declaredImage": container["image"], "podUIDs": [pod["metadata"]["uid"]],
                        "ready": ready(pod) and status.get("ready", False)
-                                and (workload["kind"] != "Deployment" or field != "containers"
-                                     or deployment_current(workload, container))}
+                                and (workload["kind"] not in DIRECT_SCAN_KINDS or field != "containers"
+                                     or controller_current(workload, container, pod))}
                 key = row_key(row)
                 if key in seen:
                     previous = next(r for r in rows if row_key(r) == key)
@@ -192,6 +242,14 @@ def workload_rows(api):
                          "generation": obj["metadata"].get("generation"), "container": container["name"],
                          "containerType": "containers", "runningDigest": None, "declaredImage": container["image"],
                          "podUIDs": [], "ready": False})
+    # Require all expected current Pods for each newly supported kind.
+    for row in rows:
+        if row["kind"] in ("StatefulSet", "DaemonSet") and row["containerType"] == "containers":
+            obj = objects.get(row["workloadUID"], {})
+            count = (obj.get("spec", {}).get("replicas", 1) if row["kind"] == "StatefulSet"
+                     else obj.get("status", {}).get("desiredNumberScheduled", 0))
+            row["ready"] = row["ready"] and type(count) is int and count > 0 and len(set(row["podUIDs"])) == count
+        row["podUIDs"].sort()
     return sorted(rows, key=row_key)
 
 
@@ -212,7 +270,7 @@ def resolve_targets(rows, config):
         outcome = {"identity": identity, "state": "unknown", "reasons": []}
         if len(matches) != 1:
             outcome["reasons"] = ["workload_missing" if not matches else "workload_rolling"]
-        elif matches[0]["kind"] != "Deployment":
+        elif matches[0]["kind"] not in DIRECT_SCAN_KINDS:
             outcome.update(state="unsupported", reasons=["unsupported_workload"])
         elif not matches[0]["ready"]:
             outcome.update(state="skipped", reasons=["workload_not_ready"])
@@ -243,7 +301,8 @@ def select_batch(rows, records, config):
     # Budget actual scanner requests, not the number of matching workload rows.
     selected, seen = [], set()
     for row in sorted(rows, key=priority):
-        digest = row["runningDigest"]
+        # Shared-image evidence for new kinds remains unqualified.
+        digest = row["runningDigest"] if row["kind"] == "Deployment" else row_key(row)
         if digest in seen:
             continue
         seen.add(digest)
@@ -573,7 +632,7 @@ def recover_private_projection(history, inventory, records, config):
             db.require(annotations["kubescape.io/image-id"] == row["runningDigest"]
                        and annotations["kubescape.io/workload-container-name"] == row["container"]
                        and annotations["kubescape.io/wlid"] ==
-                           f"wlid://cluster-home/namespace-{row['namespace']}/deployment-{row['workload']}"
+                           workload_wlid(row)
                        and summary["spec"]["vulnerabilitiesRef"]["all"]["name"] == report["metadata"]["name"],
                        "archive_summary_mismatch")
             terminal_path = path.parent / ("terminal-" + job + ".json")
@@ -917,6 +976,7 @@ class Runner:
                 matches = [o for o in objects if digest in o["metadata"]["name"]]
             db.require(len(matches) <= 1, "report_ambiguous")
             return self.api.get(STORAGE, kind, matches[0]["metadata"]["name"]) if matches else None
+        native_summary_name(row)  # Validate the exact summary contract before POST.
         previous = existing("vulnerabilitymanifests")
         previous_sbom = existing("sbomsyfts")
         self.save("previous-" + row["container"], {"vulnerability": previous, "sbom": previous_sbom})
@@ -925,7 +985,7 @@ class Runner:
         # Direct evidence requires the scanner-generated WLID/container summary.
         # Any peer image-level attribution is separately labelled and validated.
         payload = {"imageTag": row["runningDigest"], "imageHash": row["runningDigest"], "jobID": job,
-                   "wlid": f"wlid://cluster-home/namespace-{row['namespace']}/deployment-{row['workload']}",
+                   "wlid": workload_wlid(row),
                    "containerName": row["container"], "args": {"platform": "linux/amd64", "forceRescan": True}}
         db.require(time.monotonic() + self.config["scanTimeoutSeconds"] + 60 <= self.deadline, "execution_time_budget")
         atomic(self.history / "inflight.json", {"jobID": job, "enginePodUID": audit["podUID"], "workload": row, "submittedAt": started})
@@ -961,7 +1021,7 @@ class Runner:
         # Independent named rereads, including the workload summary attribution.
         for kind, value in (("vulnerabilitymanifests", report), ("sbomsyfts", sbom)):
             db.require(self.api.get(STORAGE, kind, value["metadata"]["name"])["spec"] == value["spec"], "report_reread_mismatch")
-        summary = self.api.get(STORAGE, "vulnerabilitymanifestsummaries", "deployment-" + row["workload"] + "-" + row["container"], row["namespace"])
+        summary = self.api.get(STORAGE, "vulnerabilitymanifestsummaries", native_summary_name(row), row["namespace"])
         annotations = summary["metadata"]["annotations"]
         db.require(annotations["kubescape.io/image-id"] == row["runningDigest"]
                    and annotations["kubescape.io/workload-container-name"] == row["container"]
@@ -1032,8 +1092,10 @@ class Runner:
         atomic(self.history / "records.json", self.records)
 
     def reuse_batch_image(self, source, selected, outcomes):
+        if source["kind"] != "Deployment":
+            return
         peers = [peer for peer in selected if row_key(peer) != row_key(source)
-                 and peer["runningDigest"] == source["runningDigest"]]
+                 and peer["kind"] == "Deployment" and peer["runningDigest"] == source["runningDigest"]]
         if not peers:
             return
         record = self.records[row_key(source)]
