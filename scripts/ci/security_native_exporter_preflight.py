@@ -24,7 +24,12 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 CI = ROOT / "scripts" / "ci"
 sys.path.insert(0, str(CI))
-from check_kubescape import CHART_URL, CHART_SHA256, VERSION
+# Keep the release pin explicit here, and cross-check it with the existing
+# independently maintained Kubescape release guard on every chart render.
+VERSION = "1.42.0"
+CHART_SHA256 = "be45f83398f28db8f2ff395e5d8ab411328041e9e2165a42e5fb92a4ba369079"
+CHART_URL = ("https://github.com/kubescape/helm-charts/releases/download/"
+             "kubescape-operator-1.42.0/kubescape-operator-1.42.0.tgz")
 
 EXPORTER = {
     "url": "https://security-receiver.kubescape.svc:8443",
@@ -151,6 +156,11 @@ def verify_baseline(raw_yaml, values):
 
 
 def run(output, helm):
+    import check_kubescape as release_guard
+    if (VERSION, CHART_SHA256, CHART_URL) != (release_guard.VERSION,
+                                            release_guard.CHART_SHA256,
+                                            release_guard.CHART_URL):
+        raise ValueError("chart_release_pin_disagrees_with_existing_guard")
     release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
     if release["spec"]["chart"]["spec"]["version"] != VERSION:
         raise ValueError("chart_changed")
