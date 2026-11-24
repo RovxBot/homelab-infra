@@ -87,6 +87,16 @@ def check(resources):
             assert not set(rule.get("resources", [])) & {"secrets", "nodes/proxy", "pods/exec", "pods/attach"}
             assert "*" not in rule.get("resources", []) + rule.get("verbs", []) + rule.get("apiGroups", [])
             if set(rule.get("verbs", [])) - {"get", "list"}:
+                # The separate native receiver uses standard Kubernetes
+                # TokenReview only; it cannot mutate any cluster resources.
+                if (resource["kind"] == "ClusterRole"
+                    and resource["metadata"]["name"] == "security-receiver-tokenreview"):
+                    assert rule == {
+                        "apiGroups": ["authentication.k8s.io"],
+                        "resources": ["tokenreviews"],
+                        "verbs": ["create"],
+                    }, "receiver TokenReview authority changed"
+                    continue
                 assert resource["kind"] == "Role" and resource["metadata"]["namespace"] == "kubescape"
                 assert set(rule["resources"]) <= {"jobs", "configmaps", "scans", "scanresults", "vulnerabilityscans"}
     print("verified: recurring scope, budgets, authentication, restricted Pods and additive RBAC")

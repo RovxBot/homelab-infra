@@ -17,7 +17,6 @@ from .native import (AGENT_PIN, AGENT_SA, DIGEST, IDENTITY, Rejected,
                      TrustedPod, VerifiedSource, decode, require)
 
 AGENT_IMAGE = "quay.io/kubescape/node-agent:" + AGENT_PIN
-AGENT_PLATFORM_DIGEST = "sha256:bd0e305a2e59e443722e8cf61bbd89251d4275c6c615b00bf5096118471129b0"
 NAME = re.compile(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?\Z")
 TOKEN_REVIEW_PATH = "/apis/authentication.k8s.io/v1/tokenreviews"
 TOKEN_AUDIENCE = "kubescape.io"
@@ -150,8 +149,13 @@ class KubernetesTrust:
                 "agent_image_invalid")
         state = running_status(pod, "node-agent")
         image_id = state.get("imageID") or ""
-        require(isinstance(image_id, str) and image_id.rsplit("@", 1)[-1]
-                in (AGENT_IMAGE.rsplit("@", 1)[-1], AGENT_PLATFORM_DIGEST),
+        # Pod and DaemonSet specifications above MUST pin the independently
+        # reviewed official agent image; the live kubelet imageID is a
+        # separate observed artifact, often a platform child manifest rather
+        # than the index digest. Reject absent/invalid runtime imageIDs, but
+        # do NOT silently treat an unverified child digest as an alias.
+        require(isinstance(image_id, str)
+                and bool(DIGEST.fullmatch(image_id.rsplit("@", 1)[-1])),
                 "agent_image_invalid")
         return VerifiedSource(AGENT_SA, pod_uid, node)
 

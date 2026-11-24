@@ -1,0 +1,147 @@
+# Kubernetes TokenReview is the standard mechanism for authenticating
+# presented bound node-agent ServiceAccount credentials. No Secrets, writes,
+# pod logs or nodes/proxy are granted to the receiver.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: security-receiver-tokenreview
+rules:
+  - apiGroups: [authentication.k8s.io]
+    resources: [tokenreviews]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: security-receiver-tokenreview
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: security-receiver-tokenreview
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-source-identity
+  namespace: kubescape
+rules:
+  - apiGroups: [apps]
+    resources: [daemonsets]
+    resourceNames: [node-agent]
+    verbs: [get]
+  # The node-agent Pod name changes during a DaemonSet rollout. Namespace
+  # get-only is necessary to resolve the name attested by TokenReview.
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-source-identity
+  namespace: kubescape
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-source-identity
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: homepage
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [homepage, homepage-assets]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: homepage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: memos
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [memos]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: memos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: kubescape-runtime-test
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [runtime-acceptance]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: kubescape-runtime-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape

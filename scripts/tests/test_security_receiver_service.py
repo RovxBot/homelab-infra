@@ -104,6 +104,17 @@ class TrustedSourceTests(unittest.TestCase):
                 with self.assertRaises(Rejected):
                     self.api.authenticate('untrusted')
 
+    def test_pinned_agent_spec_accepts_distinct_valid_running_manifest(self):
+        # OCI index pins and platform imageIDs can differ legitimately.
+        # The independently read DaemonSet and Pod image specs must still
+        # match the reviewed pin, and an actual running digest is required.
+        agent=self.api.resources[('kubescape','pods','node-agent-test')]
+        agent['status']['containerStatuses'][0]['imageID']='quay.io/kubescape/node-agent@sha256:'+('f'*64)
+        self.assertEqual(self.api.authenticate('valid'),SOURCE)
+        agent['status']['containerStatuses'][0]['imageID']='quay.io/kubescape/node-agent@sha256:malformed'
+        with self.assertRaisesRegex(Rejected,'agent_image_invalid'):
+            self.api.authenticate('valid')
+
     def test_reject_owner_chain_or_agent_image_spoof(self):
         for change in ('owner','uid','image','node'):
             with self.subTest(change=change):
