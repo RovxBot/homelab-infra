@@ -271,6 +271,40 @@ class CVEPublisherTests(unittest.TestCase):
             self.assertIn("CVE-2026-4738",issue["body"])
             self.assertNotIn("sha256:",issue["body"])
 
+    def test_cve_budget_deferral_does_not_block_other_keys_or_create_intents(self):
+        entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))
+        github = FakeGitHub()
+        with sqlite3.connect(":memory:") as connection:
+            writer = pub.DurablePublisher(connection, github, now=100000,
+                renderer=pub.render_cve, fingerprint=pub.cve_revision, owns=pub.owns_cve,
+                create_limit=1)
+            self.assertEqual(writer.sync(entries[-1]), "created")
+            outcomes = pub.sync_cve_entries(writer, entries)
+            self.assertEqual(outcomes.count("deferred"), 8)
+            self.assertEqual(outcomes.count("unchanged"), 1)
+            self.assertEqual(github.create_calls, 1)
+            self.assertEqual(connection.execute("SELECT count(*) FROM issues").fetchone()[0], 1)
+            writer = pub.DurablePublisher(connection, github, now=103601,
+                renderer=pub.render_cve, fingerprint=pub.cve_revision, owns=pub.owns_cve,
+                create_limit=len(pub.CVE_ALLOWED))
+            outcomes = pub.sync_cve_entries(writer, entries)
+            self.assertEqual(outcomes.count("created"), 8)
+            self.assertEqual(github.create_calls, 9)
+            self.assertEqual(pub.sync_cve_entries(writer, entries).count("unchanged"), 9)
+            self.assertEqual(connection.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0], 0)
+
+    def test_cve_batch_propagates_ambiguous_write_failure(self):
+        entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))
+        github = FakeGitHub()
+        github.fail_before_create = True
+        with sqlite3.connect(":memory:") as connection:
+            writer = pub.DurablePublisher(connection, github, now=100000,
+                renderer=pub.render_cve, fingerprint=pub.cve_revision, owns=pub.owns_cve)
+            with self.assertRaises(OSError):
+                pub.sync_cve_entries(writer, entries)
+            self.assertEqual(github.create_calls, 1)
+            self.assertEqual(connection.execute("SELECT count(*) FROM issues WHERE pending_create != 0").fetchone()[0], 1)
+
     def test_empty_projection_is_distinct_from_invalid_projection_and_api_failure(self):
         obj={"kind":"ConfigMap","metadata":{"namespace":"kubescape","name":"kubescape-private-cve"}}
         with patch.object(pub.Path, "read_text", return_value="private-token"), \
