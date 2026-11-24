@@ -89,6 +89,7 @@ except Exception:
         base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
         for fields, expected in (
                 (['healthy', stamp(-1), '9', '9'], 'healthy'),
+                (['healthy', stamp(-1), '6', '6'], 'unknown'),
                 (['unknown', stamp(-1), '9', '8'], 'unknown'),
                 (['healthy', stamp(1), '9', '9'], 'stale'),
                 (['healthy', stamp(-1), '9', '10'], 'unknown'),
