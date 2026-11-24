@@ -32,6 +32,38 @@ MAX_BODY = 128 * 1024
 IMAGE = "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
 
 
+class PublisherFailure(Exception):
+    """Static, fixed-namespace phase code; never include untrusted exception text."""
+    def __init__(self, code):
+        allowed = ("kubernetes_token", "kubernetes_api", "kubernetes_ca",
+                   "receiver_token", "receiver_api", "projection",
+                   "github_api", "publisher_state", "publisher_sync")
+        if not any(code == name or code.startswith(name + "_") for name in allowed):
+            code = "publisher_state"
+        self.code = code
+        super().__init__(code)
+
+
+def boundary_failure(phase, exc):
+    # Never print stringified HTTP/TLS exceptions: URLs or headers may leak.
+    if isinstance(exc, HTTPError):
+        category = "http_" + str(exc.code) if exc.code in (400, 401, 403, 404, 408, 409, 422, 429, 500, 502, 503, 504) else "http_other"
+    elif isinstance(exc, (TimeoutError,)):
+        category = "timeout"
+    elif isinstance(exc, URLError):
+        if isinstance(exc.reason, TimeoutError):
+            category = "timeout"
+        elif isinstance(exc.reason, ssl.SSLError):
+            category = "tls"
+        else:
+            category = "connection"
+    elif isinstance(exc, ssl.SSLError):
+        category = "tls"
+    else:
+        category = "invalid_response"
+    return PublisherFailure(phase + "_" + category)
+
+
 def require(condition):
     if not condition:
         raise ValueError("publication_contract_invalid")
@@ -100,7 +132,7 @@ class NoRedirect(HTTPRedirectHandler):
         raise ValueError("redirect_refused")
 
 
-def request_json(opener, url, token, *, method="GET", payload=None):
+def request_json(opener, url, token, *, method="GET", payload=None, phase="github_api"):
     require(isinstance(url, str) and url.startswith("https://") and len(url) < 1800)
     require(isinstance(token, str) and 0 < len(token) <= 8192
             and "\r" not in token and "\n" not in token)
@@ -119,33 +151,42 @@ def request_json(opener, url, token, *, method="GET", payload=None):
             data = response.read(MAX_BODY + 1)
             require(len(data) <= MAX_BODY)
             return json.loads(data)
-    except (HTTPError, URLError, OSError, UnicodeError, ValueError):
-        raise ValueError("remote_request_failed") from None
+    except (HTTPError, URLError, OSError, UnicodeError, ValueError) as exc:
+        raise boundary_failure(phase, exc) from None
 
 
 def fetch_projection():
-    api_token = Path("/var/run/publisher-api/token").read_text().strip()
-    api_ca = "/var/run/publisher-api/ca.crt"
-    kube = build_opener(ProxyHandler({}), NoRedirect(),
-                        HTTPSHandler(context=ssl.create_default_context(cafile=api_ca)))
-    secret = request_json(kube, KUBERNETES, api_token)
-    require(secret.get("kind") == "Secret"
-            and secret.get("metadata", {}).get("namespace") == "kubescape"
-            and secret["metadata"].get("name") == "security-receiver-ca")
-    data = secret.get("data")
-    # This named Secret contains the PUBLIC CA ONLY (not the receiver TLS key).
-    require(isinstance(data, dict) and set(data) == {"receiver-ca.crt"})
     try:
+        api_token = Path("/var/run/publisher-api/token").read_text().strip()
+        api_ca = "/var/run/publisher-api/ca.crt"
+        kube = build_opener(ProxyHandler({}), NoRedirect(),
+                            HTTPSHandler(context=ssl.create_default_context(cafile=api_ca)))
+    except Exception:
+        raise PublisherFailure("kubernetes_token") from None
+    secret = request_json(kube, KUBERNETES, api_token, phase="kubernetes_api")
+    try:
+        require(secret.get("kind") == "Secret"
+                and secret.get("metadata", {}).get("namespace") == "kubescape"
+                and secret["metadata"].get("name") == "security-receiver-ca")
+        data = secret.get("data")
+        # Strictly the public CA; never accept additional keys or a TLS leaf key.
+        require(isinstance(data, dict) and set(data) == {"receiver-ca.crt"})
         pem = base64.b64decode(data["receiver-ca.crt"], validate=True).decode("ascii")
-    except (ValueError, UnicodeError):
-        raise ValueError("ca_invalid") from None
-    require(pem.startswith("-----BEGIN CERTIFICATE-----\n") and
-            pem.count("-----BEGIN CERTIFICATE-----") == 1 and len(pem) < 8192)
-    context = ssl.create_default_context(cadata=pem)
-    receiver = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=context))
-    bearer = Path("/var/run/publisher-receiver/token").read_text().strip()
-    result = request_json(receiver, RECEIVER, bearer)
-    return validate(result)
+        require(pem.startswith("-----BEGIN CERTIFICATE-----\n") and
+                pem.count("-----BEGIN CERTIFICATE-----") == 1 and len(pem) < 8192)
+        context = ssl.create_default_context(cadata=pem)
+        receiver = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=context))
+    except Exception:
+        raise PublisherFailure("kubernetes_ca") from None
+    try:
+        bearer = Path("/var/run/publisher-receiver/token").read_text().strip()
+    except Exception:
+        raise PublisherFailure("receiver_token") from None
+    result = request_json(receiver, RECEIVER, bearer, phase="receiver_api")
+    try:
+        return validate(result)
+    except Exception:
+        raise PublisherFailure("projection") from None
 
 
 class GitHub:
@@ -297,32 +338,46 @@ def main():
     token = os.environ.get("GITHUB_TOKEN", "")
     require(0 < len(token) <= 8192)
     incidents = fetch_projection()  # Fail before any GitHub API call.
-    Path("/state").mkdir(exist_ok=True)
-    fd = os.open("/state/publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    db = sqlite3.connect("/state/publisher.sqlite", timeout=5)
+    fd = None
+    db = None
     try:
-        db.execute("PRAGMA journal_mode=DELETE")
-        db.execute("PRAGMA synchronous=FULL")
-        require(db.execute("PRAGMA quick_check").fetchone()[0] == "ok")
-        publisher = DurablePublisher(db, GitHub(token))
-        outcomes = []
-        for item in incidents:
-            outcomes.append(publisher.sync(item))
-        # Only static categories; no incident keys, payloads, UIDs, tokens,
-        # request errors, GitHub bodies or private evidence in Pod logs.
+        try:
+            Path("/state").mkdir(exist_ok=True)
+            fd = os.open("/state/publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            db = sqlite3.connect("/state/publisher.sqlite", timeout=5)
+            db.execute("PRAGMA journal_mode=DELETE")
+            db.execute("PRAGMA synchronous=FULL")
+            require(db.execute("PRAGMA quick_check").fetchone()[0] == "ok")
+            publisher = DurablePublisher(db, GitHub(token))
+        except Exception:
+            raise PublisherFailure("publisher_state") from None
+        try:
+            outcomes = [publisher.sync(item) for item in incidents]
+        except PublisherFailure:
+            raise
+        except Exception:
+            raise PublisherFailure("publisher_sync") from None
+        # Only fixed, non-sensitive counts in Pod logs.
         print(json.dumps({"total":len(incidents),
                           "created":outcomes.count("created"),
                           "updated":outcomes.count("updated"),
                           "pending":sum(x.startswith("pending_") for x in outcomes)}))
     finally:
-        db.close()
-        os.close(fd)
+        if db is not None:
+            db.close()
+        if fd is not None:
+            os.close(fd)
 
 
 if __name__ == "__main__":
     try:
         main()
+    except PublisherFailure as exc:
+        # One tightly bounded internal code, never original exception text,
+        # response bodies, URLs, event fields, tokens or full tracebacks.
+        print("security_native_publisher_failed phase=" + exc.code, flush=True)
+        raise SystemExit(1) from None
     except Exception:
-        print("security_native_publisher_failed", flush=True)
+        print("security_native_publisher_failed phase=unclassified", flush=True)
         raise SystemExit(1) from None
