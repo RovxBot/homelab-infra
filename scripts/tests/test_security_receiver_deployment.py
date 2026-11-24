@@ -1,5 +1,7 @@
 """Fail-closed checks for the staged receiver's GitOps and RBAC boundaries."""
 import json
+import subprocess
+import tempfile
 from pathlib import Path
 import sys
 import unittest
@@ -77,16 +79,44 @@ class ReceiverStageTests(unittest.TestCase):
         bootstrap=(ROOT/"ops/security-receiver/generate-tls-secrets.sh").read_text()
         reissue=(ROOT/"ops/security-receiver/reissue-leaf-strict-x509.sh").read_text()
         for source in (bootstrap,reissue):
-            self.assertIn("authorityKeyIdentifier=keyid,issuer",source)
+            self.assertIn("authorityKeyIdentifier=keyid:always,issuer",source)
             self.assertIn("subjectKeyIdentifier=hash",source)
             self.assertIn("openssl verify -x509_strict",source)
             self.assertIn("security-receiver.kubescape.svc.cluster.local",source)
             self.assertNotIn("insecureSkipVerify",source)
-        self.assertIn('sops set "$SECRET"',reissue)
+        self.assertIn('sops set "$TMP/candidate.enc.yaml"',reissue)
         self.assertIn("'[\"data\"][\"tls.crt\"]'",reissue)
         self.assertIn('openssl pkey -in "$OUT/tls.key" -pubout',reissue)
         self.assertNotIn('kubectl apply',reissue)
         self.assertNotIn('kubectl delete',reissue)
+
+    def test_generated_leaf_passes_real_strict_openssl_verification(self):
+        for script in ("generate-tls-secrets.sh", "reissue-leaf-strict-x509.sh"):
+            source = (ROOT / "ops/security-receiver" / script).read_text()
+            extensions = source.split("<<'EOF'\n", 1)[1].split("\nEOF", 1)[0]
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as directory:
+                work = Path(directory)
+                (work / "leaf.ext").write_text(extensions + "\n")
+                def run(*args):
+                    return subprocess.run(["openssl", *args], cwd=work,
+                                          capture_output=True, check=True)
+                run("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2",
+                    "-subj", "/CN=Test Root", "-keyout", "root.key", "-out", "root.crt",
+                    "-addext", "basicConstraints=critical,CA:TRUE",
+                    "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+                    "-addext", "subjectKeyIdentifier=hash")
+                run("req", "-new", "-newkey", "rsa:2048", "-nodes", "-subj",
+                    "/CN=security-receiver.kubescape.svc", "-keyout", "leaf.key", "-out", "leaf.csr")
+                run("x509", "-req", "-in", "leaf.csr", "-CA", "root.crt", "-CAkey",
+                    "root.key", "-set_serial", "1", "-days", "1", "-extfile", "leaf.ext",
+                    "-out", "leaf.crt")
+                for host in ("security-receiver.kubescape.svc",
+                             "security-receiver.kubescape.svc.cluster.local"):
+                    run("verify", "-x509_strict", "-purpose", "sslserver",
+                        "-verify_hostname", host, "-CAfile", "root.crt", "leaf.crt")
+                with self.assertRaises(subprocess.CalledProcessError):
+                    run("verify", "-x509_strict", "-purpose", "sslserver",
+                        "-verify_hostname", "wrong.example", "-CAfile", "root.crt", "leaf.crt")
 
     def test_tokenreview_and_read_only_inventory_without_secrets_or_logs(self):
         items=documents(RECEIVER/"rbac.yaml")
