@@ -394,6 +394,33 @@ class FailureTests(unittest.TestCase):
         with self.assertRaisesRegex(R.db.Rejected, "posture_status_unrecognised"):
             R.check_posture(result, summaries, R.db.stamp(NOW))
 
+class PublicCVEProjectionTests(unittest.TestCase):
+    def test_only_bounded_high_critical_cves_and_fix_flags(self):
+        result = R.public_cve_findings([
+            {"vulnerability":{"id":"CVE-2026-4738","severity":"High","fix":{"state":"not-fixed"}}, "artifact":{"name":"private"}},
+            {"vulnerability":{"id":"CVE-2026-4738","severity":"Critical","fix":{"state":"fixed"}}},
+            {"vulnerability":{"id":"CVE-2026-1234","severity":"Medium"}},
+            {"vulnerability":{"id":"PRIVATE-ADVISORY","severity":"High"}},
+        ])
+        self.assertEqual(result, {"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":1})
+        self.assertNotIn("PRIVATE", json.dumps(result))
+        self.assertEqual(R.public_cve_findings([{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}} for i in range(101)])["state"], "overflow")
+
+    def test_projection_rejects_old_records_and_private_workloads(self):
+        current = row()
+        private = {**current,"namespace":"gitea","workload":"private-repo"}
+        record = {"createdAt":R.db.stamp(NOW),"publicCve":{"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":0}}
+        inventory = {"generatedAt":R.db.stamp(NOW),"rows":[{**current,"assessmentState":"healthy"},{**private,"assessmentState":"healthy"}]}
+        records = {R.row_key(current):record,R.row_key(private):record}
+        result = R.public_cve_projection(inventory, records)
+        memos = next(x for x in result["entries"] if x["workload"]=="memos/Deployment/memos")
+        self.assertEqual(memos["state"],"complete")
+        self.assertNotIn("private-repo",json.dumps(result))
+        inventory["rows"][0]["assessmentState"]="stale"
+        result=R.public_cve_projection(inventory,records)
+        self.assertTrue(all(x["state"]=="unknown" for x in result["entries"]))
+
+
 class SubmissionTests(unittest.TestCase):
     """Drive the actual POST/poll/report path, including ambiguous acceptance."""
     def test_full_production_path_requires_actual_result_then_deduplicates(self):
