@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "scripts/ci"))
 from grype_db import mirror_init
 import kubescape_runtime as runtime
+from security_native_exporter_preflight import candidate
 VERSION = "1.42.0"
 CHART_SHA256 = "be45f83398f28db8f2ff395e5d8ab411328041e9e2165a42e5fb92a4ba369079"
 CHART_URL = ("https://github.com/kubescape/helm-charts/releases/download/"
@@ -301,6 +302,14 @@ def check_post_render(raw, rendered):
     assert certgen["rules"] == [{"apiGroups": ["apiregistration.k8s.io"],
                                  "resources": ["apiservices"], "verbs": ["get", "patch"]}], "chart certgen RBAC changed"
     certgen["rules"][0]["resourceNames"] = [APISERVICE]
+    # Native agent HTTP exporting is a documented ConfigMap setting. The
+    # pinned 1.42.0 chart omits it with Synchronizer disabled, so Flux's
+    # supported postRenderer adds ONLY that field with a byte-exact test.
+    # A chart update or change to any other config field fails here.
+    node_key = ("v1", "ConfigMap", "kubescape", "node-agent")
+    if node_key in expected:
+        native = expected[node_key]["data"]
+        native["config.json"] = candidate(native["config.json"])
     runtime.post_render(expected)
     actual = indexed(deepcopy(rendered))
     runtime.normalize_rules(expected)
