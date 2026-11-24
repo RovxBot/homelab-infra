@@ -20,6 +20,9 @@ AGENT_IMAGE = "quay.io/kubescape/node-agent:" + AGENT_PIN
 NAME = re.compile(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?\Z")
 TOKEN_REVIEW_PATH = "/apis/authentication.k8s.io/v1/tokenreviews"
 TOKEN_AUDIENCE = "kubescape.io"
+# Separate, Pod-bound reader; never grant GitHub credentials to the receiver.
+PUBLISHER_SA = "system:serviceaccount:monitoring:security-incident-publisher"
+PUBLISHER_IMAGE = "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -158,6 +161,50 @@ class KubernetesTrust:
                 and bool(DIGEST.fullmatch(image_id.rsplit("@", 1)[-1])),
                 "agent_image_invalid")
         return VerifiedSource(AGENT_SA, pod_uid, node)
+
+    def authenticate_publisher(self, bearer):
+        """Verify an independently bound, running publishing Job Pod.
+
+        This identity is distinct from node-agent ingestion. It can only read
+        a pre-filtered summary and never changes the receiver's SQLite state.
+        """
+        require(isinstance(bearer, str) and 1 <= len(bearer) <= 8192
+                and "\\r" not in bearer and "\\n" not in bearer,
+                "bearer_invalid")
+        review = self.request(TOKEN_REVIEW_PATH, body=json.dumps(
+            {"apiVersion":"authentication.k8s.io/v1", "kind":"TokenReview",
+             "spec":{"token":bearer, "audiences":[TOKEN_AUDIENCE]}}).encode())
+        status = review.get("status") or {}
+        user = status.get("user") or {}
+        require(status.get("authenticated") is True
+                and TOKEN_AUDIENCE in (status.get("audiences") or ())
+                and user.get("username") == PUBLISHER_SA,
+                "unauthenticated_source")
+        extra = user.get("extra") or {}
+        names = extra.get("authentication.kubernetes.io/pod-name")
+        uids = extra.get("authentication.kubernetes.io/pod-uid")
+        require(isinstance(names, list) and len(names) == 1
+                and isinstance(uids, list) and len(uids) == 1
+                and isinstance(names[0], str) and NAME.fullmatch(names[0])
+                and names[0].startswith("security-incident-publisher-")
+                and isinstance(uids[0], str) and IDENTITY.fullmatch(uids[0]),
+                "bound_identity_missing")
+        pod = self.get("monitoring", "pods", names[0])
+        meta, spec = pod.get("metadata") or {}, pod.get("spec") or {}
+        require(meta.get("name") == names[0] and meta.get("namespace") == "monitoring"
+                and meta.get("uid") == uids[0] and not meta.get("deletionTimestamp")
+                and meta.get("labels", {}).get("app.kubernetes.io/name") == "security-incident-publisher"
+                and spec.get("serviceAccountName") == "security-incident-publisher",
+                "publisher_identity_invalid")
+        refs = [v for v in meta.get("ownerReferences") or [] if v.get("controller") is True]
+        require(len(refs) == 1 and refs[0].get("kind") == "Job"
+                and refs[0].get("name", "").startswith("security-incident-publisher-")
+                and len(spec.get("containers") or []) == 1
+                and spec["containers"][0].get("name") == "publisher"
+                and spec["containers"][0].get("image") == PUBLISHER_IMAGE,
+                "publisher_identity_invalid")
+        running_status(pod, "publisher")
+        return True
 
     def inventory(self, source, alert):
         """Read the live Pod -> ReplicaSet -> Deployment chain independently."""
