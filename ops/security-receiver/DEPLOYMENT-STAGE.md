@@ -24,7 +24,7 @@ Files:
 - `ops/security-receiver/generate-tls-secrets.sh`: local one-time keypair bootstrap and SOPS-encrypted Secrets. NO cluster writes.
 - `scripts/tests/test_security_receiver_deployment.py`: confirms no accidental activation, narrow RBAC, TLS-only service, dedicated PVC and encrypted Secrets.
 
-The receiver image is now pinned to **`ghcr.io/rovxbot/security-receiver@sha256:9c92582e2428fa9ae85ae08039dd6dd4b8a1fa82ef347404ffed1e19b7d58f84`**, built and anonymously pulled by the dedicated PR workflow. The CI image job checks that the image digest is exactly reproducible from the current source. **This remains an off-by-default staging manifest**: do not add `receiver` to `infra/kubescape/kustomization.yaml` until the encrypted TLS Secrets, chart exporter configuration and Kyverno policy are qualified.
+The receiver image is now pinned to **`ghcr.io/rovxbot/security-receiver@sha256:f1e05b419c614a8d3f843b4fcfa332f44bd74edbb9e61cee2b0e820dcab02b2e`**, built and anonymously pulled by the dedicated PR workflow. The CI image job checks that the image digest is exactly reproducible from the current source. **This remains an off-by-default staging manifest**: do not add `receiver` to `infra/kubescape/kustomization.yaml` until the encrypted TLS Secrets, chart exporter configuration and Kyverno policy are qualified.
 
 ## Stage B — one-time operator TLS bootstrap
 
