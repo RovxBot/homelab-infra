@@ -41,7 +41,7 @@ def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
     owners = {
         ('apps/koito/',): ['test_koito*.py'],
         ('infra/observability/', 'infra/pod-report/'):
-            ['test_gatus*.py', 'test_cluster_health.py', 'test_kubescape_health.py', 'test_security_policy_publisher.py'],
+            ['test_gatus*.py', 'test_cluster_health.py', 'test_kubescape_health.py', 'test_security_policy_publisher.py', 'test_security_native_publisher.py'],
         ('apps/gitea/', 'apps/homepage/', 'apps/koito/', 'clusters/home/'):
             ['test_gatus_alert_config.py'],
         ('infra/kubescape/',): ['test_grype*.py', 'test_kubescape*.py', 'test_gatus_alert_config.py'],

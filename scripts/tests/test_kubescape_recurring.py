@@ -112,7 +112,7 @@ class RefreshTests(unittest.TestCase):
                   "database": EXPECTED["metadata"],
                   "publicCve":{"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":0}}
         status_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
-        public_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
+        public_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-private-cve"
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db,"utcnow",return_value=NOW):
             history=Path(path)
             records={R.row_key(current):record}
@@ -180,7 +180,7 @@ class BatchTests(unittest.TestCase):
                                 "database": EXPECTED["metadata"]}
         self.assertEqual(seen, {R.row_key(r) for r in rows})
         self.assertEqual(len(rows), 9)
-        self.assertEqual(len(R.PUBLIC_CVE_TARGETS), 3)
+        self.assertEqual(R.PRIVATE_CVE_TARGETS, {t['identity'] for t in CONFIG['targets']})
 
     def test_batch_rotates_unscanned_changed_stale_and_failures(self):
         rows, config = self.rows(), self.config()
@@ -235,11 +235,11 @@ class BatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
             api = mock.Mock()
             status_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
-            public_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
+            public_path = R.CORE + "/namespaces/kubescape/configmaps/kubescape-private-cve"
             objects = {
                 status_path: {"metadata": {"name": "kubescape-assessment-status"},
                               "data": {"posture.json": "retained", "private": "private evidence"}},
-                public_path: {"metadata": {"name": "kubescape-public-cve"}, "data": {}},
+                public_path: {"metadata": {"name": "kubescape-private-cve"}, "data": {}},
             }
             writes = []
             def request(url, body=None, method=None):
@@ -532,9 +532,29 @@ class FailureTests(unittest.TestCase):
         with self.assertRaisesRegex(R.db.Rejected, "posture_status_unrecognised"):
             R.check_posture(result, summaries, R.db.stamp(NOW))
 
-class PublicCVEProjectionTests(unittest.TestCase):
+class PrivateCVEProjectionTests(unittest.TestCase):
+    def test_nine_target_private_projection_and_legacy_boundary(self):
+        rows, records = [], {}
+        for target in sorted(R.PRIVATE_CVE_TARGETS):
+            namespace, kind, workload, container = target.split("/")
+            current = dict(row(), namespace=namespace, kind=kind, workload=workload,
+                           container=container, assessmentState="healthy")
+            rows.append(current)
+            records[R.row_key(current)] = {"createdAt":R.db.stamp(NOW),
+                "privateCve":{"state":"complete","findings":[], "otherHighCriticalMatches":0}}
+        inventory = {"generatedAt":R.db.stamp(NOW),"rows":rows}
+        projection = R.private_cve_projection(inventory, records)
+        self.assertEqual(len(projection["entries"]),9)
+        self.assertTrue(all(e["state"]=="complete" for e in projection["entries"]))
+        target = next(r for r in rows if R.target_key(r) not in R.LEGACY_PUBLIC_CVE_TARGETS)
+        record = records[R.row_key(target)]
+        record["publicCve"] = record.pop("privateCve")
+        projected = R.private_cve_projection(inventory,records)
+        self.assertEqual(sum(e["state"]=="unknown" for e in projected["entries"]),1)
+        self.assertNotIn("runningDigest",json.dumps(projected))
+
     def test_only_bounded_high_critical_cves_and_fix_flags(self):
-        result = R.public_cve_findings([
+        result = R.private_cve_findings([
             {"vulnerability":{"id":"CVE-2026-4738","severity":"High","fix":{"state":"not-fixed"}}, "artifact":{"name":"private"}},
             {"vulnerability":{"id":"CVE-2026-4738","severity":"Critical","fix":{"state":"fixed"}}},
             {"vulnerability":{"id":"CVE-2026-1234","severity":"Medium"}},
@@ -542,20 +562,20 @@ class PublicCVEProjectionTests(unittest.TestCase):
         ])
         self.assertEqual(result, {"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":1})
         self.assertNotIn("PRIVATE", json.dumps(result))
-        self.assertEqual(R.public_cve_findings([{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}} for i in range(101)])["state"], "overflow")
+        self.assertEqual(R.private_cve_findings([{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}} for i in range(101)])["state"], "overflow")
 
-    def test_projection_rejects_old_records_and_private_workloads(self):
+    def test_projection_rejects_stale_records_and_unreviewed_workloads(self):
         current = row()
         private = {**current,"namespace":"gitea","workload":"private-repo"}
         record = {"createdAt":R.db.stamp(NOW),"publicCve":{"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":0}}
         inventory = {"generatedAt":R.db.stamp(NOW),"rows":[{**current,"assessmentState":"healthy"},{**private,"assessmentState":"healthy"}]}
         records = {R.row_key(current):record,R.row_key(private):record}
-        result = R.public_cve_projection(inventory, records)
+        result = R.private_cve_projection(inventory, records)
         memos = next(x for x in result["entries"] if x["workload"]=="memos/Deployment/memos")
         self.assertEqual(memos["state"],"complete")
         self.assertNotIn("private-repo",json.dumps(result))
         inventory["rows"][0]["assessmentState"]="stale"
-        result=R.public_cve_projection(inventory,records)
+        result=R.private_cve_projection(inventory,records)
         self.assertTrue(all(x["state"]=="unknown" for x in result["entries"]))
 
 

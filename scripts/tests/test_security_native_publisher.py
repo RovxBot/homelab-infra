@@ -219,16 +219,24 @@ class PublisherTests(unittest.TestCase):
 
 
 class CVEPublisherTests(unittest.TestCase):
+    def test_private_projection_scope_matches_reviewed_scan_config(self):
+        import json
+        config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
+        self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
+        self.assertEqual(len(pub.CVE_ALLOWED),9)
+        self.assertEqual(len(pub.ALLOWED),3)
+        self.assertNotIn("kubescape-public-cve",SOURCE.read_text())
+
     def fixture(self):
         return {"schema":1,"source":"kubescape-cve","generatedAt":"2026-11-24T06:00:00Z","entries":[
             {"workload":w,"state":"complete","assessedAt":"2026-11-24T05:00:00Z",
              "findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],
-             "otherHighCriticalMatches":0} for w in sorted(pub.ALLOWED)]}
+             "otherHighCriticalMatches":0} for w in sorted(pub.CVE_ALLOWED)]}
 
     def test_freshness_privacy_and_exact_fields(self):
         projection = self.fixture()
         now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
-        self.assertEqual(len(pub.validate_cve(projection,now)),3)
+        self.assertEqual(len(pub.validate_cve(projection,now)),9)
         for change in ({"workload":"gitea/Deployment/private"},
                        {"findings":[{"id":"CVE-2026-4738","severity":"High","fixAvailable":True,"package":"secret"}]},
                        {"assessedAt":"2026-11-20T05:00:00Z"}):
@@ -241,7 +249,7 @@ class CVEPublisherTests(unittest.TestCase):
 
     def test_projection_observation_expires_before_assessment(self):
         projection=self.fixture()
-        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),3)
+        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),9)
         with self.assertRaises(ValueError):
             pub.validate_cve(projection,datetime(2026,11,24,7,6,tzinfo=timezone.utc))
 
@@ -259,7 +267,7 @@ class CVEPublisherTests(unittest.TestCase):
             self.assertNotIn("sha256:",issue["body"])
 
     def test_empty_projection_is_distinct_from_invalid_projection_and_api_failure(self):
-        obj={"kind":"ConfigMap","metadata":{"namespace":"kubescape","name":"kubescape-public-cve"}}
+        obj={"kind":"ConfigMap","metadata":{"namespace":"kubescape","name":"kubescape-private-cve"}}
         with patch.object(pub.Path, "read_text", return_value="private-token"), \
                 patch.object(pub.ssl, "create_default_context"), patch.object(pub, "build_opener"), \
                 patch.object(pub, "request_json") as request:

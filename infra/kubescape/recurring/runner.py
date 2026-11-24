@@ -296,16 +296,27 @@ def cohort_health(inventory, config):
 
 # Publication is a separate, explicit trust boundary. Do not include raw
 # package names, versions, digests, paths, report IDs or non-allowlisted rows.
-PUBLIC_CVE_TARGETS = {
+LEGACY_PUBLIC_CVE_TARGETS = {
     "homepage/Deployment/homepage/homepage",
     "homepage/Deployment/homepage-assets/nginx",
     "memos/Deployment/memos/memos",
 }
+PRIVATE_CVE_TARGETS = {
+    "gitea/Deployment/gitea-mcp/mcp",
+    "homepage/Deployment/homepage-assets/nginx",
+    "homepage/Deployment/homepage/homepage",
+    "koito/Deployment/koito-lastfm-bridge/multi-scrobbler",
+    "koito/Deployment/koito/koito",
+    "memos/Deployment/memos/memos",
+    "monitoring/Deployment/gatus/gatus",
+    "openbrew/Deployment/openbrew/openbrew",
+    "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
+}
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
-MAX_PUBLIC_CVES = 100
+MAX_PRIVATE_CVES = 100
 
 
-def public_cve_findings(matches):
+def private_cve_findings(matches):
     findings, other = {}, 0
     for match in matches:
         vuln = match["vulnerability"]
@@ -321,20 +332,22 @@ def public_cve_findings(matches):
             existing["severity"] = "Critical"
         existing["fixAvailable"] |= vuln.get("fix", {}).get("state") == "fixed"
     # Do not silently truncate a security finding set.
-    if len(findings) > MAX_PUBLIC_CVES:
+    if len(findings) > MAX_PRIVATE_CVES:
         return {"state": "overflow", "findings": [], "otherHighCriticalMatches": other}
     return {"state": "complete", "findings": sorted(findings.values(), key=lambda x: x["id"]),
             "otherHighCriticalMatches": other}
 
 
-def public_cve_projection(inventory, records):
+def private_cve_projection(inventory, records):
     rows = inventory["rows"]
     entries = []
-    for target in sorted(PUBLIC_CVE_TARGETS):
+    for target in sorted(PRIVATE_CVE_TARGETS):
         workload = target.rsplit("/", 1)[0]
         selected = [row for row in rows if target_key(row) == target]
         record = records.get(row_key(selected[0]), {}) if len(selected) == 1 else {}
-        evidence = record.get("publicCve")
+        evidence = record.get("privateCve")
+        if evidence is None and target in LEGACY_PUBLIC_CVE_TARGETS:
+            evidence = record.get("publicCve")
         if (len(selected) == 1 and selected[0]["assessmentState"] == "healthy"
                 and isinstance(evidence, dict) and evidence.get("state") == "complete"):
             entries.append({"workload": workload, "state": "complete",
@@ -451,13 +464,13 @@ def locked(history):
 
 
 def coverage_status(api, inventory, records, config):
-    """Publish the separate public projection and prepare private status."""
+    """Publish the dedicated private issue projection and prepare private status."""
     path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
-    public_path = CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
-    projection = dict(api.call(public_path))
-    projection["data"] = {"projection.json": json.dumps(public_cve_projection(inventory, records), separators=(",", ":"))}
-    db.require(len(json.dumps(projection)) < 100000, "public_projection_too_large")
-    api.call(public_path, projection, "PUT")
+    private_path = CORE + "/namespaces/kubescape/configmaps/kubescape-private-cve"
+    projection = dict(api.call(private_path))
+    projection["data"] = {"projection.json": json.dumps(private_cve_projection(inventory, records), separators=(",", ":"))}
+    db.require(len(json.dumps(projection)) < 100000, "private_projection_too_large")
+    api.call(private_path, projection, "PUT")
     status = api.call(path)
     data = status.setdefault("data", {})
     data["coverage.json"] = json.dumps(inventory, separators=(",", ":"))
@@ -800,8 +813,8 @@ class Runner:
         result.update(jobID=job, durationSeconds=(db.timestamp(status["finishedAt"]) - db.timestamp(status["startedAt"])).total_seconds(),
                       workloadUID=row["workloadUID"], imageDigest=row["runningDigest"], container=row["container"])
         # The report and workload attribution have now passed independent rereads.
-        if target_key(row) in PUBLIC_CVE_TARGETS:
-            result["publicCve"] = public_cve_findings(report["spec"]["payload"]["matches"])
+        if target_key(row) in PRIVATE_CVE_TARGETS:
+            result["privateCve"] = private_cve_findings(report["spec"]["payload"]["matches"])
         self.records[row_key(row)] = result
         atomic(self.history / "records.json", self.records)
         self.result["assessments"].append(result)
