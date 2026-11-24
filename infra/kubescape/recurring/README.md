@@ -55,8 +55,8 @@ RWO PVC. A shared filesystem lock serializes both modes, including manual
 executions of these templates. Duplicate execution returns non-success without
 queueing. Vulnerability completion markers prevent repeated execution within
 each UTC six-hour slot; posture markers remain daily. Historical daily
-vulnerability markers still block the original 18:00–23:59 UTC slot on
-cutover. The shared lock and uncertain-request fence remain unchanged.
+vulnerability markers conservatively block all slots on their UTC cutover
+day, including legacy manually started Jobs. The shared lock and uncertain-request fence remain unchanged.
 
 Compressed previous/new reports, SBOMs, request IDs and actual posture results
 use `assessments/` on the existing DB PVC. The runner's writable subPath is
