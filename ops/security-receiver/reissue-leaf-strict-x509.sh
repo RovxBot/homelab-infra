@@ -43,24 +43,30 @@ kubectl -n kubescape get secret security-receiver-tls \
   -o jsonpath='{.data.tls\.crt}' \
   | base64 --decode > "$TMP/live-leaf.crt"
 
-cmp -s \
-  <(openssl x509 -in "$OUT/root.crt" -outform DER) \
-  <(openssl x509 -in "$TMP/live-ca.crt" -outform DER) || {
-    echo "Local root CA differs from deployed public CA. Refusing to reissue." >&2
-    exit 1
-  }
-cmp -s \
-  <(openssl pkey -in "$OUT/root.key" -pubout -outform DER) \
-  <(openssl x509 -in "$OUT/root.crt" -pubkey -noout | openssl pkey -pubin -outform DER) || {
-    echo "Local CA key does not match deployed CA certificate." >&2
-    exit 1
-  }
-cmp -s \
-  <(openssl pkey -in "$OUT/tls.key" -pubout -outform DER) \
-  <(openssl x509 -in "$TMP/live-leaf.crt" -pubkey -noout | openssl pkey -pubin -outform DER) || {
-    echo "Local leaf key does not match deployed leaf certificate." >&2
-    exit 1
-  }
+# Materialize only public DER values; every OpenSSL command must succeed.
+openssl x509 -in "$OUT/root.crt" -outform DER > "$TMP/local-ca.der"
+openssl x509 -in "$TMP/live-ca.crt" -outform DER > "$TMP/live-ca.der"
+cmp -s "$TMP/local-ca.der" "$TMP/live-ca.der" || {
+  echo "Local root CA differs from deployed public CA." >&2; exit 1;
+}
+openssl pkey -in "$OUT/root.key" -pubout -outform DER > "$TMP/root-key.der"
+openssl x509 -in "$OUT/root.crt" -pubkey -noout | openssl pkey -pubin -outform DER > "$TMP/root-cert-key.der"
+cmp -s "$TMP/root-key.der" "$TMP/root-cert-key.der" || {
+  echo "Local CA key does not match deployed CA certificate." >&2; exit 1;
+}
+openssl pkey -in "$OUT/tls.key" -pubout -outform DER > "$TMP/leaf-key.der"
+openssl x509 -in "$TMP/live-leaf.crt" -pubkey -noout | openssl pkey -pubin -outform DER > "$TMP/live-leaf-key.der"
+cmp -s "$TMP/leaf-key.der" "$TMP/live-leaf-key.der" || {
+  echo "Local leaf key does not match deployed leaf certificate." >&2; exit 1;
+}
+# Also prove the GitOps source matches the live identity, without printing keys.
+sops decrypt --extract '["data"]["receiver-ca.crt"]' "$CA_SECRET" | base64 --decode | openssl x509 -outform DER > "$TMP/source-ca.der"
+sops decrypt --extract '["data"]["tls.crt"]' "$SECRET" | base64 --decode | openssl x509 -outform DER > "$TMP/source-leaf.der"
+openssl x509 -in "$TMP/live-leaf.crt" -outform DER > "$TMP/live-leaf.der"
+sops decrypt --extract '["data"]["tls.key"]' "$SECRET" | base64 --decode | openssl pkey -pubout -outform DER > "$TMP/source-key.der"
+cmp -s "$TMP/source-ca.der" "$TMP/live-ca.der"
+cmp -s "$TMP/source-leaf.der" "$TMP/live-leaf.der"
+cmp -s "$TMP/source-key.der" "$TMP/leaf-key.der"
 openssl verify -CAfile "$OUT/root.crt" "$TMP/live-leaf.crt" >/dev/null || {
   echo "Deployed leaf does not validate against the current CA." >&2
   exit 1
@@ -74,7 +80,7 @@ keyUsage=critical,digitalSignature,keyEncipherment
 extendedKeyUsage=serverAuth
 subjectAltName=DNS:security-receiver.kubescape.svc,DNS:security-receiver.kubescape.svc.cluster.local
 subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid,issuer
+authorityKeyIdentifier=keyid:always,issuer
 EOF
 
 openssl x509 -req -sha256 -days 825 \
@@ -92,18 +98,26 @@ done
 # Preserve the encrypted TLS private key and all other secret metadata.
 # Set only the base64-encoded PUBLIC leaf certificate inside existing SOPS
 # ciphertext. No plaintext Secret YAML is written to disk.
-sops set "$SECRET" '["data"]["tls.crt"]' \
+cp "$SECRET" "$TMP/candidate.enc.yaml"
+sops set "$TMP/candidate.enc.yaml" '["data"]["tls.crt"]' \
   "\"$(base64 -w 0 "$TMP/leaf.crt")\""
 
 # Decrypt only to /dev/null so that SOPS verifies the ciphertext MAC.
 # Never print or write the plaintext secret.
-sops decrypt "$SECRET" >/dev/null
+sops decrypt "$TMP/candidate.enc.yaml" >/dev/null
+sops decrypt --extract '["data"]["tls.crt"]' "$TMP/candidate.enc.yaml" | base64 --decode | openssl x509 -outform DER > "$TMP/candidate.der"
+openssl x509 -in "$TMP/leaf.crt" -outform DER > "$TMP/new-leaf.der"
+cmp -s "$TMP/candidate.der" "$TMP/new-leaf.der"
+sops decrypt --extract '["data"]["tls.key"]' "$TMP/candidate.enc.yaml" | base64 --decode | openssl pkey -pubout -outform DER > "$TMP/candidate-key.der"
+cmp -s "$TMP/candidate-key.der" "$TMP/leaf-key.der"
 
-grep -Fq 'tls.crt: ENC[' "$SECRET" &&
-grep -Fq 'tls.key: ENC[' "$SECRET" || {
+grep -Fq 'tls.crt: ENC[' "$TMP/candidate.enc.yaml" &&
+grep -Fq 'tls.key: ENC[' "$TMP/candidate.enc.yaml" || {
   echo "SOPS encryption check failed: DO NOT COMMIT or merge." >&2
   exit 1
 }
+
+mv "$TMP/candidate.enc.yaml" "$SECRET"
 
 echo "Strict X.509 verification passed for both receiver service DNS names."
 echo "Updated ONLY the existing SOPS-encrypted receiver leaf certificate."
