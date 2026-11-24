@@ -140,6 +140,7 @@ except Exception:
             kubectl = root / 'kubectl'
             kubectl.write_text("""#!/bin/sh
 case "$*" in
+  *"get jobs -n monitoring"*status.completionTime*) printf '%s\\n' "$POLICY" ;;
   *"get jobs -n monitoring"*) printf '%s\\n' "$NATIVE" ;;
   *"get pods -n monitoring"*) printf '%s\\n' "$PUBLISHER_PODS" ;;
   *"get jobs -n kyverno"*) printf '%s\\n' "$POLICY" ;;
@@ -168,11 +169,11 @@ print(int(value.timestamp()) if args[-1] == '+%s' else value.strftime('%Y-%m-%dT
 
     def test_security_reporting_latest_attempt_and_freshness(self):
         native = '2026-11-22T07:50:00Z|security-incident-publisher-1|uid-1|CronJob/security-incident-publisher|True|'
-        policy = '2026-11-22T07:15:00Z|CronJob/kyverno-github-issue-sync|True||2026-11-22T07:15:30Z'
+        policy = '2026-11-22T07:15:00Z|CronJob/security-policy-publisher|True||2026-11-22T07:15:30Z'
         controllers = '\n'.join('kyverno-'+name+'-controller|3|3|'+str(count)+'|'+str(count)
                                for name,count in [('admission',2),('reports',1),('background',1),('cleanup',1)])
         self.assertEqual(self.reporting(native,policy,controllers)['status'],'healthy')
-        assurance = policy.replace('kyverno-github-issue-sync','kyverno-policy-assurance')
+        assurance = policy.replace('security-policy-publisher','kyverno-policy-assurance')
         self.assertEqual(self.reporting(native,policy+'\n'+assurance,controllers)['kyvernoAssurance'],'healthy')
         failed_assurance = '2026-11-22T07:55:00Z|CronJob/kyverno-policy-assurance||True|'
         result = self.reporting(native,policy+'\n'+assurance+'\n'+failed_assurance,controllers)
