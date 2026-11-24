@@ -284,5 +284,23 @@ class CVEPublisherTests(unittest.TestCase):
         self.assertFalse(pub.owns_cve(issue,pub.cve_key("homepage/Deployment/homepage")))
 
 
+class StageHealthTests(unittest.TestCase):
+    def test_each_source_runs_independently_and_termination_data_is_bounded(self):
+        import tempfile
+        import os
+        for native_error, cve_error, expected in (
+                (None, None, "security-v1|healthy|healthy"),
+                (None, pub.PublisherFailure("cve_coverage_missing"), "security-v1|healthy|failed"),
+                (OSError("private token"), None, "security-v1|failed|healthy"),
+                (OSError("private token"), OSError("private payload"), "security-v1|failed|failed")):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                path=pathlib.Path(directory)/"termination"
+                with patch.dict(os.environ, {"ENABLE_CVE_PUBLISHER":"true"}), patch.object(pub,"main",side_effect=native_error) as native, patch.object(pub,"cve_main",side_effect=cve_error) as cve:
+                    result=pub.run_stages(path)
+                    native.assert_called_once()
+                    cve.assert_called_once()
+                self.assertEqual(path.read_text(),expected)
+                self.assertEqual(result,0 if expected.endswith("healthy|healthy") else 1)
+
 if __name__=="__main__":
     unittest.main()

@@ -37,7 +37,7 @@ class PublisherFailure(Exception):
     def __init__(self, code):
         allowed = ("kubernetes_token", "kubernetes_api", "kubernetes_ca",
                    "receiver_token", "receiver_api", "projection",
-                   "github_api", "publisher_state", "publisher_sync",
+                   "github_api", "publisher_state", "publisher_sync", "publisher_pending",
                    "cve_api", "cve_projection", "cve_state", "cve_sync", "cve_coverage", "cve_pending")
         if not any(code == name or code.startswith(name + "_") for name in allowed):
             code = "publisher_state"
@@ -481,7 +481,7 @@ def cve_main(token):
         # cause writes, and no issue is ever closed or reopened by this source.
         phase = "cve_sync"
         outcomes = [publisher.sync(e) for e in ready if e["findings"] or e["otherHighCriticalMatches"]]
-        pending = sum(x.startswith("pending_") for x in outcomes)
+        pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(ALLOWED), "created": outcomes.count("created"),
                           "updated": outcomes.count("updated"), "pending": pending}), flush=True)
@@ -524,11 +524,14 @@ def main():
             raise
         except Exception:
             raise PublisherFailure("publisher_sync") from None
+        pending = db.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         # Only fixed, non-sensitive counts in Pod logs.
         print(json.dumps({"total":len(incidents),
                           "created":outcomes.count("created"),
                           "updated":outcomes.count("updated"),
-                          "pending":sum(x.startswith("pending_") for x in outcomes)}))
+                          "pending":pending}), flush=True)
+        if pending:
+            raise PublisherFailure("publisher_pending")
     finally:
         if db is not None:
             db.close()
@@ -536,23 +539,28 @@ def main():
             os.close(fd)
 
 
+def run_stages(termination_path=Path("/dev/termination-log")):
+    """Independent stages, one Pod and PVC; never publish raw error text."""
+    states = {"native": "unknown", "cve": "unknown"}
+    def persist():
+        # Fixed enum values, atomically meaningful only after Pod termination.
+        termination_path.write_text("security-v1|" + states["native"] + "|" + states["cve"])
+    persist()
+    for name, action in (("native", main), ("cve", lambda: cve_main(os.environ.get("GITHUB_TOKEN", "")))):
+        if name == "cve" and os.environ.get("ENABLE_CVE_PUBLISHER") != "true":
+            continue
+        try:
+            action()
+            states[name] = "healthy"
+        except PublisherFailure as exc:
+            states[name] = "failed"
+            print("security_" + name + "_publisher_failed phase=" + exc.code, flush=True)
+        except Exception:
+            states[name] = "failed"
+            print("security_" + name + "_publisher_failed phase=unclassified", flush=True)
+        persist()
+    return 0 if all(state == "healthy" for state in states.values()) else 1
+
+
 if __name__ == "__main__":
-    try:
-        main()
-        if os.environ.get("ENABLE_CVE_PUBLISHER") == "true":
-            try:
-                cve_main(os.environ.get("GITHUB_TOKEN", ""))
-            except PublisherFailure as exc:
-                print("security_cve_publisher_failed phase=" + exc.code, flush=True)
-                raise SystemExit(1) from None
-            except Exception:
-                print("security_cve_publisher_failed phase=unclassified", flush=True)
-                raise SystemExit(1) from None
-    except PublisherFailure as exc:
-        # One tightly bounded internal code, never original exception text,
-        # response bodies, URLs, event fields, tokens or full tracebacks.
-        print("security_native_publisher_failed phase=" + exc.code, flush=True)
-        raise SystemExit(1) from None
-    except Exception:
-        print("security_native_publisher_failed phase=unclassified", flush=True)
-        raise SystemExit(1) from None
+    raise SystemExit(run_stages())
