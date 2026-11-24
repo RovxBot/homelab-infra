@@ -59,7 +59,7 @@ class FakeTrust:
 
     def __init__(self):
         self.resources=mock_resources()
-        self.nodes=frozenset(('metal3','metal6'))
+        self.nodes=frozenset(('metal0','metal2','metal3','metal4','metal5','metal6','metal7','metal8'))
         self.namespaces=frozenset((POD.namespace,))
         self.review=dict(status=dict(authenticated=True,audiences=['kubescape.io'],
             user=dict(username='system:serviceaccount:kubescape:node-agent',
@@ -103,6 +103,17 @@ class TrustedSourceTests(unittest.TestCase):
                     del status['user']['extra']['authentication.kubernetes.io/pod-uid']
                 with self.assertRaises(Rejected):
                     self.api.authenticate('untrusted')
+
+    def test_source_identity_accepts_exactly_eight_node_names(self):
+        for node in sorted(self.api.nodes):
+            with self.subTest(node=node):
+                self.api.resources[('kubescape','pods','node-agent-test')]['spec']['nodeName']=node
+                self.assertEqual(self.api.authenticate('synthetic-pod-bound-token').node,node)
+        for outsider in ('metal1','metal9','other-cluster'):
+            with self.subTest(outside=outsider):
+                self.api.resources[('kubescape','pods','node-agent-test')]['spec']['nodeName']=outsider
+                with self.assertRaisesRegex(Rejected,'source_node_invalid'):
+                    self.api.authenticate('synthetic-pod-bound-token')
 
     def test_pinned_agent_spec_accepts_distinct_valid_running_manifest(self):
         # OCI index pins and platform imageIDs can differ legitimately.
