@@ -43,7 +43,7 @@ class PolicyAssuranceTests(unittest.TestCase):
     def test_reviewed_inventory_is_exact(self):
         self.assertEqual(sum(self.evaluate().values()), 0)
         expected = {(kind, ns, name, action) for kind, ns, name, action in ASSURANCE["EXPECTED"]}
-        authored = {(p["kind"],p["metadata"].get("namespace",""),p["metadata"]["name"],p["spec"]["validationActions"][0])
+        authored = {(p["kind"],p["metadata"].get("namespace",""),p["metadata"]["name"],",".join(sorted(p["spec"]["validationActions"])))
                     for key in ("validatingpolicies","namespacedvalidatingpolicies") for p in self.objects[BASE+key]}
         self.assertEqual(expected, authored)
         self.assertEqual(len(expected),25)
@@ -73,6 +73,15 @@ class PolicyAssuranceTests(unittest.TestCase):
         self.assertEqual(result["policyInventory"],1)
         self.assertEqual(result["policyConfiguration"],3)
         self.assertEqual(result["policyReadiness"],1)
+
+    def test_flux_guardrails_requires_both_audit_and_warn(self):
+        policy = next(p for p in self.objects[BASE+"validatingpolicies"]
+                      if p["metadata"]["name"] == "platform-flux-guardrails")
+        for actions, failures in ((["Audit","Warn"],0), (["Warn","Audit"],0),
+                                  (["Audit"],1), (["Warn"],1), (["Deny"],1)):
+            with self.subTest(actions=actions):
+                policy["spec"]["validationActions"]=actions
+                self.assertEqual(self.evaluate()["policyConfiguration"],failures)
 
     def test_permissions_and_job_are_bounded(self):
         role=next(d for d in DOCUMENTS if d["kind"]=="ClusterRole")
