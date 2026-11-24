@@ -6,6 +6,8 @@ on:
       - scripts/tests/test_security_receiver_*.py
       - ops/security-receiver/build-image.py
       - infra/kubescape/receiver/**
+      - scripts/ci/scan_image.py
+      - scripts/tests/test_security_ci_scan.py
       - .github/workflows/security-receiver-image.yml
   workflow_dispatch:
 permissions:
@@ -33,6 +35,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -92,4 +96,30 @@ jobs:
           name: receiver-image-proof
           path: /tmp/receiver-image/build.json
           if-no-files-found: ignore
+          retention-days: 14
+
+  scan:
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate digest-scanning contract
+        run: python3 -m unittest discover -s scripts/tests -p 'test_security_ci_scan.py' -v
+      - name: Scan qualified published immutable image
+        env:
+          SCANNED_DIGEST: ${{ needs.image.outputs.digest }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/ci/scan_image.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: receiver-scan-provenance
+          path: .work/receiver-scan/provenance.json
+          if-no-files-found: error
           retention-days: 14
