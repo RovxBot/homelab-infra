@@ -37,10 +37,14 @@ def check(resources):
     assert "memos/Deployment/memos/memos" in selected
     assert selected <= {"memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx",
                         "homepage/Deployment/homepage/homepage", "koito/Deployment/koito/koito",
-                        "koito/Deployment/koito-lastfm-bridge/multi-scrobbler", "gitea/Deployment/gitea-mcp/mcp"}
+                        "koito/Deployment/koito-lastfm-bridge/multi-scrobbler", "gitea/Deployment/gitea-mcp/mcp",
+                        "monitoring/Deployment/gatus/gatus", "openbrew/Deployment/openbrew/openbrew",
+                        "stirling-pdf/Deployment/stirling-pdf/stirling-pdf"}
     assert len(selected) == len(config["targets"]), "duplicate target identity"
     assert 1 <= config["maximumImagesPerRun"] <= 4
     assert config["maximumScanAgeHours"] == 72
+    # Reserve a full three slots in each nominal three-day rotation for churn/failures.
+    assert len(selected) <= 3 * config["maximumImagesPerRun"] - 3
     assert config["scanTimeoutSeconds"] == 360 and config["maximumHistoryBytes"] <= 512 * 1024**2
     assert config["minimumDatabaseFreeBytes"] >= 3 * 1024**3
     assert config["minimumReportFreeBytes"] >= 1024**3
