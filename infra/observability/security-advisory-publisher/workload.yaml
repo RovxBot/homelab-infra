@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: security-advisory-publisher
+  namespace: monitoring
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: security-advisory-publisher-state
+  namespace: monitoring
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  storageClassName: longhorn
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 128Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: security-advisory-publisher
+  namespace: monitoring
+spec:
+  schedule: "35 * * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 180
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: security-advisory-publisher
+            homelab.cooked.beer/owner: sam
+        spec:
+          serviceAccountName: security-advisory-publisher
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: publisher
+              image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+              command: [python3, -B, /opt/advisory/publisher.py]
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 150m
+                  memory: 128Mi
+              volumeMounts:
+                - name: code
+                  mountPath: /opt/advisory
+                  readOnly: true
+                - name: credential
+                  mountPath: /credential
+                  readOnly: true
+                - name: queue
+                  mountPath: /queue
+                  readOnly: true
+                - name: state
+                  mountPath: /state
+          volumes:
+            - name: code
+              configMap:
+                name: security-advisory-publisher-code
+                defaultMode: 0444
+            - name: credential
+              secret:
+                secretName: homelab-security-advisories
+                defaultMode: 0440
+                items:
+                  - key: token
+                    path: token
+            - name: queue
+              secret:
+                secretName: security-advisory-approved
+                optional: true
+                defaultMode: 0440
+                items:
+                  - key: approved.json
+                    path: approved.json
+            - name: state
+              persistentVolumeClaim:
+                claimName: security-advisory-publisher-state
