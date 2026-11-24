@@ -19,7 +19,8 @@ openssl req -new -x509 -sha256 -days 3650 \
   -key "$OUT/root.key" -out "$OUT/root.crt" \
   -subj "/CN=Homelab Kubescape Receiver Root" \
   -addext "basicConstraints=critical,CA:TRUE" \
-  -addext "keyUsage=critical,keyCertSign,cRLSign"
+  -addext "keyUsage=critical,keyCertSign,cRLSign" \
+  -addext "subjectKeyIdentifier=hash"
 openssl genrsa -out "$OUT/tls.key" 3072
 openssl req -new -sha256 -key "$OUT/tls.key" -out "$OUT/tls.csr" \
   -subj "/CN=security-receiver.kubescape.svc"
@@ -30,7 +31,7 @@ extendedKeyUsage=serverAuth
 subjectAltName=DNS:security-receiver.kubescape.svc,DNS:security-receiver.kubescape.svc.cluster.local
 # Python 3.13+ enables X509_STRICT and requires the issuer's key identifier.
 subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid,issuer
+authorityKeyIdentifier=keyid:always,issuer
 EOF
 openssl x509 -req -sha256 -days 825 \
   -in "$OUT/tls.csr" -CA "$OUT/root.crt" -CAkey "$OUT/root.key" \
