@@ -80,7 +80,7 @@ class ReceiverStageTests(unittest.TestCase):
         config=json.loads((RECEIVER/"config.json").read_text())
         self.assertEqual(config["nodes"],["metal3","metal6"])
         self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test"])
-        self.assertEqual(config["state_dir"],"/state/private")
+        self.assertEqual(config["state_dir"],"/state")
         self.assertEqual(config["tls_cert"],"/tls/tls.crt")
         self.assertEqual(config["tls_key"],"/tls/tls.key")
         build=(ROOT/"ops/security-receiver/build-image.py").read_text()
