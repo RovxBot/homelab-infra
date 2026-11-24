@@ -208,7 +208,8 @@ class StagedReleaseTests(unittest.TestCase):
     def test_manual_image_routing_disables_operator_watchers(self):
         renderer, = self.release["spec"]["postRenderers"]
         patch, = [p for p in renderer["kustomize"]["patches"]
-                  if p["target"]["kind"] == "ConfigMap"]
+                  if p["target"]["kind"] == "ConfigMap"
+                  and p["target"]["name"] == "ks-capabilities"]
         self.assertEqual(patch["target"]["name"], "ks-capabilities")
         data = json.loads(yaml.safe_load(patch["patch"])[0]["value"])
         for key in ("kubevuln", "kubevulnScheduler", "sbomScanner", "synchronizer"):
