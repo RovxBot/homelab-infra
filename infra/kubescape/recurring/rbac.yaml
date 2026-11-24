@@ -15,7 +15,7 @@ data: {}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kubescape-public-cve
+  name: kubescape-private-cve
   namespace: kubescape
 data: {}
 ---
@@ -40,7 +40,7 @@ rules:
     verbs: [get]
   - apiGroups: [""]
     resources: [configmaps]
-    resourceNames: [kubescape-assessment-status, kubescape-public-cve]
+    resourceNames: [kubescape-assessment-status, kubescape-private-cve]
     verbs: [get, update]
   - apiGroups: [helm.toolkit.fluxcd.io]
     resources: [helmreleases]
