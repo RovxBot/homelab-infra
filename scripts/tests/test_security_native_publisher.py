@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 import importlib.util
 import pathlib
 import sqlite3
+import sys
 import unittest
 from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
 SOURCE = ROOT / "infra/observability/security-incident-publisher/publisher.py"
 spec = importlib.util.spec_from_file_location("security_native_publisher", SOURCE)
 pub = importlib.util.module_from_spec(spec)
