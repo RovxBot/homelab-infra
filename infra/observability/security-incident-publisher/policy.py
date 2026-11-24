@@ -174,10 +174,7 @@ def load_observations(list_kubernetes_resource, cutoff, now):
                     status = result.get("result")
                     observed = parse_result_time(result, meta.get("creationTimestamp") if status == "fail" else None)
                     if status == "fail":
-                        failure = dict(policy=policy, rule=rule, kind=kind, namespace=namespace, name=name,
-                                       
-                                       observed_at=observed.isoformat() if observed else "unknown", persistent=observed is not None and observed <= cutoff and observed <= now,
-                                        )
+                        failure = dict(persistent=observed is not None and observed <= cutoff and observed <= now)
                         # Legacy/CEL overlap is one finding. Any failure blocks closure,
                         # including findings younger than the incident threshold.
                         if key not in failures or failure["persistent"]:
