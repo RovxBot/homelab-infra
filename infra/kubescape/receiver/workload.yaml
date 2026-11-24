@@ -65,9 +65,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: receiver
-          # Exact digest qualified and anonymously pulled by receiver-image CI.
-          # Still NOT deployed: receiver absent from live Kubescape composition.
-          image: ghcr.io/rovxbot/security-receiver@sha256:5f16fad236d04a3360aa84fba760c76e9313f74053fd03e7271ccb3fe532b33e
+          # Candidate immutable digest; receiver-image CI must qualify and verify
+          # anonymous retrieval before this change is merged.
+          image: ghcr.io/rovxbot/security-receiver@sha256:7af9f3e065b421e9fc9a09cc0c7ded0efd930293f9e54561b74eed762757eedb
           imagePullPolicy: IfNotPresent
           args: ["--config", "/config/config.json"]
           ports:
