@@ -3,7 +3,10 @@
     "homepage",
     "memos",
     "kubescape-runtime-test",
-    "koito"
+    "koito",
+    "monitoring",
+    "openbrew",
+    "stirling-pdf"
   ],
   "nodes": [
     "metal0",

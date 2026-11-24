@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 import importlib.util
 import pathlib
 import sqlite3
+import sys
 import unittest
 from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
 SOURCE = ROOT / "infra/observability/security-incident-publisher/publisher.py"
 spec = importlib.util.spec_from_file_location("security_native_publisher", SOURCE)
 pub = importlib.util.module_from_spec(spec)
@@ -76,7 +78,8 @@ class FakeGitHub:
 
 class PublisherTests(unittest.TestCase):
     def test_private_runtime_cohort_accepts_only_reviewed_identities(self):
-        for workload in ('koito/Deployment/koito', 'koito/Deployment/koito-lastfm-bridge'):
+        for workload in ('koito/Deployment/koito', 'koito/Deployment/koito-lastfm-bridge',
+                         'monitoring/Deployment/gatus', 'openbrew/Deployment/openbrew', 'openbrew/Deployment/openbrew-db', 'stirling-pdf/Deployment/stirling-pdf'):
             self.assertEqual(pub.validate(envelope(dict(incident(),workload=workload)))[0]['workload'],workload)
         self.assertTrue(pub.RECEIVER.endswith('/v1/private-incidents'))
 
@@ -229,7 +232,9 @@ class CVEPublisherTests(unittest.TestCase):
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
         self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
         self.assertEqual(len(pub.CVE_ALLOWED),9)
-        self.assertEqual(len(pub.ALLOWED),5)
+        self.assertEqual(len(pub.ALLOWED),9)
+        from security_receiver.store import PRIVATE_WORKLOADS
+        self.assertEqual(pub.ALLOWED, set(PRIVATE_WORKLOADS.values()))
         self.assertNotIn("kubescape-public-cve",SOURCE.read_text())
 
     def fixture(self):

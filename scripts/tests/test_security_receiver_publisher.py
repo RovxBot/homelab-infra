@@ -98,6 +98,16 @@ class ProjectionTests(unittest.TestCase):
         with self.assertRaises(Rejected):
             self.receiver.publication("untrusted",private=True)
 
+    def test_prepared_application_projection_is_private_only(self):
+        identities = ["home/monitoring/Deployment/gatus/gatus","home/openbrew/Deployment/openbrew/openbrew","home/openbrew/Deployment/openbrew/oauth2-proxy","home/openbrew/Deployment/openbrew-db/sqlserver","home/stirling-pdf/Deployment/stirling-pdf/stirling-pdf"]
+        for i, identity in enumerate(identities):
+            self.store.record(self.sample(identity,event_id=format(i+1,"064x")),self.now)
+        self.assertEqual(self.receiver.publication("bound-test-token")["incidents"],[])
+        result=self.receiver.publication("bound-test-token",private=True)
+        self.assertEqual(len(result["incidents"]),5)
+        self.assertEqual({r["workload"] for r in result["incidents"]},set(["monitoring/Deployment/gatus","openbrew/Deployment/openbrew","openbrew/Deployment/openbrew-db","stirling-pdf/Deployment/stirling-pdf"]))
+        self.assertNotIn("PRIVATE_",json.dumps(result))
+
     def test_token_principal_image_uid_and_ready_status_fail_closed(self):
         variants=[
             ("user","system:serviceaccount:kubescape:node-agent"),

@@ -27,7 +27,11 @@ RECEIVER = "https://security-receiver.kubescape.svc:8443/v1/private-incidents"
 KUBERNETES = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/secrets/security-receiver-ca"
 ALLOWED = frozenset(("homepage/Deployment/homepage", "homepage/Deployment/homepage-assets",
                      "memos/Deployment/memos", "koito/Deployment/koito",
-                     "koito/Deployment/koito-lastfm-bridge"))
+                     "koito/Deployment/koito-lastfm-bridge",
+                     "monitoring/Deployment/gatus",
+                     "openbrew/Deployment/openbrew",
+                     "openbrew/Deployment/openbrew-db",
+                     "stirling-pdf/Deployment/stirling-pdf"))
 FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "count", "state"))
 KEY = re.compile(r"[0-9a-f]{64}\Z")
 RULE = re.compile(r"R[0-9]{4}\Z")
@@ -87,7 +91,7 @@ def validate(projection):
     require(isinstance(projection, dict) and set(projection) == {"schema", "source", "incidents"})
     require(projection["schema"] == 1 and projection["source"] == "kubescape-native")
     values = projection["incidents"]
-    require(isinstance(values, list) and len(values) <= 30)
+    require(isinstance(values, list) and len(values) <= 50)
     known = set()
     for item in values:
         require(isinstance(item, dict) and set(item) == FIELDS)
