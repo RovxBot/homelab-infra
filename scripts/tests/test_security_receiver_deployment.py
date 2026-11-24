@@ -140,7 +140,13 @@ class ReceiverStageTests(unittest.TestCase):
             {"apiGroups":["apps"],"resources":["replicasets"],"verbs":["get"]},
             {"apiGroups":["apps"],"resources":["deployments"],"resourceNames":["koito","koito-lastfm-bridge"],"verbs":["get"]}])
         bindings=[x for x in items if x["kind"].endswith("Binding")]
-        self.assertEqual(len(bindings),7)
+        self.assertEqual(len(bindings),10)
+        for namespace, names in {"monitoring":["gatus"],"openbrew":["openbrew","openbrew-db"],"stirling-pdf":["stirling-pdf"]}.items():
+            role=next(x for x in roles if x['metadata'].get('namespace')==namespace and x['metadata']['name']=='security-receiver-inventory')
+            self.assertEqual(role['rules'], [
+                {'apiGroups':[''],'resources':['pods'],'verbs':['get']},
+                {'apiGroups':['apps'],'resources':['replicasets'],'verbs':['get']},
+                {'apiGroups':['apps'],'resources':['deployments'],'resourceNames':names,'verbs':['get']}])
         for binding in bindings:
             self.assertEqual(binding["subjects"],[{"kind":"ServiceAccount",
                                                     "name":"security-receiver",
@@ -149,7 +155,7 @@ class ReceiverStageTests(unittest.TestCase):
     def test_exact_eight_agent_nodes_and_no_unsafe_surface(self):
         config=json.loads((RECEIVER/"config.json").read_text())
         self.assertEqual(config["nodes"],["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"])
-        self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test","koito"])
+        self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test","koito","monitoring","openbrew","stirling-pdf"])
         self.assertEqual(config["state_dir"],"/state")
         self.assertEqual(config["tls_cert"],"/tls/tls.crt")
         self.assertEqual(config["tls_key"],"/tls/tls.key")

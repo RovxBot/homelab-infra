@@ -76,7 +76,8 @@ class FakeGitHub:
 
 class PublisherTests(unittest.TestCase):
     def test_private_runtime_cohort_accepts_only_reviewed_identities(self):
-        for workload in ('koito/Deployment/koito', 'koito/Deployment/koito-lastfm-bridge'):
+        for workload in ('koito/Deployment/koito', 'koito/Deployment/koito-lastfm-bridge',
+                         'monitoring/Deployment/gatus', 'openbrew/Deployment/openbrew', 'openbrew/Deployment/openbrew-db', 'stirling-pdf/Deployment/stirling-pdf'):
             self.assertEqual(pub.validate(envelope(dict(incident(),workload=workload)))[0]['workload'],workload)
         self.assertTrue(pub.RECEIVER.endswith('/v1/private-incidents'))
 
