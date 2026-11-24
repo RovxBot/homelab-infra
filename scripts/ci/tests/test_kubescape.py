@@ -161,11 +161,24 @@ class StagedReleaseTests(unittest.TestCase):
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
         baseline = {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml",
                     "recurring/rbac.yaml", "recurring/cronjobs.yaml", "collector"}
-        # Explicitly reviewed, opt-in disposable R1000 fixture only. Reject other additions.
+        # The two encrypted receiver TLS/CA Secrets are intentionally owned
+        # by this namespace's SOPS-enabled Flux Kustomization. Keep all other
+        # resource additions fail-closed until independently reviewed.
+        secret_paths = {"../../secrets/security-receiver-ca.enc.yaml",
+                        "../../secrets/security-receiver-tls.enc.yaml"}
+        for secret_path in secret_paths:
+            secret = yaml.safe_load((ROOT / "infra/kubescape" / secret_path).read_text())
+            self.assertEqual(secret["kind"], "Secret")
+            self.assertEqual(secret["metadata"]["namespace"], "kubescape")
+            self.assertEqual(secret["sops"]["encrypted_regex"], "^(data|stringData)$")
+            self.assertTrue(all(str(x).startswith("ENC[AES256_GCM,")
+                                for x in secret["data"].values()))
+        self.assertEqual(child["decryption"], {"provider":"sops","secretRef":{"name":"sops-age"}})
+        # Explicitly reviewed, opt-in disposable R1000 fixture only.
         trigger = "../../ops/security-collector/acceptance/trigger"
         resources = set(source["resources"])
         self.assertEqual(len(resources), len(source["resources"]), "duplicate Kubescape resource include")
-        self.assertIn(resources, (baseline, baseline | {trigger}))
+        self.assertIn(resources, (baseline | secret_paths, baseline | secret_paths | {trigger}))
         collector = json.loads((ROOT / "infra/kubescape/collector/collector.json").read_text())
         test_workloads = [w for w in collector["workloads"] if w["namespace"] == "kubescape-runtime-test"]
         if trigger in resources:
