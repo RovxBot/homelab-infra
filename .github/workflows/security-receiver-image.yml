@@ -56,6 +56,8 @@ jobs:
           proof=json.loads(pathlib.Path('/tmp/receiver-image/build.json').read_text())
           assert proof['platform']=='linux/amd64'
           assert {p.rsplit('/',1)[-1] for p in proof['files']}=={'native.py','trust.py','store.py','service.py'}
+          manifest=pathlib.Path('infra/kubescape/receiver/workload.yaml').read_text()
+          assert 'image: ghcr.io/rovxbot/security-receiver@'+proof['digest'] in manifest, 'manifest image does not match build'
           with open(os.environ['GITHUB_OUTPUT'],'a') as output:
               output.write('digest='+proof['digest']+'\n')
           PY
