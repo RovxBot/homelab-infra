@@ -6,7 +6,7 @@ from security_native_exporter_preflight import EXPORTER
 
 IMAGE = 'quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60'
 NODES = ["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"]
-NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test', 'koito']
+NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test', 'koito', 'monitoring', 'openbrew', 'stirling-pdf']
 RULES = ['R0001', 'R0004', 'R0007', 'R1000', 'R1002']
 CAPS = ['SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'SYSLOG', 'SYS_RESOURCE', 'IPC_LOCK', 'NET_RAW']
 BUDGET = {'requests': {'cpu': '100m', 'memory': '180Mi'}, 'limits': {'cpu': '500m', 'memory': '1400Mi'}}
@@ -153,7 +153,7 @@ def check_boundary(kyverno, work, resources, root):
     # Retain the previous exact scope for a controlled rollback.
     next_scope = deepcopy(pod)
     next_scope['metadata']['name'] = 'agent-rollback-scope-positive'
-    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test'
+    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test,koito'
     fixtures = [agent, pod, *allowed_node_pods, trusted_ca, next_scope]
     bound_ds = deepcopy(agent)
     bound_ds['metadata']['name'] = 'node-agent'
@@ -171,7 +171,7 @@ def check_boundary(kyverno, work, resources, root):
         'privileged': lambda p: p['containers'][0]['securityContext'].update(privileged=True),
         'command': lambda p: p['containers'][0].update(command=['sh']),
         'scope-unbounded': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value=''),
-        'scope-private': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value='homepage,memos,kubescape-runtime-test,gitea'),
+        'scope-private': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value=','.join(NAMESPACES + ['gitea'])),
         'injected-env': lambda p: p['containers'][0]['env'].append({'name': 'LD_PRELOAD', 'value': '/host/tmp/lib.so'}),
         'writable-root': lambda p: next(m for m in p['containers'][0]['volumeMounts'] if m['name'] == 'host').update(readOnly=False),
         'extra-hostpath': lambda p: p['volumes'].append({'name': 'extra', 'hostPath': {'path': '/etc'}}),
