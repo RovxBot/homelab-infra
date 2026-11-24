@@ -37,7 +37,7 @@ class PublisherFailure(Exception):
     def __init__(self, code):
         allowed = ("kubernetes_token", "kubernetes_api", "kubernetes_ca",
                    "receiver_token", "receiver_api", "projection",
-                   "github_api", "publisher_state", "publisher_sync", "publisher_pending",
+                   "github_api", "publisher_state", "publisher_sync", "publisher_pending", "receiver_capacity",
                    "cve_api", "cve_projection", "cve_state", "cve_sync", "cve_coverage", "cve_pending")
         if not any(code == name or code.startswith(name + "_") for name in allowed):
             code = "publisher_state"
@@ -167,7 +167,7 @@ def request_json(opener, url, token, *, method="GET", payload=None, phase="githu
             raise failure from None
 
 
-def fetch_projection():
+def receiver_connection():
     try:
         api_token = Path("/var/run/publisher-api/token").read_text().strip()
         api_ca = "/var/run/publisher-api/ca.crt"
@@ -194,6 +194,11 @@ def fetch_projection():
         bearer = Path("/var/run/publisher-receiver/token").read_text().strip()
     except Exception:
         raise PublisherFailure("receiver_token") from None
+    return receiver, bearer
+
+
+def fetch_projection():
+    receiver, bearer = receiver_connection()
     result = request_json(receiver, RECEIVER, bearer, phase="receiver_api")
     try:
         return validate(result)
@@ -539,14 +544,38 @@ def main():
             os.close(fd)
 
 
+# These are the deployed receiver's fixed hard limits. Alert at 80 percent
+# without changing admission, receiver readiness or evidence retention.
+RECEIVER_RECEIPTS_LIMIT = 20000
+RECEIVER_INCIDENTS_LIMIT = 200
+
+
+def check_receiver_capacity():
+    receiver, bearer = receiver_connection()
+    health = request_json(receiver, RECEIVER.rsplit("/", 2)[0] + "/healthz",
+                          bearer, phase="receiver_api")
+    try:
+        require(isinstance(health, dict) and set(health) == {
+            "receiver_ready", "delivery_coverage", "incidents", "receipts"})
+        require(health["receiver_ready"] is True and health["delivery_coverage"] == "unverified")
+        receipts, incidents = health["receipts"], health["incidents"]
+        require(type(receipts) is int and 0 <= receipts <= RECEIVER_RECEIPTS_LIMIT
+                and type(incidents) is int and 0 <= incidents <= RECEIVER_INCIDENTS_LIMIT)
+    except Exception:
+        raise PublisherFailure("receiver_capacity_invalid") from None
+    if receipts * 5 >= RECEIVER_RECEIPTS_LIMIT * 4 or incidents * 5 >= RECEIVER_INCIDENTS_LIMIT * 4:
+        raise PublisherFailure("receiver_capacity_threshold")
+
+
 def run_stages(termination_path=Path("/dev/termination-log")):
     """Independent stages, one Pod and PVC; never publish raw error text."""
-    states = {"native": "unknown", "cve": "unknown"}
+    states = {"native": "unknown", "cve": "unknown", "capacity": "unknown"}
     def persist():
         # Fixed enum values, atomically meaningful only after Pod termination.
-        termination_path.write_text("security-v1|" + states["native"] + "|" + states["cve"])
+        termination_path.write_text("security-v2|" + states["native"] + "|" + states["cve"] + "|" + states["capacity"])
     persist()
-    for name, action in (("native", main), ("cve", lambda: cve_main(os.environ.get("GITHUB_TOKEN", "")))):
+    for name, action in (("native", main), ("cve", lambda: cve_main(os.environ.get("GITHUB_TOKEN", ""))),
+                         ("capacity", check_receiver_capacity)):
         if name == "cve" and os.environ.get("ENABLE_CVE_PUBLISHER") != "true":
             continue
         try:

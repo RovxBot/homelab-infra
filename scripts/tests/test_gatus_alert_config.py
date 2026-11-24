@@ -141,6 +141,14 @@ class GatusAlertConfigTests(unittest.TestCase):
             'interval':'1m','conditions':['[STATUS] == 200','[BODY].cvePublisher == healthy'],
             'alerts':[{'type':'github'}]})
 
+    def test_receiver_capacity_has_independent_health_condition(self):
+        release = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())
+        endpoint, = [ep for ep in release['spec']['values']['config']['endpoints'] if ep['name'] == 'security-receiver-capacity']
+        self.assertEqual(endpoint, {'name':'security-receiver-capacity','group':'cluster',
+            'url':'http://pod-report.homepage.svc.cluster.local:80/security-reporting-health.json',
+            'interval':'1m','conditions':['[STATUS] == 200','[BODY].receiverCapacity == healthy'],
+            'alerts':[{'type':'github'}]})
+
     def test_security_receiver_transport_is_static_and_payload_free(self):
         release = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())
         endpoints = release['spec']['values']['config']['endpoints']

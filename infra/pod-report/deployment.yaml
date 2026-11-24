@@ -396,7 +396,7 @@ spec:
               publisher_stages_health() {
                 # Use the exact latest CronJob-owned Job and its controller UID.
                 # A missing, active, ambiguous or old result cannot assert success.
-                unknown_stages() { printf 'unknown|unknown'; }
+                unknown_stages() { printf 'unknown|unknown|unknown'; }
                 rows="$(kubectl --request-timeout=15s get jobs -n monitoring -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{"|"}{.metadata.name}{"|"}{.metadata.uid}{"|"}{range .metadata.ownerReferences[?(@.controller==true)]}{.kind}{"/"}{.name}{end}{"|"}{range .status.conditions[?(@.type=="Complete")]}{.status}{end}{"|"}{range .status.conditions[?(@.type=="Failed")]}{.status}{end}{"\n"}{end}' 2>/dev/null)" || { unknown_stages; return; }
                 latest="$(printf '%s\n' "$rows" | awk -F '|' '$4 == "CronJob/security-incident-publisher"' | sort -r | head -n 1)"
                 [ -n "$latest" ] || { unknown_stages; return; }
@@ -408,16 +408,17 @@ spec:
                 started="$(date -u -d "$created" +%s 2>/dev/null)" || { unknown_stages; return; }
                 current="$(date -u +%s)"
                 [ "$started" -le "$current" ] || { unknown_stages; return; }
-                [ "$((current - started))" -le 1200 ] || { printf 'stale|stale'; return; }
+                [ "$((current - started))" -le 1200 ] || { printf 'stale|stale|stale'; return; }
                 if [ "$complete" != True ] && [ "$failed" != True ]; then unknown_stages; return; fi
                 pods="$(kubectl --request-timeout=15s get pods -n monitoring -l app.kubernetes.io/name=security-incident-publisher -o jsonpath='{range .items[*]}{range .metadata.ownerReferences[?(@.controller==true)]}{.kind}{"/"}{.name}{"|"}{.uid}{end}{"|"}{range .status.containerStatuses[?(@.name=="publisher")]}{.state.terminated.exitCode}{"|"}{.state.terminated.message}{end}{"\n"}{end}' 2>/dev/null)" || { unknown_stages; return; }
                 # Only emit an exact code-owned enum combination, not the message.
-                message="$(printf '%s\n' "$pods" | awk -F '|' -v job="Job/$job" -v uid="$uid" '$1==job && $2==uid {n++; if(NF==6 && $3~/^[01]$/ && $4=="security-v1" && $5~/^(healthy|failed|unknown)$/ && $6~/^(healthy|failed|unknown)$/) {value=$5 "|" $6; code=$3}} END {if(n==1 && value!="") print code "|" value}')"
+                message="$(printf '%s\n' "$pods" | awk -F '|' -v job="Job/$job" -v uid="$uid" '$1==job && $2==uid {n++; if($3~/^[01]$/ && $5~/^(healthy|failed|unknown)$/ && $6~/^(healthy|failed|unknown)$/) {if(NF==7 && $4=="security-v2" && $7~/^(healthy|failed|unknown)$/) {value=$5 "|" $6 "|" $7; code=$3} else if(NF==6 && $4=="security-v1") {value=$5 "|" $6 "|unknown"; code=$3}}} END {if(n==1 && value!="") print code "|" value}')"
                 case "$message:$complete:$failed" in
-                  '0|healthy|healthy:True:') printf 'healthy|healthy' ;;
+                  '0|healthy|healthy|healthy:True:') printf 'healthy|healthy|healthy' ;;
+                  '0|healthy|healthy|unknown:True:') printf 'healthy|healthy|unknown' ;;
                   1\|*::True)
                     case "$message" in
-                      '1|healthy|healthy') unknown_stages ;;
+                      '1|healthy|healthy|healthy'|'1|healthy|healthy|unknown') unknown_stages ;;
                       *) printf '%s' "${message#*|}" ;;
                     esac ;;
                   *) unknown_stages ;;
@@ -427,14 +428,16 @@ spec:
               security_reporting_health() {
                 stages="$(publisher_stages_health)"
                 native_state="${stages%%|*}"
-                cve_state="${stages#*|}"
+                remaining="${stages#*|}"
+                cve_state="${remaining%%|*}"
+                capacity_state="${remaining#*|}"
                 policy_state="$(reporter_health kyverno kyverno-github-issue-sync 5400)"
                 controllers_state="$(kyverno_controllers_health)"
                 reporting_state=healthy
                 for state in "$native_state" "$policy_state" "$controllers_state"; do
                   [ "$state" = healthy ] || reporting_state=unhealthy
                 done
-                printf '{"status":"%s","observedAt":"%s","nativePublisher":"%s","cvePublisher":"%s","kyvernoPublisher":"%s","kyvernoControllers":"%s"}\n' "$reporting_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$native_state" "$cve_state" "$policy_state" "$controllers_state" > /work/security-reporting-health.json.tmp
+                printf '{"status":"%s","observedAt":"%s","nativePublisher":"%s","cvePublisher":"%s","receiverCapacity":"%s","kyvernoPublisher":"%s","kyvernoControllers":"%s"}\n' "$reporting_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$native_state" "$cve_state" "$capacity_state" "$policy_state" "$controllers_state" > /work/security-reporting-health.json.tmp
                 mv /work/security-reporting-health.json.tmp /work/security-reporting-health.json
               }
 

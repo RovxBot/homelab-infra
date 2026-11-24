@@ -351,7 +351,9 @@ def check_assessment_alert(before, after):
                  "alerts": [{"type": "github"}]}
     cve_reporting = dict(reporting, name="security-cve-reporting",
                          conditions=["[STATUS] == 200", "[BODY].cvePublisher == healthy"])
-    allowed = [expected, receiver_transport, reporting, cve_reporting] + [dict(name='security-collector-' + name, group='cluster',
+    capacity_reporting = dict(reporting, name="security-receiver-capacity",
+                              conditions=["[STATUS] == 200", "[BODY].receiverCapacity == healthy"])
+    allowed = [expected, receiver_transport, reporting, cve_reporting, capacity_reporting] + [dict(name='security-collector-' + name, group='cluster',
         url='http://security-collector.kubescape.svc.cluster.local:8080/' + path,
         interval='1m', conditions=['[STATUS] == 200', condition], alerts=[])
         for name, path, condition in (('process', 'readyz', '[BODY].ready == true'),

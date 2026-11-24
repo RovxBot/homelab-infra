@@ -289,18 +289,37 @@ class StageHealthTests(unittest.TestCase):
         import tempfile
         import os
         for native_error, cve_error, expected in (
-                (None, None, "security-v1|healthy|healthy"),
-                (None, pub.PublisherFailure("cve_coverage_missing"), "security-v1|healthy|failed"),
-                (OSError("private token"), None, "security-v1|failed|healthy"),
-                (OSError("private token"), OSError("private payload"), "security-v1|failed|failed")):
+                (None, None, "security-v2|healthy|healthy|healthy"),
+                (None, pub.PublisherFailure("cve_coverage_missing"), "security-v2|healthy|failed|healthy"),
+                (OSError("private token"), None, "security-v2|failed|healthy|healthy"),
+                (OSError("private token"), OSError("private payload"), "security-v2|failed|failed|healthy")):
             with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
                 path=pathlib.Path(directory)/"termination"
-                with patch.dict(os.environ, {"ENABLE_CVE_PUBLISHER":"true"}), patch.object(pub,"main",side_effect=native_error) as native, patch.object(pub,"cve_main",side_effect=cve_error) as cve:
+                with patch.dict(os.environ, {"ENABLE_CVE_PUBLISHER":"true"}), patch.object(pub,"main",side_effect=native_error) as native, patch.object(pub,"cve_main",side_effect=cve_error) as cve, patch.object(pub,"check_receiver_capacity") as capacity:
                     result=pub.run_stages(path)
                     native.assert_called_once()
                     cve.assert_called_once()
+                    capacity.assert_called_once()
                 self.assertEqual(path.read_text(),expected)
-                self.assertEqual(result,0 if expected.endswith("healthy|healthy") else 1)
+                self.assertEqual(result,0 if expected == "security-v2|healthy|healthy|healthy" else 1)
+
+    def test_count_capacity_threshold_and_invalid_response(self):
+        baseline = {"receiver_ready": True, "delivery_coverage": "unverified",
+                    "receipts": 15999, "incidents": 159}
+        with patch.object(pub,"receiver_connection",return_value=(object(),"test-token")), patch.object(pub,"request_json") as request:
+            request.return_value = baseline
+            pub.check_receiver_capacity()
+            self.assertEqual(request.call_args.args[1], "https://security-receiver.kubescape.svc:8443/healthz")
+            for changes, code in (({"receipts":16000},"receiver_capacity_threshold"),
+                                  ({"incidents":160},"receiver_capacity_threshold"),
+                                  ({"receipts":True},"receiver_capacity_invalid"),
+                                  ({"incidents":201},"receiver_capacity_invalid"),
+                                  ({"receiver_ready":False},"receiver_capacity_invalid"),
+                                  ({"extra":"private"},"receiver_capacity_invalid")):
+                request.return_value = dict(baseline,**changes)
+                with self.assertRaises(pub.PublisherFailure) as raised:
+                    pub.check_receiver_capacity()
+                self.assertEqual(raised.exception.code,code)
 
 if __name__=="__main__":
     unittest.main()

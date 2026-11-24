@@ -167,6 +167,16 @@ print(int(value.timestamp()) if args[-1] == '+%s' else value.strftime('%Y-%m-%dT
                                  pods=failed_pod.replace('|failed|healthy','|healthy|failed'))
         self.assertEqual(partial['status'],'healthy')
         self.assertEqual(partial['cvePublisher'],'failed')
+        self.assertEqual(partial['receiverCapacity'],'unknown')
+        full = 'Job/security-incident-publisher-1|uid-1|0|security-v2|healthy|healthy|healthy'
+        self.assertEqual(self.reporting(native,policy,controllers,pods=full)['receiverCapacity'],'healthy')
+        capacity = 'Job/security-incident-publisher-2|uid-2|1|security-v2|healthy|healthy|failed'
+        result = self.reporting(failed,policy,controllers,pods=capacity)
+        self.assertEqual(result['status'],'healthy')
+        self.assertEqual(result['cvePublisher'],'healthy')
+        self.assertEqual(result['receiverCapacity'],'failed')
+        self.assertEqual(self.reporting(failed,policy,controllers,
+                            pods=capacity.replace('|failed','|private'))['receiverCapacity'],'unknown')
         for malformed in (failed_pod.replace('uid-2','wrong'), failed_pod+'\n'+failed_pod,
                           failed_pod.replace('|failed|healthy','|private|healthy'), ''):
             result=self.reporting(failed,policy,controllers,pods=malformed)
