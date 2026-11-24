@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Immutable receiver image scan. Publish provenance, never raw findings."""
 from datetime import datetime, timedelta, timezone
+import base64
 import hashlib
 import json
 import os
@@ -59,14 +60,20 @@ def provenance(report,digest,source_sha,asset_digest,now):
     require(isinstance(report["matches"],list))
     descriptor=report["descriptor"]
     require(descriptor["name"]=="grype" and descriptor["version"]==VERSION)
-    db=descriptor["db"]
-    require(db["valid"] is True)
+    # Grype v0.121.3 root.dbInfo nests ProviderStatus under status.
+    # Reject the obsolete flat database descriptor rather than guessing.
+    db=descriptor["db"]["status"]
+    require(db["valid"] is True and not db.get("error"))
     built=datetime.fromisoformat(db["built"].replace("Z","+00:00"))
     require(timedelta(0) <= now-built <= timedelta(hours=72))
+    require(report["source"]["type"] == "image")
     target=report["source"]["target"]
     require(target["userInput"] in {IMAGE+digest,"registry:"+IMAGE+digest}
             and target["manifestDigest"]==digest and target["architecture"]=="amd64"
             and target["os"]=="linux")
+    # Syft v1.57.1 includes the raw manifest and image config as base64.
+    require("sha256:"+hashlib.sha256(base64.b64decode(target["manifest"],validate=True)).hexdigest()==digest)
+    require(DIGEST.fullmatch(target["imageID"]) and "sha256:"+hashlib.sha256(base64.b64decode(target["config"],validate=True)).hexdigest()==target["imageID"])
     schema=str(db["schemaVersion"])
     require(re.fullmatch(r"v?6(?:\.[0-9]+){0,2}",schema))
     return {"schema":1,"state":"observed","mode":"report-only","image":IMAGE+digest,
