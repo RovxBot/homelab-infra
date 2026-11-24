@@ -417,6 +417,50 @@ def check_admission(args, work, resources):
     print(f"verified: Kyverno CLI {match[1]}: {expected_passes} passes, 0 failures/errors; exact agent hardening exemption; other Pod fields checked statically")
 
 
+TLS_SECRET = "secrets/security-receiver-tls.enc.yaml"
+CA_SECRET = "secrets/security-receiver-ca.enc.yaml"
+RECEIVER_WORKLOAD = "infra/kubescape/receiver/workload.yaml"
+TLS_MARKER = "homelab.cooked.beer/tls-leaf-reissue"
+
+
+def check_leaf_ciphertext(before, after):
+    """CI has no decryption key: enforce the exact ciphertext change boundary."""
+    before, after = deepcopy(before), deepcopy(after)
+    old, new = before["data"], after["data"]
+    assert set(old) == set(new) == {"tls.crt", "tls.key"}, "unexpected TLS Secret fields"
+    assert all(isinstance(v, str) and v.startswith("ENC[AES256_GCM,")
+               for v in new.values()), "TLS Secret must remain encrypted"
+    assert old["tls.key"] == new["tls.key"], "TLS private key ciphertext changed"
+    assert old["tls.crt"] != new["tls.crt"], "encrypted leaf certificate did not change"
+    old.pop("tls.crt")
+    new.pop("tls.crt")
+    for doc in (before, after):
+        for field in ("lastmodified", "mac", "version"):
+            doc["sops"].pop(field, None)
+    assert before == after, "TLS Secret changed outside leaf and SOPS bookkeeping"
+
+
+def check_receiver_tls_change(base_ref, paths):
+    if not ({RECEIVER_WORKLOAD, TLS_SECRET} & set(paths)):
+        return
+    def prior(path):
+        return subprocess.check_output(["git", "show", base_ref + ":" + path], cwd=ROOT)
+    def annotations(source):
+        receiver, = [obj for obj in documents(source)
+                     if obj.get("kind") == "Deployment"
+                     and obj["metadata"]["name"] == "security-receiver"]
+        return receiver["spec"]["template"]["metadata"].get("annotations", {})
+    old = annotations(prior(RECEIVER_WORKLOAD)).get(TLS_MARKER)
+    new = annotations((ROOT / RECEIVER_WORKLOAD).read_text()).get(TLS_MARKER)
+    if old == new and TLS_SECRET not in paths:
+        return
+    assert isinstance(new, str) and new and old != new, "TLS leaf change requires a new restart marker"
+    assert TLS_SECRET in paths, "TLS leaf reissue must include the encrypted leaf Secret"
+    assert CA_SECRET not in paths, "the existing trust CA must not be rotated"
+    check_leaf_ciphertext(yaml.safe_load(prior(TLS_SECRET)),
+                          yaml.safe_load((ROOT / TLS_SECRET).read_text()))
+
+
 def run(args):
     release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
     check_release(release, active=args.active_review)
@@ -433,39 +477,11 @@ def run(args):
     if args.base_ref:
         changed = subprocess.check_output(["git", "diff", "--name-only", args.base_ref], cwd=ROOT, text=True)
         paths = changed.splitlines()
+        check_receiver_tls_change(args.base_ref, paths)
         # The scope guard protects Kubescape infrastructure work. A Kyverno
         # compatibility-only tooling change does not activate that task scope.
         if scope_guard_required(paths):
             assert not check_scope(paths), "Protected infrastructure changed"
-            # A receiver certificate-reissue Pod restart MUST be delivered
-            # atomically with its encrypted leaf Secret in the same GitOps PR.
-            # A restart annotation alone would keep the incompatible TLS cert.
-            receiver_deployment = "infra/kubescape/receiver/workload.yaml"
-            if receiver_deployment in paths:
-                before_receiver = [
-                    obj for obj in yaml.safe_load_all(subprocess.check_output(
-                        ["git", "show", args.base_ref + ":" + receiver_deployment],
-                        cwd=ROOT)) if isinstance(obj, dict)
-                        and obj.get("kind") == "Deployment"
-                ][0]
-                after_receiver = [
-                    obj for obj in yaml.safe_load_all((ROOT / receiver_deployment).read_text())
-                    if isinstance(obj, dict) and obj.get("kind") == "Deployment"
-                ][0]
-                old = before_receiver["spec"]["template"]["metadata"].get("annotations", {})
-                new = after_receiver["spec"]["template"]["metadata"].get("annotations", {})
-                if old.get("homelab.cooked.beer/tls-leaf-reissue") != new.get(
-                    "homelab.cooked.beer/tls-leaf-reissue"
-                ):
-                    assert new.get("homelab.cooked.beer/tls-leaf-reissue") == (
-                        "strict-x509-aki-20261124-01"
-                    ), "unexpected TLS restart marker"
-                    assert "secrets/security-receiver-tls.enc.yaml" in paths, (
-                        "TLS leaf reissue must include the encrypted leaf Secret"
-                    )
-                    assert "secrets/security-receiver-ca.enc.yaml" not in paths, (
-                        "the existing trust CA must not be rotated"
-                    )
             policy_source = "infra/kyverno-policies/kustomization.yaml"
             if policy_source in paths:
                 before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + policy_source], cwd=ROOT))
