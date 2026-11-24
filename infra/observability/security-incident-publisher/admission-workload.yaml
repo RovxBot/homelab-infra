@@ -4,6 +4,20 @@ metadata:
   name: security-admission-observer
   namespace: monitoring
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: security-admission-observer-state
+  namespace: monitoring
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  storageClassName: longhorn
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 128Mi
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -12,6 +26,9 @@ metadata:
 rules:
   - apiGroups: ["discovery.k8s.io"]
     resources: ["endpointslices"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods"]
     verbs: ["list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -42,7 +59,7 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 0
-      activeDeadlineSeconds: 90
+      activeDeadlineSeconds: 240
       ttlSecondsAfterFinished: 86400
       template:
         metadata:
@@ -64,6 +81,12 @@ spec:
             - name: publisher
               image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
               command: [python3, -B, /opt/publisher/admission.py]
+              env:
+                - name: GITEA_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: homelab-security-gitea
+                      key: token
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
@@ -74,13 +97,18 @@ spec:
                   cpu: 25m
                   memory: 32Mi
                 limits:
-                  cpu: 100m
+                  cpu: 150m
                   memory: 128Mi
               volumeMounts:
+                - name: state
+                  mountPath: /state
                 - name: code
                   mountPath: /opt/publisher
                   readOnly: true
           volumes:
+            - name: state
+              persistentVolumeClaim:
+                claimName: security-admission-observer-state
             - name: code
               configMap:
                 name: security-incident-publisher-code
