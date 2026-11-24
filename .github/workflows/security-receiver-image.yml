@@ -1,0 +1,91 @@
+name: Security Native Receiver Image
+on:
+  pull_request:
+    paths:
+      - scripts/security_receiver/**
+      - scripts/tests/test_security_receiver_*.py
+      - ops/security-receiver/build-image.py
+      - infra/kubescape/receiver/**
+      - .github/workflows/security-receiver-image.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: receiver-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s scripts/tests -p 'test_security_receiver_*.py' -v
+      - run: python3 -m py_compile scripts/security_receiver/*.py ops/security-receiver/build-image.py
+  image:
+    needs: qualify
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install checksum-verified crane
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 2 https://github.com/google/go-containerregistry/releases/download/v0.22.1/go-containerregistry_Linux_x86_64.tar.gz -o /tmp/crane.tgz
+          echo '0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0  /tmp/crane.tgz' | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/receiver-tools"
+          tar -xzf /tmp/crane.tgz -C "$RUNNER_TEMP/receiver-tools" crane
+          echo "$RUNNER_TEMP/receiver-tools" >> "$GITHUB_PATH"
+      - name: Build and validate content-addressed image
+        id: build
+        run: |
+          set -euo pipefail
+          python3 ops/security-receiver/build-image.py --output /tmp/receiver-image
+          python3 - <<'PY'
+          import json,os,pathlib
+          proof=json.loads(pathlib.Path('/tmp/receiver-image/build.json').read_text())
+          assert proof['platform']=='linux/amd64'
+          assert {p.rsplit('/',1)[-1] for p in proof['files']}=={'native.py','trust.py','store.py','service.py'}
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('digest='+proof['digest']+'\n')
+          PY
+      - name: Exercise read-only, no-network, non-root image
+        run: |
+          set -euo pipefail
+          docker load -i /tmp/receiver-image/image.tar
+          docker run --rm --read-only --network none --cap-drop ALL \
+            --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+            --entrypoint python3 ghcr.io/rovxbot/security-receiver:build -B -c \
+            'import os,sqlite3; from security_receiver.service import Receiver; assert os.getuid()==10001; c=sqlite3.connect("/tmp/test.sqlite"); c.execute("create table t (id int)"); c.close()'
+          docker run --rm --read-only --network none --cap-drop ALL \
+            --security-opt no-new-privileges ghcr.io/rovxbot/security-receiver:build --help
+      - name: Publish uniquely tagged image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | crane auth login ghcr.io --username "$ACTOR" --password-stdin
+          crane push /tmp/receiver-image/image.tar "ghcr.io/rovxbot/security-receiver:sha256-${IMAGE_DIGEST#sha256:}"
+      - name: Verify public anonymous digest retrieval before any deployment
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          DOCKER_CONFIG="$(mktemp -d)" crane validate --remote "ghcr.io/rovxbot/security-receiver@${IMAGE_DIGEST}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: receiver-image-proof
+          path: /tmp/receiver-image/build.json
+          if-no-files-found: ignore
+          retention-days: 14
