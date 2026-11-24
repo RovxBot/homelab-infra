@@ -259,7 +259,7 @@ spec:
                   expirationSeconds: 3600
                   path: token
 ---
-# Read-only assessment refresh: same PVC lock, no scanner submission.
+# Inventory-only refresh: same PVC lock and named status writes, no scanner submission.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
