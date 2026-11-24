@@ -443,11 +443,12 @@ spec:
                 capacity_state="${remaining#*|}"
                 policy_state="$(reporter_health kyverno kyverno-github-issue-sync 5400)"
                 controllers_state="$(kyverno_controllers_health)"
+                assurance_state="$(reporter_health kyverno kyverno-policy-assurance 5400)"
                 reporting_state=healthy
                 for state in "$native_state" "$policy_state" "$controllers_state"; do
                   [ "$state" = healthy ] || reporting_state=unhealthy
                 done
-                printf '{"status":"%s","observedAt":"%s","nativePublisher":"%s","cvePublisher":"%s","receiverCapacity":"%s","kyvernoPublisher":"%s","kyvernoControllers":"%s"}\n' "$reporting_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$native_state" "$cve_state" "$capacity_state" "$policy_state" "$controllers_state" > /work/security-reporting-health.json.tmp
+                printf '{"status":"%s","observedAt":"%s","nativePublisher":"%s","cvePublisher":"%s","receiverCapacity":"%s","kyvernoPublisher":"%s","kyvernoControllers":"%s","kyvernoAssurance":"%s"}\n' "$reporting_state" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$native_state" "$cve_state" "$capacity_state" "$policy_state" "$controllers_state" "$assurance_state" > /work/security-reporting-health.json.tmp
                 mv /work/security-reporting-health.json.tmp /work/security-reporting-health.json
               }
 
