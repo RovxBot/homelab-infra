@@ -579,6 +579,19 @@ def refresh_inventory(api, config, history):
         return 0
 
 
+def completion_markers(history, mode, now, digest):
+    """One completed batch per UTC six-hour slot; posture remains daily."""
+    day = now.strftime("%Y-%m-%d")
+    legacy = history / (mode + "-" + day + "-" + digest + ".done")
+    if mode != "vulnerability":
+        return legacy, (legacy,)
+    slot = now.hour // 6
+    marker = history / (mode + "-" + day + "-slot" + str(slot) + "-" + digest + ".done")
+    # The old daily schedule ran at 19:13 UTC. Respect its completion in
+    # the corresponding slot on the cutover day without deleting history.
+    return marker, (marker, legacy) if slot == 3 else (marker,)
+
+
 class Runner:
     def __init__(self, api, config, expected, history, mode):
         self.api, self.config, self.expected, self.history, self.mode = api, config, expected, history, mode
@@ -993,9 +1006,8 @@ class Runner:
                 self.load_state()  # Re-read under the lock before any record mutation.
                 self.fence()
                 digest = hashlib.sha256(json.dumps(self.config["targets"], sort_keys=True).encode()).hexdigest()[:12]
-                day = db.utcnow().strftime("%Y-%m-%d")
-                completed = self.history / (self.mode + "-" + day + "-" + digest + ".done")
-                db.require(not completed.exists(), "duplicate_execution")
+                completed, blockers = completion_markers(self.history, self.mode, db.utcnow(), digest)
+                db.require(not any(path.exists() for path in blockers), "duplicate_execution")
                 self.result["reasons"] = ["assessment_in_progress"]
                 self.publish(terminal=False)
                 self.result["reasons"] = []
@@ -1009,7 +1021,7 @@ class Runner:
                 else:
                     self.posture(audit)
                     self.result["state"] = "healthy"
-                # A completed partial batch is retried on the next daily rotation.
+                # A completed partial batch is retried in the next scheduled rotation.
                 atomic(completed, {"runID": self.run_id})
             except db.Rejected as error:
                 self.result.update(state="stale" if error.reason == "stale_database" else "unknown" if error.reason == "uncertain_previous_request" else "failed", reasons=[error.reason])
