@@ -38,18 +38,25 @@ Measured samples are not instantaneous peak guarantees.
 | Each physical replica disk free | at least max(10Gi, 15%) |
 | Additional compressed history | at most 512Mi logical, then stop |
 
-Vulnerability runs **19:13 UTC daily**, posture **20:13 UTC daily** (05:43 /
-06:43 Adelaide the following day during daylight saving). This avoids the
-07:19 UTC DB proposal workflow, 02:15 Adelaide Gitea cold backup, 04:15 UTC
-Longhorn backup and 04:45 UTC periodic photo backup. CI is unscheduled; active
-CI Job Pods and scanner-node utilization are additional gates. Runner
-Deployments alone do not imply an active build.
+The proposed bounded vulnerability rotation runs at **01:13, 10:13, 13:13 and
+19:13 UTC daily**; posture remains **20:13 UTC daily**. Each vulnerability
+window retains the four-image limit, single active scan and all existing
+resource gates. These scheduled start times avoid the known 07:19 UTC DB
+proposal workflow, 02:15 Adelaide Gitea cold backup, 04:15 UTC Longhorn backup
+and 04:45 UTC periodic photo backup; confirm maintenance durations and live
+resource/history overhead before widening the cohort. CI is unscheduled;
+active CI Job Pods and scanner-node utilization remain additional gates.
+Runner Deployments alone do not imply an active build. A four-window rotation
+is not proof that 16 successful scans/day are sustainable.
 
 Both CronJobs use `Forbid`, a five-minute starting deadline, zero retries and
 `Never` restart. Required Pod affinity colocates runners with Kubevuln on its
 RWO PVC. A shared filesystem lock serializes both modes, including manual
 executions of these templates. Duplicate execution returns non-success without
-queueing. Same-day identical mode/cohort completion markers prevent resubmission.
+queueing. Vulnerability completion markers prevent repeated execution within
+each UTC six-hour slot; posture markers remain daily. Historical daily
+vulnerability markers still block the original 18:00–23:59 UTC slot on
+cutover. The shared lock and uncertain-request fence remain unchanged.
 
 Compressed previous/new reports, SBOMs, request IDs and actual posture results
 use `assessments/` on the existing DB PVC. The runner's writable subPath is
@@ -116,7 +123,8 @@ image-derived scan ID never proves a new assessment.
 
 The initial cohort has no duplicate images. Cross-workload reuse is deferred
 until its namespaced summary-attribution semantics are qualified; current
-deduplication prevents repeated same-day execution and concurrent image scans.
+deduplication prevents repeated execution in the same vulnerability slot and
+concurrent image scans.
 
 Posture requests NSA using the existing Memos scope and no host scanner. Fetch
 the actual full result by scan ID with `keep=true`, then independently reread
@@ -139,7 +147,7 @@ also fence future scans. GET transport failures yield unknown; POSTs never retry
 
 [config.json](config.json) selects six reviewed public application images after
 [PR #2190](https://github.com/RovxBot/homelab-infra/pull/2190), with at most four
-sequential requests per daily execution. New/changed/old evidence takes priority;
+sequential requests per scheduled execution. New/changed/old evidence takes priority;
 failed attempts also rotate so peers are not starved. Successful peer records
 survive a partial batch failure. Configured targets do not establish successful
 coverage. Posture remains Memos plus shared RBAC. The Wiki and scheduled
