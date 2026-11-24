@@ -378,8 +378,19 @@ class DurablePublisher:
 
 
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
+CVE_ALLOWED = frozenset((
+    "gitea/Deployment/gitea-mcp",
+    "homepage/Deployment/homepage-assets",
+    "homepage/Deployment/homepage",
+    "koito/Deployment/koito-lastfm-bridge",
+    "koito/Deployment/koito",
+    "memos/Deployment/memos",
+    "monitoring/Deployment/gatus",
+    "openbrew/Deployment/openbrew",
+    "stirling-pdf/Deployment/stirling-pdf",
+))
 CVE_TITLE = "Security (Kubescape CVE)"
-CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-public-cve"
+CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-private-cve"
 
 
 def cve_key(workload):
@@ -393,12 +404,12 @@ def validate_cve(projection, now=None):
     generated = datetime.fromisoformat(normalize_date(projection["generatedAt"]).replace("Z", "+00:00"))
     require(timedelta(0) <= now-generated <= timedelta(minutes=65))
     entries = projection["entries"]
-    require(isinstance(entries, list) and len(entries) == len(ALLOWED))
+    require(isinstance(entries, list) and len(entries) == len(CVE_ALLOWED))
     seen, ready = set(), []
     for entry in entries:
         require(isinstance(entry, dict) and set(entry) == {"workload", "state", "assessedAt", "findings", "otherHighCriticalMatches"})
         workload = entry["workload"]
-        require(workload in ALLOWED and workload not in seen)
+        require(workload in CVE_ALLOWED and workload not in seen)
         seen.add(workload)
         require(entry["state"] in ("unknown", "complete"))
         findings = entry["findings"]
@@ -459,7 +470,7 @@ def fetch_cve_projection():
         raise PublisherFailure("cve_api_configuration") from None
     obj = request_json(kube, CVE_CONFIG, token, phase="cve_api")
     try:
-        require(obj.get("kind") == "ConfigMap" and obj["metadata"]["name"] == "kubescape-public-cve"
+        require(obj.get("kind") == "ConfigMap" and obj["metadata"]["name"] == "kubescape-private-cve"
                 and obj["metadata"]["namespace"] == "kubescape")
         # Empty initial object is an explicit not-yet-assessed condition.
         if not obj.get("data"):
@@ -492,11 +503,11 @@ def cve_main(token):
         outcomes = [publisher.sync(e) for e in ready if e["findings"] or e["otherHighCriticalMatches"]]
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
-                          "expectedWorkloads": len(ALLOWED), "created": outcomes.count("created"),
+                          "expectedWorkloads": len(CVE_ALLOWED), "created": outcomes.count("created"),
                           "updated": outcomes.count("updated"), "pending": pending}), flush=True)
         if pending:
             raise PublisherFailure("cve_pending")
-        if len(ready) != len(ALLOWED):
+        if len(ready) != len(CVE_ALLOWED):
             raise PublisherFailure("cve_coverage_incomplete")
     except PublisherFailure:
         raise
