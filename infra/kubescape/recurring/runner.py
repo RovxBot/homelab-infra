@@ -945,7 +945,15 @@ def main():
             return 0
         db.require(not args.local, "local_read_only")
         if args.mode == "refresh":
-            return refresh_inventory(api, config, args.history)
+            try:
+                return refresh_inventory(api, config, args.history)
+            except db.Rejected as error:
+                if error.reason != "duplicate_execution":
+                    raise
+                # A concurrent qualified scan owns the lock. Do not renew
+                # evidence or trigger a redundant Job failure for this skip.
+                print(json.dumps({"mode": "refresh", "state": "skipped", "reason": "assessment_active"}))
+                return 0
         return Runner(api, config, expected, args.history, args.mode).run()
     except Exception as error:
         print(json.dumps({"state": "failed", "reasons": [getattr(error, "reason", "runner_unavailable")], "errorType": type(error).__name__}))
