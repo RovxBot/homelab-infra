@@ -251,6 +251,7 @@ class PrivateGitea:
                 require(isinstance(item, dict) and type(item.get("number")) is int
                         and item["number"] > 0 and isinstance(item.get("body"), str))
                 if not item.get("pull_request") and marker(key) in item["body"]:
+                    require(item["body"].count(marker(key)) == 1)
                     candidates.append(item)
             if len(part) < 50:
                 require(len(candidates) <= 1)
