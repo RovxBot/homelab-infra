@@ -145,3 +145,31 @@ subjects:
   - kind: ServiceAccount
     name: security-receiver
     namespace: kubescape
+
+---
+# Only the independently TokenReview-validated publishing Job Pod may read
+# the receiver's already-filtered public summary. Dynamic Job Pod names cannot
+# be expressed as RBAC resourceNames; this remains get-only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-publisher-pod
+  namespace: monitoring
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-publisher-pod
+  namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-publisher-pod
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
