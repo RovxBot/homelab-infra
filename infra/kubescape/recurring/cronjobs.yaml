@@ -258,3 +258,124 @@ spec:
                   audience: kubescape.io
                   expirationSeconds: 3600
                   path: token
+---
+# Read-only assessment refresh: same PVC lock, no scanner submission.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kubescape-assessment-refresh
+  namespace: kubescape
+  labels: &id001
+    homelab.cooked.beer/owner: sam
+    kubescape.io/ignore: 'true'
+    app.kubernetes.io/name: kubescape-assessment
+spec:
+  schedule: "7,37 * * * *"
+  timeZone: Etc/UTC
+  suspend: false
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 180
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels: *id001
+        spec:
+          serviceAccountName: kubescape-assessment
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          terminationGracePeriodSeconds: 30
+          nodeSelector:
+            kubernetes.io/os: linux
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: kubevuln
+                topologyKey: kubernetes.io/hostname
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+          - name: history-directory
+            image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+            command:
+            - python3
+            - -B
+            - -c
+            - from pathlib import Path; p=Path('/volume/assessments'); p.mkdir(mode=0o770,exist_ok=True);
+              assert p.is_dir() and not p.is_symlink()
+            securityContext: &id002
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                cpu: 100m
+                memory: 64Mi
+            volumeMounts:
+            - name: history
+              mountPath: /volume
+          containers:
+          - name: assessment
+            image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+            command:
+            - python3
+            - -B
+            - -c
+            - import json,sys,runpy; from pathlib import Path; b=json.loads(Path('/code/client-bundle.json').read_text());
+              [Path('/tmp/'+k).write_text(v) for k,v in b.items()]; sys.path.insert(0,'/tmp');
+              runpy.run_path('/code/runner.py',run_name='__main__')
+            - refresh
+            securityContext: *id002
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+                ephemeral-storage: 64Mi
+              limits:
+                cpu: 300m
+                memory: 256Mi
+                ephemeral-storage: 128Mi
+            volumeMounts:
+            - name: code
+              mountPath: /code
+              readOnly: true
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: history
+              mountPath: /history
+              subPath: assessments
+            - name: tmp
+              mountPath: /tmp
+          volumes:
+          - name: code
+            configMap:
+              name: kubescape-assessment-code
+          - name: config
+            configMap:
+              name: kubescape-assessment-config
+          - name: history
+            persistentVolumeClaim:
+              claimName: kubescape-kubevuln
+          - name: tmp
+            emptyDir:
+              sizeLimit: 64Mi
