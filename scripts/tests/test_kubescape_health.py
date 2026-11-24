@@ -42,6 +42,8 @@ except Exception:
 ''')
             date.chmod(0o755)
             values = values or [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
+            if len(values) == 5:
+                values = [*values, 'healthy', stamp(-1), '9', '9']
             result = subprocess.run(['sh', '-c', 'set -eu\n' + source.replace('/work/', str(root) + '/') + '\nassessment_health\n'],
                                     env=dict(os.environ, PATH=str(root) + ':' + os.environ['PATH'],
                                              ASSESSMENT_FIXTURE='|'.join(values), ASSESSMENT_ERROR=str(int(error))),
@@ -80,6 +82,21 @@ except Exception:
                 result = self.health(values)
                 self.assertEqual(result['status'], state)
                 self.assertEqual(result[mode]['state'], state)
+
+    def test_cohort_health_requires_all_targets_and_fresh_evidence(self):
+        base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
+        for fields, expected in (
+                (['healthy', stamp(-1), '9', '9'], 'healthy'),
+                (['unknown', stamp(-1), '9', '8'], 'unknown'),
+                (['healthy', stamp(1), '9', '9'], 'stale'),
+                (['healthy', stamp(-1), '9', '10'], 'unknown'),
+                (['healthy', stamp(-1), 'private', '9'], 'unknown'),
+                (['', '', '', ''], 'unknown')):
+            with self.subTest(fields=fields):
+                result = self.health(base + fields)
+                self.assertEqual(result['status'], expected)
+                self.assertEqual(result['coverage']['state'], expected)
+                self.assertNotIn('private', json.dumps(result))
 
     def test_missing_failed_and_untrusted_api_data_stays_minimal(self):
         for error in (False, True):
