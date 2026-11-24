@@ -121,12 +121,15 @@ jobs:
           import yaml
           text = open('.work/kubescape-preflight/recurring-kyverno.yaml').read()
           report = yaml.safe_load(text[text.index('apiVersion:'):])
-          # The explicitly opted-in disposable test adds exactly eight policy passes.
+          # Current collector baseline: 20 checks; opt-in disposable
+          # R1000 fixture: +8; one reviewed, nonprivileged receiver
+          # Deployment: +7. Require all checks to PASS, never weaken policy.
           source = yaml.safe_load(open('infra/kubescape/kustomization.yaml'))
           trigger = '../../ops/security-collector/acceptance/trigger'
           count = source['resources'].count(trigger)
           assert count in (0, 1), 'unexpected duplicate R1000 fixture'
-          expected = 20 + 8 * count
+          assert source['resources'].count('receiver') == 1, 'receiver activation missing/duplicated'
+          expected = 20 + 8 * count + 7
           assert report['summary'] == {'pass': expected, 'fail': 0, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
           PY
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
