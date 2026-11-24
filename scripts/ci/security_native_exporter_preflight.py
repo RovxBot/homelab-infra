@@ -68,18 +68,26 @@ def candidate(raw):
         raise ValueError("unexpected_syslog_exporter")
     if exporters.get("alertManagerExporterUrls") not in ([], None):
         raise ValueError("unexpected_alertmanager_exporter")
-    proposed = deepcopy(baseline)
-    proposed["exporters"]["httpExporterConfig"] = deepcopy(EXPORTER)
-    changed = {key for key in baseline if baseline[key] != proposed.get(key)}
-    if changed != {"exporters"}:
+    # Preserve the upstream chart's *original bytes*, including whitespace,
+    # numeric representation, key order and all other exporter fields. Insert
+    # one native HTTP exporter key at a single verified chart-only anchor.
+    anchor = '    "exporters": {\\n'.replace('\\n', '\n')
+    if raw.count(anchor) != 1:
+        raise ValueError("unexpected_vendor_exporter_anchor")
+    insert = ('      "httpExporterConfig": '
+              + json.dumps(EXPORTER, separators=(",", ":"))
+              + ',\\n'.replace('\\n', '\n'))
+    proposed_raw = raw.replace(anchor, anchor + insert, 1)
+    proposed = load_config(proposed_raw)
+    if {key for key in baseline if baseline[key] != proposed.get(key)} != {"exporters"}:
         raise ValueError("unapproved_configuration_drift")
     original_exporters = deepcopy(proposed["exporters"])
     del original_exporters["httpExporterConfig"]
-    if original_exporters != exporters:
+    if original_exporters != exporters or proposed["exporters"]["httpExporterConfig"] != EXPORTER:
         raise ValueError("non_http_exporter_modified")
-    # Keep upstream-provided config keys exactly; only a documented HTTP
-    # exporter field is inserted. One ConfigMap string must be patched atomically.
-    return json.dumps(proposed, indent=4, ensure_ascii=False) + "\n"
+    if proposed_raw.replace(insert, "", 1) != raw:
+        raise ValueError("upstream_chart_bytes_changed")
+    return proposed_raw
 
 
 def configmap_patch(raw, new):
