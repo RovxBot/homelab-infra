@@ -328,6 +328,12 @@ spec:
           enabled: false
     global:
       enableClusterWideSecretAccess: false
+      # Official chart support for one trusted receiver CA, mounted read-only
+      # under /etc/ssl/certs. Secret already exists from merged #2214.
+      # Keep default certificate trust; never replace or disable system roots.
+      extraCaCertificates:
+        enabled: true
+        secretName: security-receiver-ca
       apiAuth:
         enabled: true
       kubescapePsp:
