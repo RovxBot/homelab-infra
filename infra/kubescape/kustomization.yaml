@@ -7,8 +7,7 @@ resources:
   # Receiver TLS Secrets are encrypted at rest; encrypted manifests are
   # reconciled by the Kubescape Flux Kustomization's SOPS decryption.
   # Receiver workload and agent HTTP export remain disabled separately.
-  - ../../secrets/security-receiver-ca.enc.yaml
-  - ../../secrets/security-receiver-tls.enc.yaml
+  - ../../secrets
   - recurring/rbac.yaml
   - recurring/cronjobs.yaml
   - collector
