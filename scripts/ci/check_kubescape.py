@@ -355,7 +355,9 @@ def check_assessment_alert(before, after):
                               conditions=["[STATUS] == 200", "[BODY].receiverCapacity == healthy"])
     policy_assurance = dict(reporting, name="kyverno-policy-assurance",
                             conditions=["[STATUS] == 200", "[BODY].kyvernoAssurance == healthy"])
-    allowed = [expected, receiver_transport, reporting, cve_reporting, capacity_reporting, policy_assurance] + [dict(name='security-collector-' + name, group='cluster',
+    advisory_reporting = dict(reporting, name="security-advisory-reporting",
+                              conditions=["[STATUS] == 200", "[BODY].advisoryPublisher == healthy"])
+    allowed = [expected, receiver_transport, reporting, cve_reporting, capacity_reporting, policy_assurance, advisory_reporting] + [dict(name='security-collector-' + name, group='cluster',
         url='http://security-collector.kubescape.svc.cluster.local:8080/' + path,
         interval='1m', conditions=['[STATUS] == 200', condition], alerts=[])
         for name, path, condition in (('process', 'readyz', '[BODY].ready == true'),
