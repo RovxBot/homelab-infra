@@ -40,8 +40,8 @@ EXPORTER = {
     "enableAlertBulking": False,
 }
 EXPORTER_PATH = "/v1/runtimealerts"
-SCOPE = ["metal3", "metal6"]
-NAMESPACES = ["homepage", "memos", "kubescape-runtime-test"]
+SCOPE = ["metal0", "metal2", "metal3", "metal4", "metal5", "metal6", "metal7", "metal8"]
+NAMESPACES = ["homepage", "memos", "kubescape-runtime-test", "koito", "monitoring", "openbrew", "stirling-pdf"]
 
 
 def unique_pairs(pairs):
