@@ -1,0 +1,191 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyverno-policy-assurance
+  namespace: kyverno
+data:
+  assurance.py: |
+    """Read-only assurance of the active CEL policy inventory and exception deadlines."""
+    from datetime import date, datetime, timezone
+    import json
+    import re
+    import ssl
+    from pathlib import Path
+    import urllib.parse
+    import urllib.request
+    
+    EXPECTED = [["ValidatingPolicy","","platform-pod-standards-require-owner-label","Deny"],["ValidatingPolicy","","platform-pod-standards-require-requests-and-limits","Deny"],["ValidatingPolicy","","platform-pod-standards-require-runtime-hardening","Deny"],["ValidatingPolicy","","platform-pod-standards-disallow-host-network","Deny"],["ValidatingPolicy","","platform-pod-standards-require-digest-pinned-images","Deny"],["ValidatingPolicy","","platform-pod-standards-disallow-latest-tags","Deny"],["ValidatingPolicy","","platform-pod-standards-require-probes","Deny"],["ValidatingPolicy","","platform-namespace-standards","Deny"],["ValidatingPolicy","","platform-flux-guardrails","Audit"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-restricted-with-sanitizer-capability","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-bound-job-environment","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-one-job-container","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-drop-all-and-only-allow-ptrace","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-ptrace-only-in-sanitizer-jobs","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-ordinary-job-identity","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-bounded-sanitizer-identity","Deny"],["NamespacedValidatingPolicy","gitea-jobs","gitea-job-security-no-extra-job-credentials","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-restricted-with-sanitizer-capability","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-bound-job-environment","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-one-job-container","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-bounded-toolchain-capabilities","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-no-extra-job-credentials","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-no-mounted-registry-credential","Deny"],["NamespacedValidatingPolicy","wowdecomp-ci-jobs","wowdecomp-linux-security-no-registry-credential-in-environment","Deny"],["ValidatingPolicy","","kubescape-runtime-boundary","Deny"]]
+    EXCEPTIONS = {"chart-managed-workloads", "gpu-operator-workloads", "home-assistant",
+                  "mutable-image-tags", "privileged-namespaces", "wotlk-latest-tag"}
+    BASE = "/apis/policies.kyverno.io/v1/"
+    WARNING_DAYS = 14
+    
+    
+    def inventory(get, today):
+        findings = {"policyInventory": 0, "policyConfiguration": 0, "policyReadiness": 0,
+                    "exceptionInventory": 0, "exceptionMetadata": 0,
+                    "exceptionDue": 0, "exceptionExpired": 0}
+        expected = {(kind, ns, name): action for kind, ns, name, action in EXPECTED}
+        seen = set()
+        for kind, resource in (("ValidatingPolicy", "validatingpolicies"),
+                               ("NamespacedValidatingPolicy", "namespacedvalidatingpolicies")):
+            for obj in get(BASE + resource):
+                meta, spec = obj["metadata"], obj["spec"]
+                key = (kind, meta.get("namespace", ""), meta["name"])
+                if key not in expected or key in seen:
+                    findings["policyInventory"] += 1
+                    continue
+                seen.add(key)
+                if (spec.get("failurePolicy") != "Fail" or spec.get("validationActions") != [expected[key]]
+                        or spec.get("evaluation", {}).get("admission", {}).get("enabled") is not True):
+                    findings["policyConfiguration"] += 1
+                status = obj.get("status", {}).get("conditionStatus", {})
+                conditions = status.get("conditions", [])
+                if (status.get("ready") is not True or not conditions
+                        or any(c.get("status") != "True" for c in conditions)):
+                    findings["policyReadiness"] += 1
+        findings["policyInventory"] += len(set(expected) - seen)
+        seen = set()
+        for obj in get(BASE + "policyexceptions"):
+            meta = obj["metadata"]
+            name = meta["name"]
+            if meta.get("namespace") != "kyverno" or name not in EXCEPTIONS or name in seen:
+                findings["exceptionInventory"] += 1
+                continue
+            seen.add(name)
+            labels, annotations = meta.get("labels", {}), meta.get("annotations", {})
+            value = annotations.get("kyverno.cooked.beer/expires-at", "")
+            try:
+                if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+                    raise ValueError()
+                expiry = date.fromisoformat(value)
+                if (not labels.get("homelab.cooked.beer/owner")
+                        or not annotations.get("kyverno.cooked.beer/reason")
+                        or not (annotations.get("github.cooked.beer/issue-create") == "true"
+                                or re.fullmatch(r"https://github[.]com/[^/]+/[^/]+/issues/[0-9]+",
+                                                annotations.get("github.cooked.beer/issue-url", "")))):
+                    raise ValueError()
+            except (ValueError, TypeError):
+                findings["exceptionMetadata"] += 1
+                continue
+            days = (expiry - today).days
+            if days < 0:
+                findings["exceptionExpired"] += 1
+            elif days <= WARNING_DAYS:
+                findings["exceptionDue"] += 1
+        findings["exceptionInventory"] += len(EXCEPTIONS - seen)
+        return findings
+    
+    
+    def main():
+        try:
+            root = Path("/var/run/secrets/kubernetes.io/serviceaccount")
+            token = (root / "token").read_text().strip()
+            context = ssl.create_default_context(cafile=str(root / "ca.crt"))
+            def get(path):
+                items, cursor = [], ""
+                for _ in range(10):
+                    query = urllib.parse.urlencode({"limit": 100, "continue": cursor})
+                    request = urllib.request.Request("https://kubernetes.default.svc" + path + "?" + query,
+                                                     headers={"Authorization": "Bearer " + token})
+                    with urllib.request.urlopen(request, context=context, timeout=10) as response:
+                        value = json.load(response)
+                    if not isinstance(value.get("items"), list):
+                        raise ValueError()
+                    items.extend(value["items"])
+                    cursor = value.get("metadata", {}).get("continue", "")
+                    if not cursor:
+                        return items
+                raise ValueError()
+            findings = inventory(get, datetime.now(timezone.utc).date())
+            # Only aggregate counts, never policy identities, exception expressions or raw errors.
+            print(json.dumps(findings, sort_keys=True), flush=True)
+            return int(any(findings.values()))
+        except Exception:
+            print('{"status":"unknown","phase":"policy_inventory"}', flush=True)
+            return 1
+    
+    
+    if __name__ == "__main__":
+        raise SystemExit(main())
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kyverno-policy-assurance
+  namespace: kyverno
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-policy-assurance
+rules:
+  - apiGroups: ["policies.kyverno.io"]
+    resources: ["validatingpolicies", "namespacedvalidatingpolicies", "policyexceptions"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kyverno-policy-assurance
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kyverno-policy-assurance
+subjects:
+  - kind: ServiceAccount
+    name: kyverno-policy-assurance
+    namespace: kyverno
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kyverno-policy-assurance
+  namespace: kyverno
+spec:
+  schedule: "25 * * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 180
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            homelab.cooked.beer/owner: sam
+        spec:
+          serviceAccountName: kyverno-policy-assurance
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: assurance
+              image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+              command: ["python", "-B", "/opt/assurance/assurance.py"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 150m
+                  memory: 128Mi
+              volumeMounts:
+                - name: script
+                  mountPath: /opt/assurance
+                  readOnly: true
+          volumes:
+            - name: script
+              configMap:
+                name: kyverno-policy-assurance
