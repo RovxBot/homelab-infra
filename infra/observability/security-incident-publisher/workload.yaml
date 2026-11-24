@@ -71,6 +71,7 @@ spec:
           labels:
             app.kubernetes.io/name: security-incident-publisher
             homelab.cooked.beer/component: security-native-issues
+            homelab.cooked.beer/owner: sam
         spec:
           serviceAccountName: security-incident-publisher
           automountServiceAccountToken: false
