@@ -252,6 +252,30 @@ class CVEPublisherTests(unittest.TestCase):
             self.assertIn("CVE-2026-4738",issue["body"])
             self.assertNotIn("sha256:",issue["body"])
 
+    def test_empty_projection_is_distinct_from_invalid_projection_and_api_failure(self):
+        obj={"kind":"ConfigMap","metadata":{"namespace":"kubescape","name":"kubescape-public-cve"}}
+        with patch.object(pub.Path, "read_text", return_value="private-token"), \
+                patch.object(pub.ssl, "create_default_context"), patch.object(pub, "build_opener"), \
+                patch.object(pub, "request_json") as request:
+            for data, expected in ((None,"cve_coverage_missing"), ({},"cve_coverage_missing"),
+                                   ({"projection.json":"private-invalid-json"},"cve_projection_invalid"),
+                                   ({"private":"secret"},"cve_projection_invalid")):
+                with self.subTest(expected=expected):
+                    request.return_value=dict(obj,data=data)
+                    with self.assertRaises(pub.PublisherFailure) as raised:
+                        pub.fetch_cve_projection()
+                    self.assertEqual(raised.exception.code,expected)
+                    self.assertNotIn("private",str(raised.exception))
+            request.side_effect=pub.PublisherFailure("cve_api_http_403")
+            with self.assertRaises(pub.PublisherFailure) as raised:
+                pub.fetch_cve_projection()
+            self.assertEqual(raised.exception.code,"cve_api_http_403")
+
+    def test_cve_api_failure_code_is_static(self):
+        import urllib.error
+        error=urllib.error.HTTPError("https://private.example",403,"private-token",{},None)
+        self.assertEqual(pub.boundary_failure("cve_api",error).code,"cve_api_http_403")
+
     def test_manual_memos_issue_identity_is_exact(self):
         key=pub.cve_key("memos/Deployment/memos")
         issue={"number":2181,"title":pub.MEMOS_TITLE,"body":"Existing triage for memos/Deployment/memos"}
