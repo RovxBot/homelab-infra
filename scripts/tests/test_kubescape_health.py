@@ -172,6 +172,13 @@ print(int(value.timestamp()) if args[-1] == '+%s' else value.strftime('%Y-%m-%dT
         controllers = '\n'.join('kyverno-'+name+'-controller|3|3|'+str(count)+'|'+str(count)
                                for name,count in [('admission',2),('reports',1),('background',1),('cleanup',1)])
         self.assertEqual(self.reporting(native,policy,controllers)['status'],'healthy')
+        assurance = policy.replace('kyverno-github-issue-sync','kyverno-policy-assurance')
+        self.assertEqual(self.reporting(native,policy+'\n'+assurance,controllers)['kyvernoAssurance'],'healthy')
+        failed_assurance = '2026-11-22T07:55:00Z|CronJob/kyverno-policy-assurance||True|'
+        result = self.reporting(native,policy+'\n'+assurance+'\n'+failed_assurance,controllers)
+        self.assertEqual(result['status'],'healthy')
+        self.assertEqual(result['kyvernoAssurance'],'failed')
+        self.assertEqual(self.reporting(native,policy,controllers)['kyvernoAssurance'],'unknown')
         failed = '2026-11-22T07:59:00Z|security-incident-publisher-2|uid-2|CronJob/security-incident-publisher||True'
         active = '2026-11-22T07:59:00Z|security-incident-publisher-2|uid-2|CronJob/security-incident-publisher||'
         failed_pod = 'Job/security-incident-publisher-2|uid-2|1|security-v1|failed|healthy'
