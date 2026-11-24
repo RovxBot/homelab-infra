@@ -437,6 +437,35 @@ def run(args):
         # compatibility-only tooling change does not activate that task scope.
         if scope_guard_required(paths):
             assert not check_scope(paths), "Protected infrastructure changed"
+            # A receiver certificate-reissue Pod restart MUST be delivered
+            # atomically with its encrypted leaf Secret in the same GitOps PR.
+            # A restart annotation alone would keep the incompatible TLS cert.
+            receiver_deployment = "infra/kubescape/receiver/workload.yaml"
+            if receiver_deployment in paths:
+                before_receiver = [
+                    obj for obj in yaml.safe_load_all(subprocess.check_output(
+                        ["git", "show", args.base_ref + ":" + receiver_deployment],
+                        cwd=ROOT)) if isinstance(obj, dict)
+                        and obj.get("kind") == "Deployment"
+                ][0]
+                after_receiver = [
+                    obj for obj in yaml.safe_load_all((ROOT / receiver_deployment).read_text())
+                    if isinstance(obj, dict) and obj.get("kind") == "Deployment"
+                ][0]
+                old = before_receiver["spec"]["template"]["metadata"].get("annotations", {})
+                new = after_receiver["spec"]["template"]["metadata"].get("annotations", {})
+                if old.get("homelab.cooked.beer/tls-leaf-reissue") != new.get(
+                    "homelab.cooked.beer/tls-leaf-reissue"
+                ):
+                    assert new.get("homelab.cooked.beer/tls-leaf-reissue") == (
+                        "strict-x509-aki-20261124-01"
+                    ), "unexpected TLS restart marker"
+                    assert "secrets/security-receiver-tls.enc.yaml" in paths, (
+                        "TLS leaf reissue must include the encrypted leaf Secret"
+                    )
+                    assert "secrets/security-receiver-ca.enc.yaml" not in paths, (
+                        "the existing trust CA must not be rotated"
+                    )
             policy_source = "infra/kyverno-policies/kustomization.yaml"
             if policy_source in paths:
                 before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + policy_source], cwd=ROOT))
