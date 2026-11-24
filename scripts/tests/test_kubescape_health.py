@@ -44,6 +44,8 @@ except Exception:
             values = values or [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
             if len(values) == 5:
                 values = [*values, 'healthy', stamp(-1), '9', '9']
+            if len(values) == 9:
+                values = [*values, '5']
             result = subprocess.run(['sh', '-c', 'set -eu\n' + source.replace('/work/', str(root) + '/') + '\nassessment_health\n'],
                                     env=dict(os.environ, PATH=str(root) + ':' + os.environ['PATH'],
                                              ASSESSMENT_FIXTURE='|'.join(values), ASSESSMENT_ERROR=str(int(error))),
@@ -97,6 +99,15 @@ except Exception:
                 self.assertEqual(result['status'], expected)
                 self.assertEqual(result['coverage']['state'], expected)
                 self.assertNotIn('private', json.dumps(result))
+
+    def test_previous_canary_posture_cannot_pass_expanded_scope(self):
+        base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24),
+                'healthy', stamp(-1), '9', '9']
+        for scope in ('', '1', '4', '6', 'private'):
+            with self.subTest(scope=scope):
+                result = self.health(base + [scope])
+                self.assertEqual(result['posture']['state'], 'unknown')
+                self.assertEqual(result['status'], 'unknown')
 
     def test_missing_failed_and_untrusted_api_data_stays_minimal(self):
         for error in (False, True):
