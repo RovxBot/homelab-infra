@@ -26,7 +26,7 @@ def check_runner_images(pod):
 
 def check(resources):
     jobs = [r for r in resources if r["kind"] == "CronJob"]
-    assert {r["metadata"]["name"] for r in jobs} == {"kubescape-assessment-vulnerability", "kubescape-assessment-posture"}
+    assert {r["metadata"]["name"] for r in jobs} == {"kubescape-assessment-vulnerability", "kubescape-assessment-posture", "kubescape-assessment-refresh"}
     assert len({c['image'] for job in jobs for c in
                 job['spec']['jobTemplate']['spec']['template']['spec']['containers'] +
                 job['spec']['jobTemplate']['spec']['template']['spec']['initContainers']}) == 1, 'recurring jobs must use one reviewed runner pin'
@@ -70,10 +70,11 @@ def check(resources):
     for job in jobs:
         spec = job["spec"]
         assert spec["concurrencyPolicy"] == "Forbid" and spec["timeZone"] == "Etc/UTC"
-        expected = "13 19 * * *" if job["metadata"]["name"].endswith("vulnerability") else "13 20 * * *"
+        mode = job["metadata"]["name"].rsplit("-", 1)[-1]
+        expected = {"vulnerability": "13 19 * * *", "posture": "13 20 * * *", "refresh": "7,37 * * * *"}[mode]
         assert spec["schedule"] == expected and spec["startingDeadlineSeconds"] == 300
         jspec = spec["jobTemplate"]["spec"]
-        assert jspec["backoffLimit"] == 0 and jspec["activeDeadlineSeconds"] == 1800
+        assert jspec["backoffLimit"] == 0 and jspec["activeDeadlineSeconds"] == (180 if mode == "refresh" else 1800)
         pod = jspec["template"]["spec"]
         assert pod["restartPolicy"] == "Never" and pod["serviceAccountName"] == "kubescape-assessment"
         assert pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"] == [{
@@ -87,7 +88,12 @@ def check(resources):
         mounts = pod["containers"][0]["volumeMounts"]
         assert next(m for m in mounts if m["name"] == "history")["subPath"] == "assessments"
         assert next(v for v in pod["volumes"] if v["name"] == "history")["persistentVolumeClaim"]["claimName"] == "kubescape-kubevuln"
-        assert next(v for v in pod["volumes"] if v["name"] == "api-token")["projected"]["sources"][0]["serviceAccountToken"]["audience"] == "kubescape.io"
+        assert pod["containers"][0]["command"][-1] == mode
+        if mode == "refresh":
+            assert not any(v["name"] == "api-token" for v in pod["volumes"])
+            assert not any(m["name"] == "api-token" for m in mounts)
+        else:
+            assert next(v for v in pod["volumes"] if v["name"] == "api-token")["projected"]["sources"][0]["serviceAccountToken"]["audience"] == "kubescape.io"
     for resource in resources:
         for rule in resource.get("rules", []):
             assert not set(rule.get("resources", [])) & {"secrets", "nodes/proxy", "pods/exec", "pods/attach"}
