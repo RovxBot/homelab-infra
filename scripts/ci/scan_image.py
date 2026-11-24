@@ -13,7 +13,7 @@ from urllib.request import Request, urlopen
 
 VERSION = "0.121.3"
 ARCHIVE = "grype_" + VERSION + "_linux_amd64.tar.gz"
-RELEASE = "https://api.github.com/repos/anchore/grype/releases/tags/v" + VERSION
+ASSET_DIGEST = "sha256:e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85"
 DOWNLOAD = "https://github.com/anchore/grype/releases/download/v" + VERSION + "/" + ARCHIVE
 IMAGE = "ghcr.io/rovxbot/security-receiver@"
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
@@ -25,16 +25,9 @@ def require(condition):
         raise ValueError("scan_contract")
 
 
-def release_asset(value):
-    require(value["tag_name"] == "v" + VERSION and value["immutable"] is True
-            and value["draft"] is False and value["prerelease"] is False)
-    assets = [a for a in value["assets"] if a["name"] == ARCHIVE]
-    require(len(assets) == 1)
-    asset = assets[0]
-    require(asset["browser_download_url"] == DOWNLOAD and asset["state"] == "uploaded"
-            and DIGEST.fullmatch(asset["digest"]) and type(asset["size"]) is int
-            and 0 < asset["size"] <= 128*1024**2)
-    return asset
+def verify_asset(data):
+    require(0 < len(data) <= 128*1024**2)
+    require("sha256:"+hashlib.sha256(data).hexdigest() == ASSET_DIGEST)
 
 
 def fetch(url, limit):
@@ -48,9 +41,8 @@ def fetch(url, limit):
 
 
 def install(directory):
-    asset=release_asset(json.loads(fetch(RELEASE,2*1024**2)))
-    data=fetch(DOWNLOAD,asset["size"])
-    require(len(data)==asset["size"] and "sha256:"+hashlib.sha256(data).hexdigest()==asset["digest"])
+    data=fetch(DOWNLOAD,128*1024**2)
+    verify_asset(data)
     archive=directory/"grype.tgz"
     archive.write_bytes(data)
     binary=directory/"grype"
@@ -59,7 +51,7 @@ def install(directory):
         require(member.isfile() and 0 < member.size <= 256*1024**2)
         binary.write_bytes(tar.extractfile(member).read())
     binary.chmod(0o500)
-    return binary,asset["digest"]
+    return binary,ASSET_DIGEST
 
 
 def provenance(report,digest,source_sha,asset_digest,now):
@@ -113,9 +105,12 @@ def main():
         output.write_text(json.dumps(safe,sort_keys=True,indent=2)+"\n")
         print("Immutable image scan completed; vulnerability details withheld from public CI.")
         return 0
-    except Exception:
-        output.write_text(json.dumps({"schema":1,"state":"unknown","phase":phase})+"\n")
-        print("Image scan unavailable at phase="+phase)
+    except Exception as exc:
+        category = type(exc).__name__
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]{0,60}", category):
+            category = "UnknownError"
+        output.write_text(json.dumps({"schema":1,"state":"unknown","phase":phase,"category":category})+"\n")
+        print("Image scan unavailable at phase="+phase+" category="+category)
         return 1
 
 
