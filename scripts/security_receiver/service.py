@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 from pathlib import Path
 import re
+import sqlite3
 import ssl
 
 from .native import Rejected, MAX_BODY, decode, normalize, require
@@ -114,7 +115,7 @@ def make_handler(receiver):
                     self.send_json(403, {"error":"unauthenticated"})
                 else:
                     self.send_json(422, {"error":"invalid_event"})
-            except (OSError, ValueError):
+            except (OSError, ValueError, sqlite3.Error):
                 self.send_json(503, {"error":"temporarily_unavailable"})
 
         def log_message(self, *_args):
