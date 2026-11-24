@@ -5,7 +5,7 @@ protected, statically allowlisted projection, and never log credentials,
 responses, private source data or failed HTTP bodies.
 """
 import base64
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import fcntl
 import hashlib
 import json
@@ -201,7 +201,8 @@ def fetch_projection():
 
 
 class GitHub:
-    def __init__(self, token, requester=request_json):
+    def __init__(self, token, requester=request_json, title_prefix="Security (Kubescape)"):
+        self.title_prefix = title_prefix
         self.token = token
         self.requester = requester
         self.opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(
@@ -216,7 +217,7 @@ class GitHub:
     def search(self, key):
         # Search is only a discovery aid. An on-disk intent fences a create
         # before POST, so eventually consistent search cannot cause retries.
-        title_query = 'repo:' + REPO + ' in:title "Security (Kubescape)"'
+        title_query = 'repo:' + REPO + ' in:title "' + self.title_prefix + '"'
         result = self.call("/search/issues?q=" + quote_plus(title_query) + "&per_page=100")
         require(result.get("incomplete_results") is False
                 and type(result.get("total_count")) is int
@@ -253,7 +254,9 @@ class GitHub:
 
 
 class DurablePublisher:
-    def __init__(self, connection, github, now=None):
+    def __init__(self, connection, github, now=None, renderer=render, fingerprint=revision, owns=None):
+        self.renderer, self.fingerprint = renderer, fingerprint
+        self.owns = owns or (lambda issue, key: issue["body"].count(marker(key)) == 1)
         self.db = connection
         self.github = github
         self.now = int(time.time()) if now is None else now
@@ -273,8 +276,8 @@ class DurablePublisher:
             self.db.execute("INSERT INTO writes VALUES (?,?)", (self.now, action))
 
     def sync(self, item):
-        title, body = render(item)
-        fp = revision(item)
+        title, body = self.renderer(item)
+        fp = self.fingerprint(item)
         key = item["key"]
         row = self.db.execute(
             "SELECT number,revision,pending_create,pending_update FROM issues WHERE key=?",
@@ -317,7 +320,7 @@ class DurablePublisher:
         issue = self.github.issue(number)
         require(issue.get("number") == number and not issue.get("pull_request")
                 and isinstance(issue.get("body"), str)
-                and issue["body"].count(marker(key)) == 1)
+                and self.owns(issue, key))
         if issue.get("state") != "open":
             return "human_closed"
         if pending_update:
@@ -343,6 +346,135 @@ class DurablePublisher:
             self.db.execute("UPDATE issues SET revision=?,pending_update=NULL WHERE key=?",
                             (fp,key))
         return "updated"
+
+
+CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
+CVE_TITLE = "Security (Kubescape CVE)"
+CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-public-cve"
+MEMOS_ISSUE = 2181
+MEMOS_TITLE = "security(memos): triage and remediate first Kubescape image findings"
+
+
+def cve_key(workload):
+    return hashlib.sha256(("cve:" + workload).encode()).hexdigest()
+
+
+def validate_cve(projection, now=None):
+    now = now or datetime.now(timezone.utc)
+    require(isinstance(projection, dict) and set(projection) == {"schema", "source", "generatedAt", "entries"})
+    require(projection["schema"] == 1 and projection["source"] == "kubescape-cve")
+    generated = datetime.fromisoformat(normalize_date(projection["generatedAt"]).replace("Z", "+00:00"))
+    require(timedelta(0) <= now-generated <= timedelta(hours=26))
+    entries = projection["entries"]
+    require(isinstance(entries, list) and len(entries) == len(ALLOWED))
+    seen, ready = set(), []
+    for entry in entries:
+        require(isinstance(entry, dict) and set(entry) == {"workload", "state", "assessedAt", "findings", "otherHighCriticalMatches"})
+        workload = entry["workload"]
+        require(workload in ALLOWED and workload not in seen)
+        seen.add(workload)
+        require(entry["state"] in ("unknown", "complete"))
+        findings = entry["findings"]
+        other = entry["otherHighCriticalMatches"]
+        require(type(other) is int and 0 <= other <= 1000000)
+        require(isinstance(findings, list) and len(findings) <= 100)
+        if entry["state"] == "unknown":
+            require(entry["assessedAt"] is None and not findings and other == 0)
+            continue
+        assessed = datetime.fromisoformat(normalize_date(entry["assessedAt"]).replace("Z", "+00:00"))
+        require(timedelta(0) <= generated-assessed <= timedelta(hours=72))
+        # Recheck expiry on the publisher's own clock.
+        if now-assessed > timedelta(hours=72):
+            continue
+        ids = set()
+        for finding in findings:
+            require(isinstance(finding, dict) and set(finding) == {"id", "severity", "fixAvailable"})
+            identifier = finding["id"]
+            require(isinstance(identifier, str) and CVE_ID.fullmatch(identifier) and identifier not in ids)
+            ids.add(identifier)
+            require(finding["severity"] in ("High", "Critical") and type(finding["fixAvailable"]) is bool)
+        ready.append(dict(entry, key=cve_key(workload), findings=sorted(findings, key=lambda x: x["id"])))
+    return ready
+
+
+def render_cve(entry):
+    title = CVE_TITLE + ": " + entry["workload"]
+    lines = [marker(entry["key"]), "Verified Kubescape image-assessment summary (public allowlist).",
+             "Affected workload: " + entry["workload"],
+             "Last assessed: " + normalize_date(entry["assessedAt"]),
+             "", "| Advisory | Scanner severity | Fix reported for at least one match |",
+             "| --- | --- | --- |"]
+    lines += ["| " + f["id"] + " | " + f["severity"] + " | " + ("Yes" if f["fixAvailable"] else "Not established") + " |"
+              for f in entry["findings"]]
+    lines += ["", "Additional High/Critical non-CVE matches retained privately: " + str(entry["otherHighCriticalMatches"]),
+              "Inspect the original assessment for affected packages and applicability; a scanner severity is not proof of exploitability.",
+              "Review the owning image dependency and any Renovate proposal, then independently reassess the deployed replacement.",
+              "Never close automatically on absent or stale reports."]
+    return title, "\n".join(lines)
+
+
+def cve_revision(entry):
+    # A daily repeat with identical findings does not create a new comment.
+    return revision({k: v for k, v in entry.items() if k != "assessedAt"})
+
+
+def owns_cve(issue, key):
+    return (issue["body"].count(marker(key)) == 1 or
+            (key == cve_key("memos/Deployment/memos") and issue.get("number") == MEMOS_ISSUE
+             and issue.get("title") == MEMOS_TITLE and "memos/Deployment/memos" in issue["body"]))
+
+
+class CVEGitHub(GitHub):
+    def __init__(self, token):
+        super().__init__(token, title_prefix=CVE_TITLE)
+
+    def search(self, key):
+        found = super().search(key)
+        if key == cve_key("memos/Deployment/memos"):
+            # Explicitly adopt the existing workload triage issue without
+            # replacing its body or creating a competing incident.
+            existing = self.issue(MEMOS_ISSUE)
+            require(owns_cve(existing, key) and not existing.get("pull_request"))
+            require(found is None or found["number"] == MEMOS_ISSUE)
+            return existing
+        return found
+
+
+def fetch_cve_projection():
+    token = Path("/var/run/publisher-api/token").read_text().strip()
+    kube = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(
+        context=ssl.create_default_context(cafile="/var/run/publisher-api/ca.crt")))
+    obj = request_json(kube, CVE_CONFIG, token, phase="kubernetes_api")
+    require(obj.get("kind") == "ConfigMap" and obj["metadata"]["name"] == "kubescape-public-cve"
+            and obj["metadata"]["namespace"] == "kubescape")
+    require(set(obj["data"]) == {"projection.json"})
+    return validate_cve(json.loads(obj["data"]["projection.json"]))
+
+
+def cve_main(token):
+    ready = fetch_cve_projection()
+    fd = os.open("/state/cve-publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    conn = None
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        conn = sqlite3.connect("/state/cve-publisher.sqlite", timeout=5)
+        conn.execute("PRAGMA journal_mode=DELETE")
+        conn.execute("PRAGMA synchronous=FULL")
+        require(conn.execute("PRAGMA quick_check").fetchone()[0] == "ok")
+        publisher = DurablePublisher(conn, CVEGitHub(token), renderer=render_cve,
+                                     fingerprint=cve_revision, owns=owns_cve)
+        # Zero findings is not a resolution signal. Only positive findings
+        # cause writes, and no issue is ever closed or reopened by this source.
+        outcomes = [publisher.sync(e) for e in ready if e["findings"] or e["otherHighCriticalMatches"]]
+        pending = sum(x.startswith("pending_") for x in outcomes)
+        print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
+                          "expectedWorkloads": len(ALLOWED), "created": outcomes.count("created"),
+                          "updated": outcomes.count("updated"), "pending": pending}), flush=True)
+        require(len(ready) == len(ALLOWED) and not pending)
+    finally:
+        if conn is not None:
+            conn.close()
+        os.close(fd)
 
 
 def main():
@@ -384,6 +516,12 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+        if os.environ.get("ENABLE_CVE_PUBLISHER") == "true":
+            try:
+                cve_main(os.environ.get("GITHUB_TOKEN", ""))
+            except Exception:
+                print("security_cve_publisher_failed", flush=True)
+                raise SystemExit(1) from None
     except PublisherFailure as exc:
         # One tightly bounded internal code, never original exception text,
         # response bodies, URLs, event fields, tokens or full tracebacks.
