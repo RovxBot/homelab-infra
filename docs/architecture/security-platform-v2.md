@@ -5,6 +5,25 @@
 **Prepared:** 24 November 2026.  
 **Scope:** eight Talos nodes metal0, metal2, metal3, metal4, metal5, metal6, metal7, metal8.
 
+## Non-negotiable upstream product contracts
+
+The project must use each component **only through documented capabilities and configuration on the pinned version**. GitOps can supply documented configuration; it must not redefine how an upstream product works.
+
+| Product | Supported responsibility | Explicitly prohibited |
+|---|---|---|
+| **Kubescape** | Official Helm installation, posture/CVE scans, node-agent eBPF detection, runtime rules, documented event exporters and API/CRDs | Forked node-agent, fabricated exporter endpoints/fields, unsupported Helm feature bypass, custom in-agent interception, undocumented configuration keys, claiming a digest match without proof |
+| **Kyverno + PSA** | Kubernetes admission control, documented CEL policies, exceptions and policy-report workflows | Runtime threat detection, SIEM/event transport, second custom admission controller, silent fail-open |
+| **Gatus** | Endpoint/control health checks and documented GitHub health alert lifecycle | Per-event ingest, CVE database, security finding dedupe, threat incident auto-resolution |
+| **Renovate** | Documented dependency discovery, grouping, schedules, advisory/vulnerability alert PRs and manual reviews | Direct Kubescape finding ingestion without a documented Renovate integration, image scanner replacement, automatic remediation |
+| **Flux** | Official HelmRelease, Kustomize, documented postRenderers, reconciliation and drift reporting | Untracked live `kubectl edit` config that Helm will overwrite, hidden imperatively managed chart internals |
+| **Our integration** | Read documented exporter/API contracts; persist private evidence and publish carefully redacted incidents | Modifying upstream tools, assuming unsupported data contracts, publishing raw security payloads |
+
+**Configuration is not modification of product behavior:** Kubescape explicitly documents its native stdout, Syslog, Alertmanager and HTTP exporters, including editing the node-agent `config.json` ConfigMap for HTTP delivery. Flux separately documents `HelmRelease.spec.postRenderers`. Both mechanisms are upstream-supported, but **their combination for chart 1.42.0 is not accepted until its rendered output is proven**. Helm chart source gates HTTP configuration on Synchronizer; do not invent a value that bypasses this gate or enable Synchronizer merely to carry our events. A minimal Helm post-render ConfigMap change is permitted *only* when it expresses Kubescape's documented node-agent exporter configuration, preserves all other chart-generated keys, is deterministic on chart upgrades, and passes explicit source/renderer tests. If this remains operationally brittle, use an independently supported Syslog/Alertmanager exporter via chart values or stdout feeding a standard supported forwarder. Never fork or mutate the node-agent binary to force delivery.
+
+For every PR that touches a third-party component: cite the exact upstream documentation, chart/version, values/CRDs used, rendered result, and the boundary between native features and our integration. If a required behavior is **not** documented or provable, stop that path and pick a documented alternative.
+
+References: [Kubescape runtime exporters](https://kubescape.io/docs/operator/runtime-threat-detection/), [Kubescape documented ConfigMap HTTP setup](https://kubescape.io/docs/operator/runtime-threat-routing-to-graylog/), [Flux HelmRelease post-renderers](https://fluxcd.io/flux/components/helm/helmreleases/), [Gatus alerting](https://gatus.io/docs/alerting-getting-started), [Kyverno ValidatingPolicy](https://kyverno.io/docs/policy-types/validating-policy/), [Renovate configuration](https://docs.renovatebot.com/configuration-options/).
+
 ## Decision
 
 Use the **existing official Kubescape Helm deployment and its native node-agent runtime alert exporter**. Stop using Kubernetes Pod logs as the primary security event transport. Build **one small private event receiver** with a persistent SQLite store and a **separate, tightly restricted GitHub issue publisher**. Reuse existing normalization/incident/deduplication logic where proven; remove the custom log-polling engine and exact named agent-Pod enrollment after cutover.
@@ -13,8 +32,8 @@ No hosted Kubescape backend, Prometheus, Grafana, Loki, Alertmanager, alternate 
 
 **Do not turn on the HTTP exporter by Helm value alone.** The upstream node-agent ConfigMap template has a chart-level gate that renders `httpExporterConfig` only when Synchronizer is enabled. Our deployment intentionally disables Synchronizer. The *packaged, pinned chart 1.42.0* must be rendered/tested to confirm its exact behavior. Select one supported minimal approach in the implementation PR:
 1. Prefer a future or separately qualified chart-native opt-in independent of Synchronizer if available.
-2. Otherwise use **one narrowly reviewed Helm post-render change** to the node-agent ConfigMap's exporter settings, with a deterministic rendered-config assertion and an upgrade/rollback contract. A patch that replaces all of `data.config.json` wholesale without preserving its Helm-rendered fields is **not** acceptable.
-3. If neither is maintainable, stop and explicitly evaluate the already-exposed Alertmanager exporter contract (including authenticated delivery), rather than silently enabling Synchronizer or deploying a whole observability stack.
+2. Otherwise verify the upstream-documented `config.json` HTTP exporter contract and implement that *documented configuration* through the officially supported Flux post-render mechanism **only if** it preserves the complete pinned Helm-generated config, is reproducible, and passes version-specific upgrade tests. A blind replacement or undocumented chart gate bypass is prohibited.
+3. If that cannot be kept simple and maintainable, select the chart's documented Syslog/Alertmanager output or native stdout with a standard supported forwarder, and require an explicit threat-model review of auth/TLS/retries. Do not silently enable Synchronizer, change upstream binaries, or deploy a whole observability stack.
 
 Source references to verify against *exact pinned artifacts*: [Kubescape runtime exporter documentation](https://kubescape.io/docs/operator/runtime-threat-detection/), [node-agent configuration](https://github.com/kubescape/node-agent/blob/main/docs/CONFIGURATION.md), [Helm ConfigMap template](https://github.com/kubescape/helm-charts/blob/main/charts/kubescape-operator/templates/node-agent/configmap.yaml), [node-agent v0.3.310 release](https://github.com/kubescape/node-agent/releases/tag/v0.3.310). Mainline documentation is not acceptance of pinned-version behavior.
 
