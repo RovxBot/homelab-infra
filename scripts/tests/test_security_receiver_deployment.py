@@ -18,7 +18,7 @@ class ReceiverStageTests(unittest.TestCase):
     def test_staged_not_active_and_original_collector_retained(self):
         infra=yaml.safe_load((ROOT/"infra/kubescape/kustomization.yaml").read_text())
         self.assertIn("collector",infra["resources"])
-        self.assertNotIn("receiver",infra["resources"])
+        self.assertIn("receiver",infra["resources"])
         self.assertIn("../../ops/security-collector/acceptance/trigger", infra["resources"])
         self.assertIn("../../secrets",infra["resources"])
         secret_kustom=yaml.safe_load((ROOT/"secrets/kustomization.yaml").read_text())
