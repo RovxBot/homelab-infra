@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  timeout: 12m
+  timeout: 25m
   # Wait for the active HelmRelease, including its Deployment/PVC readiness.
   wait: true
   path: ./infra/kubescape
