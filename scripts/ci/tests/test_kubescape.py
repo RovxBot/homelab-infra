@@ -179,8 +179,9 @@ class StagedReleaseTests(unittest.TestCase):
         trigger = "../../ops/security-collector/acceptance/trigger"
         resources = set(source["resources"])
         self.assertEqual(len(resources), len(source["resources"]), "duplicate Kubescape resource include")
-        self.assertIn(resources, (baseline | {"../../secrets"},
-                                  baseline | {"../../secrets",trigger}))
+        receiver = "receiver"
+        self.assertIn(resources, (baseline | {"../../secrets",receiver},
+                                  baseline | {"../../secrets",receiver,trigger}))
         collector = json.loads((ROOT / "infra/kubescape/collector/collector.json").read_text())
         test_workloads = [w for w in collector["workloads"] if w["namespace"] == "kubescape-runtime-test"]
         if trigger in resources:
