@@ -23,10 +23,11 @@ GITEA = "https://git.cooked.beer/api/v1"
 REPO_ID = 11
 ISSUE_PATH = "/repos/" + REPO + "/issues"
 REPO_PATH = "/repos/" + REPO
-RECEIVER = "https://security-receiver.kubescape.svc:8443/v1/public-incidents"
+RECEIVER = "https://security-receiver.kubescape.svc:8443/v1/private-incidents"
 KUBERNETES = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/secrets/security-receiver-ca"
 ALLOWED = frozenset(("homepage/Deployment/homepage", "homepage/Deployment/homepage-assets",
-                     "memos/Deployment/memos"))
+                     "memos/Deployment/memos", "koito/Deployment/koito",
+                     "koito/Deployment/koito-lastfm-bridge"))
 FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "count", "state"))
 KEY = re.compile(r"[0-9a-f]{64}\Z")
 RULE = re.compile(r"R[0-9]{4}\Z")
