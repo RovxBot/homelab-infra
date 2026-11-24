@@ -329,7 +329,15 @@ def check_assessment_alert(before, after):
                 "interval": "1m", "conditions": ["[STATUS] == 200", "[BODY].status == healthy",
                     "[BODY].vulnerability.evidenceAgeSeconds <= 259200", "[BODY].posture.evidenceAgeSeconds <= 93600"],
                 "alerts": [{"type": "github"}]}
-    allowed = [expected] + [dict(name='security-collector-' + name, group='cluster',
+    receiver_transport = {
+        'name': 'security-receiver-transport',
+        'group': 'cluster',
+        'url': 'tcp://security-receiver.kubescape.svc.cluster.local:8443',
+        'interval': '1m',
+        'conditions': ['[CONNECTED] == true'],
+        'alerts': [{'type': 'github'}],
+    }
+    allowed = [expected, receiver_transport] + [dict(name='security-collector-' + name, group='cluster',
         url='http://security-collector.kubescape.svc.cluster.local:8080/' + path,
         interval='1m', conditions=['[STATUS] == 200', condition], alerts=[])
         for name, path, condition in (('process', 'readyz', '[BODY].ready == true'),

@@ -125,6 +125,21 @@ class GatusAlertConfigTests(unittest.TestCase):
                     self.assertEqual(endpoint['alerts'], [{'type': 'github'}])
         self.assertEqual(config['storage'], {'type': 'sqlite', 'path': '/data/data.db'})
 
+    def test_security_receiver_transport_is_static_and_payload_free(self):
+        release = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())
+        endpoints = release['spec']['values']['config']['endpoints']
+        receiver, = (ep for ep in endpoints if ep['name'] == 'security-receiver-transport')
+        self.assertEqual(receiver, {
+            'name': 'security-receiver-transport',
+            'group': 'cluster',
+            'url': 'tcp://security-receiver.kubescape.svc.cluster.local:8443',
+            'interval': '1m',
+            'conditions': ['[CONNECTED] == true'],
+            'alerts': [{'type': 'github'}],
+        })
+        self.assertNotIn('Authorization', str(receiver))
+        self.assertNotIn('runtimealerts', str(receiver))
+
     def test_cronjob_policy_matches_native_recovery_and_available_history(self):
         cronjob = yaml.safe_load((ROOT / 'infra/observability/gatus-github-issue-sync-cronjob.yaml').read_text())
         container = cronjob['spec']['jobTemplate']['spec']['template']['spec']['containers'][0]

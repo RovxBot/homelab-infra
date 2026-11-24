@@ -76,7 +76,18 @@ spec:
             success-threshold: 2
             send-on-resolved: true
       endpoints:
-        # Aggregate health only. No incident payloads or GitHub alerts in this rollout.
+        # Only static transport reachability; no runtime event data or tokens.
+        # TCP checks cannot prove SQLite readiness or native alert delivery.
+        # Gatus may open a generic outage issue if the receiver becomes unreachable.
+        - name: security-receiver-transport
+          group: cluster
+          url: tcp://security-receiver.kubescape.svc.cluster.local:8443
+          interval: 1m
+          conditions:
+            - "[CONNECTED] == true"
+          alerts:
+            - type: github
+        # Legacy log collector diagnostics remain unchanged for rollback.
         - name: security-collector-process
           group: cluster
           url: http://security-collector.kubescape.svc.cluster.local:8080/readyz
