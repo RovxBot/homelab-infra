@@ -533,6 +533,26 @@ class FailureTests(unittest.TestCase):
             R.check_posture(result, summaries, R.db.stamp(NOW))
 
 class PrivateCVEProjectionTests(unittest.TestCase):
+    def test_nine_target_private_projection_and_legacy_boundary(self):
+        rows, records = [], {}
+        for target in sorted(R.PRIVATE_CVE_TARGETS):
+            namespace, kind, workload, container = target.split("/")
+            current = dict(row(), namespace=namespace, kind=kind, workload=workload,
+                           container=container, assessmentState="healthy")
+            rows.append(current)
+            records[R.row_key(current)] = {"createdAt":R.db.stamp(NOW),
+                "privateCve":{"state":"complete","findings":[], "otherHighCriticalMatches":0}}
+        inventory = {"generatedAt":R.db.stamp(NOW),"rows":rows}
+        projection = R.private_cve_projection(inventory, records)
+        self.assertEqual(len(projection["entries"]),9)
+        self.assertTrue(all(e["state"]=="complete" for e in projection["entries"]))
+        target = next(r for r in rows if R.target_key(r) not in R.LEGACY_PUBLIC_CVE_TARGETS)
+        record = records[R.row_key(target)]
+        record["publicCve"] = record.pop("privateCve")
+        projected = R.private_cve_projection(inventory,records)
+        self.assertEqual(sum(e["state"]=="unknown" for e in projected["entries"]),1)
+        self.assertNotIn("runningDigest",json.dumps(projected))
+
     def test_only_bounded_high_critical_cves_and_fix_flags(self):
         result = R.private_cve_findings([
             {"vulnerability":{"id":"CVE-2026-4738","severity":"High","fix":{"state":"not-fixed"}}, "artifact":{"name":"private"}},
