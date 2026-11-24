@@ -117,7 +117,7 @@ except Exception:
             self.assertNotIn('raw-vulnerability-secret', json.dumps(result))
             self.assertNotIn('unsafe', json.dumps(result))
 
-    def reporting(self, native, policy, controllers, error=False):
+    def reporting(self, native, policy, controllers, error=False, pods=None):
         source = yaml.safe_load((ROOT / 'infra/pod-report/deployment.yaml').read_text())
         source = source['spec']['template']['spec']['containers'][0]['args'][0]
         source = source[source.index('reporter_health() {'):].split('while true; do', 1)[0]
@@ -127,6 +127,7 @@ except Exception:
             kubectl.write_text("""#!/bin/sh
 case "$*" in
   *"get jobs -n monitoring"*) printf '%s\\n' "$NATIVE" ;;
+  *"get pods -n monitoring"*) printf '%s\\n' "$PUBLISHER_PODS" ;;
   *"get jobs -n kyverno"*) printf '%s\\n' "$POLICY" ;;
   *"get deployments -n kyverno"*) printf '%s\\n' "$CONTROLLERS" ;;
   *) exit 1 ;;
@@ -145,20 +146,32 @@ print(int(value.timestamp()) if args[-1] == '+%s' else value.strftime('%Y-%m-%dT
             date.chmod(0o755)
             result = subprocess.run(['sh','-c','set -eu\n'+source.replace('/work/',str(root)+'/')+'\nsecurity_reporting_health\n'],
                                     env=dict(os.environ, PATH=str(root)+':'+os.environ['PATH'],
-                                             NATIVE=native, POLICY=policy, CONTROLLERS=controllers, API_ERROR=str(int(error))),
+                                             NATIVE=native, POLICY=policy, CONTROLLERS=controllers, API_ERROR=str(int(error)),
+                                             PUBLISHER_PODS=pods if pods is not None else 'Job/security-incident-publisher-1|uid-1|0|security-v1|healthy|healthy'),
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode,0,result.stderr)
             return json.loads((root/'security-reporting-health.json').read_text())
 
     def test_security_reporting_latest_attempt_and_freshness(self):
-        native = '2026-11-22T07:50:00Z|CronJob/security-incident-publisher|True||2026-11-22T07:50:30Z'
+        native = '2026-11-22T07:50:00Z|security-incident-publisher-1|uid-1|CronJob/security-incident-publisher|True|'
         policy = '2026-11-22T07:15:00Z|CronJob/kyverno-github-issue-sync|True||2026-11-22T07:15:30Z'
         controllers = '\n'.join('kyverno-'+name+'-controller|3|3|'+str(count)+'|'+str(count)
                                for name,count in [('admission',2),('reports',1),('background',1),('cleanup',1)])
         self.assertEqual(self.reporting(native,policy,controllers)['status'],'healthy')
-        failed = '2026-11-22T07:59:00Z|CronJob/security-incident-publisher||True|'
-        active = '2026-11-22T07:59:00Z|CronJob/security-incident-publisher|||'
-        self.assertEqual(self.reporting(native+'\n'+failed,policy,controllers)['nativePublisher'],'failed')
+        failed = '2026-11-22T07:59:00Z|security-incident-publisher-2|uid-2|CronJob/security-incident-publisher||True'
+        active = '2026-11-22T07:59:00Z|security-incident-publisher-2|uid-2|CronJob/security-incident-publisher||'
+        failed_pod = 'Job/security-incident-publisher-2|uid-2|1|security-v1|failed|healthy'
+        self.assertEqual(self.reporting(native+'\n'+failed,policy,controllers,pods=failed_pod)['nativePublisher'],'failed')
+        partial = self.reporting(native+'\n'+failed,policy,controllers,
+                                 pods=failed_pod.replace('|failed|healthy','|healthy|failed'))
+        self.assertEqual(partial['status'],'healthy')
+        self.assertEqual(partial['cvePublisher'],'failed')
+        for malformed in (failed_pod.replace('uid-2','wrong'), failed_pod+'\n'+failed_pod,
+                          failed_pod.replace('|failed|healthy','|private|healthy'), ''):
+            result=self.reporting(failed,policy,controllers,pods=malformed)
+            self.assertEqual(result['nativePublisher'],'unknown')
+            self.assertEqual(result['cvePublisher'],'unknown')
+            self.assertNotIn('private',json.dumps(result))
         self.assertEqual(self.reporting(native+'\n'+active,policy,controllers)['nativePublisher'],'unknown')
         self.assertEqual(self.reporting('',policy,controllers)['nativePublisher'],'unknown')
         stale = native.replace('07:50','07:20')
