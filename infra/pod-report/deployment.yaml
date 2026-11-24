@@ -452,10 +452,6 @@ spec:
                   [ -f "$report" ]
                   [ -r "$report" ]
                   [ -s "$report" ]
-                  [ -s /work/security-reporting-health.json ]
-                  reporting_modified="$(stat -c %Y /work/security-reporting-health.json)"
-                  reporting_age=$(($(date +%s) - reporting_modified))
-                  [ "$reporting_age" -ge 0 ] && [ "$reporting_age" -le 300 ]
                   modified="$(stat -c %Y "$report")"
                   now="$(date +%s)"
                   age=$((now - modified))
