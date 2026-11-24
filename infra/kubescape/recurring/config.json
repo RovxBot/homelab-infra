@@ -33,6 +33,18 @@
     {
       "identity": "gitea/Deployment/gitea-mcp/mcp",
       "reason": "Curated public application image; sequential bounded assessment with independent outcome"
+    },
+    {
+      "identity": "monitoring/Deployment/gatus/gatus",
+      "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
+    },
+    {
+      "identity": "openbrew/Deployment/openbrew/openbrew",
+      "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
+    },
+    {
+      "identity": "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
+      "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
     }
   ],
   "maximumImagesPerRun": 4
