@@ -94,9 +94,9 @@ class ReceiverStageTests(unittest.TestCase):
                                                     "name":"security-receiver",
                                                     "namespace":"kubescape"}])
 
-    def test_exact_two_agent_nodes_and_no_unsafe_surface(self):
+    def test_exact_eight_agent_nodes_and_no_unsafe_surface(self):
         config=json.loads((RECEIVER/"config.json").read_text())
-        self.assertEqual(config["nodes"],["metal3","metal6"])
+        self.assertEqual(config["nodes"],["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"])
         self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test"])
         self.assertEqual(config["state_dir"],"/state")
         self.assertEqual(config["tls_cert"],"/tls/tls.crt")

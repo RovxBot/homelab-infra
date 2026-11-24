@@ -5,7 +5,7 @@ kind: ValidatingPolicy
 metadata:
   name: kubescape-runtime-boundary
   annotations:
-    policies.kyverno.io/title: Kubescape two-worker runtime boundary
+    policies.kyverno.io/title: Kubescape eight-node runtime boundary
     github.cooked.beer/issue-url: https://github.com/RovxBot/homelab-infra/issues/2136
 spec:
   failurePolicy: Fail
@@ -71,7 +71,7 @@ spec:
   validations:
   - expression: '!variables.s.?hostNetwork.orValue(false) && !variables.s.?hostIPC.orValue(false) && (variables.agent
       || !variables.s.?hostPID.orValue(false))'
-    message: Only the canary node-agent may use the host PID namespace; host network and IPC remain forbidden.
+    message: Only the strictly scoped node-agent may use the host PID namespace; host network and IPC remain forbidden.
   - expression: variables.cs.all(c, !c.?securityContext.?privileged.orValue(false) && c.?securityContext.?allowPrivilegeEscalation.orValue(true)
       == false && c.?securityContext.?procMount.orValue('Default') == 'Default' && c.?ports.orValue([]).all(p, p.?hostPort.orValue(0)
       == 0))
@@ -107,14 +107,14 @@ spec:
       o.name == ''node-agent'' && o.?controller.orValue(false))))'
     message: The node-agent ServiceAccount is reserved for the named DaemonSet and its Pods.
   - expression: '!variables.agent || (variables.s.?nodeSelector.orValue({}) == {''kubernetes.io/os'':''linux''}
-      && variables.s.?nodeName.orValue(''metal6'') in [''metal3'',''metal6'']
-      && ((object.kind == ''DaemonSet'' && variables.s.?nodeName.orValue('''') == '''' && variables.s.?affinity.orValue({}) == {''nodeAffinity'':{''requiredDuringSchedulingIgnoredDuringExecution'':{''nodeSelectorTerms'':[{''matchExpressions'':[{''key'':dyn(''kubernetes.io/hostname''),''operator'':dyn(''In''),''values'':dyn([''metal3'',''metal6''])}]}]}}})
-      || (object.kind == ''Pod'' && [''metal3'',''metal6''].exists(n, variables.s.?nodeName.orValue(n) == n
+      && variables.s.?nodeName.orValue(''metal6'') in [''metal0'',''metal2'',''metal3'',''metal4'',''metal5'',''metal6'',''metal7'',''metal8'']
+      && ((object.kind == ''DaemonSet'' && variables.s.?nodeName.orValue('''') == '''' && variables.s.?affinity.orValue({}) == {''nodeAffinity'':{''requiredDuringSchedulingIgnoredDuringExecution'':{''nodeSelectorTerms'':[{''matchExpressions'':[{''key'':dyn(''kubernetes.io/hostname''),''operator'':dyn(''In''),''values'':dyn([''metal0'',''metal2'',''metal3'',''metal4'',''metal5'',''metal6'',''metal7'',''metal8''])}]}]}}})
+      || (object.kind == ''Pod'' && [''metal0'',''metal2'',''metal3'',''metal4'',''metal5'',''metal6'',''metal7'',''metal8''].exists(n, variables.s.?nodeName.orValue(n) == n
       && variables.s.?affinity.orValue({}) == {''nodeAffinity'':{''requiredDuringSchedulingIgnoredDuringExecution'':{''nodeSelectorTerms'':[{''matchFields'':[{''key'':dyn(''metadata.name''),''operator'':dyn(''In''),''values'':dyn([n])}]}]}}})))
       && variables.s.?hostPID.orValue(false) && variables.s.containers.size()
       == 1 && variables.s.?initContainers.orValue([]).size() == 0 && variables.s.?ephemeralContainers.orValue([]).size()
       == 0)'
-    message: The agent is confined to metal3 and metal6, with exact DaemonSet or per-node Pod affinity and one container.
+    message: The agent is confined to the eight named Talos nodes, with exact DaemonSet or per-node Pod affinity and one container.
   - expression: '!variables.agent || variables.s.containers.all(c,c.name == ''node-agent'' && c.image == "quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60"
       && c.?command.orValue([]).size() == 0 && c.?args.orValue([]).size() == 0 && !has(c.lifecycle) && c.?envFrom.orValue([]).size()
       == 0 && c.securityContext.runAsUser == 0 && c.securityContext.capabilities.add == ["SYS_ADMIN","SYS_PTRACE","NET_ADMIN","SYSLOG","SYS_RESOURCE","IPC_LOCK","NET_RAW"]

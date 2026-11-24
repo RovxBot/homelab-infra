@@ -100,8 +100,8 @@ spec:
                         - matchExpressions:
                             - key: kubernetes.io/hostname
                               operator: In
-                              values: [metal3, metal6]
-          # Agent kubelet access follows the two-node cohort; collector has none.
+                              values: [metal0, metal2, metal3, metal4, metal5, metal6, metal7, metal8]
+          # Agent kubelet access stays restricted to the eight observed Talos nodes; collector has none.
           - target:
               group: rbac.authorization.k8s.io
               version: v1
@@ -140,8 +140,14 @@ spec:
                   resources:
                   - nodes/proxy
                   resourceNames:
+                  - metal0
+                  - metal2
                   - metal3
+                  - metal4
+                  - metal5
                   - metal6
+                  - metal7
+                  - metal8
                   verbs:
                   - get
           # Wait for the new mirror before the engine checks the retained cache.
