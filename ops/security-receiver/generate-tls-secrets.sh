@@ -17,7 +17,9 @@ mkdir -p "$OUT"
 openssl genrsa -out "$OUT/root.key" 3072
 openssl req -new -x509 -sha256 -days 3650 \
   -key "$OUT/root.key" -out "$OUT/root.crt" \
-  -subj "/CN=Homelab Kubescape Receiver Root"
+  -subj "/CN=Homelab Kubescape Receiver Root" \
+  -addext "basicConstraints=critical,CA:TRUE" \
+  -addext "keyUsage=critical,keyCertSign,cRLSign"
 openssl genrsa -out "$OUT/tls.key" 3072
 openssl req -new -sha256 -key "$OUT/tls.key" -out "$OUT/tls.csr" \
   -subj "/CN=security-receiver.kubescape.svc"
