@@ -181,7 +181,21 @@ def run(output, helm):
     raw = verify_baseline(raw_yaml, values)
     new = candidate(raw)
     patch = configmap_patch(raw, new)
-    # Keep a machine-reviewable off-by-default artifact. Nothing generated
+    # With the candidate now staged in the PR's HelmRelease, require the exact
+    # JSON6902 operations (not merely a similar-looking URL or config).
+    renderers = release["spec"]["postRenderers"]
+    candidate_patches = [p for renderer in renderers
+                         for p in renderer["kustomize"]["patches"]
+                         if p.get("target", {}) == patch["target"]]
+    if len(candidate_patches) != 1 or (
+        yaml.safe_load(candidate_patches[0]["patch"])
+        != yaml.safe_load(patch["patch"])
+    ):
+        raise ValueError("active_postrender_does_not_match_pinned_chart_candidate")
+    if values["global"].get("extraCaCertificates") != {
+        "enabled": True, "secretName": "security-receiver-ca"}:
+        raise ValueError("documented_chart_ca_secret_mismatch")
+    # Keep a machine-reviewable artifact. Nothing generated
     # here is installed, applied or added to the live HelmRelease.
     (output / "node-agent-base.json").write_text(raw)
     (output / "node-agent-native-candidate.json").write_text(new)
@@ -198,7 +212,7 @@ def run(output, helm):
         "namespaces": NAMESPACES,
         "sync_enabled": False,
         "upstream_agent_changed": False,
-        "active_manifests_changed": False,
+        "active_manifests_changed": True,
     }
     (output / "proof.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, sort_keys=True))
