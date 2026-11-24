@@ -261,6 +261,59 @@ def coverage(rows, records, config, now=None):
             "healthMeaning": "Assessment freshness and integrity, not absence of vulnerabilities"}
 
 
+# Publication is a separate, explicit trust boundary. Do not include raw
+# package names, versions, digests, paths, report IDs or non-allowlisted rows.
+PUBLIC_CVE_TARGETS = {
+    "homepage/Deployment/homepage/homepage",
+    "homepage/Deployment/homepage-assets/nginx",
+    "memos/Deployment/memos/memos",
+}
+CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
+MAX_PUBLIC_CVES = 100
+
+
+def public_cve_findings(matches):
+    findings, other = {}, 0
+    for match in matches:
+        vuln = match["vulnerability"]
+        severity = vuln.get("severity")
+        if severity not in ("High", "Critical"):
+            continue
+        identifier = vuln.get("id")
+        if not isinstance(identifier, str) or not CVE_ID.fullmatch(identifier):
+            other += 1
+            continue
+        existing = findings.setdefault(identifier, {"id": identifier, "severity": severity, "fixAvailable": False})
+        if severity == "Critical":
+            existing["severity"] = "Critical"
+        existing["fixAvailable"] |= vuln.get("fix", {}).get("state") == "fixed"
+    # Do not silently truncate a security finding set.
+    if len(findings) > MAX_PUBLIC_CVES:
+        return {"state": "overflow", "findings": [], "otherHighCriticalMatches": other}
+    return {"state": "complete", "findings": sorted(findings.values(), key=lambda x: x["id"]),
+            "otherHighCriticalMatches": other}
+
+
+def public_cve_projection(inventory, records):
+    rows = inventory["rows"]
+    entries = []
+    for target in sorted(PUBLIC_CVE_TARGETS):
+        workload = target.rsplit("/", 1)[0]
+        selected = [row for row in rows if target_key(row) == target]
+        record = records.get(row_key(selected[0]), {}) if len(selected) == 1 else {}
+        evidence = record.get("publicCve")
+        if (len(selected) == 1 and selected[0]["assessmentState"] == "healthy"
+                and isinstance(evidence, dict) and evidence.get("state") == "complete"):
+            entries.append({"workload": workload, "state": "complete",
+                            "assessedAt": record["createdAt"], "findings": evidence["findings"],
+                            "otherHighCriticalMatches": evidence["otherHighCriticalMatches"]})
+        else:
+            entries.append({"workload": workload, "state": "unknown", "assessedAt": None,
+                            "findings": [], "otherHighCriticalMatches": 0})
+    return {"schema": 1, "source": "kubescape-cve", "generatedAt": inventory["generatedAt"],
+            "entries": entries}
+
+
 def check_report(report, sbom, row, expected, started, previous=None):
     db.require(report["metadata"].get("annotations", {}).get("kubescape.io/status") == "ready", "report_incomplete")
     spec = report["spec"]
@@ -400,6 +453,12 @@ class Runner:
             inventory = coverage(workload_rows(self.api), self.records, self.config)
             atomic(self.history / "coverage.json", inventory)
             path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
+            # Only this distinct ConfigMap is readable by the GitHub publisher.
+            public_path = CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
+            projection = self.api.call(public_path)
+            projection["data"] = {"projection.json": json.dumps(public_cve_projection(inventory, self.records), separators=(",", ":"))}
+            db.require(len(json.dumps(projection)) < 100000, "public_projection_too_large")
+            self.api.call(public_path, projection, "PUT")
             status = self.api.call(path)
             status.setdefault("data", {})[self.mode + ".json"] = json.dumps(self.result, separators=(",", ":"))
             status["data"]["coverage.json"] = json.dumps(inventory, separators=(",", ":"))
@@ -671,6 +730,9 @@ class Runner:
         self.gate(audit)
         result.update(jobID=job, durationSeconds=(db.timestamp(status["finishedAt"]) - db.timestamp(status["startedAt"])).total_seconds(),
                       workloadUID=row["workloadUID"], imageDigest=row["runningDigest"], container=row["container"])
+        # The report and workload attribution have now passed independent rereads.
+        if target_key(row) in PUBLIC_CVE_TARGETS:
+            result["publicCve"] = public_cve_findings(report["spec"]["payload"]["matches"])
         self.records[row_key(row)] = result
         atomic(self.history / "records.json", self.records)
         self.result["assessments"].append(result)
