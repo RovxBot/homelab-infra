@@ -20,14 +20,19 @@ MAX_INCIDENTS = 200
 MAX_EVENTS_PER_HOUR = 1000
 MAX_DATABASE_BYTES = 64 * 1024 * 1024
 
-# The only identities allowed to cross into public GitHub issues. Never infer
-# public names from arbitrary event fields or publish the disposable R1000 Pod.
+# Legacy narrow projection retained for compatibility during a staged rollout.
+# Both projections require a separately authenticated publisher identity.
 PUBLIC_WORKLOADS = {
     "home/homepage/Deployment/homepage/homepage": "homepage/Deployment/homepage",
     "home/homepage/Deployment/homepage-assets/nginx": "homepage/Deployment/homepage-assets",
     "home/memos/Deployment/memos/memos": "memos/Deployment/memos",
 }
 
+PRIVATE_WORKLOADS = {
+    **PUBLIC_WORKLOADS,
+    "home/koito/Deployment/koito/koito": "koito/Deployment/koito",
+    "home/koito/Deployment/koito-lastfm-bridge/multi-scrobbler": "koito/Deployment/koito-lastfm-bridge",
+}
 
 
 class EventStore:
@@ -150,11 +155,17 @@ class EventStore:
             raise
 
     def public_incidents(self):
-        """Strict high-impact, allowlisted projection; never include private IDs."""
+        return self.project_incidents(PUBLIC_WORKLOADS)
+
+    def private_incidents(self):
+        return self.project_incidents(PRIVATE_WORKLOADS)
+
+    def project_incidents(self, workload_scope):
+        """Bounded, high-impact projection; never include raw event or container identities."""
         output = []
         for (value,) in self.db.execute("SELECT data FROM incidents ORDER BY key"):
             record = json.loads(value)
-            identity = PUBLIC_WORKLOADS.get(record.get("workload_key"))
+            identity = workload_scope.get(record.get("workload_key"))
             if identity is None or record.get("severity") not in ("High", "Critical"):
                 continue
             # All fields derive from normalized private events; fail closed
