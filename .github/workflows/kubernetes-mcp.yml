@@ -5,6 +5,8 @@ on:
       - infra/kubernetes-mcp/**
       - ops/kubernetes-mcp/**
       - .github/workflows/kubernetes-mcp.yml
+      - scripts/ci/scan_image.py
+      - scripts/tests/test_security_ci_scan.py
   push:
     branches: [main]
     paths:
@@ -25,6 +27,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.publish.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -44,6 +48,7 @@ jobs:
         run: |
           docker build --tag "ghcr.io/rovxbot/kubernetes-mcp:${REVISION}" infra/kubernetes-mcp
       - name: Publish same-repository build
+        id: publish
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           GHCR_TOKEN: ${{ github.token }}
@@ -53,8 +58,45 @@ jobs:
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
           docker push "ghcr.io/rovxbot/kubernetes-mcp:${REVISION}"
           docker inspect "ghcr.io/rovxbot/kubernetes-mcp:${REVISION}" --format '{{index .RepoDigests 0}}' > image-digest.txt
+          python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          ref=Path("image-digest.txt").read_text().strip()
+          match=re.fullmatch(r"ghcr[.]io/rovxbot/kubernetes-mcp@(sha256:[a-f0-9]{64})",ref)
+          assert match, "Unrecognized published image reference"
+          with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+              out.write("digest="+match.group(1)+"\n")
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         with:
           name: kubernetes-mcp-image
           path: image-digest.txt
+
+  scan:
+    needs: test-build
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate digest-scanning contract
+        run: python3 -m unittest discover -s scripts/tests -p 'test_security_ci_scan.py' -v
+      - name: Scan qualified published immutable image
+        env:
+          SCAN_IMAGE_REPOSITORY: ghcr.io/rovxbot/kubernetes-mcp@
+          SCANNED_DIGEST: ${{ needs.test-build.outputs.digest }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/ci/scan_image.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: kubernetes-mcp-scan-provenance
+          path: .work/image-scan/provenance.json
+          if-no-files-found: error
+          retention-days: 14

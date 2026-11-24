@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Immutable receiver image scan. Publish provenance, never raw findings."""
+"""Immutable public build image scan. Publish provenance, never raw findings."""
 from datetime import datetime, timedelta, timezone
 import base64
 import hashlib
@@ -17,6 +17,7 @@ ARCHIVE = "grype_" + VERSION + "_linux_amd64.tar.gz"
 ASSET_DIGEST = "sha256:e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85"
 DOWNLOAD = "https://github.com/anchore/grype/releases/download/v" + VERSION + "/" + ARCHIVE
 IMAGE = "ghcr.io/rovxbot/security-receiver@"
+ALLOWED_IMAGES = frozenset({IMAGE, "ghcr.io/rovxbot/security-collector@", "ghcr.io/rovxbot/kubernetes-mcp@"})
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 
@@ -55,7 +56,8 @@ def install(directory):
     return binary,ASSET_DIGEST
 
 
-def provenance(report,digest,source_sha,asset_digest,now):
+def provenance(report,digest,source_sha,asset_digest,now,image=IMAGE):
+    require(image in ALLOWED_IMAGES)
     require(DIGEST.fullmatch(digest) and SHA.fullmatch(source_sha) and DIGEST.fullmatch(asset_digest))
     require(isinstance(report["matches"],list))
     descriptor=report["descriptor"]
@@ -68,7 +70,7 @@ def provenance(report,digest,source_sha,asset_digest,now):
     require(timedelta(0) <= now-built <= timedelta(hours=72))
     require(report["source"]["type"] == "image")
     target=report["source"]["target"]
-    require(target["userInput"] in {IMAGE+digest,"registry:"+IMAGE+digest}
+    require(target["userInput"] in {image+digest,"registry:"+image+digest}
             and target["manifestDigest"]==digest and target["architecture"]=="amd64"
             and target["os"]=="linux")
     # Syft v1.57.1 includes the raw manifest and image config as base64.
@@ -76,7 +78,7 @@ def provenance(report,digest,source_sha,asset_digest,now):
     require(DIGEST.fullmatch(target["imageID"]) and "sha256:"+hashlib.sha256(base64.b64decode(target["config"],validate=True)).hexdigest()==target["imageID"])
     schema=str(db["schemaVersion"])
     require(re.fullmatch(r"v?6(?:\.[0-9]+){0,2}",schema))
-    return {"schema":1,"state":"observed","mode":"report-only","image":IMAGE+digest,
+    return {"schema":1,"state":"observed","mode":"report-only","image":image+digest,
             "sourceCommit":source_sha,"scanner":"grype","scannerVersion":VERSION,
             "scannerReleaseAssetDigest":asset_digest,"databaseBuilt":built.isoformat(),
             "databaseSchema":schema,"observedAt":now.isoformat(),"platform":"linux/amd64",
@@ -84,14 +86,16 @@ def provenance(report,digest,source_sha,asset_digest,now):
 
 
 def main():
-    output=Path(".work/receiver-scan/provenance.json")
+    output=Path(".work/image-scan/provenance.json")
     output.parent.mkdir(parents=True,exist_ok=True)
     phase="input"
     try:
+        image=os.environ.get("SCAN_IMAGE_REPOSITORY",IMAGE)
+        require(image in ALLOWED_IMAGES)
         digest=os.environ["SCANNED_DIGEST"]
         source=os.environ["SOURCE_SHA"]
         require(DIGEST.fullmatch(digest) and SHA.fullmatch(source))
-        with tempfile.TemporaryDirectory(prefix="receiver-scan-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="image-scan-") as tmp:
             directory=Path(tmp)
             phase="scanner_install"
             binary,asset=install(directory)
@@ -104,11 +108,11 @@ def main():
             phase="scan"
             result=directory/"report.json"
             with result.open("wb") as file:
-                subprocess.run([str(binary),"registry:"+IMAGE+digest,"--platform","linux/amd64","-o","json"],
+                subprocess.run([str(binary),"registry:"+image+digest,"--platform","linux/amd64","-o","json"],
                                env=env,stdout=file,stderr=subprocess.DEVNULL,timeout=300,check=True)
             require(result.stat().st_size <= 128*1024**2)
             phase="provenance"
-            safe=provenance(json.loads(result.read_text()),digest,source,asset,datetime.now(timezone.utc))
+            safe=provenance(json.loads(result.read_text()),digest,source,asset,datetime.now(timezone.utc),image=image)
         output.write_text(json.dumps(safe,sort_keys=True,indent=2)+"\n")
         print("Immutable image scan completed; vulnerability details withheld from public CI.")
         return 0
