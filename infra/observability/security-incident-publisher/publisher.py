@@ -1,4 +1,4 @@
-"""Isolated, stateful, public-safe Kubescape incident publisher.
+"""Isolated, stateful Kubescape publisher for private issue tracking.
 
 Never import the receiver's private EventStore. Trust only a TokenReview-
 protected, statically allowlisted projection, and never log credentials,
@@ -16,11 +16,13 @@ import sqlite3
 import ssl
 import time
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote_plus
 from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
 
-REPO = "RovxBot/homelab-infra"
-GITHUB = "https://api.github.com"
+REPO = "sam/homelab-security"
+GITEA = "https://git.cooked.beer/api/v1"
+REPO_ID = 11
+ISSUE_PATH = "/repos/" + REPO + "/issues"
+REPO_PATH = "/repos/" + REPO
 RECEIVER = "https://security-receiver.kubescape.svc:8443/v1/public-incidents"
 KUBERNETES = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/secrets/security-receiver-ca"
 ALLOWED = frozenset(("homepage/Deployment/homepage", "homepage/Deployment/homepage-assets",
@@ -139,14 +141,14 @@ def request_json(opener, url, token, *, method="GET", payload=None, phase="githu
             and "\r" not in token and "\n" not in token)
     body = None if payload is None else json.dumps(payload, separators=(",", ":")).encode()
     req = Request(url, data=body, method=method, headers={
-        "Authorization": "Bearer " + token,
-        "Accept": "application/vnd.github+json" if url.startswith(GITHUB) else "application/json",
+        "Authorization": ("token " if url.startswith(GITEA + "/") else "Bearer ") + token,
+        "Accept": "application/json",
         "Content-Type": "application/json",
         "Accept-Encoding": "identity",
         "User-Agent": "security-native-publisher",
     })
     # The Kubernetes API and receiver are READ-ONLY sources: one bounded
-    # retry is safe for transient timeouts/5xx. GitHub POSTs are never retried
+    # retry is safe for transient timeouts/5xx. Issue POSTs are never retried
     # because the remote write may already have succeeded.
     attempts = 2 if method == "GET" and phase in ("kubernetes_api", "receiver_api", "cve_api") else 1
     for attempt in range(attempts):
@@ -206,57 +208,77 @@ def fetch_projection():
         raise PublisherFailure("projection") from None
 
 
-class GitHub:
-    def __init__(self, token, requester=request_json, title_prefix="Security (Kubescape)"):
-        self.title_prefix = title_prefix
+class PrivateGitea:
+    """Only the reviewed, private repository; no fallback or advisory API."""
+    def __init__(self, token, requester=request_json):
+        require(isinstance(token, str) and 0 < len(token) <= 8192
+                and not any(ch.isspace() for ch in token))
         self.token = token
         self.requester = requester
         self.opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(
             context=ssl.create_default_context()))
+        self.verify_private()
 
     def call(self, path, method="GET", body=None):
-        require(path.startswith(("/repos/" + REPO + "/issues", "/search/issues?q="))
-                and ".." not in path and not path.startswith("//"))
-        return self.requester(self.opener, GITHUB + path, self.token,
+        if method == "GET":
+            require(body is None and (path == REPO_PATH or
+                    re.fullmatch(re.escape(ISSUE_PATH) +
+                        r"(?:/[1-9][0-9]*(?:/comments)?|\?state=all&type=issues&limit=50&page=[1-9][0-9]*|/[1-9][0-9]*/comments\?limit=50&page=[1-9][0-9]*)", path)))
+        elif method == "POST":
+            require((path == ISSUE_PATH and isinstance(body, dict) and set(body) == {"title", "body"})
+                    or (re.fullmatch(re.escape(ISSUE_PATH) + r"/[1-9][0-9]*/comments", path)
+                        and isinstance(body, dict) and set(body) == {"body"}))
+            self.verify_private()
+        else:
+            require(False)
+        return self.requester(self.opener, GITEA + path, self.token,
                               method=method, payload=body)
 
+    def verify_private(self):
+        repo = self.call(REPO_PATH)
+        require(isinstance(repo, dict) and type(repo.get("id")) is int
+                and repo["id"] == REPO_ID and repo.get("full_name") == REPO
+                and repo.get("private") is True and repo.get("has_issues") is True
+                and repo.get("archived") is False)
+
     def search(self, key):
-        # Search is only a discovery aid. An on-disk intent fences a create
-        # before POST, so eventually consistent search cannot cause retries.
-        title_query = 'repo:' + REPO + ' in:title "' + self.title_prefix + '"'
-        result = self.call("/search/issues?q=" + quote_plus(title_query) + "&per_page=100")
-        require(result.get("incomplete_results") is False
-                and type(result.get("total_count")) is int
-                and result["total_count"] <= 100)
-        candidates = [x for x in result.get("items", [])
-                      if not x.get("pull_request") and
-                      isinstance(x.get("body"), str) and marker(key) in x["body"]]
-        require(len(candidates) <= 1)
-        return candidates[0] if candidates else None
+        # Enumerate open and closed issues; never depend on a search index.
+        candidates = []
+        for page in range(1, 21):
+            part = self.call(ISSUE_PATH + "?state=all&type=issues&limit=50&page=" + str(page))
+            require(isinstance(part, list) and len(part) <= 50)
+            for item in part:
+                require(isinstance(item, dict) and type(item.get("number")) is int
+                        and item["number"] > 0 and isinstance(item.get("body"), str))
+                if not item.get("pull_request") and marker(key) in item["body"]:
+                    candidates.append(item)
+            if len(part) < 50:
+                require(len(candidates) <= 1)
+                return candidates[0] if candidates else None
+        require(False)
 
     def issue(self, number):
         require(type(number) is int and 0 < number < 10**9)
-        return self.call("/repos/" + REPO + "/issues/" + str(number))
+        return self.call(ISSUE_PATH + "/" + str(number))
 
     def create(self, title, body):
-        return self.call("/repos/" + REPO + "/issues", "POST",
-                         {"title":title, "body":body})
+        return self.call(ISSUE_PATH, "POST", {"title": title, "body": body})
 
     def comments(self, number):
-        issue = self.issue(number)
-        amount = issue.get("comments")
-        require(type(amount) is int and 0 <= amount <= 300)
+        require(type(number) is int and 0 < number < 10**9)
         comments = []
-        for page in range(1, (amount + 99)//100 + 1):
-            part = self.call("/repos/" + REPO + "/issues/" + str(number)
-                             + "/comments?per_page=100&page=" + str(page))
-            require(isinstance(part, list) and len(part) <= 100)
+        for page in range(1, 8):
+            part = self.call(ISSUE_PATH + "/" + str(number) + "/comments?limit=50&page=" + str(page))
+            require(isinstance(part, list) and len(part) <= 50)
             comments.extend(part)
-        return comments
+            require(len(comments) <= 300)
+            if len(part) < 50:
+                return comments
+        require(False)
 
     def comment(self, number, body):
-        return self.call("/repos/" + REPO + "/issues/" + str(number)
-                         + "/comments", "POST", {"body":body})
+        require(type(number) is int and 0 < number < 10**9)
+        return self.call(ISSUE_PATH + "/" + str(number) + "/comments", "POST", {"body": body})
 
 
 class DurablePublisher:
@@ -340,7 +362,7 @@ class DurablePublisher:
             published = pending_update
         if published == fp:
             return "unchanged"
-        # Preserve human edits and notes: never replace a GitHub issue body.
+        # Preserve human edits and notes: never replace a remote issue body.
         # A pending comment intent is also never blindly replayed after failure.
         self.reserve("comment")
         with self.db:
@@ -357,8 +379,6 @@ class DurablePublisher:
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 CVE_TITLE = "Security (Kubescape CVE)"
 CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-public-cve"
-MEMOS_ISSUE = 2181
-MEMOS_TITLE = "security(memos): triage and remediate first Kubescape image findings"
 
 
 def cve_key(workload):
@@ -405,7 +425,7 @@ def validate_cve(projection, now=None):
 
 def render_cve(entry):
     title = CVE_TITLE + ": " + entry["workload"]
-    lines = [marker(entry["key"]), "Verified Kubescape image-assessment summary (public allowlist).",
+    lines = [marker(entry["key"]), "Verified Kubescape image-assessment summary (reviewed workload cohort).",
              "Affected workload: " + entry["workload"],
              "Last assessed: " + normalize_date(entry["assessedAt"]),
              "", "| Advisory | Scanner severity | Fix reported for at least one match |",
@@ -425,25 +445,8 @@ def cve_revision(entry):
 
 
 def owns_cve(issue, key):
-    return (issue["body"].count(marker(key)) == 1 or
-            (key == cve_key("memos/Deployment/memos") and issue.get("number") == MEMOS_ISSUE
-             and issue.get("title") == MEMOS_TITLE and "memos/Deployment/memos" in issue["body"]))
-
-
-class CVEGitHub(GitHub):
-    def __init__(self, token):
-        super().__init__(token, title_prefix=CVE_TITLE)
-
-    def search(self, key):
-        found = super().search(key)
-        if key == cve_key("memos/Deployment/memos"):
-            # Explicitly adopt the existing workload triage issue without
-            # replacing its body or creating a competing incident.
-            existing = self.issue(MEMOS_ISSUE)
-            require(owns_cve(existing, key) and not existing.get("pull_request"))
-            require(found is None or found["number"] == MEMOS_ISSUE)
-            return existing
-        return found
+    # Public issue numbers belong to another repository and are never adopted.
+    return issue["body"].count(marker(key)) == 1
 
 
 def fetch_cve_projection():
@@ -474,13 +477,13 @@ def cve_main(token):
     conn = None
     phase = "cve_state"
     try:
-        fd = os.open("/state/cve-publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        fd = os.open("/state/gitea-cve-publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        conn = sqlite3.connect("/state/cve-publisher.sqlite", timeout=5)
+        conn = sqlite3.connect("/state/gitea-cve-publisher.sqlite", timeout=5)
         conn.execute("PRAGMA journal_mode=DELETE")
         conn.execute("PRAGMA synchronous=FULL")
         require(conn.execute("PRAGMA quick_check").fetchone()[0] == "ok")
-        publisher = DurablePublisher(conn, CVEGitHub(token), renderer=render_cve,
+        publisher = DurablePublisher(conn, PrivateGitea(token), renderer=render_cve,
                                      fingerprint=cve_revision, owns=owns_cve)
         # Zero findings is not a resolution signal. Only positive findings
         # cause writes, and no issue is ever closed or reopened by this source.
@@ -506,21 +509,21 @@ def cve_main(token):
 
 
 def main():
-    token = os.environ.get("GITHUB_TOKEN", "")
+    token = os.environ.get("GITEA_TOKEN", "")
     require(0 < len(token) <= 8192)
-    incidents = fetch_projection()  # Fail before any GitHub API call.
+    incidents = fetch_projection()  # Fail before any issue API call.
     fd = None
     db = None
     try:
         try:
             Path("/state").mkdir(exist_ok=True)
-            fd = os.open("/state/publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+            fd = os.open("/state/gitea-native-publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            db = sqlite3.connect("/state/publisher.sqlite", timeout=5)
+            db = sqlite3.connect("/state/gitea-native-publisher.sqlite", timeout=5)
             db.execute("PRAGMA journal_mode=DELETE")
             db.execute("PRAGMA synchronous=FULL")
             require(db.execute("PRAGMA quick_check").fetchone()[0] == "ok")
-            publisher = DurablePublisher(db, GitHub(token))
+            publisher = DurablePublisher(db, PrivateGitea(token))
         except Exception:
             raise PublisherFailure("publisher_state") from None
         try:
@@ -574,7 +577,7 @@ def run_stages(termination_path=Path("/dev/termination-log")):
         # Fixed enum values, atomically meaningful only after Pod termination.
         termination_path.write_text("security-v2|" + states["native"] + "|" + states["cve"] + "|" + states["capacity"])
     persist()
-    for name, action in (("native", main), ("cve", lambda: cve_main(os.environ.get("GITHUB_TOKEN", ""))),
+    for name, action in (("native", main), ("cve", lambda: cve_main(os.environ.get("GITEA_TOKEN", ""))),
                          ("capacity", check_receiver_capacity)):
         if name == "cve" and os.environ.get("ENABLE_CVE_PUBLISHER") != "true":
             continue
