@@ -65,6 +65,7 @@ spec:
                       - homepage
                       - memos
                       - kubescape-runtime-test
+                      - koito
                   rules:
                   - ruleID: R0001
                   - ruleID: R0004
@@ -374,7 +375,7 @@ spec:
       # v0.3.310 uses Viper AutomaticEnv. Scope runtime independently of scanners.
       env:
         - name: INCLUDENAMESPACES
-          value: homepage,memos,kubescape-runtime-test
+          value: homepage,memos,kubescape-runtime-test,koito
       privileged: false
       config:
         stdoutExporter: true

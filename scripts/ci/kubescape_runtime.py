@@ -6,7 +6,7 @@ from security_native_exporter_preflight import EXPORTER
 
 IMAGE = 'quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60'
 NODES = ["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"]
-NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test']
+NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test', 'koito']
 RULES = ['R0001', 'R0004', 'R0007', 'R1000', 'R1002']
 CAPS = ['SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'SYSLOG', 'SYS_RESOURCE', 'IPC_LOCK', 'NET_RAW']
 BUDGET = {'requests': {'cpu': '100m', 'memory': '180Mi'}, 'limits': {'cpu': '500m', 'memory': '1400Mi'}}
@@ -150,10 +150,10 @@ def check_boundary(kyverno, work, resources, root):
     trusted_ca['spec']['containers'][0]['volumeMounts'].append({
         'name': 'extra-ca-certificates', 'mountPath': '/etc/ssl/certs/receiver-ca.crt',
         'subPath': 'receiver-ca.crt', 'readOnly': True})
-    # The next exact scope is pre-authorized, but not enabled in chart values.
+    # Retain the previous exact scope for a controlled rollback.
     next_scope = deepcopy(pod)
-    next_scope['metadata']['name'] = 'agent-next-scope-positive'
-    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test,koito'
+    next_scope['metadata']['name'] = 'agent-rollback-scope-positive'
+    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test'
     fixtures = [agent, pod, *allowed_node_pods, trusted_ca, next_scope]
     bound_ds = deepcopy(agent)
     bound_ds['metadata']['name'] = 'node-agent'
@@ -213,7 +213,7 @@ def check_boundary(kyverno, work, resources, root):
     for result in report['results']:
         name = result['resources'][0]['name']
         expected_passes = {'node-agent', 'agent-positive', 'agent-receiver-ca-positive',
-                           'scanner-positive', 'agent-next-scope-positive'} | {f'{node}-positive' for node in NODES if node != 'metal6'}
+                           'scanner-positive', 'agent-rollback-scope-positive'} | {f'{node}-positive' for node in NODES if node != 'metal6'}
         assert result['result'] == ('pass' if name in expected_passes else 'fail'), name
     bound_path = work / 'runtime-bound-daemonset.yaml'
     bound_path.write_text(yaml.safe_dump(bound_ds))
