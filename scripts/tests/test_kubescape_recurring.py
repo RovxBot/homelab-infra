@@ -29,6 +29,28 @@ def row():
             "containerType": "containers", "runningDigest": R.client.MEMOS_IMAGE}
 
 
+class CompletionWindowTests(unittest.TestCase):
+    def test_vulnerability_slots_and_daily_posture(self):
+        history = Path("/history")
+        markers = [R.completion_markers(history, "vulnerability", NOW.replace(hour=hour), "cohort")[0]
+                   for hour in (1, 10, 13, 19)]
+        self.assertEqual(len(set(markers)), 4)
+        self.assertEqual(R.completion_markers(history, "vulnerability", NOW.replace(hour=5), "cohort")[0], markers[0])
+        self.assertNotEqual(R.completion_markers(history, "vulnerability", NOW + timedelta(days=1), "cohort")[0], markers[0])
+        posture = [R.completion_markers(history, "posture", NOW.replace(hour=hour), "cohort")[0]
+                   for hour in (1, 10, 13, 19)]
+        self.assertEqual(len(set(posture)), 1)
+
+    def test_legacy_daily_marker_blocks_all_cutover_day_slots(self):
+        history = Path("/history")
+        old = history / "vulnerability-2026-11-22-cohort.done"
+        for hour in (1, 10, 13, 19):
+            marker, blockers = R.completion_markers(history, "vulnerability", NOW.replace(hour=hour), "cohort")
+            self.assertIn(marker, blockers)
+            self.assertIn(old, blockers)
+        self.assertNotIn(old, R.completion_markers(history, "vulnerability", NOW + timedelta(days=1, hours=14), "cohort")[1])
+
+
 class RetainedProjectionTests(unittest.TestCase):
     def test_recover_only_verified_matching_archive(self):
         fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
@@ -693,8 +715,8 @@ class SubmissionTests(unittest.TestCase):
                 self.assertEqual(duplicate.run(), 4)
             self.assertEqual(duplicate.result["reasons"], ["duplicate_execution"])
             self.assertEqual(len(posted), 1)
-            # Yesterday's completion and report cannot suppress a new daily scan.
-            clock.return_value = NOW + timedelta(days=1)
+            # A completed earlier slot cannot suppress the next scheduled batch.
+            clock.return_value = NOW + timedelta(hours=6)
             tomorrow = R.Runner(api, config, EXPECTED, history, "vulnerability")
             with mock.patch.object(tomorrow, "preflight", return_value={}), \
                     mock.patch.object(tomorrow, "audit", return_value={"podUID": "engine-uid", "checkedAt": R.db.stamp(clock.return_value)}), \

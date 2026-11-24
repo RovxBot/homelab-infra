@@ -419,12 +419,15 @@ spec:
           value: "1"
         - name: MAXQUEUEDEPTH
           value: "1"
+        # Viper AutomaticEnv uses the uppercase maxImageSize key; isolate
+        # this scanner-only qualification from the chart node-agent config.
+        - name: MAXIMAGESIZE
+          value: "1073741824"
       sbomScanner:
         enabled: false
       config:
         grypeDbPersistence: true
-        # Bounded larger-image qualification; retain the 3Gi Pod limits and one worker.
-        maxImageSize: 1073741824
+        maxImageSize: 536870912
         maxSBOMSize: 20971520
         scanTimeout: 5m
         cveMatchingMode: "off"

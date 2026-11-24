@@ -71,7 +71,7 @@ def check(resources):
         spec = job["spec"]
         assert spec["concurrencyPolicy"] == "Forbid" and spec["timeZone"] == "Etc/UTC"
         mode = job["metadata"]["name"].rsplit("-", 1)[-1]
-        expected = {"vulnerability": "13 19 * * *", "posture": "13 20 * * *", "refresh": "7,37 * * * *"}[mode]
+        expected = {"vulnerability": "13 1,10,13,19 * * *", "posture": "13 20 * * *", "refresh": "7,37 * * * *"}[mode]
         assert spec["schedule"] == expected and spec["startingDeadlineSeconds"] == 300
         jspec = spec["jobTemplate"]["spec"]
         assert jspec["backoffLimit"] == 0 and jspec["activeDeadlineSeconds"] == (180 if mode == "refresh" else 1800)
