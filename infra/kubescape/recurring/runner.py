@@ -455,7 +455,7 @@ class Runner:
             path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
             # Only this distinct ConfigMap is readable by the GitHub publisher.
             public_path = CORE + "/namespaces/kubescape/configmaps/kubescape-public-cve"
-            projection = self.api.call(public_path)
+            projection = dict(self.api.call(public_path))
             projection["data"] = {"projection.json": json.dumps(public_cve_projection(inventory, self.records), separators=(",", ":"))}
             db.require(len(json.dumps(projection)) < 100000, "public_projection_too_large")
             self.api.call(public_path, projection, "PUT")
