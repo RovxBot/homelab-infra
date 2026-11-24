@@ -37,7 +37,8 @@ class PublisherFailure(Exception):
     def __init__(self, code):
         allowed = ("kubernetes_token", "kubernetes_api", "kubernetes_ca",
                    "receiver_token", "receiver_api", "projection",
-                   "github_api", "publisher_state", "publisher_sync")
+                   "github_api", "publisher_state", "publisher_sync",
+                   "cve_api", "cve_projection", "cve_state", "cve_sync", "cve_coverage", "cve_pending")
         if not any(code == name or code.startswith(name + "_") for name in allowed):
             code = "publisher_state"
         self.code = code
@@ -147,7 +148,7 @@ def request_json(opener, url, token, *, method="GET", payload=None, phase="githu
     # The Kubernetes API and receiver are READ-ONLY sources: one bounded
     # retry is safe for transient timeouts/5xx. GitHub POSTs are never retried
     # because the remote write may already have succeeded.
-    attempts = 2 if method == "GET" and phase in ("kubernetes_api", "receiver_api") else 1
+    attempts = 2 if method == "GET" and phase in ("kubernetes_api", "receiver_api", "cve_api") else 1
     for attempt in range(attempts):
         try:
             with opener.open(req, timeout=15) as response:
@@ -441,21 +442,34 @@ class CVEGitHub(GitHub):
 
 
 def fetch_cve_projection():
-    token = Path("/var/run/publisher-api/token").read_text().strip()
-    kube = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(
-        context=ssl.create_default_context(cafile="/var/run/publisher-api/ca.crt")))
-    obj = request_json(kube, CVE_CONFIG, token, phase="kubernetes_api")
-    require(obj.get("kind") == "ConfigMap" and obj["metadata"]["name"] == "kubescape-public-cve"
-            and obj["metadata"]["namespace"] == "kubescape")
-    require(set(obj["data"]) == {"projection.json"})
-    return validate_cve(json.loads(obj["data"]["projection.json"]))
+    try:
+        token = Path("/var/run/publisher-api/token").read_text().strip()
+        kube = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(
+            context=ssl.create_default_context(cafile="/var/run/publisher-api/ca.crt")))
+    except Exception:
+        raise PublisherFailure("cve_api_configuration") from None
+    obj = request_json(kube, CVE_CONFIG, token, phase="cve_api")
+    try:
+        require(obj.get("kind") == "ConfigMap" and obj["metadata"]["name"] == "kubescape-public-cve"
+                and obj["metadata"]["namespace"] == "kubescape")
+        # Empty initial object is an explicit not-yet-assessed condition.
+        if not obj.get("data"):
+            raise PublisherFailure("cve_coverage_missing")
+        require(set(obj["data"]) == {"projection.json"})
+        return validate_cve(json.loads(obj["data"]["projection.json"]))
+    except PublisherFailure:
+        raise
+    except Exception:
+        raise PublisherFailure("cve_projection_invalid") from None
 
 
 def cve_main(token):
     ready = fetch_cve_projection()
-    fd = os.open("/state/cve-publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    fd = None
     conn = None
+    phase = "cve_state"
     try:
+        fd = os.open("/state/cve-publisher.sqlite", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         conn = sqlite3.connect("/state/cve-publisher.sqlite", timeout=5)
         conn.execute("PRAGMA journal_mode=DELETE")
@@ -465,16 +479,25 @@ def cve_main(token):
                                      fingerprint=cve_revision, owns=owns_cve)
         # Zero findings is not a resolution signal. Only positive findings
         # cause writes, and no issue is ever closed or reopened by this source.
+        phase = "cve_sync"
         outcomes = [publisher.sync(e) for e in ready if e["findings"] or e["otherHighCriticalMatches"]]
         pending = sum(x.startswith("pending_") for x in outcomes)
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(ALLOWED), "created": outcomes.count("created"),
                           "updated": outcomes.count("updated"), "pending": pending}), flush=True)
-        require(len(ready) == len(ALLOWED) and not pending)
+        if pending:
+            raise PublisherFailure("cve_pending")
+        if len(ready) != len(ALLOWED):
+            raise PublisherFailure("cve_coverage_incomplete")
+    except PublisherFailure:
+        raise
+    except Exception:
+        raise PublisherFailure(phase) from None
     finally:
         if conn is not None:
             conn.close()
-        os.close(fd)
+        if fd is not None:
+            os.close(fd)
 
 
 def main():
@@ -519,8 +542,11 @@ if __name__ == "__main__":
         if os.environ.get("ENABLE_CVE_PUBLISHER") == "true":
             try:
                 cve_main(os.environ.get("GITHUB_TOKEN", ""))
+            except PublisherFailure as exc:
+                print("security_cve_publisher_failed phase=" + exc.code, flush=True)
+                raise SystemExit(1) from None
             except Exception:
-                print("security_cve_publisher_failed", flush=True)
+                print("security_cve_publisher_failed phase=unclassified", flush=True)
                 raise SystemExit(1) from None
     except PublisherFailure as exc:
         # One tightly bounded internal code, never original exception text,
