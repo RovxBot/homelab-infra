@@ -6,7 +6,7 @@ resources:
   - helmrelease.yaml
   # Receiver TLS Secrets are encrypted at rest; encrypted manifests are
   # reconciled by the Kubescape Flux Kustomization's SOPS decryption.
-  # Receiver workload and agent HTTP export remain disabled separately.
+  # Receiver and two-node native HTTPS exporter are active; retain SOPS trust.
   - ../../secrets
   - recurring/rbac.yaml
   - recurring/cronjobs.yaml
