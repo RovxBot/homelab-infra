@@ -41,13 +41,13 @@ class CompletionWindowTests(unittest.TestCase):
                    for hour in (1, 10, 13, 19)]
         self.assertEqual(len(set(posture)), 1)
 
-    def test_legacy_daily_marker_blocks_only_original_scheduled_slot(self):
+    def test_legacy_daily_marker_blocks_all_cutover_day_slots(self):
         history = Path("/history")
         old = history / "vulnerability-2026-11-22-cohort.done"
         for hour in (1, 10, 13, 19):
             marker, blockers = R.completion_markers(history, "vulnerability", NOW.replace(hour=hour), "cohort")
             self.assertIn(marker, blockers)
-            self.assertEqual(old in blockers, hour == 19)
+            self.assertIn(old, blockers)
         self.assertNotIn(old, R.completion_markers(history, "vulnerability", NOW + timedelta(days=1, hours=14), "cohort")[1])
 
 
