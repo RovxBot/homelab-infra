@@ -72,6 +72,11 @@ class GitHub:
 
     def request(self, method, payload=None):
         require(method in ("GET", "POST"))
+        if method == "POST":
+            require(isinstance(payload, dict) and set(payload) == {"summary", "description", "severity", "cve_id", "start_private_fork", "vulnerabilities"}
+                    and payload["cve_id"] is None and payload["start_private_fork"] is False)
+        else:
+            require(payload is None)
         # No arbitrary endpoint, update, publish, CVE request, or fork API.
         request = Request(URL + ("?per_page=100" if method == "GET" else ""),
                           data=None if payload is None else json.dumps(payload).encode(),
