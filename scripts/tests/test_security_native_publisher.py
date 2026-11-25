@@ -236,6 +236,42 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual(self.github.create_calls,3)
 
 
+    def test_native_budget_deferral_prioritizes_critical_and_preserves_updates(self):
+        existing=dict(self.entry,key="f"*64)
+        self.assertEqual(self.writer.sync(existing),"created")
+        critical=dict(self.entry,key="c"*64,severity="Critical")
+        older=dict(self.entry,key="d"*64,first="2026-11-24T04:00:00Z")
+        deferred=dict(self.entry,key="a"*64)
+        updated=dict(existing,count=2,last="2026-11-24T05:00:00Z")
+        # Ensure the existing update sorts after the deferred new key.
+        outcomes=pub.sync_native_entries(self.writer,[deferred,updated,older,critical])
+        self.assertEqual(outcomes,["created","created","deferred","updated"])
+        self.assertEqual(self.github.create_calls,3)
+        self.assertEqual(self.github.comments_written,1)
+        self.assertIsNone(self.db.execute("SELECT key FROM issues WHERE key=?",
+                                         (deferred["key"],)).fetchone())
+        writer=pub.DurablePublisher(self.db,self.github,now=self.writer.now+86401)
+        self.assertEqual(pub.sync_native_entries(writer,[deferred,updated,older,critical]).count("created"),1)
+        self.assertEqual(self.github.create_calls,4)
+        self.assertEqual(self.github.comments_written,1)
+
+    def test_native_ambiguous_write_stops_batch_without_blind_replay(self):
+        first=dict(self.entry,key="b"*64,severity="Critical")
+        later=dict(self.entry,key="c"*64)
+        self.github.fail_after_create=True
+        with self.assertRaises(OSError):
+            pub.sync_native_entries(self.writer,[later,first])
+        self.assertEqual(self.github.create_calls,1)
+        self.assertEqual(self.db.execute("SELECT pending_create FROM issues WHERE key=?",
+                                        (first["key"],)).fetchone(),(1,))
+        self.assertIsNone(self.db.execute("SELECT key FROM issues WHERE key=?",
+                                         (later["key"],)).fetchone())
+        self.github.fail_after_create=False
+        pub.sync_native_entries(self.writer,[later,first])
+        self.assertEqual(self.github.create_calls,2)
+        self.assertEqual(self.db.execute("SELECT count(*) FROM issues WHERE pending_create != 0").fetchone()[0],0)
+
+
 class CVEPublisherTests(unittest.TestCase):
     def test_private_projection_scope_matches_reviewed_scan_config(self):
         import json

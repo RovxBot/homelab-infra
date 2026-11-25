@@ -558,6 +558,21 @@ def cve_main(token):
             os.close(fd)
 
 
+def sync_native_entries(publisher, incidents):
+    """Defer only pre-write budget exhaustion; never retry uncertain POSTs."""
+    outcomes = []
+    # Prioritize Critical incidents, then oldest first, with stable key ties.
+    for item in sorted(incidents, key=lambda x: (
+            x["severity"] != "Critical", normalize_date(x["first"]), x["key"])):
+        try:
+            outcomes.append(publisher.sync(item))
+        except WriteBudgetDeferred:
+            # Other keys may need an update rather than a create. No pending
+            # intent or remote write was attempted for this deferred key.
+            outcomes.append("deferred")
+    return outcomes
+
+
 def main():
     token = os.environ.get("GITEA_TOKEN", "")
     require(0 < len(token) <= 8192)
@@ -577,7 +592,7 @@ def main():
         except Exception:
             raise PublisherFailure("publisher_state") from None
         try:
-            outcomes = [publisher.sync(item) for item in incidents]
+            outcomes = sync_native_entries(publisher, incidents)
         except PublisherFailure:
             raise
         except Exception:
@@ -587,9 +602,12 @@ def main():
         print(json.dumps({"total":len(incidents),
                           "created":outcomes.count("created"),
                           "updated":outcomes.count("updated"),
-                          "pending":pending}), flush=True)
+                          "pending":pending,
+                          "deferred":outcomes.count("deferred")}), flush=True)
         if pending:
             raise PublisherFailure("publisher_pending")
+        if "deferred" in outcomes:
+            raise PublisherFailure("publisher_sync_budget_deferred")
     finally:
         if db is not None:
             db.close()
