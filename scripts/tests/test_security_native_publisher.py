@@ -231,7 +231,7 @@ class CVEPublisherTests(unittest.TestCase):
         import json
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
         self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
-        self.assertEqual(len(pub.CVE_ALLOWED),9)
+        self.assertEqual(len(pub.CVE_ALLOWED),12)
         self.assertEqual(len(pub.ALLOWED),9)
         from security_receiver.store import PRIVATE_WORKLOADS
         self.assertEqual(pub.ALLOWED, set(PRIVATE_WORKLOADS.values()))
@@ -246,7 +246,7 @@ class CVEPublisherTests(unittest.TestCase):
     def test_freshness_privacy_and_exact_fields(self):
         projection = self.fixture()
         now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
-        self.assertEqual(len(pub.validate_cve(projection,now)),9)
+        self.assertEqual(len(pub.validate_cve(projection,now)),12)
         for change in ({"workload":"gitea/Deployment/private"},
                        {"findings":[{"id":"CVE-2026-4738","severity":"High","fixAvailable":True,"package":"secret"}]},
                        {"assessedAt":"2026-11-20T05:00:00Z"}):
@@ -259,7 +259,7 @@ class CVEPublisherTests(unittest.TestCase):
 
     def test_projection_observation_expires_before_assessment(self):
         projection=self.fixture()
-        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),9)
+        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),12)
         with self.assertRaises(ValueError):
             pub.validate_cve(projection,datetime(2026,11,24,7,6,tzinfo=timezone.utc))
 
@@ -277,7 +277,7 @@ class CVEPublisherTests(unittest.TestCase):
             self.assertNotIn("sha256:",issue["body"])
 
     def test_cve_budget_deferral_does_not_block_other_keys_or_create_intents(self):
-        entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))
+        entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))[:9]
         github = FakeGitHub()
         with sqlite3.connect(":memory:") as connection:
             writer = pub.DurablePublisher(connection, github, now=100000,
@@ -291,12 +291,29 @@ class CVEPublisherTests(unittest.TestCase):
             self.assertEqual(connection.execute("SELECT count(*) FROM issues").fetchone()[0], 1)
             writer = pub.DurablePublisher(connection, github, now=103601,
                 renderer=pub.render_cve, fingerprint=pub.cve_revision, owns=pub.owns_cve,
-                create_limit=len(pub.CVE_ALLOWED))
+                create_limit=min(9, len(pub.CVE_ALLOWED)))
             outcomes = pub.sync_cve_entries(writer, entries)
             self.assertEqual(outcomes.count("created"), 8)
             self.assertEqual(github.create_calls, 9)
             self.assertEqual(pub.sync_cve_entries(writer, entries).count("unchanged"), 9)
             self.assertEqual(connection.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0], 0)
+
+    def test_expanded_cohort_preserves_daily_create_limit(self):
+        entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))
+        github = FakeGitHub()
+        with sqlite3.connect(":memory:") as connection:
+            def writer(now):
+                return pub.DurablePublisher(connection, github, now=now,
+                    renderer=pub.render_cve, fingerprint=pub.cve_revision, owns=pub.owns_cve,
+                    create_limit=min(9,len(pub.CVE_ALLOWED)))
+            outcomes=pub.sync_cve_entries(writer(100000),entries)
+            self.assertEqual(outcomes.count("created"),9)
+            self.assertEqual(outcomes.count("deferred"),3)
+            self.assertEqual(pub.sync_cve_entries(writer(103601),entries).count("deferred"),3)
+            outcomes=pub.sync_cve_entries(writer(186401),entries)
+            self.assertEqual(outcomes.count("created"),3)
+            self.assertEqual(outcomes.count("unchanged"),9)
+            self.assertEqual(github.create_calls,12)
 
     def test_cve_batch_propagates_ambiguous_write_failure(self):
         entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))

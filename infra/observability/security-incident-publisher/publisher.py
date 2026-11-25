@@ -400,6 +400,9 @@ CVE_ALLOWED = frozenset((
     "monitoring/Deployment/gatus",
     "openbrew/Deployment/openbrew",
     "stirling-pdf/Deployment/stirling-pdf",
+    "wotlk/StatefulSet/wotlk-mariadb",
+    "kube-system/DaemonSet/kube-proxy",
+    "cloudflared/Deployment/cloudflared",
 ))
 CVE_TITLE = "Security (Kubescape CVE)"
 CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-private-cve"
@@ -522,7 +525,7 @@ def cve_main(token):
         conn.execute("PRAGMA synchronous=FULL")
         require(conn.execute("PRAGMA quick_check").fetchone()[0] == "ok")
         publisher = DurablePublisher(conn, PrivateGitea(token), renderer=render_cve,
-                                     fingerprint=cve_revision, owns=owns_cve, create_limit=len(CVE_ALLOWED))
+                                     fingerprint=cve_revision, owns=owns_cve, create_limit=min(9, len(CVE_ALLOWED)))
         # Zero findings is not a resolution signal. Only positive findings
         # cause writes, and no issue is ever closed or reopened by this source.
         phase = "cve_sync"

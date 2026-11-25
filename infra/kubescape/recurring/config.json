@@ -45,6 +45,18 @@
     {
       "identity": "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
       "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
+    },
+    {
+      "identity": "wotlk/StatefulSet/wotlk-mariadb/mysql",
+      "reason": "First reviewed StatefulSet direct assessment; image only, no database access"
+    },
+    {
+      "identity": "kube-system/DaemonSet/kube-proxy/kube-proxy",
+      "reason": "First reviewed DaemonSet direct assessment; all eight current replicas required"
+    },
+    {
+      "identity": "cloudflared/Deployment/cloudflared/cloudflared",
+      "reason": "Reviewed public registry edge application; immutable image assessment only"
     }
   ],
   "maximumImagesPerRun": 4,
