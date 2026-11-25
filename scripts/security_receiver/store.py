@@ -37,6 +37,9 @@ PRIVATE_WORKLOADS = {
     "home/openbrew/Deployment/openbrew/oauth2-proxy": "openbrew/Deployment/openbrew",
     "home/openbrew/Deployment/openbrew-db/sqlserver": "openbrew/Deployment/openbrew-db",
     "home/stirling-pdf/Deployment/stirling-pdf/stirling-pdf": "stirling-pdf/Deployment/stirling-pdf",
+    "home/cloudflared/Deployment/cloudflared/cloudflared": "cloudflared/Deployment/cloudflared",
+    "home/mqtt/Deployment/mosquitto/mosquitto": "mqtt/Deployment/mosquitto",
+    "home/security/Deployment/vaultwarden/vaultwarden": "security/Deployment/vaultwarden",
 }
 
 
@@ -191,7 +194,7 @@ class EventStore:
             output.append({"key":key, "workload":identity, "rule":rule,
                            "severity":record["severity"], "first":first,
                            "last":last, "count":count, "state":"open"})
-            require(len(output) <= (50 if workload_scope is PRIVATE_WORKLOADS else 30), "publication_capacity")
+            require(len(output) <= (65 if workload_scope is PRIVATE_WORKLOADS else 30), "publication_capacity")
         return {"schema":1, "source":"kubescape-native", "incidents":output}
 
     def health(self):

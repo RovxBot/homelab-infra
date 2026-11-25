@@ -59,7 +59,7 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
         self.assertEqual(container["securityContext"]["capabilities"]["drop"],["ALL"])
         self.assertEqual(container["image"],
-            "ghcr.io/rovxbot/security-receiver@sha256:68d32d0f951f5ee50ace2ea5789b70296ce9ecca965a1b2c7890aed877ea4b32")
+            "ghcr.io/rovxbot/security-receiver@sha256:464f7027e6c66154fb33ece9a1d3099315a3fa505b15cdf9f15fd274cd5e5788")
         self.assertEqual(obj["Service"]["spec"]["type"],"ClusterIP")
         self.assertTrue(all(p["httpGet"]["scheme"]=="HTTPS"
                             for p in (container["startupProbe"],container["readinessProbe"],
@@ -140,8 +140,8 @@ class ReceiverStageTests(unittest.TestCase):
             {"apiGroups":["apps"],"resources":["replicasets"],"verbs":["get"]},
             {"apiGroups":["apps"],"resources":["deployments"],"resourceNames":["koito","koito-lastfm-bridge"],"verbs":["get"]}])
         bindings=[x for x in items if x["kind"].endswith("Binding")]
-        self.assertEqual(len(bindings),10)
-        for namespace, names in {"monitoring":["gatus"],"openbrew":["openbrew","openbrew-db"],"stirling-pdf":["stirling-pdf"]}.items():
+        self.assertEqual(len(bindings),13)
+        for namespace, names in {"monitoring":["gatus"],"openbrew":["openbrew","openbrew-db"],"stirling-pdf":["stirling-pdf"],"cloudflared":["cloudflared"],"mqtt":["mosquitto"],"security":["vaultwarden"]}.items():
             role=next(x for x in roles if x['metadata'].get('namespace')==namespace and x['metadata']['name']=='security-receiver-inventory')
             self.assertEqual(role['rules'], [
                 {'apiGroups':[''],'resources':['pods'],'verbs':['get']},
@@ -155,7 +155,7 @@ class ReceiverStageTests(unittest.TestCase):
     def test_exact_eight_agent_nodes_and_no_unsafe_surface(self):
         config=json.loads((RECEIVER/"config.json").read_text())
         self.assertEqual(config["nodes"],["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"])
-        self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test","koito","monitoring","openbrew","stirling-pdf"])
+        self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test","koito","monitoring","openbrew","stirling-pdf","cloudflared","mqtt","security"])
         self.assertEqual(config["state_dir"],"/state")
         self.assertEqual(config["tls_cert"],"/tls/tls.crt")
         self.assertEqual(config["tls_key"],"/tls/tls.key")

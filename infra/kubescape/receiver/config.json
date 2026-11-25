@@ -6,7 +6,10 @@
     "koito",
     "monitoring",
     "openbrew",
-    "stirling-pdf"
+    "stirling-pdf",
+    "cloudflared",
+    "mqtt",
+    "security"
   ],
   "nodes": [
     "metal0",

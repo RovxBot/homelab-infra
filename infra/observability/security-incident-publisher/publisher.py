@@ -31,7 +31,10 @@ ALLOWED = frozenset(("homepage/Deployment/homepage", "homepage/Deployment/homepa
                      "monitoring/Deployment/gatus",
                      "openbrew/Deployment/openbrew",
                      "openbrew/Deployment/openbrew-db",
-                     "stirling-pdf/Deployment/stirling-pdf"))
+                     "stirling-pdf/Deployment/stirling-pdf",
+                     "cloudflared/Deployment/cloudflared",
+                     "mqtt/Deployment/mosquitto",
+                     "security/Deployment/vaultwarden"))
 FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "count", "state"))
 KEY = re.compile(r"[0-9a-f]{64}\Z")
 RULE = re.compile(r"R[0-9]{4}\Z")
@@ -91,7 +94,7 @@ def validate(projection):
     require(isinstance(projection, dict) and set(projection) == {"schema", "source", "incidents"})
     require(projection["schema"] == 1 and projection["source"] == "kubescape-native")
     values = projection["incidents"]
-    require(isinstance(values, list) and len(values) <= 50)
+    require(isinstance(values, list) and len(values) <= 65)
     known = set()
     for item in values:
         require(isinstance(item, dict) and set(item) == FIELDS)
