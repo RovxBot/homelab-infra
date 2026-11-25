@@ -224,7 +224,8 @@ def fetch_projection():
 
 class PrivateGitea:
     """Only the reviewed, private repository; no fallback or advisory API."""
-    def __init__(self, token, requester=request_json):
+    def __init__(self, token, requester=request_json, *, allow_cve_closure=False):
+        self.allow_cve_closure = allow_cve_closure is True
         require(isinstance(token, str) and 0 < len(token) <= 8192
                 and not any(ch.isspace() for ch in token))
         self.token = token
@@ -242,6 +243,11 @@ class PrivateGitea:
             require((path == ISSUE_PATH and isinstance(body, dict) and set(body) == {"title", "body"})
                     or (re.fullmatch(re.escape(ISSUE_PATH) + r"/[1-9][0-9]*/comments", path)
                         and isinstance(body, dict) and set(body) == {"body"}))
+            self.verify_private()
+        elif method == "PATCH":
+            require(self.allow_cve_closure and
+                    re.fullmatch(re.escape(ISSUE_PATH) + r"/[1-9][0-9]*", path)
+                    and body == {"state":"closed"})
             self.verify_private()
         else:
             require(False)
@@ -294,6 +300,10 @@ class PrivateGitea:
     def comment(self, number, body):
         require(type(number) is int and 0 < number < 10**9)
         return self.call(ISSUE_PATH + "/" + str(number) + "/comments", "POST", {"body": body})
+
+    def close_cve(self, number):
+        require(type(number) is int and 0 < number < 10**9)
+        return self.call(ISSUE_PATH + "/" + str(number), "PATCH", {"state":"closed"})
 
 
 class WriteBudgetDeferred(ValueError):
@@ -847,6 +857,162 @@ def observe_cve_recovery(publisher, ready, outcomes):
     return counts
 
 
+# Deliberately not configurable in production yet. Enablement requires a
+# separate reviewed change and real recovery acceptance, not an env toggle.
+CVE_CLOSURE_ENABLED = False
+SECURITY_BOT = "homelab-security-bot"
+
+
+def recovery_marker(key, proof_id):
+    require(KEY.fullmatch(key) and KEY.fullmatch(proof_id))
+    return "<!-- native-security-recovery:" + key + ":" + proof_id + " -->"
+
+
+def render_recovery(key, baseline, candidate):
+    proof_id = revision(candidate)
+    lines = [recovery_marker(key, proof_id), "## Verified vulnerability recovery",
+             "Fresh independently attributed replacement assessments show no High/Critical findings and none of the previously tracked CVEs at any severity.",
+             "", "| Container | Previous running image | Verified replacement | Assessed at (UTC) |",
+             "| --- | --- | --- | --- |"]
+    for name in sorted(candidate["containers"]):
+        old, new = baseline["containers"][name], candidate["containers"][name]
+        lines.append("| " + name + " | `" + old["image"] + "` | `" + new["image"] + "` | " + new["assessedAt"] + " |")
+    lines += ["", "Tracked advisory IDs verified absent: " + str(len(baseline["findings"])),
+              "This resolves the tracked assessment findings, not a guarantee that the application is free from every vulnerability."]
+    return proof_id, "\n".join(lines)
+
+
+def cve_closure_ledger(db):
+    db.execute("""CREATE TABLE IF NOT EXISTS cve_closure_intents
+        (key TEXT PRIMARY KEY, number INTEGER NOT NULL, proof_id TEXT NOT NULL,
+         phase TEXT NOT NULL, evidence TEXT NOT NULL)""")
+
+
+def bot_owned_issue(issue, number, key):
+    # Adopted/human-created issues are not candidates for automatic closure.
+    user = issue.get("user")
+    return (issue.get("number") == number and not issue.get("pull_request")
+            and isinstance(issue.get("body"), str) and owns_cve(issue,key)
+            and isinstance(user, dict) and user.get("login") == SECURITY_BOT
+            and issue.get("state") in ("open","closed"))
+
+
+def recovery_comments(github, number, key, proof_id):
+    code = recovery_marker(key, proof_id)
+    comments = github.comments(number)
+    # Gitea does not expose compare-and-swap state changes. Do not automate
+    # closure of issues with human discussion, edited/unknown authors, or
+    # unexpected comments. Their disposition must be reviewed manually.
+    owned = all(isinstance(c.get("user"), dict) and
+                c["user"].get("login") == SECURITY_BOT and
+                isinstance(c.get("body"), str) and
+                (c["body"].startswith("<!-- native-security-update:" + key + ":")
+                 or c["body"].startswith("<!-- native-security-recovery:" + key + ":"))
+                for c in comments)
+    found = sum(c.get("body","").startswith(code + "\n") for c in comments if isinstance(c.get("body"),str))
+    require(found <= 1)
+    return owned, found == 1
+
+
+def sync_cve_closure(publisher, ready, outcomes, *, enabled=False):
+    """Durable closure state machine. Production caller is hard-disabled.
+
+    Recovery is requalified from the current successful observation, not
+    a cached candidate from an earlier failed cycle. A missing response
+    never triggers a second POST/PATCH. Reopening is intentionally separate.
+    """
+    db = publisher.db
+    cve_closure_ledger(db)
+    if not enabled:
+        return {"closed":0,"pending":0,"manualReview":0,"deferred":0}
+    counts = {"closed":0,"pending":0,"manualReview":0,"deferred":0}
+    ready_by_key = {e["key"]:e for e in ready}
+    for key, number, published, raw_baseline, raw_candidate in db.execute(
+            "SELECT key,number,published_revision,baseline,candidate FROM cve_recovery_observations ORDER BY key").fetchall():
+        existing = db.execute("SELECT number,proof_id,phase,evidence FROM cve_closure_intents WHERE key=?", (key,)).fetchone()
+        if existing and existing[2] == "closed":
+            continue
+        entry = ready_by_key.get(key)
+        baseline = json.loads(raw_baseline)
+        candidate = recovery_candidate(baseline,entry) if entry is not None else None
+        # Never treat a stale persisted shadow candidate as fresh authority.
+        if (candidate is None or not proof_qualified_recovery(baseline,candidate)
+                or raw_candidate is None):
+            continue
+        candidate["proofQualified"] = True
+        if candidate != json.loads(raw_candidate):
+            continue
+        mapping = db.execute("SELECT number,revision,pending_create,pending_update FROM issues WHERE key=?", (key,)).fetchone()
+        if mapping != (number,published,0,None):
+            continue
+        proof_id, body = render_recovery(key,baseline,candidate)
+        if existing and existing[:2] != (number,proof_id):
+            counts["manualReview"] += 1
+            continue
+        issue = publisher.github.issue(number)
+        if not bot_owned_issue(issue,number,key):
+            counts["manualReview"] += 1
+            continue
+        owned, found = recovery_comments(publisher.github,number,key,proof_id)
+        if not owned:
+            counts["manualReview"] += 1
+            continue
+        phase = existing[2] if existing else None
+        if issue["state"] == "closed":
+            # A read after a possibly successful PATCH cannot distinguish
+            # a concurrent human close from ours. Preserve the ambiguity;
+            # do not claim machine ownership or later reopen automatically.
+            if phase == "patch_pending":
+                with db:
+                    db.execute("UPDATE cve_closure_intents SET phase='ambiguous_closed' WHERE key=?", (key,))
+            counts["manualReview"] += 1
+            continue
+        if phase in ("patch_pending","ambiguous_closed"):
+            counts["manualReview"] += 1
+            continue
+        try:
+            if phase is None:
+                if found:
+                    counts["manualReview"] += 1
+                    continue
+                publisher.reserve("comment")
+                with db:
+                    db.execute("INSERT INTO cve_closure_intents VALUES (?,?,?,'comment_pending',?)",
+                               (key,number,proof_id,json.dumps(candidate,sort_keys=True)))
+                publisher.github.comment(number,body)
+                phase = "comment_pending"
+                owned, found = recovery_comments(publisher.github,number,key,proof_id)
+            if phase == "comment_pending":
+                if not owned or not found:
+                    counts["manualReview"] += 1
+                    continue
+                with db:
+                    db.execute("UPDATE cve_closure_intents SET phase='comment_confirmed' WHERE key=?", (key,))
+                phase = "comment_confirmed"
+            if phase != "comment_confirmed" or not found:
+                counts["manualReview"] += 1
+                continue
+            # Fresh read immediately before the state-only write. No CAS is
+            # available: the residual race is an explicit enablement blocker.
+            latest = publisher.github.issue(number)
+            owned, found = recovery_comments(publisher.github,number,key,proof_id)
+            if not bot_owned_issue(latest,number,key) or latest["state"] != "open" or not owned or not found:
+                counts["manualReview"] += 1
+                continue
+            publisher.reserve("close")
+            with db:
+                db.execute("UPDATE cve_closure_intents SET phase='patch_pending' WHERE key=?", (key,))
+            closed = publisher.github.close_cve(number)
+            require(bot_owned_issue(closed,number,key) and closed["state"] == "closed")
+            with db:
+                db.execute("UPDATE cve_closure_intents SET phase='closed' WHERE key=?", (key,))
+            counts["closed"] += 1
+        except WriteBudgetDeferred:
+            counts["deferred"] += 1
+    counts["pending"] = db.execute("SELECT count(*) FROM cve_closure_intents WHERE phase != 'closed'").fetchone()[0]
+    return counts
+
+
 def cve_main(token):
     ready = fetch_cve_projection()
     fd = None
@@ -859,13 +1025,14 @@ def cve_main(token):
         conn.execute("PRAGMA journal_mode=DELETE")
         conn.execute("PRAGMA synchronous=FULL")
         require(conn.execute("PRAGMA quick_check").fetchone()[0] == "ok")
-        publisher = DurablePublisher(conn, PrivateGitea(token), renderer=render_cve,
+        publisher = DurablePublisher(conn, PrivateGitea(token, allow_cve_closure=CVE_CLOSURE_ENABLED), renderer=render_cve,
                                      fingerprint=cve_revision, owns=owns_cve, create_limit=min(9, len(CVE_ALLOWED)))
         # Only positive findings cause remote writes. Recovery observations
         # are shadow-only and never change remote issue state.
         phase = "cve_sync"
         outcomes = sync_cve_entries(publisher, ready)
         recovery = observe_cve_recovery(publisher, ready, outcomes)
+        closure = sync_cve_closure(publisher, ready, outcomes, enabled=CVE_CLOSURE_ENABLED)
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(CVE_ALLOWED), "created": outcomes.count("created"),
@@ -874,7 +1041,9 @@ def cve_main(token):
                           "recoveryBaselines": recovery["baselines"],
                           "recoveryCandidates": recovery["candidates"],
                           "recoveryProofQualified": recovery["proofQualified"],
-                          "recoveryManualClosed": recovery["manualClosed"]}), flush=True)
+                          "recoveryManualClosed": recovery["manualClosed"],
+                          "closureEnabled": CVE_CLOSURE_ENABLED,
+                          "closurePending": closure["pending"]}), flush=True)
         if pending:
             raise PublisherFailure("cve_pending")
         if "deferred" in outcomes:
