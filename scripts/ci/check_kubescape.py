@@ -539,6 +539,7 @@ def run(args):
     expected = json.loads((ROOT / "infra/kubescape/rendered-inventory.json").read_text())
     assert result == expected, "rendered inventory/blockers changed; review the manifests"
     check_admission(args, work, resources)
+    runtime.check_direct_bindings(ROOT)
     runtime.check_boundary(args.kyverno, work, resources, ROOT)
     errors = result["admissionBlockers"]
     for error in errors:

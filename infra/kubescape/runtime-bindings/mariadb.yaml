@@ -1,0 +1,35 @@
+apiVersion: kubescape.io/v1
+kind: RuntimeRuleAlertBinding
+metadata:
+  name: runtime-wotlk-mariadb
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: wotlk
+  podSelector:
+    matchLabels:
+      app: wotlk-mariadb
+  rules:
+    - ruleID: R0001
+    - ruleID: R0004
+    - ruleID: R0007
+    - ruleID: R1000
+    - ruleID: R1002
+---
+apiVersion: kubescape.io/v1
+kind: RuntimeRuleAlertBinding
+metadata:
+  name: runtime-skyfire-mariadb
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: mop
+  podSelector:
+    matchLabels:
+      app: skyfire-mariadb
+  rules:
+    - ruleID: R0001
+    - ruleID: R0004
+    - ruleID: R0007
+    - ruleID: R1000
+    - ruleID: R1002
