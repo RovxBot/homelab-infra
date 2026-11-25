@@ -69,6 +69,9 @@ spec:
                       - monitoring
                       - openbrew
                       - stirling-pdf
+                      - cloudflared
+                      - mqtt
+                      - security
                   rules:
                   - ruleID: R0001
                   - ruleID: R0004
@@ -378,7 +381,7 @@ spec:
       # v0.3.310 uses Viper AutomaticEnv. Scope runtime independently of scanners.
       env:
         - name: INCLUDENAMESPACES
-          value: homepage,memos,kubescape-runtime-test,koito,monitoring,openbrew,stirling-pdf
+          value: homepage,memos,kubescape-runtime-test,koito,monitoring,openbrew,stirling-pdf,cloudflared,mqtt,security
       privileged: false
       config:
         stdoutExporter: true
