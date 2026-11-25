@@ -57,6 +57,49 @@ class PolicyPublisherTests(unittest.TestCase):
         report["results"][0].update(timestamp="2026-11-22T10:00:00Z",result="skip")
         self.assertEqual(P.policy_items(read,NOW),[])
 
+    def test_actionable_exception_guidance_and_stable_identity(self):
+        self.assertTrue((ROOT/P.EXCEPTION_SOURCE).is_file())
+        self.assertEqual(set(P.EXCEPTION_GUIDANCE),P.EXCEPTIONS)
+        item=P.stable_item("exception",("kyverno","wotlk-latest-tag"),
+                           {"status":"Review due","expires":"2026-12-05"})
+        title,body=P.render_policy(item)
+        for value in ("## Required action","## Resolution checklist",P.EXCEPTION_SOURCE,
+                      "weekly WotLK restart job","immutable image digest","2026-12-05",
+                      "not proof of an active policy violation","Automatic closure is not enabled yet"):
+            self.assertIn(value,body)
+        self.assertEqual(body.count(P.marker(item["key"])),1)
+        self.assertNotEqual(P.policy_revision(item),P.revision(item))
+        self.assertEqual(P.policy_revision(item),P.policy_revision(dict(item)))
+        unknown=P.stable_item("exception",("other","wotlk-latest-tag"),
+                             {"status":"Review due","expires":"2026-12-05","inventory":"Unexpected exception"})
+        self.assertNotIn("weekly WotLK restart job",P.render_policy(unknown)[1])
+
+    def test_actionable_policy_guidance_and_unknown_fallback(self):
+        for (policy,rule),(path,guidance) in P.RULE_GUIDANCE.items():
+            self.assertTrue((ROOT/path).is_file())
+            item=P.stable_item("violation",(policy,rule,"Deployment","private","app"),
+                               {"status":"Persistent failure"})
+            body=P.render_policy(item)[1]
+            self.assertIn(path,body)
+            self.assertIn(guidance,body)
+            self.assertIn("fresh positive evaluation",body)
+        item=P.stable_item("violation",("unknown","rule","Deployment","private","app"),
+                           {"status":"Persistent failure"})
+        self.assertIn("not established by this report",P.render_policy(item)[1])
+
+    def test_budget_deferral_does_not_hide_other_policy_updates(self):
+        from unittest.mock import Mock
+        writer=Mock()
+        writer.sync.side_effect=[P.WriteBudgetDeferred("write_budget_deferred"),"updated"]
+        items=[P.stable_item("exception",("kyverno",name),{"status":"Review due"})
+               for name in ("wotlk-latest-tag","home-assistant")]
+        self.assertEqual(P.sync_policy_items(writer,items),["deferred","updated"])
+        writer.sync.reset_mock()
+        writer.sync.side_effect=OSError("ambiguous")
+        with self.assertRaises(OSError):
+            P.sync_policy_items(writer,items)
+        writer.sync.assert_called_once()
+
     def test_canonical_aliases_match_existing_reviewed_registry(self):
         old = yaml.safe_load((ROOT/"infra/kyverno/automation/github-issue-sync-configmap.yaml").read_text())["data"]["sync.py"]
         def block(text):
