@@ -383,8 +383,8 @@ CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 MAX_PRIVATE_CVES = 100
 MAX_PRIVATE_DETAIL_MATCHES = 12
 MAX_PRIVATE_PROJECTION_BYTES = 240 * 1024
-PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\\Z")
-PRIVATE_IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,383}@sha256:[a-f0-9]{64}\\Z")
+PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\Z")
+PRIVATE_IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,383}@sha256:[a-f0-9]{64}\Z")
 
 
 def private_cve_findings(matches):
