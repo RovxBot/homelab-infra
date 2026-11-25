@@ -21,19 +21,19 @@ AGENT_IMAGE = ("quay.io/kubescape/node-agent:v0.3.310@sha256:"
 
 
 def mock_resources():
-    app = dict(metadata=dict(name=POD.deployment, uid=POD.deployment_uid,
+    app = dict(kind="Deployment",apiVersion="apps/v1",metadata=dict(name=POD.deployment, uid=POD.deployment_uid,
         namespace=POD.namespace), spec=dict(template=dict(spec=dict(containers=[
             dict(name=POD.container,image='example@'+INDEX)]))))
     pod = dict(metadata=dict(name=POD.pod_name,uid=POD.pod_uid,namespace=POD.namespace,
-        ownerReferences=[dict(kind='ReplicaSet',name='test-rs',uid='rs-uid',controller=True)]),
+        ownerReferences=[dict(apiVersion='apps/v1',kind='ReplicaSet',name='test-rs',uid='rs-uid',controller=True)]),
         spec=dict(nodeName=POD.node,containers=[
             dict(name=POD.container,image='example@'+INDEX)]),
         status=dict(phase='Running',containerStatuses=[
             dict(name=POD.container,ready=True,containerID=POD.container_id,
                 imageID='docker.io/example@'+INDEX,
                 state=dict(running=dict(startedAt=POD.started_at)))]))
-    rs = dict(metadata=dict(uid='rs-uid',ownerReferences=[
-        dict(kind='Deployment',name=POD.deployment,uid=POD.deployment_uid,controller=True)]))
+    rs = dict(kind='ReplicaSet',apiVersion='apps/v1',metadata=dict(name='test-rs',namespace=POD.namespace,uid='rs-uid',ownerReferences=[
+        dict(apiVersion='apps/v1',kind='Deployment',name=POD.deployment,uid=POD.deployment_uid,controller=True)]))
     agent = dict(metadata=dict(name='node-agent-test',uid=SOURCE.agent_pod_uid,
         namespace='kubescape',ownerReferences=[
             dict(kind='DaemonSet',name='node-agent',uid='ds-uid',controller=True)]),
@@ -137,6 +137,52 @@ class TrustedSourceTests(unittest.TestCase):
                 if change=='node': agent['spec']['nodeName']='unreviewed'
                 with self.assertRaises(Rejected):
                     self.api.authenticate('valid')
+
+    def test_direct_controller_ownership_qualification_and_rejections(self):
+        for namespace,kind,name,resource in (
+            ("wotlk","StatefulSet","wotlk-mariadb","statefulsets"),
+            ("mop","StatefulSet","skyfire-mariadb","statefulsets"),
+            ("kube-system","DaemonSet","kube-proxy","daemonsets")):
+            self.api=FakeTrust()
+            self.api.namespaces=frozenset((namespace,))
+            pod=self.api.resources[(POD.namespace,"pods",POD.pod_name)]
+            app=self.api.resources[(POD.namespace,"deployments",POD.deployment)]
+            pod["metadata"]["namespace"]=namespace
+            pod["metadata"]["ownerReferences"]=[dict(apiVersion="apps/v1",kind=kind,
+                name=name,uid=POD.deployment_uid,controller=True)]
+            app.update(kind=kind,apiVersion="apps/v1")
+            app["metadata"].update(namespace=namespace,name=name)
+            self.api.resources[(namespace,"pods",POD.pod_name)]=pod
+            self.api.resources[(namespace,resource,name)]=app
+            p=payload()
+            alert=p["spec"]["alerts"][0]
+            alert.update(namespace=namespace,workloadKind=kind,workloadName=name)
+            trusted=self.api.inventory(SOURCE,alert)
+            self.assertEqual(trusted.workload_kind,kind)
+            self.assertEqual(normalize(encoded(p),SOURCE,trusted,NOW).workload_key,
+                             "/".join(("home",namespace,kind,name,POD.container)))
+            # No claim may change the independently derived owner.
+            alert["workloadKind"]="Deployment"
+            with self.assertRaises(Rejected):
+                normalize(encoded(p),SOURCE,self.api.inventory(SOURCE,alert),NOW)
+            alert["workloadKind"]=kind
+            ref=pod["metadata"]["ownerReferences"][0]
+            for target,key,bad in ((ref,"uid","wrong"),(ref,"apiVersion","batch/v1"),
+                                  (ref,"kind","Job"),(ref,"name","unreviewed"),
+                                  (app,"kind","Deployment"),(app["metadata"],"namespace","elsewhere"),
+                                  (app["metadata"],"name","wrong"),
+                                  (app["metadata"],"deletionTimestamp","now")):
+                old=target.get(key)
+                target[key]=bad
+                with self.assertRaises(Rejected):
+                    self.api.inventory(SOURCE,alert)
+                if old is None:
+                    target.pop(key)
+                else:
+                    target[key]=old
+            pod["metadata"]["ownerReferences"].append(copy.deepcopy(ref))
+            with self.assertRaises(Rejected):
+                self.api.inventory(SOURCE,alert)
 
     def test_reject_untrusted_workload_attribution(self):
         for change in ('pod_uid','owner','container_image','container_id','node'):
