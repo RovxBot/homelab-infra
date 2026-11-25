@@ -2,7 +2,7 @@
 
 NOT a network listener, authentication service, or production event sink.
 VerifiedSource must come from an authenticated, bound Kubernetes source.
-TrustedPod must come from independent Deployment -> ReplicaSet -> Pod inventory.
+TrustedPod must come from independent controller and Pod inventory.
 Neither object may be populated from the HTTP body or untrusted headers.
 
 Pinned sources: kubescape/node-agent v0.3.310 pkg/exporters/http_exporter.go
@@ -81,6 +81,9 @@ class TrustedPod:
     node: str
     started_at: str
     running_digest: str
+    # Preserve the original positional constructor and durable receipt schema.
+    # deployment/deployment_uid are legacy field names for the verified owner.
+    workload_kind: str = "Deployment"
 
 
 @dataclass(frozen=True)
@@ -141,7 +144,8 @@ def normalize(body: bytes, source: VerifiedSource, pod: TrustedPod, now: datetim
             and alert.get("containerName") == pod.container
             and alert.get("podName") == pod.pod_name
             and alert.get("podUID") == pod.pod_uid
-            and alert.get("workloadKind") == "Deployment"
+            and pod.workload_kind in ("Deployment", "StatefulSet", "DaemonSet")
+            and alert.get("workloadKind") == pod.workload_kind
             and alert.get("workloadName") == pod.deployment
             and alert.get("workloadUID") == pod.deployment_uid
             and alert.get("nodeName") == pod.node, "workload_identity_invalid")
@@ -162,7 +166,7 @@ def normalize(body: bytes, source: VerifiedSource, pod: TrustedPod, now: datetim
                 "reported_image_invalid")
         relation = ("equal" if reported.rsplit("@", 1)[-1] == pod.running_digest
                     else "different")
-    workload_key = "/".join((pod.cluster, pod.namespace, "Deployment",
+    workload_key = "/".join((pod.cluster, pod.namespace, pod.workload_kind,
                              pod.deployment, pod.container))
     event_id = hashlib.sha256(json.dumps(
         (workload_key, rule, pod.pod_uid, cid(pod.container_id), token),

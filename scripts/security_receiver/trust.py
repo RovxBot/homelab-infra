@@ -1,6 +1,6 @@
 """Trusted Kubernetes identities for the Kubescape native HTTP receiver.
 
-TokenReview and independently retrieved Pod/ReplicaSet/Deployment ownership are
+TokenReview and independently retrieved Pod/controller ownership are
 the sole authorities. Event fields cannot authenticate the sender or workload.
 No Secrets API, Kubernetes writes, Pod logs, nodes/proxy or admission mutation.
 """
@@ -48,7 +48,7 @@ def named(name):
 
 
 def namespace_resource(namespace, resource, name):
-    require(resource in ("pods", "replicasets", "deployments", "daemonsets"),
+    require(resource in ("pods", "replicasets", "deployments", "daemonsets", "statefulsets"),
             "resource_invalid")
     api = "/api/v1" if resource == "pods" else "/apis/apps/v1"
     return f"{api}/namespaces/{named(namespace)}/{resource}/{named(name)}"
@@ -207,7 +207,7 @@ class KubernetesTrust:
         return True
 
     def inventory(self, source, alert):
-        """Read the live Pod -> ReplicaSet -> Deployment chain independently."""
+        """Resolve the actual live owner, never an alert-supplied kind or name."""
         require(type(source) is VerifiedSource and isinstance(alert, dict),
                 "trusted_context_required")
         namespace, name, container = (alert.get("namespace"),
@@ -222,23 +222,51 @@ class KubernetesTrust:
                 and pod.get("spec", {}).get("nodeName") == source.node,
                 "pod_identity_invalid")
         state = running_status(pod, container)
-        ref = next((r for r in pod.get("metadata", {}).get("ownerReferences", ())
-                    if r.get("controller") is True), None)
-        require(ref is not None and ref.get("kind") == "ReplicaSet",
+        refs = [r for r in pod.get("metadata", {}).get("ownerReferences", ())
+                if r.get("controller") is True]
+        require(len(refs) == 1, "workload_owner_invalid")
+        ref = refs[0]
+        kind = ref.get("kind")
+        child = pod
+        if kind == "ReplicaSet":
+            rs = self.get(namespace, "replicasets", ref.get("name"))
+            meta = rs.get("metadata") or {}
+            require(rs.get("kind") == "ReplicaSet" and rs.get("apiVersion") == "apps/v1"
+                    and ref.get("apiVersion") == "apps/v1"
+                    and isinstance(ref.get("uid"), str) and bool(IDENTITY.fullmatch(ref["uid"]))
+                    and meta.get("uid") == ref.get("uid")
+                    and meta.get("name") == ref.get("name")
+                    and meta.get("namespace") == namespace
+                    and not meta.get("deletionTimestamp"),
+                    "replicaset_identity_invalid")
+            controllers = [r for r in meta.get("ownerReferences", ())
+                           if r.get("controller") is True]
+            require(len(controllers) == 1 and controllers[0].get("kind") == "Deployment",
+                    "deployment_owner_invalid")
+            child, ref, kind = rs, controllers[0], "Deployment"
+        else:
+            # Explicit qualification candidates; neither new namespace nor
+            # permission is granted here. Other direct owners stay denied.
+            require((namespace, kind, ref.get("name")) in {
+                ("wotlk", "StatefulSet", "wotlk-mariadb"),
+                ("mop", "StatefulSet", "skyfire-mariadb"),
+                ("kube-system", "DaemonSet", "kube-proxy"),
+            }, "workload_owner_invalid")
+        require(ref.get("apiVersion") == "apps/v1"
+                and isinstance(ref.get("uid"), str) and bool(IDENTITY.fullmatch(ref["uid"])),
                 "workload_owner_invalid")
-        rs = self.get(namespace, "replicasets", ref.get("name"))
-        require(rs.get("metadata", {}).get("uid") == ref.get("uid"),
-                "replicaset_identity_invalid")
-        controllers = [r for r in rs.get("metadata", {}).get("ownerReferences", ())
-                       if r.get("controller") is True]
-        require(len(controllers) == 1 and controllers[0].get("kind") == "Deployment",
-                "deployment_owner_invalid")
-        deployment = self.get(namespace, "deployments", controllers[0].get("name"))
+        resource = {"Deployment": "deployments", "StatefulSet": "statefulsets",
+                    "DaemonSet": "daemonsets"}[kind]
+        deployment = self.get(namespace, resource, ref.get("name"))
         depmeta = deployment.get("metadata") or {}
-        require(depmeta.get("uid") == controllers[0].get("uid")
+        require(deployment.get("kind") == kind
+                and deployment.get("apiVersion") == "apps/v1"
+                and depmeta.get("name") == ref.get("name")
+                and depmeta.get("namespace") == namespace
+                and depmeta.get("uid") == ref.get("uid")
                 and not depmeta.get("deletionTimestamp")
-                and owner(rs, "Deployment", depmeta.get("uid")),
-                "deployment_identity_invalid")
+                and owner(child, kind, depmeta.get("uid")),
+                "workload_identity_invalid")
         spec_image = one(pod["spec"]["containers"], container).get("image")
         template_image = one(deployment["spec"]["template"]["spec"]["containers"],
                              container).get("image")
@@ -250,4 +278,4 @@ class KubernetesTrust:
         return TrustedPod("home", namespace, depmeta["name"], depmeta["uid"],
                           pod["metadata"]["name"], pod["metadata"]["uid"],
                           container, state["containerID"], source.node,
-                          started_at, digest)
+                          started_at, digest, workload_kind=kind)

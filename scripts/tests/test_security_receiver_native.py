@@ -80,6 +80,22 @@ class NativeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(Rejected,'source_node_mismatch'):
             normalize(encoded(payload()),replace(SOURCE,node='metal6'),POD,NOW)
 
+    def test_new_controller_kinds_are_exact_and_keys_remain_distinct(self):
+        baseline=normalize(encoded(payload()),SOURCE,POD,NOW)
+        for kind in ("StatefulSet","DaemonSet"):
+            trusted=replace(POD,workload_kind=kind)
+            p=payload()
+            p["spec"]["alerts"][0]["workloadKind"]=kind
+            event=normalize(encoded(p),SOURCE,trusted,NOW)
+            self.assertEqual(event.workload_key,
+                             "/".join(("home",POD.namespace,kind,POD.deployment,POD.container)))
+            self.assertNotEqual(event.event_id,baseline.event_id)
+            with self.assertRaises(Rejected):
+                normalize(encoded(payload()),SOURCE,trusted,NOW)
+            with self.assertRaises(Rejected):
+                normalize(encoded(p),SOURCE,replace(trusted,workload_kind="Job"),NOW)
+            self.assertEqual(event.deployment_uid,baseline.deployment_uid)
+
     def test_requires_actual_http_format_not_stdout(self):
         p=payload()['spec']['alerts'][0]
         with self.assertRaisesRegex(Rejected,'exporter_schema_invalid'):
