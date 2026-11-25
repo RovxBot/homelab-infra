@@ -501,6 +501,50 @@ def validate_cve_details(entry, generated):
     return sorted(result, key=lambda c: c["name"])
 
 
+MAX_RECOVERY_CVES = 256
+
+
+def validate_recovery_proof(entry, generated):
+    """Schema 3 is optional proof, not a promise to resolve an issue.
+
+    A producer must independently qualify exact current workload coverage,
+    direct report attribution, all-severity CVEs and absence of ignored matches.
+    """
+    proof = entry["recoveryProof"]
+    if proof is None:
+        return None
+    require(entry["state"] == "complete" and isinstance(proof, dict)
+            and set(proof) == {"workloadIdentity", "containers"})
+    require(isinstance(proof["workloadIdentity"], str) and KEY.fullmatch(proof["workloadIdentity"]))
+    values = proof["containers"]
+    require(isinstance(values, list) and len(values) == len(entry["containers"]))
+    expected = {c["name"]: c for c in entry["containers"]}
+    seen, ids, qualified = set(), set(), []
+    for item in values:
+        require(isinstance(item, dict) and set(item) == {
+            "name", "databaseBuilt", "databaseChecksum", "allCves", "assessmentId"})
+        name = item["name"]
+        require(isinstance(name, str) and name in expected and name not in seen)
+        seen.add(name)
+        for field in ("databaseChecksum", "assessmentId"):
+            require(isinstance(item[field], str) and KEY.fullmatch(item[field]))
+        built = datetime.fromisoformat(normalize_date(item["databaseBuilt"]).replace("Z", "+00:00"))
+        assessed = datetime.fromisoformat(normalize_date(expected[name]["assessedAt"]).replace("Z", "+00:00"))
+        # Strict fresh database for recovery, independently of the reporting
+        # grace period. Both scan time and current projection must qualify.
+        require(built <= assessed <= generated and generated-built <= timedelta(days=7))
+        all_cves = item["allCves"]
+        require(isinstance(all_cves, list) and len(all_cves) <= MAX_RECOVERY_CVES
+                and all(isinstance(v, str) and CVE_ID.fullmatch(v) for v in all_cves)
+                and len(set(all_cves)) == len(all_cves))
+        ids.update(all_cves)
+        require(all(m["id"] in all_cves for m in expected[name]["matches"]))
+        qualified.append(dict(item, allCves=sorted(all_cves), databaseBuilt=normalize_date(item["databaseBuilt"])))
+    require(seen == set(expected) and {f["id"] for f in entry["findings"]} <= ids)
+    return {"workloadIdentity":proof["workloadIdentity"],
+            "containers":sorted(qualified, key=lambda c:c["name"])}
+
+
 def cve_key(workload):
     return hashlib.sha256(("cve:" + workload).encode()).hexdigest()
 
@@ -509,7 +553,7 @@ def validate_cve(projection, now=None):
     now = now or datetime.now(timezone.utc)
     require(isinstance(projection, dict) and set(projection) == {"schema", "source", "generatedAt", "entries"})
     schema = projection["schema"]
-    require(type(schema) is int and schema in (1, 2) and projection["source"] == "kubescape-cve")
+    require(type(schema) is int and schema in (1, 2, 3) and projection["source"] == "kubescape-cve")
     generated = datetime.fromisoformat(normalize_date(projection["generatedAt"]).replace("Z", "+00:00"))
     require(timedelta(0) <= now-generated <= timedelta(minutes=65))
     entries = projection["entries"]
@@ -517,7 +561,11 @@ def validate_cve(projection, now=None):
     seen, ready = set(), []
     for entry in entries:
         fields = {"workload", "state", "assessedAt", "findings", "otherHighCriticalMatches"}
-        require(isinstance(entry, dict) and set(entry) == (fields | {"containers"} if schema == 2 else fields))
+        if schema >= 2:
+            fields.add("containers")
+        if schema == 3:
+            fields.add("recoveryProof")
+        require(isinstance(entry, dict) and set(entry) == fields)
         workload = entry["workload"]
         require(workload in CVE_ALLOWED and workload not in seen)
         seen.add(workload)
@@ -528,8 +576,10 @@ def validate_cve(projection, now=None):
         require(isinstance(findings, list) and len(findings) <= 100)
         if entry["state"] == "unknown":
             require(entry["assessedAt"] is None and not findings and other == 0)
-            if schema == 2:
+            if schema >= 2:
                 validate_cve_details(entry, generated)
+            if schema == 3:
+                require(entry["recoveryProof"] is None)
             continue
         assessed = datetime.fromisoformat(normalize_date(entry["assessedAt"]).replace("Z", "+00:00"))
         require(timedelta(0) <= generated-assessed <= timedelta(hours=72))
@@ -544,8 +594,10 @@ def validate_cve(projection, now=None):
             ids.add(identifier)
             require(finding["severity"] in ("High", "Critical") and type(finding["fixAvailable"]) is bool)
         value = dict(entry, key=cve_key(workload), findings=sorted(findings, key=lambda x: x["id"]))
-        if schema == 2:
+        if schema >= 2:
             value["containers"] = validate_cve_details(entry, generated)
+        if schema == 3:
+            value["recoveryProof"] = validate_recovery_proof(value, generated)
         ready.append(value)
     return ready
 
@@ -612,7 +664,7 @@ def render_cve(entry):
 def cve_revision(entry):
     # Refresh the existing issue once when the presentation contract changes.
     # A daily repeat with identical evidence must not generate a new comment.
-    value = {k: v for k, v in entry.items() if k != "assessedAt"}
+    value = {k: v for k, v in entry.items() if k not in ("assessedAt", "recoveryProof")}
     if "containers" in value:
         value["containers"] = [{k: v for k, v in c.items() if k != "assessedAt"} for c in value["containers"]]
     return revision({"formatVersion": 2, "evidence": value})
@@ -665,13 +717,16 @@ def cve_recovery_snapshot(entry):
     containers = entry.get("containers")
     if not containers:
         return None
-    return {
+    snapshot = {
         "containers": {c["name"]: {"image": c["image"],
                                     "assessedAt": normalize_date(c["assessedAt"])}
                        for c in containers},
         "findings": sorted(f["id"] for f in entry["findings"]),
         "otherHighCriticalMatches": entry["otherHighCriticalMatches"],
     }
+    if entry.get("recoveryProof") is not None:
+        snapshot["proof"] = entry["recoveryProof"]
+    return snapshot
 
 
 def recovery_candidate(baseline, entry):
@@ -688,9 +743,30 @@ def recovery_candidate(baseline, entry):
     # and partially rescanned multi-container workloads cannot qualify here.
     if any(after[name]["assessedAt"] <= before[name]["assessedAt"] for name in before):
         return None
-    if not any(after[name]["image"] != before[name]["image"] for name in before):
+    if not any(after[name]["image"].rsplit("@", 1)[-1] != before[name]["image"].rsplit("@", 1)[-1] for name in before):
         return None
     return current
+
+
+def proof_qualified_recovery(baseline, candidate):
+    """Additional qualification beyond the shadow image-change candidate."""
+    before, after = baseline.get("proof"), candidate.get("proof")
+    if before is None or after is None or baseline["otherHighCriticalMatches"]:
+        return False
+    if before["workloadIdentity"] != after["workloadIdentity"]:
+        return False
+    old = {c["name"]:c for c in before["containers"]}
+    new = {c["name"]:c for c in after["containers"]}
+    if not old or set(old) != set(new):
+        return False
+    if any(new[name]["databaseBuilt"] < old[name]["databaseBuilt"]
+           or (new[name]["databaseBuilt"] == old[name]["databaseBuilt"]
+               and new[name]["databaseChecksum"] != old[name]["databaseChecksum"])
+           or new[name]["assessmentId"] == old[name]["assessmentId"] for name in old):
+        return False
+    # A tracked CVE may have been downgraded to Medium/Low, not removed.
+    tracked = set(baseline["findings"])
+    return not any(tracked.intersection(c["allCves"]) for c in new.values())
 
 
 def observe_cve_recovery(publisher, ready, outcomes):
@@ -708,7 +784,7 @@ def observe_cve_recovery(publisher, ready, outcomes):
     require(len(positives) == len(outcomes))
     success = {e["key"] for e, outcome in zip(positives, outcomes)
                if outcome in ("created", "updated", "unchanged")}
-    counts = {"baselines": 0, "candidates": 0, "manualClosed": 0}
+    counts = {"baselines": 0, "candidates": 0, "proofQualified": 0, "manualClosed": 0}
     # Invalidate every prior candidate atomically before evaluating this view.
     # An exception mid-observation rolls back the new view; readers must never
     # use this shadow table to perform writes. Only successful cycle counts
@@ -731,7 +807,8 @@ def observe_cve_recovery(publisher, ready, outcomes):
                 if key not in success or snapshot is None or published != cve_revision(entry):
                     continue
                 if previous is not None:
-                    old = json.loads(previous[2])["containers"]
+                    prior = json.loads(previous[2])
+                    old = prior["containers"]
                     new = snapshot["containers"]
                     # Do not move the positive baseline backwards on replay.
                     if any(new[name]["assessedAt"] < old[name]["assessedAt"]
@@ -739,12 +816,19 @@ def observe_cve_recovery(publisher, ready, outcomes):
                                and new[name]["image"] != old[name]["image"])
                            for name in set(old) & set(new)):
                         continue
+                    # Retain earlier tracked advisory IDs even if severity
+                    # changes during a partial remediation. Preserve any
+                    # unidentifiable non-CVE match as a manual-review blocker.
+                    snapshot["findings"] = sorted(set(prior["findings"]) | set(snapshot["findings"]))
+                    snapshot["otherHighCriticalMatches"] = max(prior["otherHighCriticalMatches"],
+                                                               snapshot["otherHighCriticalMatches"])
                 db.execute("INSERT OR REPLACE INTO cve_recovery_observations VALUES (?,?,?,?,NULL)",
                            (key, number, published, json.dumps(snapshot, sort_keys=True)))
                 continue
             if previous is None or previous[:2] != (number, published):
                 continue
-            candidate = recovery_candidate(json.loads(previous[2]), entry)
+            baseline = json.loads(previous[2])
+            candidate = recovery_candidate(baseline, entry)
             if candidate is None:
                 continue
             issue = publisher.github.issue(number)
@@ -753,9 +837,11 @@ def observe_cve_recovery(publisher, ready, outcomes):
             if issue.get("state") != "open":
                 counts["manualClosed"] += 1
                 continue
+            candidate["proofQualified"] = proof_qualified_recovery(baseline, candidate)
             db.execute("UPDATE cve_recovery_observations SET candidate=? WHERE key=?",
                        (json.dumps(candidate, sort_keys=True), key))
             counts["candidates"] += 1
+            counts["proofQualified"] += int(candidate["proofQualified"])
         counts["baselines"] = db.execute("SELECT count(*) FROM cve_recovery_observations").fetchone()[0]
         require(counts["baselines"] <= len(CVE_ALLOWED))
     return counts
@@ -787,6 +873,7 @@ def cve_main(token):
                           "deferred": outcomes.count("deferred"),
                           "recoveryBaselines": recovery["baselines"],
                           "recoveryCandidates": recovery["candidates"],
+                          "recoveryProofQualified": recovery["proofQualified"],
                           "recoveryManualClosed": recovery["manualClosed"]}), flush=True)
         if pending:
             raise PublisherFailure("cve_pending")
