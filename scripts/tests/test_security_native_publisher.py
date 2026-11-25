@@ -303,6 +303,79 @@ class CVEPublisherTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             pub.validate_cve(projection,datetime(2026,11,26,tzinfo=timezone.utc))
 
+
+    def test_reviewed_source_map_and_actionable_legacy_template(self):
+        import json
+        config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
+        expected={}
+        for target in config["targets"]:
+            workload, container = target["identity"].rsplit("/",1)
+            expected.setdefault(workload,set()).add(container)
+        self.assertEqual(set(pub.CVE_SOURCES),set(expected))
+        for workload,(path,names) in pub.CVE_SOURCES.items():
+            self.assertEqual(set(names),expected[workload])
+            if path:
+                self.assertTrue((ROOT/path).is_file())
+        entry=pub.validate_cve(self.fixture(),datetime(2026,11,24,6,1,tzinfo=timezone.utc))[0]
+        title,body=pub.render_cve(entry)
+        for required in ("## Summary","## Affected resources","## Required action",
+                         "## Resolution checklist","not established by this report",
+                         "summary-only evidence","Automatic closure is not enabled yet"):
+            self.assertIn(required,body)
+        self.assertEqual(body.count(pub.marker(entry["key"])),1)
+
+    def rich_fixture(self):
+        projection=self.fixture()
+        projection["schema"]=2
+        for entry in projection["entries"]:
+            entry["containers"]=[{
+                "name":name,"image":"registry.example/app@sha256:"+"a"*64,
+                "assessedAt":entry["assessedAt"],"detailState":"complete","omittedMatches":0,
+                "matches":[{"id":"CVE-2026-4738","severity":"Critical","package":"zlib",
+                            "ecosystem":"apk","installedVersion":"1.3.2-r1",
+                            "fixedVersions":["1.4-r0"],"fixState":"fixed"}]
+            } for name in pub.CVE_SOURCES[entry["workload"]][1]]
+        return projection
+
+    def test_rich_private_evidence_and_stable_revision(self):
+        projection=self.rich_fixture()
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        entry=pub.validate_cve(projection,now)[0]
+        title,body=pub.render_cve(entry)
+        for value in ("zlib","1.3.2-r1","1.4-r0","registry.example/app@sha256:",
+                      "Package-detail coverage: complete"):
+            self.assertIn(value,body)
+        legacy=pub.validate_cve(self.fixture(),now)[0]
+        self.assertEqual(entry["key"],legacy["key"])
+        self.assertNotEqual(pub.cve_revision(entry),pub.cve_revision(legacy))
+        newer=copy.deepcopy(entry)
+        newer["assessedAt"]="2026-11-24T05:30:00Z"
+        for container in newer["containers"]:
+            container["assessedAt"]=newer["assessedAt"]
+        self.assertEqual(pub.cve_revision(newer),pub.cve_revision(entry))
+
+    def test_rich_partial_unavailable_and_invalid_evidence(self):
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        for state,omitted in (("partial",2),("unavailable",None)):
+            projection=self.rich_fixture()
+            projection["entries"][0]["containers"][0].update(detailState=state,omittedMatches=omitted,matches=[])
+            body=pub.render_cve(pub.validate_cve(projection,now)[0])[1]
+            self.assertIn("Package-detail coverage: "+state,body)
+        for key,value in (("package","x|fake"),("package","https://example.invalid"),
+                          ("package","<script>"),("installedVersion","x\nsecret"),
+                          ("id","CVE-2026-9999"),("fixState","invented"),
+                          ("fixedVersions",["1","2","3","4","5"])):
+            projection=self.rich_fixture()
+            projection["entries"][0]["containers"][0]["matches"][0][key]=value
+            with self.subTest(key=key,value=value), self.assertRaises(ValueError):
+                pub.validate_cve(projection,now)
+        for key,value in (("name","unreviewed"),("image","app:latest"),
+                          ("omittedMatches",1),("matches",[]),("assessedAt","2026-11-20T05:00:00Z")):
+            projection=self.rich_fixture()
+            projection["entries"][0]["containers"][0][key]=value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                pub.validate_cve(projection,now)
+
     def test_projection_observation_expires_before_assessment(self):
         projection=self.fixture()
         self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),12)
