@@ -298,62 +298,9 @@ def select_batch(rows, records, config):
         # An unsuccessful attempt on the current DB counts for fair rotation.
         attempted_current = record.get("lastAttempt", {}).get("databaseChecksum") == config["databaseChecksum"]
         return (bool(stamp) and (not changed_db or attempted_current), stamp)
-    # Budget actual scanner requests, not the number of matching workload rows.
-    selected, seen = [], set()
-    for row in sorted(rows, key=priority):
-        # Shared-image evidence for new kinds remains unqualified.
-        digest = row["runningDigest"] if row["kind"] == "Deployment" else row_key(row)
-        if digest in seen:
-            continue
-        seen.add(digest)
-        selected.append(row)
-        if len(selected) == config["maximumImagesPerRun"]:
-            break
-    return selected
-
-
-def shared_image_record(source, peer, record, config, now):
-    """Create explicit image-level evidence, never a peer scanner summary.
-
-    Only a directly qualified result from this batch is eligible. Exact full
-    registry digest, DB, owner identity and current Pod membership are required.
-    """
-    db.require(source["runningDigest"] == peer["runningDigest"]
-               and source["runningDigest"] and row_key(source) != row_key(peer)
-               and source["ready"] and peer["ready"]
-               and source["kind"] == peer["kind"] == "Deployment"
-               and source["containerType"] == peer["containerType"] == "containers",
-               "shared_image_identity_mismatch")
-    db.require(record.get("evidenceKind") == "direct"
-               and record.get("imageDigest") == source["runningDigest"]
-               and record.get("workloadUID") == source["workloadUID"]
-               and record.get("container") == source["container"]
-               and record.get("lastAttempt", {}).get("state") == "healthy"
-               and isinstance(record.get("jobID"), str)
-               and re.fullmatch(r"recurring-[a-f0-9]{32}", record["jobID"])
-               and record["database"]["checksum"] == config["databaseChecksum"]
-               and db.age_hours(record["createdAt"], now) <= config["maximumScanAgeHours"]
-               and db.database_freshness(record["database"]["built"], now)["state"] != "expired",
-               "shared_image_source_unqualified")
-    if target_key(peer) in PRIVATE_CVE_TARGETS:
-        db.require(isinstance(record.get("privateCve"), dict), "shared_image_projection_unavailable")
-    result = {key: record[key] for key in ("createdAt", "database", "severities",
-              "fixesAvailable", "manifestDigest", "configDigest", "lastAttempt")}
-    result.update(evidenceKind="sharedImage", sourceJobID=record["jobID"],
-                  sourceWorkload=target_key(source), workloadUID=peer["workloadUID"],
-                  imageDigest=peer["runningDigest"], container=peer["container"],
-                  generation=peer["generation"], podUIDs=sorted(peer["podUIDs"]))
-    if target_key(peer) in PRIVATE_CVE_TARGETS:
-        result["privateCve"] = record["privateCve"]
-    return result
-
-
-def shared_identity_current(row, record):
-    return (record.get("workloadUID") == row["workloadUID"]
-            and record.get("imageDigest") == row["runningDigest"]
-            and record.get("container") == row["container"]
-            and record.get("generation") == row["generation"]
-            and record.get("podUIDs") == sorted(row["podUIDs"]))
+    # The pinned engine applies workload-scoped exceptions to stored CVE
+    # manifests. Equal image digests alone cannot establish equal findings.
+    return sorted(rows, key=priority)[:config["maximumImagesPerRun"]]
 
 
 def coverage(rows, records, config, now=None):
@@ -383,8 +330,8 @@ def coverage(rows, records, config, now=None):
             row.update(assessmentState="unsupported", exclusionReason="No running registry digest or unsupported container type")
         elif record.get("lastAttempt", {}).get("state") in {"failed", "unknown"}:
             row["assessmentState"] = record["lastAttempt"]["state"]
-        elif record.get("evidenceKind") == "sharedImage" and not shared_identity_current(row, record):
-            row.update(assessmentState="unknown", exclusionReason="Shared image attribution changed")
+        elif record.get("evidenceKind") == "sharedImage":
+            row.update(assessmentState="unknown", exclusionReason="Workload exception equivalence unverified")
         elif record.get("createdAt"):
             row["assessmentState"] = "unknown" if invalid else "healthy" if current else "stale"
     return {"schemaVersion": 1, "generatedAt": db.stamp(now),
@@ -458,23 +405,44 @@ def private_cve_findings(matches):
 
 
 def private_cve_projection(inventory, records):
+    """One bounded issue per workload, covering every reviewed container.
+
+    All containers must have qualified evidence. Use the oldest assessment
+    timestamp, merge CVEs by ID with highest severity and OR of fix flags,
+    and fail closed on missing/ambiguous/overflow evidence.
+    """
     rows = inventory["rows"]
-    entries = []
+    groups = {}
     for target in sorted(PRIVATE_CVE_TARGETS):
-        workload = target.rsplit("/", 1)[0]
-        selected = [row for row in rows if target_key(row) == target]
-        record = records.get(row_key(selected[0]), {}) if len(selected) == 1 else {}
-        evidence = record.get("privateCve")
-        if evidence is None and target in LEGACY_PUBLIC_CVE_TARGETS:
-            evidence = record.get("publicCve")
-        if (len(selected) == 1 and selected[0]["assessmentState"] == "healthy"
-                and isinstance(evidence, dict) and evidence.get("state") == "complete"):
-            entries.append({"workload": workload, "state": "complete",
-                            "assessedAt": record["createdAt"], "findings": evidence["findings"],
-                            "otherHighCriticalMatches": evidence["otherHighCriticalMatches"]})
+        groups.setdefault(target.rsplit("/", 1)[0], []).append(target)
+    entries = []
+    for workload, group in sorted(groups.items()):
+        entry = {"workload": workload, "state": "unknown", "assessedAt": None,
+                 "findings": [], "otherHighCriticalMatches": 0}
+        findings, other, times = {}, 0, []
+        for target in group:
+            selected = [row for row in rows if target_key(row) == target]
+            record = records.get(row_key(selected[0]), {}) if len(selected) == 1 else {}
+            evidence = record.get("privateCve")
+            if evidence is None and target in LEGACY_PUBLIC_CVE_TARGETS:
+                evidence = record.get("publicCve")
+            if (len(selected) != 1 or selected[0]["assessmentState"] != "healthy"
+                    or record.get("evidenceKind") == "sharedImage"
+                    or not isinstance(evidence, dict) or evidence.get("state") != "complete"):
+                break
+            times.append(record["createdAt"])
+            other += evidence["otherHighCriticalMatches"]
+            for finding in evidence["findings"]:
+                existing = findings.setdefault(finding["id"], dict(finding))
+                if finding["severity"] == "Critical":
+                    existing["severity"] = "Critical"
+                existing["fixAvailable"] |= finding["fixAvailable"]
         else:
-            entries.append({"workload": workload, "state": "unknown", "assessedAt": None,
-                            "findings": [], "otherHighCriticalMatches": 0})
+            if len(findings) <= MAX_PRIVATE_CVES and 0 <= other <= 1000000:
+                entry.update(state="complete", assessedAt=min(times, key=db.timestamp),
+                             findings=sorted(findings.values(), key=lambda x: x["id"]),
+                             otherHighCriticalMatches=other)
+        entries.append(entry)
     return {"schema": 1, "source": "kubescape-cve", "generatedAt": inventory["generatedAt"],
             "entries": entries}
 
@@ -1094,46 +1062,6 @@ class Runner:
             "databaseChecksum": self.config["databaseChecksum"]}
         atomic(self.history / "records.json", self.records)
 
-    def reuse_batch_image(self, source, selected, outcomes):
-        if source["kind"] != "Deployment":
-            return
-        peers = [peer for peer in selected if row_key(peer) != row_key(source)
-                 and peer["kind"] == "Deployment" and peer["runningDigest"] == source["runningDigest"]]
-        if not peers:
-            return
-        record = self.records[row_key(source)]
-        # Independently resolve the entire selected cohort again; no reuse on
-        # ambiguous owners, rollouts, missing running digests or inventory error.
-        try:
-            current = {row_key(r): r for r in targets(workload_rows(self.api), self.config)}
-        except Exception:
-            return
-        observed_source = current.get(row_key(source))
-        if (observed_source is None or observed_source["generation"] != source["generation"]
-                or sorted(observed_source["podUIDs"]) != sorted(source["podUIDs"])):
-            return
-        for peer in peers:
-            observed = current.get(row_key(peer))
-            if (observed is None or observed["generation"] != peer["generation"]
-                    or sorted(observed["podUIDs"]) != sorted(peer["podUIDs"])):
-                continue
-            previous = self.records.get(row_key(peer), {})
-            # A failed/uncertain peer must get its own direct retry. Never
-            # overwrite an existing newer result or refresh the source clock.
-            if previous.get("lastAttempt", {}).get("state") in ("failed", "unknown"):
-                continue
-            if previous.get("createdAt", "") >= record.get("createdAt", ""):
-                continue
-            try:
-                shared = shared_image_record(source, observed, record, self.config, db.utcnow())
-            except (db.Rejected, KeyError, TypeError, ValueError):
-                continue
-            self.records[row_key(peer)] = shared
-            atomic(self.history / "records.json", self.records)
-            outcome = next(o for o in outcomes if o["identity"] == target_key(peer))
-            outcome.update(state="healthy", reasons=[], evidenceKind="sharedImage",
-                           lastSuccessfulScan=shared["createdAt"])
-
     def batch(self, selected, outcomes, audit):
         batch = select_batch(selected, self.records, self.config)
         deadline = self.deadline  # Leave room inside the 30-minute Job.
@@ -1167,8 +1095,6 @@ class Runner:
                         next(o for o in outcomes if o["identity"] == target_key(pending)).update(
                             state="skipped", reasons=["uncertain_previous_request"])
                     raise db.Rejected("uncertain_previous_request") from None
-            if outcome["state"] == "healthy":
-                self.reuse_batch_image(row, selected, outcomes)
             self.publish(terminal=False)  # Persist progress even if a later target fails.
         states = {o["state"] for o in outcomes if o["reasons"] != ["daily_batch_limit"]}
         self.result["state"] = "unknown" if "unknown" in states else "failed" if "failed" in states else "stale" if "stale" in states else "healthy" if self.result["assessments"] else "unknown"
