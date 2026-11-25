@@ -11,7 +11,7 @@ import ssl
 from urllib.parse import urlencode
 from urllib.request import Request, build_opener, HTTPSHandler, ProxyHandler
 
-from publisher import PrivateGitea, DurablePublisher, NoRedirect, marker, revision, require
+from publisher import PrivateGitea, DurablePublisher, NoRedirect, WriteBudgetDeferred, marker, revision, require
 
 IGNORED_SCOPE_KINDS = {"Pod", "ReplicaSet", "Job"}
 IGNORED_POLICIES = {"platform-flux-guardrails"}
@@ -244,12 +244,111 @@ def exception_items(list_resource, today):
     return list(items.values())
 
 
+# Reviewed guidance is code-owned, not report messages or annotation prose.
+EXCEPTION_SOURCE = "migration/kyverno/exceptions/exceptions.yaml"
+EXCEPTION_GUIDANCE = {
+    "chart-managed-workloads": "Review the chart values for owner labels, resource requests/limits and probes. Narrow the exception to only the settings the chart cannot support.",
+    "gpu-operator-workloads": "Review the GPU Operator and device-discovery hardware-access requirements. Preserve necessary host access; narrow unrelated exceptions only after device and workload tests.",
+    "home-assistant": "Review the host networking and runtime-hardening requirements for LAN discovery. Test discovery and device connectivity before removing an exception.",
+    "mutable-image-tags": "Check whether affected workloads can use immutable digest pins and reviewed image updates instead of mutable tags.",
+    "privileged-namespaces": "Review the storage, networking and game-workload host access requirements individually. Do not remove necessary privileges without compatibility tests.",
+    "wotlk-latest-tag": "Review the weekly WotLK restart job and image build/deployment workflow. Prefer a reviewed immutable image digest if it can preserve the intended update behavior; otherwise justify and approve a narrowly scoped renewal.",
+}
+
+RULE_GUIDANCE = {
+    ("platform-pod-standards", "require-owner-label"):
+        ("migration/kyverno/policies/workloads.yaml", "Set the required owner label on the affected workload/Pod template in GitOps; check the rendered labels."),
+    ("platform-pod-standards", "require-requests-and-limits"):
+        ("migration/kyverno/policies/workloads.yaml", "Set CPU and memory requests and limits appropriate to measured application use. Check scheduling headroom and avoid arbitrary low limits."),
+    ("platform-pod-standards", "require-runtime-hardening"):
+        ("migration/kyverno/policies/workloads.yaml", "Review the effective security context against the exact CEL rule; test compatible least-privilege settings, capabilities and seccomp before deploying."),
+    ("platform-pod-standards", "disallow-host-network"):
+        ("migration/kyverno/policies/workloads.yaml", "Review whether hostNetwork is required. Prefer normal Pod networking when supported; preserve justified host access through a reviewed narrow exception."),
+    ("platform-pod-standards", "require-digest-pinned-images"):
+        ("migration/kyverno/policies/workloads.yaml", "Pin the supported image to a verified immutable digest and use the reviewed dependency update workflow."),
+    ("platform-pod-standards", "disallow-latest-tags"):
+        ("migration/kyverno/policies/workloads.yaml", "Replace the mutable latest tag with a reviewed version/digest, or review an explicitly justified narrow exception."),
+    ("platform-pod-standards", "require-probes"):
+        ("migration/kyverno/policies/workloads.yaml", "Add application-appropriate health probes as required by the exact rule; test startup and failure behavior."),
+    ("platform-namespace-standards", "require-psa-and-owner-labels"):
+        ("migration/kyverno/policies/namespace.yaml", "Review namespace ownership and PSA labels against the workload's reviewed security requirements. Do not lower PSA merely to clear the report."),
+    ("kubescape-runtime-boundary", "validation"):
+        ("infra/kubescape/runtime/admission.yaml", "Compare the runtime agent specification with its reviewed admission boundary and pinned chart contract. Restore the intended scope or submit a reviewed compatibility change."),
+}
+
+
 def render_policy(item):
-    title = "Kyverno " + item["category"] + ": " + "/".join(item["identity"])
-    body = marker(item["key"]) + "\n\n" + "\n".join(
-        key + ": " + value for key, value in sorted(item["details"].items()))
-    body += "\n\nReview live policy evidence locally. Missing reports, skipped evaluations and exception expiry do not prove remediation. Close only after verified recovery."
-    return title, body
+    category, identity = item["category"], item["identity"]
+    title = "Kyverno " + category + ": " + "/".join(identity)
+    details = item["details"]
+    lines = [marker(item["key"]), "", "## Summary",
+             "- Status: " + details["status"]]
+    if category == "exception":
+        namespace, name = identity
+        lines += ["- Exception: " + namespace + "/" + name]
+        if "expires" in details:
+            lines.append("- Review deadline: " + details["expires"])
+        if "inventory" in details:
+            lines.append("- Inventory: " + details["inventory"])
+        reviewed = namespace == "kyverno" and name in EXCEPTION_GUIDANCE
+        lines += ["- GitOps source: " + ("`" + EXCEPTION_SOURCE + "`" if reviewed else
+                                         "not established; locate the actual managing manifest"),
+                  "", "## Required action"]
+        status = details["status"]
+        if status in ("Review due", "Expired"):
+            lines += ["This is an exception review, not proof of an active policy violation.",
+                      "Determine whether the exception is still necessary before its deadline. "
+                      "If no longer necessary, remediate the workload and remove the exception through GitOps. "
+                      "If still necessary, document the reason, owner, narrow scope and approved new deadline in a reviewed PR."]
+        elif status == "Invalid accountability metadata":
+            lines += ["Verify the required owner, reason, expiry and approved tracking metadata in the managed exception. "
+                      "Correct the metadata through a reviewed change; do not copy untrusted annotation text into this issue."]
+        elif status == "Expected exception missing":
+            lines += ["Compare live and desired exception inventory and check reconciliation. "
+                      "Determine whether removal was intentional and qualified; do not blindly recreate it."]
+        else:
+            lines += ["Review whether this exception belongs in the approved inventory. "
+                      "Validate its purpose and scope before changing it."]
+        if "inventory" in details:
+            lines.append("Reconcile the unexpected inventory against the approved desired state before accepting any renewal.")
+        if reviewed:
+            lines.append(EXCEPTION_GUIDANCE[name])
+        lines += ["", "## Resolution checklist",
+                  "- [ ] Confirm affected workloads, rule scope and accountable owner in GitOps.",
+                  "- [ ] Review and merge an explicitly justified renewal or qualified removal; no automatic extension.",
+                  "- [ ] Verify Flux reconciliation and the intended live exception/policy state.",
+                  "- [ ] Confirm a valid renewed review window or positive compliance after remediation. "
+                  "A renewed exception resolves the review reminder, not the underlying security exposure."]
+    else:
+        policy, rule, kind, namespace, name = identity
+        source, guidance = RULE_GUIDANCE.get((policy, rule), (None,
+            "Inspect the exact reviewed rule and affected GitOps resource locally. Determine the failing field and safe remediation; do not guess from the rule name."))
+        lines += ["- Policy / rule: " + policy + " / " + rule,
+                  "- Resource: " + namespace + "/" + kind + "/" + name,
+                  "- Evidence: persistent failure under the 24-hour reporting threshold; live enforcement mode and exact failing field require confirmation.",
+                  "- Policy source: " + ("`" + source + "`" if source else "not established by this report"),
+                  "", "## Required action", guidance,
+                  "Review the actual policy evaluation and workload manifest before proposing a change.",
+                  "", "## Resolution checklist",
+                  "- [ ] Confirm the live policy revision, enforcement mode and failing resource.",
+                  "- [ ] Review, test and merge a safe GitOps remediation.",
+                  "- [ ] Verify Flux reconciliation and fresh positive evaluation of the same control/resource."]
+    lines += ["", "Automatic closure is not enabled yet. Missing reports, skipped evaluations and exception expiry do not prove remediation. Close only after verified recovery."]
+    return title, "\n".join(lines)
+
+
+def policy_revision(item):
+    return revision({"formatVersion":2, "evidence":item})
+
+
+def sync_policy_items(writer, items):
+    outcomes = []
+    for item in sorted(items, key=lambda item: (item["category"], item["key"])):
+        try:
+            outcomes.append(writer.sync(item))
+        except WriteBudgetDeferred:
+            outcomes.append("deferred")
+    return outcomes
 
 
 def kube_reader():
@@ -298,17 +397,14 @@ def main():
         db.execute("PRAGMA journal_mode=DELETE")
         db.execute("PRAGMA synchronous=FULL")
         require(db.execute("PRAGMA quick_check").fetchone()[0] == "ok")
-        writer = DurablePublisher(db, client, renderer=render_policy, fingerprint=revision)
+        writer = DurablePublisher(db, client, renderer=render_policy, fingerprint=policy_revision)
         phase = "sync"
-        outcomes = []
-        # Reuse the reviewed writer's shared per-source hourly/daily limits.
-        # Skip new work when a limit is exhausted; never silently report healthy.
-        for item in sorted(items, key=lambda item: (item["category"], item["key"])):
-            outcomes.append(writer.sync(item))
+        outcomes = sync_policy_items(writer, items)
         pending = db.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"policyFindings":len(items), "created":outcomes.count("created"),
-                          "updated":outcomes.count("updated"),"pending":pending}), flush=True)
-        return int(bool(pending))
+                          "updated":outcomes.count("updated"),"pending":pending,
+                          "deferred":outcomes.count("deferred")}), flush=True)
+        return int(bool(pending) or "deferred" in outcomes)
     except Exception:
         print(json.dumps({"status":"unknown","phase":phase}), flush=True)
         return 1
