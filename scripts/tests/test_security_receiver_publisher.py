@@ -118,6 +118,18 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual({r["workload"] for r in result["incidents"]},set(["cloudflared/Deployment/cloudflared","mqtt/Deployment/mosquitto","security/Deployment/vaultwarden"]))
         self.assertNotIn("PRIVATE_",json.dumps(result))
 
+    def test_direct_controller_projection_remains_private_and_exact(self):
+        identities = ["home/wotlk/StatefulSet/wotlk-mariadb/mysql","home/mop/StatefulSet/skyfire-mariadb/mysql","home/kube-system/DaemonSet/kube-proxy/kube-proxy"]
+        for i, identity in enumerate(identities + ["home/kube-system/DaemonSet/cilium/cilium-agent",
+                                                   "home/wotlk/Deployment/wotlk-mariadb/mysql",
+                                                   "home/mop/StatefulSet/skyfire-mariadb/unreviewed"]):
+            self.store.record(self.sample(identity,event_id=format(i+1,"064x")),self.now)
+        self.assertEqual(self.receiver.publication("bound-test-token")["incidents"],[])
+        result=self.receiver.publication("bound-test-token",private=True)
+        self.assertEqual(len(result["incidents"]),3)
+        self.assertEqual({r["workload"] for r in result["incidents"]},set(["wotlk/StatefulSet/wotlk-mariadb","mop/StatefulSet/skyfire-mariadb","kube-system/DaemonSet/kube-proxy"]))
+        self.assertNotIn("PRIVATE_",json.dumps(result))
+
     def test_token_principal_image_uid_and_ready_status_fail_closed(self):
         variants=[
             ("user","system:serviceaccount:kubescape:node-agent"),

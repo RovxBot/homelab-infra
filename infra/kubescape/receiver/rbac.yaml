@@ -404,3 +404,93 @@ subjects:
   - kind: ServiceAccount
     name: security-receiver
     namespace: kubescape
+
+---
+# Reviewed direct-controller intake; no ReplicaSet or Deployment permission.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: wotlk
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    resourceNames: [wotlk-mariadb]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: wotlk
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+
+---
+# Reviewed direct-controller intake; no ReplicaSet or Deployment permission.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: mop
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    resourceNames: [skyfire-mariadb]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: mop
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+
+---
+# Reviewed direct-controller intake; no ReplicaSet or Deployment permission.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: kube-system
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [daemonsets]
+    resourceNames: [kube-proxy]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
