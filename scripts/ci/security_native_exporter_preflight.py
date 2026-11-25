@@ -41,7 +41,7 @@ EXPORTER = {
 }
 EXPORTER_PATH = "/v1/runtimealerts"
 SCOPE = ["metal0", "metal2", "metal3", "metal4", "metal5", "metal6", "metal7", "metal8"]
-NAMESPACES = ["homepage", "memos", "kubescape-runtime-test", "koito", "monitoring", "openbrew", "stirling-pdf", "cloudflared", "mqtt", "security"]
+NAMESPACES = ["homepage", "memos", "kubescape-runtime-test", "koito", "monitoring", "openbrew", "stirling-pdf", "cloudflared", "mqtt", "security", "wotlk", "mop"]
 
 
 def unique_pairs(pairs):

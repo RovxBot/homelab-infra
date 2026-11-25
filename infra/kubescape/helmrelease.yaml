@@ -381,7 +381,7 @@ spec:
       # v0.3.310 uses Viper AutomaticEnv. Scope runtime independently of scanners.
       env:
         - name: INCLUDENAMESPACES
-          value: homepage,memos,kubescape-runtime-test,koito,monitoring,openbrew,stirling-pdf,cloudflared,mqtt,security
+          value: homepage,memos,kubescape-runtime-test,koito,monitoring,openbrew,stirling-pdf,cloudflared,mqtt,security,wotlk,mop
       privileged: false
       config:
         stdoutExporter: true
