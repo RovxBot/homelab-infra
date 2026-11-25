@@ -659,6 +659,108 @@ def sync_cve_entries(publisher, ready):
     return outcomes
 
 
+def cve_recovery_snapshot(entry):
+    # Input has already passed validate_cve. Persist only the minimum evidence
+    # needed for comparing qualified observations, not package-detail payloads.
+    containers = entry.get("containers")
+    if not containers:
+        return None
+    return {
+        "containers": {c["name"]: {"image": c["image"],
+                                    "assessedAt": normalize_date(c["assessedAt"])}
+                       for c in containers},
+        "findings": sorted(f["id"] for f in entry["findings"]),
+        "otherHighCriticalMatches": entry["otherHighCriticalMatches"],
+    }
+
+
+def recovery_candidate(baseline, entry):
+    """Conservative shadow qualification; never a remote state transition."""
+    current = cve_recovery_snapshot(entry)
+    if (current is None or current["findings"] or current["otherHighCriticalMatches"]
+            or not (baseline["findings"] or baseline["otherHighCriticalMatches"])
+            or any(c["detailState"] != "complete" for c in entry["containers"])):
+        return None
+    before, after = baseline["containers"], current["containers"]
+    if set(before) != set(after) or not before:
+        return None
+    # Repeated inventory refresh, stale/older scans, same-image DB-only changes
+    # and partially rescanned multi-container workloads cannot qualify here.
+    if any(after[name]["assessedAt"] <= before[name]["assessedAt"] for name in before):
+        return None
+    if not any(after[name]["image"] != before[name]["image"] for name in before):
+        return None
+    return current
+
+
+def observe_cve_recovery(publisher, ready, outcomes):
+    """Retain a published positive baseline and compute read-only candidates.
+
+    No PATCH, closure comment, issue creation, reopening or remote recovery write.
+    Unknown/missing evidence removes candidate status, not the positive baseline.
+    State is on the existing locked private publisher SQLite volume.
+    """
+    db = publisher.db
+    db.execute("""CREATE TABLE IF NOT EXISTS cve_recovery_observations
+        (key TEXT PRIMARY KEY, number INTEGER NOT NULL, published_revision TEXT NOT NULL,
+         baseline TEXT NOT NULL, candidate TEXT)""")
+    positives = [e for e in ready if e["findings"] or e["otherHighCriticalMatches"]]
+    require(len(positives) == len(outcomes))
+    success = {e["key"] for e, outcome in zip(positives, outcomes)
+               if outcome in ("created", "updated", "unchanged")}
+    counts = {"baselines": 0, "candidates": 0, "manualClosed": 0}
+    # Invalidate every prior candidate atomically before evaluating this view.
+    # An exception mid-observation rolls back the new view; readers must never
+    # use this shadow table to perform writes. Only successful cycle counts
+    # are reported as current.
+    with db:
+        db.execute("UPDATE cve_recovery_observations SET candidate=NULL")
+        for entry in ready:
+            key = entry["key"]
+            mapping = db.execute(
+                "SELECT number,revision,pending_create,pending_update FROM issues WHERE key=?",
+                (key,)).fetchone()
+            if mapping is None or mapping[0] is None or mapping[2] or mapping[3] is not None:
+                continue
+            number, published = mapping[:2]
+            previous = db.execute(
+                "SELECT number,published_revision,baseline FROM cve_recovery_observations WHERE key=?",
+                (key,)).fetchone()
+            snapshot = cve_recovery_snapshot(entry)
+            if entry["findings"] or entry["otherHighCriticalMatches"]:
+                if key not in success or snapshot is None or published != cve_revision(entry):
+                    continue
+                if previous is not None:
+                    old = json.loads(previous[2])["containers"]
+                    new = snapshot["containers"]
+                    # Do not move the positive baseline backwards on replay.
+                    if any(new[name]["assessedAt"] < old[name]["assessedAt"]
+                           or (new[name]["assessedAt"] == old[name]["assessedAt"]
+                               and new[name]["image"] != old[name]["image"])
+                           for name in set(old) & set(new)):
+                        continue
+                db.execute("INSERT OR REPLACE INTO cve_recovery_observations VALUES (?,?,?,?,NULL)",
+                           (key, number, published, json.dumps(snapshot, sort_keys=True)))
+                continue
+            if previous is None or previous[:2] != (number, published):
+                continue
+            candidate = recovery_candidate(json.loads(previous[2]), entry)
+            if candidate is None:
+                continue
+            issue = publisher.github.issue(number)
+            require(issue.get("number") == number and not issue.get("pull_request")
+                    and isinstance(issue.get("body"), str) and publisher.owns(issue, key))
+            if issue.get("state") != "open":
+                counts["manualClosed"] += 1
+                continue
+            db.execute("UPDATE cve_recovery_observations SET candidate=? WHERE key=?",
+                       (json.dumps(candidate, sort_keys=True), key))
+            counts["candidates"] += 1
+        counts["baselines"] = db.execute("SELECT count(*) FROM cve_recovery_observations").fetchone()[0]
+        require(counts["baselines"] <= len(CVE_ALLOWED))
+    return counts
+
+
 def cve_main(token):
     ready = fetch_cve_projection()
     fd = None
@@ -673,15 +775,19 @@ def cve_main(token):
         require(conn.execute("PRAGMA quick_check").fetchone()[0] == "ok")
         publisher = DurablePublisher(conn, PrivateGitea(token), renderer=render_cve,
                                      fingerprint=cve_revision, owns=owns_cve, create_limit=min(9, len(CVE_ALLOWED)))
-        # Zero findings is not a resolution signal. Only positive findings
-        # cause writes, and no issue is ever closed or reopened by this source.
+        # Only positive findings cause remote writes. Recovery observations
+        # are shadow-only and never change remote issue state.
         phase = "cve_sync"
         outcomes = sync_cve_entries(publisher, ready)
+        recovery = observe_cve_recovery(publisher, ready, outcomes)
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(CVE_ALLOWED), "created": outcomes.count("created"),
                           "updated": outcomes.count("updated"), "pending": pending,
-                          "deferred": outcomes.count("deferred")}), flush=True)
+                          "deferred": outcomes.count("deferred"),
+                          "recoveryBaselines": recovery["baselines"],
+                          "recoveryCandidates": recovery["candidates"],
+                          "recoveryManualClosed": recovery["manualClosed"]}), flush=True)
         if pending:
             raise PublisherFailure("cve_pending")
         if "deferred" in outcomes:
