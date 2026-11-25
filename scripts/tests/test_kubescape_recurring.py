@@ -99,6 +99,8 @@ class RetainedProjectionTests(unittest.TestCase):
                     self.assertEqual(records[R.row_key(current)]["privateCve"],
                                      R.private_cve_findings(report["spec"]["payload"]["matches"]))
                     self.assertEqual(records[R.row_key(current)]["createdAt"],record["createdAt"])
+                    self.assertEqual(records[R.row_key(current)]["privateCveDetails"],
+                                     R.private_cve_details(report["spec"]["payload"]["matches"]))
                 else:
                     self.assertNotIn("privateCve",records[R.row_key(current)])
 
@@ -120,7 +122,7 @@ class RetainedProjectionTests(unittest.TestCase):
         self.assertEqual(R.ARCHIVE_LIMIT,64*1024**2)
 
     def test_strip_projection_details_only(self):
-        evidence={"privateCve":{"findings":["PRIVATE-ID"]},"publicCve":{"findings":["LEGACY-ID"]},"state":"healthy"}
+        evidence={"privateCve":{"findings":["PRIVATE-ID"]},"publicCve":{"findings":["LEGACY-ID"]},"privateCveDetails":{"matches":["PRIVATE-PACKAGE"]},"state":"healthy"}
         self.assertEqual(R.status_safe({"assessments":[evidence],"state":"healthy"}),
                          {"assessments":[{"state":"healthy"}],"state":"healthy"})
         self.assertIn("privateCve",evidence)
@@ -750,6 +752,57 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         self.assertEqual(result, {"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":1})
         self.assertNotIn("PRIVATE", json.dumps(result))
         self.assertEqual(R.private_cve_findings([{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}} for i in range(101)])["state"], "overflow")
+
+
+    def test_qualified_package_details_are_bounded_and_display_safe(self):
+        def match(i, severity="High"):
+            return {"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":severity,
+                                    "fix":{"state":"fixed","versions":["1.4-r0"]}},
+                    "artifact":{"name":f"pkg-{i}","type":"apk","version":"1.3.2-r1",
+                                "locations":[{"path":"/PRIVATE-PATH"}],"metadata":{"PRIVATE-KEY":"value"}}}
+        matches=[match(i) for i in range(15)]+[match(99,"Critical")]
+        malformed=match(100)
+        malformed["artifact"]["name"]="bad|markdown"
+        matches.append(malformed)
+        details=R.private_cve_details(matches)
+        self.assertEqual(details,R.private_cve_details(list(reversed(matches))))
+        self.assertEqual(details["detailState"],"partial")
+        self.assertEqual(len(details["matches"]),12)
+        self.assertEqual(details["omittedMatches"],5)
+        self.assertEqual(details["matches"][0]["severity"],"Critical")
+        self.assertEqual(details["matches"][0]["installedVersion"],"1.3.2-r1")
+        self.assertEqual(details["matches"][0]["fixedVersions"],["1.4-r0"])
+        self.assertNotIn("PRIVATE",json.dumps(details))
+        self.assertEqual(len(R.private_cve_findings(matches)["findings"]),17)
+        self.assertEqual(R.private_cve_details([]),{"detailState":"complete","matches":[],"omittedMatches":0})
+
+    def test_rich_projection_consumer_accepts_qualified_and_legacy_records(self):
+        import importlib.util
+        source=ROOT/"infra/observability/security-incident-publisher/publisher.py"
+        spec=importlib.util.spec_from_file_location("rich_cve_publisher",source)
+        publisher=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(publisher)
+        current=dict(row(),assessmentState="healthy")
+        matches=[{"vulnerability":{"id":"CVE-2026-4738","severity":"Critical",
+                                   "fix":{"state":"fixed","versions":["1.4-r0"]}},
+                  "artifact":{"name":"zlib","type":"apk","version":"1.3.2-r1"}}]
+        evidence={"createdAt":R.db.stamp(NOW),"privateCve":R.private_cve_findings(matches),
+                  "privateCveDetails":R.private_cve_details(matches)}
+        inventory={"rows":[current],"generatedAt":R.db.stamp(NOW)}
+        records={R.row_key(current):evidence}
+        projection=R.rich_private_cve_projection(inventory,records)
+        self.assertEqual(projection["schema"],2)
+        entries=publisher.validate_cve(projection,NOW)
+        self.assertEqual(len(entries),1)
+        container=entries[0]["containers"][0]
+        self.assertEqual(container["image"],current["runningDigest"])
+        self.assertEqual(container["matches"][0]["package"],"zlib")
+        self.assertIn("1.4-r0",publisher.render_cve(entries[0])[1])
+        del evidence["privateCveDetails"]
+        entries=publisher.validate_cve(R.rich_private_cve_projection(inventory,records),NOW)
+        self.assertEqual(entries[0]["containers"][0]["detailState"],"unavailable")
+        inventory["rows"][0]["assessmentState"]="stale"
+        self.assertEqual(publisher.validate_cve(R.rich_private_cve_projection(inventory,records),NOW),[])
 
     def test_projection_rejects_stale_records_and_unreviewed_workloads(self):
         current = row()
