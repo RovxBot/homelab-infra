@@ -448,6 +448,22 @@ CVE_SOURCES = {
     "kube-system/DaemonSet/kube-proxy": (None, ("kube-proxy",)),
     "cloudflared/Deployment/cloudflared": ("infra/cloudflared/deployment.yaml", ("cloudflared",)),
 }
+# Reviewed dependency identities are not a version or fix claim. Keep chart
+# and Talos dependencies separate from directly declared container images.
+CVE_DEPENDENCIES = {
+    "gitea/Deployment/gitea-mcp": "docker.gitea.com/gitea-mcp-server",
+    "homepage/Deployment/homepage-assets": "nginxinc/nginx-unprivileged",
+    "homepage/Deployment/homepage": "ghcr.io/gethomepage/homepage",
+    "koito/Deployment/koito-lastfm-bridge": "foxxmd/multi-scrobbler",
+    "koito/Deployment/koito": "gabehf/koito",
+    "memos/Deployment/memos": "neosmemo/memos",
+    "monitoring/Deployment/gatus": "twinproduction/gatus",
+    "openbrew/Deployment/openbrew": "austinderbique/openbrew",
+    "stirling-pdf/Deployment/stirling-pdf": "ghcr.io/stirling-tools/stirling-pdf",
+    "wotlk/StatefulSet/wotlk-mariadb": "mysql",
+    "cloudflared/Deployment/cloudflared": "cloudflare/cloudflared",
+}
+
 # Strict display-safe fields: no markdown delimiters, URLs with schemes,
 # paths from report locations, arbitrary annotations or free-form prose.
 PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\Z")
@@ -632,6 +648,8 @@ def render_cve(entry):
              "- Last qualified assessment (oldest container): " + normalize_date(entry["assessedAt"]),
              "- Owning GitOps source: " + ("`" + path + "`" if path else
                  "not established in this repository; verify Talos-managed component source"),
+             "- Reviewed image dependency: " + (CVE_DEPENDENCIES.get(entry["workload"]) or
+                 "not established; verify Talos-managed component release"),
              "- Verified replacement image / matching remediation PR: not established by this report.",
              "", "## Required action"]
     if fixable:
@@ -682,7 +700,7 @@ def cve_revision(entry):
     value = {k: v for k, v in entry.items() if k not in ("assessedAt", "recoveryProof")}
     if "containers" in value:
         value["containers"] = [{k: v for k, v in c.items() if k != "assessedAt"} for c in value["containers"]]
-    return revision({"formatVersion": 2, "evidence": value})
+    return revision({"formatVersion": 3, "evidence": value})
 
 
 def owns_cve(issue, key):

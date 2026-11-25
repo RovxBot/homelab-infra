@@ -273,6 +273,43 @@ class PublisherTests(unittest.TestCase):
 
 
 class CVEPublisherTests(unittest.TestCase):
+    def test_remediation_candidates_exact_reviewed_controller_and_digest(self):
+        candidate_spec=importlib.util.spec_from_file_location(
+            "remediation_candidates",ROOT/"scripts/security_remediation_candidates.py")
+        candidate=importlib.util.module_from_spec(candidate_spec)
+        candidate_spec.loader.exec_module(candidate)
+        def current(path):
+            value=ROOT/path
+            return value.read_text() if value.is_file() else None
+        unchanged=candidate.correlate(current,current)
+        self.assertEqual(unchanged["candidates"],[])
+        self.assertEqual({x["workload"] for x in unchanged["unsupported"]},
+                         {"monitoring/Deployment/gatus","kube-system/DaemonSet/kube-proxy"})
+        workload="memos/Deployment/memos"
+        path=pub.CVE_SOURCES[workload][0]
+        old=candidate.declared_image(current,workload,"memos")
+        self.assertIsNotNone(old)
+        new=old.rsplit("@",1)[0]+"@sha256:"+"f"*64
+        def changed(source):
+            value=current(source)
+            return value.replace(old,new) if source==path else value
+        result=candidate.correlate(current,changed)
+        self.assertEqual(len(result["candidates"]),1)
+        self.assertEqual(result["candidates"][0]["workload"],workload)
+        self.assertEqual(result["candidates"][0]["state"],"candidate_not_assessed")
+        self.assertEqual(result["candidates"][0]["after"],new)
+        def alias(source):
+            value=current(source)
+            return value.replace(old,"docker.io/"+old) if source==path else value
+        self.assertEqual(candidate.correlate(current,alias)["candidates"],[])
+        def spoof(source):
+            value=current(source)
+            return value.replace(old,"other.example/app@sha256:"+"f"*64) if source==path else value
+        self.assertEqual(candidate.correlate(current,spoof)["candidates"],[])
+        self.assertEqual(candidate.image_identity("mysql:8.0"),None)
+        self.assertEqual(candidate.image_identity("registry.example:5000/app:v1@sha256:"+"a"*64),
+                         ("registry.example:5000/app","sha256:"+"a"*64))
+
     def test_private_projection_scope_matches_reviewed_scan_config(self):
         import json
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
