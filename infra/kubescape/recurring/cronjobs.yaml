@@ -87,11 +87,11 @@ spec:
             resources:
               requests:
                 cpu: 50m
-                memory: 128Mi
+                memory: 256Mi
                 ephemeral-storage: 64Mi
               limits:
                 cpu: 300m
-                memory: 256Mi
+                memory: 768Mi
                 ephemeral-storage: 128Mi
             volumeMounts:
             - name: code
@@ -348,11 +348,11 @@ spec:
             resources:
               requests:
                 cpu: 50m
-                memory: 128Mi
+                memory: 256Mi
                 ephemeral-storage: 64Mi
               limits:
                 cpu: 300m
-                memory: 256Mi
+                memory: 768Mi
                 ephemeral-storage: 128Mi
             volumeMounts:
             - name: code

@@ -426,6 +426,9 @@ spec:
         # this scanner-only qualification from the chart node-agent config.
         - name: MAXIMAGESIZE
           value: "1073741824"
+        # Scanner-only 32 MiB SBOM qualification; shared chart config stays pinned.
+        - name: MAXSBOMSIZE
+          value: "33554432"
       sbomScanner:
         enabled: false
       config:
