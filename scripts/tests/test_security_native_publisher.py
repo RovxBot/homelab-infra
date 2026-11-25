@@ -546,6 +546,67 @@ class CVEPublisherTests(unittest.TestCase):
                 pub.observe_cve_recovery(writer,[clean],[])
             self.assertEqual(github.comments_written,0)
 
+    def test_durable_closure_disabled_and_qualified_success(self):
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        entry=pub.validate_cve(self.proof_fixture(),now)[0]
+        clean=copy.deepcopy(entry)
+        clean["findings"]=[]
+        for c in clean["containers"]:
+            c.update(matches=[],image="registry.example/app@sha256:"+"f"*64,
+                     assessedAt="2026-11-24T05:30:00Z")
+        for c in clean["recoveryProof"]["containers"]:
+            c.update(allCves=[],assessmentId="a"*64)
+        class BotGitea(FakeGitHub):
+            def create(self,title,body):
+                issue=super().create(title,body)
+                issue["user"]={"login":pub.SECURITY_BOT}
+                return issue
+            def comment(self,number,body):
+                result=super().comment(number,body)
+                self.issues[number]["comment_items"][-1]["user"]={"login":pub.SECURITY_BOT}
+                return result
+            def close_cve(self,number):
+                self.issues[number]["state"]="closed"
+                return self.issues[number]
+        for scenario in ("success","human","budget","ambiguous"):
+            with self.subTest(scenario=scenario),sqlite3.connect(":memory:") as db:
+                github=BotGitea()
+                writer=pub.DurablePublisher(db,github,renderer=pub.render_cve,
+                    fingerprint=pub.cve_revision,owns=pub.owns_cve)
+                result=pub.sync_cve_entries(writer,[entry])
+                pub.observe_cve_recovery(writer,[entry],result)
+                self.assertEqual(pub.observe_cve_recovery(writer,[clean],[])["proofQualified"],1)
+                number=next(iter(github.issues))
+                self.assertFalse(pub.CVE_CLOSURE_ENABLED)
+                self.assertEqual(pub.sync_cve_closure(writer,[clean],[])["closed"],0)
+                self.assertEqual(github.comments_written,0)
+                if scenario=="human":
+                    github.issues[number]["comment_items"]=[{"body":"review","user":{"login":"human"}}]
+                    self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["manualReview"],1)
+                    self.assertEqual(github.issues[number]["state"],"open")
+                    continue
+                if scenario=="budget":
+                    with patch.object(writer,"reserve",side_effect=pub.WriteBudgetDeferred("write_budget_deferred")):
+                        self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["deferred"],1)
+                    self.assertEqual(db.execute("SELECT count(*) FROM cve_closure_intents").fetchone()[0],0)
+                    continue
+                if scenario=="ambiguous":
+                    def lost(number):
+                        github.issues[number]["state"]="closed"
+                        raise OSError("lost response")
+                    with patch.object(github,"close_cve",side_effect=lost):
+                        with self.assertRaises(OSError):
+                            pub.sync_cve_closure(writer,[clean],[],enabled=True)
+                    self.assertEqual(db.execute("SELECT phase FROM cve_closure_intents").fetchone()[0],"patch_pending")
+                    self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["manualReview"],1)
+                    self.assertEqual(db.execute("SELECT phase FROM cve_closure_intents").fetchone()[0],"ambiguous_closed")
+                    continue
+                self.assertEqual(pub.sync_cve_closure(writer,[],[],enabled=True)["closed"],0)
+                self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["closed"],1)
+                self.assertEqual(github.issues[number]["state"],"closed")
+                self.assertEqual(github.comments_written,1)
+                self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["closed"],0)
+
     def test_cve_budget_deferral_does_not_block_other_keys_or_create_intents(self):
         entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))[:9]
         github = FakeGitHub()
@@ -672,6 +733,25 @@ class PrivateDestinationTests(unittest.TestCase):
             with self.subTest(path=path,method=method), self.assertRaises(ValueError):
                 client.call(path,method,{"body":"forbidden"} if method!="GET" else None)
         self.assertEqual(len(self.calls),1)
+
+    def test_cve_closure_patch_is_explicitly_gated_and_state_only(self):
+        client=pub.PrivateGitea("test-token",requester=self.request)
+        with self.assertRaises(ValueError):
+            client.close_cve(1)
+        def request(opener,url,token,*,method="GET",payload=None):
+            if method=="PATCH":
+                self.calls.append((url,method,payload))
+                return {"number":1,"state":"closed"}
+            return self.request(opener,url,token,method=method,payload=payload)
+        client=pub.PrivateGitea("test-token",requester=request,allow_cve_closure=True)
+        self.assertEqual(client.close_cve(1)["state"],"closed")
+        for payload in ({"state":"open"},{"state":"closed","title":"overwrite"},{"body":"overwrite"}):
+            with self.assertRaises(ValueError):
+                client.call(pub.ISSUE_PATH+"/1","PATCH",payload)
+        self.repo["private"]=False
+        with self.assertRaises(ValueError):
+            client.close_cve(1)
+        self.assertEqual([m for _,m,_ in self.calls].count("PATCH"),1)
 
     def test_dedup_includes_closed_and_refuses_duplicate_markers(self):
         client=pub.PrivateGitea("test-token",requester=self.request)
