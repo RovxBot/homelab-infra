@@ -9,7 +9,10 @@
     "stirling-pdf",
     "cloudflared",
     "mqtt",
-    "security"
+    "security",
+    "wotlk",
+    "mop",
+    "kube-system"
   ],
   "nodes": [
     "metal0",
