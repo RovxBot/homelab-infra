@@ -250,6 +250,14 @@ def workload_rows(api):
                      else obj.get("status", {}).get("desiredNumberScheduled", 0))
             row["ready"] = row["ready"] and type(count) is int and count > 0 and len(set(row["podUIDs"])) == count
         row["podUIDs"].sort()
+        # Recovery is stricter than assessment reporting. Require the full
+        # observed controller replica population and all main containers.
+        obj = objects.get(row["workloadUID"], {})
+        desired = (obj.get("status", {}).get("desiredNumberScheduled")
+                   if row["kind"] == "DaemonSet" else obj.get("spec", {}).get("replicas", 1))
+        row["recoveryScopeReady"] = (row["kind"] in DIRECT_SCAN_KINDS
+            and row["containerType"] == "containers" and row["ready"]
+            and type(desired) is int and desired > 0 and len(set(row["podUIDs"])) == desired)
     return sorted(rows, key=row_key)
 
 
@@ -382,6 +390,7 @@ PRIVATE_CVE_TARGETS = {
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 MAX_PRIVATE_CVES = 100
 MAX_PRIVATE_DETAIL_MATCHES = 12
+MAX_RECOVERY_CVES = 256
 MAX_PRIVATE_PROJECTION_BYTES = 240 * 1024
 PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\Z")
 PRIVATE_IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,383}@sha256:[a-f0-9]{64}\Z")
@@ -499,11 +508,101 @@ def private_cve_projection(inventory, records):
             "entries": entries}
 
 
+def private_recovery_proof(report, row, record):
+    """Extract proof only from an independently qualified direct full report.
+
+    Pinned storage GrypeDocument omits empty ignoredMatches; kubevuln
+    grypeToDomain preserves ignored matches and security exceptions move
+    suppressed matches there. Reject any ignored/relevancy-filtered report.
+    An unresolved non-CVE advisory identity is not positive recovery proof.
+    """
+    try:
+        payload = report["spec"]["payload"]
+        if (record.get("evidenceKind") != "direct"
+                or report["spec"]["metadata"].get("withRelevancy") is not False
+                or payload.get("ignoredMatches", []) != []
+                or payload["descriptor"]["db"].get("valid") is not True
+                or not isinstance(payload["matches"], list)):
+            return None
+        ids = set()
+        for match in payload["matches"]:
+            vuln = match["vulnerability"]
+            identifier = vuln.get("id")
+            related = match.get("relatedVulnerabilities", [])
+            if related is None:
+                related = []
+            if not isinstance(related, list):
+                return None
+            aliases = [v.get("id") for v in related if isinstance(v, dict)]
+            if len(aliases) != len(related) or not isinstance(identifier, str) or not identifier:
+                return None
+            found = {v for v in [identifier, *aliases]
+                     if isinstance(v, str) and CVE_ID.fullmatch(v)}
+            if not found:
+                return None
+            ids.update(found)
+            if len(ids) > MAX_RECOVERY_CVES:
+                return None
+        checksum = record["database"]["checksum"].removeprefix("sha256:")
+        built = record["database"]["built"]
+        if (not re.fullmatch(r"[a-f0-9]{64}", checksum)
+                or db.timestamp(built) > db.timestamp(record["createdAt"])
+                or record["workloadUID"] != row["workloadUID"]
+                or record["imageDigest"] != row["runningDigest"]
+                or record["container"] != row["container"]
+                or not re.fullmatch(r"recurring-[a-f0-9]{32}", record["jobID"])):
+            return None
+        identity = json.dumps([record["jobID"], row_key(row), record["createdAt"],
+                               checksum, record["manifestDigest"], record["configDigest"]],
+                              separators=(",", ":"))
+        return {"name":row["container"], "databaseBuilt":built,
+                "databaseChecksum":checksum, "allCves":sorted(ids),
+                "assessmentId":hashlib.sha256(identity.encode()).hexdigest()}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return None
+
+
+def workload_recovery_proof(entry, inventory, records):
+    if entry["state"] != "complete":
+        return None
+    rows = [r for r in inventory["rows"] if target_key(r).rsplit("/", 1)[0] == entry["workload"]]
+    expected = {t.rsplit("/", 1)[1] for t in PRIVATE_CVE_TARGETS
+                if t.rsplit("/", 1)[0] == entry["workload"]}
+    # No unknown, unreviewed, init, ephemeral, mixed or missing container rows.
+    if (not rows or len(rows) != len(expected)
+            or {r["container"] for r in rows} != expected
+            or any(r["containerType"] != "containers" or r["assessmentState"] != "healthy"
+                   or r.get("recoveryScopeReady") is not True for r in rows)):
+        return None
+    owners = {r["workloadUID"] for r in rows}
+    pods = {tuple(r["podUIDs"]) for r in rows}
+    if len(owners) != 1 or len(pods) != 1 or not next(iter(pods)):
+        return None
+    proof = []
+    generated = db.timestamp(inventory["generatedAt"])
+    for row in sorted(rows, key=lambda r:r["container"]):
+        record = records.get(row_key(row), {})
+        item = record.get("privateRecoveryProof")
+        if (not isinstance(item, dict) or item.get("name") != row["container"]
+                or record.get("evidenceKind") != "direct"
+                or record.get("workloadUID") != row["workloadUID"]
+                or record.get("imageDigest") != row["runningDigest"]
+                or record.get("container") != row["container"]):
+            return None
+        built, assessed = db.timestamp(item["databaseBuilt"]), db.timestamp(record["createdAt"])
+        if not (built <= assessed <= generated and generated - built <= timedelta(days=7)):
+            return None
+        proof.append(item)
+    identity = json.dumps([entry["workload"], next(iter(owners))], separators=(",", ":"))
+    return {"workloadIdentity":hashlib.sha256(identity.encode()).hexdigest(), "containers":proof}
+
+
 def rich_private_cve_projection(inventory, records):
     projection = private_cve_projection(inventory, records)
-    projection["schema"] = 2
+    projection["schema"] = 3
     for entry in projection["entries"]:
         entry["containers"] = []
+        entry["recoveryProof"] = None
         if entry["state"] != "complete":
             continue
         for target in sorted(t for t in PRIVATE_CVE_TARGETS if t.rsplit("/", 1)[0] == entry["workload"]):
@@ -519,6 +618,7 @@ def rich_private_cve_projection(inventory, records):
                 detail = {"detailState":"unavailable", "matches":[], "omittedMatches":None}
             entry["containers"].append({"name":row["container"], "image":image,
                                         "assessedAt":record["createdAt"], **detail})
+        entry["recoveryProof"] = workload_recovery_proof(entry, inventory, records)
     return projection
 
 
@@ -629,7 +729,7 @@ def status_safe(value):
     """Finding content is confined to retained history and the named projection."""
     if isinstance(value, dict):
         return {k: status_safe(v) for k, v in value.items()
-                if k not in {"privateCve", "publicCve", "privateCveDetails"}}
+                if k not in {"privateCve", "publicCve", "privateCveDetails", "privateRecoveryProof"}}
     if isinstance(value, list):
         return [status_safe(v) for v in value]
     return value
@@ -654,7 +754,7 @@ def recover_private_projection(history, inventory, records, config):
         if (row["assessmentState"] != "healthy" or target_key(row) not in PRIVATE_CVE_TARGETS):
             continue
         record = records.get(row_key(row), {})
-        if record.get("evidenceKind") == "sharedImage" or "privateCveDetails" in record:
+        if record.get("evidenceKind") == "sharedImage" or ("privateCveDetails" in record and "privateRecoveryProof" in record):
             continue
         job = record.get("jobID", "")
         if not isinstance(job, str) or not re.fullmatch(r"recurring-[a-f0-9]{32}", job):
@@ -695,6 +795,7 @@ def recover_private_projection(history, inventory, records, config):
             db.require(previous is None or previous == findings, "archive_projection_mismatch")
             record["privateCve"] = findings
             record["privateCveDetails"] = private_cve_details(matches)
+            record["privateRecoveryProof"] = private_recovery_proof(report, row, record)
             recovered += 1
         except (db.Rejected, OSError, ValueError, TypeError, KeyError, EOFError):
             # Never promote missing, malformed, oversized or inconsistent retained evidence.
@@ -712,7 +813,12 @@ def coverage_status(api, inventory, records, config):
         projection["data"] = {"projection.json": json.dumps(rich, separators=(",", ":"))}
         return len(json.dumps(projection).encode("utf-8"))
     size = encode()
-    if size > MAX_PRIVATE_PROJECTION_BYTES and rich["schema"] == 2:
+    if size > MAX_PRIVATE_PROJECTION_BYTES and rich["schema"] == 3:
+        # Recovery proof is all-or-nothing. Never trim an all-severity ID set.
+        for entry in rich["entries"]:
+            entry["recoveryProof"] = None
+        size = encode()
+    if size > MAX_PRIVATE_PROJECTION_BYTES and rich["schema"] >= 2:
         # Keep all advisory IDs and qualified coverage. Detail display has a
         # separate bound; explicitly account for omitted matches, never
         # silently truncate the authoritative summary.
@@ -1112,6 +1218,7 @@ class Runner:
             matches = report["spec"]["payload"]["matches"]
             result["privateCve"] = private_cve_findings(matches)
             result["privateCveDetails"] = private_cve_details(matches)
+            result["privateRecoveryProof"] = private_recovery_proof(report, row, result)
         self.records[row_key(row)] = result
         atomic(self.history / "records.json", self.records)
         self.result["assessments"].append(result)
