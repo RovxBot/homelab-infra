@@ -607,6 +607,84 @@ class CVEPublisherTests(unittest.TestCase):
                 self.assertEqual(github.comments_written,1)
                 self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["closed"],0)
 
+    def test_recurrence_only_from_confirmed_machine_closure(self):
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        entry=pub.validate_cve(self.proof_fixture(),now)[0]
+        clean=copy.deepcopy(entry)
+        clean["findings"]=[]
+        for c in clean["containers"]:
+            c.update(matches=[],image="registry.example/app@sha256:"+"f"*64,
+                     assessedAt="2026-11-24T05:30:00Z")
+        for c in clean["recoveryProof"]["containers"]:
+            c.update(allCves=[],assessmentId="a"*64)
+        again=copy.deepcopy(entry)
+        for c in again["containers"]:
+            c.update(assessedAt="2026-11-24T06:00:00Z")
+        for c in again["recoveryProof"]["containers"]:
+            c.update(assessmentId="b"*64)
+        class BotGitea(FakeGitHub):
+            def create(self,title,body):
+                issue=super().create(title,body)
+                issue.update(user={"login":pub.SECURITY_BOT},labels=[],assignees=[],milestone=None)
+                return issue
+            def comment(self,number,body):
+                result=super().comment(number,body)
+                self.issues[number]["comment_items"][-1]["user"]={"login":pub.SECURITY_BOT}
+                return result
+            def close_cve(self,number):
+                self.issues[number].update(state="closed",closed_at="2026-11-24T05:40:00Z",
+                                           updated_at="2026-11-24T05:40:00Z")
+                return self.issues[number]
+            def reopen_cve(self,number):
+                self.issues[number]["state"]="open"
+                return self.issues[number]
+        for scenario in ("success","human","ambiguous","manual","changed","budget"):
+            with self.subTest(scenario=scenario),sqlite3.connect(":memory:") as db:
+                github=BotGitea()
+                writer=pub.DurablePublisher(db,github,renderer=pub.render_cve,
+                    fingerprint=pub.cve_revision,owns=pub.owns_cve)
+                pub.observe_cve_recovery(writer,[entry],pub.sync_cve_entries(writer,[entry]))
+                pub.observe_cve_recovery(writer,[clean],[])
+                number=next(iter(github.issues))
+                if scenario=="manual":
+                    github.issues[number]["state"]="closed"
+                    self.assertEqual(pub.sync_cve_recurrence(writer,[again],enabled=True)["candidates"],0)
+                    continue
+                self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["closed"],1)
+                self.assertFalse(pub.CVE_REOPEN_ENABLED)
+                self.assertEqual(pub.sync_cve_recurrence(writer,[again])["candidates"],1)
+                self.assertEqual(github.issues[number]["state"],"closed")
+                self.assertEqual(pub.sync_cve_recurrence(writer,[entry],enabled=True)["candidates"],0)
+                if scenario=="human":
+                    github.issues[number]["comment_items"].append({"body":"accepted risk","user":{"login":"human"}})
+                if scenario=="changed":
+                    github.issues[number]["title"]="manual review"
+                if scenario in ("human","changed"):
+                    self.assertEqual(pub.sync_cve_recurrence(writer,[again],enabled=True)["manualReview"],1)
+                    continue
+                if scenario=="budget":
+                    with patch.object(writer,"reserve",side_effect=pub.WriteBudgetDeferred("write_budget_deferred")):
+                        self.assertEqual(pub.sync_cve_recurrence(writer,[again],enabled=True)["deferred"],1)
+                    self.assertEqual(db.execute("SELECT count(*) FROM cve_recurrence_intents").fetchone()[0],0)
+                    continue
+                if scenario=="ambiguous":
+                    def lost(number):
+                        github.issues[number]["state"]="open"
+                        raise OSError("lost response")
+                    with patch.object(github,"reopen_cve",side_effect=lost):
+                        with self.assertRaises(OSError):
+                            pub.sync_cve_recurrence(writer,[again],enabled=True)
+                    self.assertEqual(pub.sync_cve_recurrence(writer,[again],enabled=True)["manualReview"],1)
+                    self.assertEqual(db.execute("SELECT phase FROM cve_recurrence_intents").fetchone()[0],"patch_pending")
+                    continue
+                self.assertEqual(pub.sync_cve_recurrence(writer,[again],enabled=True)["reopened"],1)
+                self.assertEqual(github.issues[number]["state"],"open")
+                self.assertEqual(github.create_calls,1)
+                self.assertEqual(github.comments_written,2)
+                self.assertEqual(pub.sync_cve_recurrence(writer,[again],enabled=True)["reopened"],0)
+                self.assertEqual(db.execute("SELECT phase FROM cve_recurrence_intents").fetchone()[0],"reopened")
+                self.assertEqual(pub.observe_cve_recovery(writer,[again],pub.sync_cve_entries(writer,[again]))["baselines"],1)
+
     def test_cve_budget_deferral_does_not_block_other_keys_or_create_intents(self):
         entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))[:9]
         github = FakeGitHub()
@@ -751,6 +829,23 @@ class PrivateDestinationTests(unittest.TestCase):
         self.repo["private"]=False
         with self.assertRaises(ValueError):
             client.close_cve(1)
+        self.assertEqual([m for _,m,_ in self.calls].count("PATCH"),1)
+
+    def test_reopen_permission_is_separate_and_state_only(self):
+        def request(opener,url,token,*,method="GET",payload=None):
+            if method=="PATCH":
+                self.calls.append((url,method,payload))
+                return {"number":1,"state":"open"}
+            return self.request(opener,url,token,method=method,payload=payload)
+        client=pub.PrivateGitea("test-token",requester=request,allow_cve_reopen=True)
+        self.assertEqual(client.reopen_cve(1)["state"],"open")
+        with self.assertRaises(ValueError):
+            client.close_cve(1)
+        with self.assertRaises(ValueError):
+            client.call(pub.ISSUE_PATH+"/1","PATCH",{"state":"open","title":"overwrite"})
+        self.repo["private"]=False
+        with self.assertRaises(ValueError):
+            client.reopen_cve(1)
         self.assertEqual([m for _,m,_ in self.calls].count("PATCH"),1)
 
     def test_dedup_includes_closed_and_refuses_duplicate_markers(self):
