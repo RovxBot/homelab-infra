@@ -102,6 +102,23 @@ class RetainedProjectionTests(unittest.TestCase):
                 else:
                     self.assertNotIn("privateCve",records[R.row_key(current)])
 
+    def test_retained_reader_rejects_oversize_and_symlink(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"reports.json.gz"
+            body=json.dumps({"value":"x"*128}).encode()
+            with gzip.open(path,"wb") as stream:
+                stream.write(body)
+            with mock.patch.object(R,"ARCHIVE_LIMIT",len(body)):
+                self.assertEqual(R.read_retained(path),{"value":"x"*128})
+            with mock.patch.object(R,"ARCHIVE_LIMIT",len(body)-1):
+                with self.assertRaisesRegex(R.db.Rejected,"archive_budget"):
+                    R.read_retained(path)
+            alias=Path(tmp)/"alias.json.gz"
+            alias.symlink_to(path)
+            with self.assertRaisesRegex(R.db.Rejected,"archive_unavailable"):
+                R.read_retained(alias)
+        self.assertEqual(R.ARCHIVE_LIMIT,64*1024**2)
+
     def test_strip_projection_details_only(self):
         evidence={"privateCve":{"findings":["PRIVATE-ID"]},"publicCve":{"findings":["LEGACY-ID"]},"state":"healthy"}
         self.assertEqual(R.status_safe({"assessments":[evidence],"state":"healthy"}),

@@ -566,7 +566,7 @@ def status_safe(value):
     return value
 
 
-ARCHIVE_LIMIT = 16 * 1024**2
+ARCHIVE_LIMIT = 64 * 1024**2  # Bound decompressed report + SBOM evidence.
 
 
 def read_retained(path):
@@ -957,6 +957,12 @@ class Runner:
         previous = existing("vulnerabilitymanifests")
         previous_sbom = existing("sbomsyfts")
         self.save("previous-" + row["container"], {"vulnerability": previous, "sbom": previous_sbom})
+        # Keep only the previous report timestamp needed for freshness checks.
+        # Do not hold an entire old SBOM and report while reading the new pair.
+        if previous is not None:
+            previous = {"spec": {"metadata": {"report": {"createdAt":
+                previous["spec"]["metadata"]["report"]["createdAt"]}}}}
+        del previous_sbom
         job = "recurring-" + uuid.uuid4().hex
         started = db.stamp(db.utcnow())
         # Direct evidence requires the scanner-generated WLID/container summary.

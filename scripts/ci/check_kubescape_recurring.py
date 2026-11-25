@@ -30,6 +30,11 @@ def check(resources):
     assert len({c['image'] for job in jobs for c in
                 job['spec']['jobTemplate']['spec']['template']['spec']['containers'] +
                 job['spec']['jobTemplate']['spec']['template']['spec']['initContainers']}) == 1, 'recurring jobs must use one reviewed runner pin'
+    for job in jobs:
+        container = next(c for c in job["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"] if c["name"] == "assessment")
+        large_evidence = job["metadata"]["name"] in ("kubescape-assessment-vulnerability", "kubescape-assessment-refresh")
+        assert container["resources"]["requests"]["memory"] == ("256Mi" if large_evidence else "128Mi")
+        assert container["resources"]["limits"]["memory"] == ("768Mi" if large_evidence else "256Mi")
     config = json.loads((ROOT / "infra/kubescape/recurring/config.json").read_text())
     evidence = json.loads((ROOT / "infra/kubescape/recurring/resource-qualification.json").read_text())
     assert config["resourceBudgetQualified"] is True and evidence["status"] == "verified"
