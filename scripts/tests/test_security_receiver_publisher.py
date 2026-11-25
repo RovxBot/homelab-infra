@@ -108,6 +108,16 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual({r["workload"] for r in result["incidents"]},set(["monitoring/Deployment/gatus","openbrew/Deployment/openbrew","openbrew/Deployment/openbrew-db","stirling-pdf/Deployment/stirling-pdf"]))
         self.assertNotIn("PRIVATE_",json.dumps(result))
 
+    def test_edge_messaging_and_identity_projection_remains_private(self):
+        identities = ["home/cloudflared/Deployment/cloudflared/cloudflared","home/mqtt/Deployment/mosquitto/mosquitto","home/security/Deployment/vaultwarden/vaultwarden"]
+        for i, identity in enumerate(identities):
+            self.store.record(self.sample(identity,event_id=format(i+1,"064x")),self.now)
+        self.assertEqual(self.receiver.publication("bound-test-token")["incidents"],[])
+        result=self.receiver.publication("bound-test-token",private=True)
+        self.assertEqual(len(result["incidents"]),3)
+        self.assertEqual({r["workload"] for r in result["incidents"]},set(["cloudflared/Deployment/cloudflared","mqtt/Deployment/mosquitto","security/Deployment/vaultwarden"]))
+        self.assertNotIn("PRIVATE_",json.dumps(result))
+
     def test_token_principal_image_uid_and_ready_status_fail_closed(self):
         variants=[
             ("user","system:serviceaccount:kubescape:node-agent"),

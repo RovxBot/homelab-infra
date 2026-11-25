@@ -305,3 +305,102 @@ subjects:
   - kind: ServiceAccount
     name: security-receiver
     namespace: kubescape
+
+---
+# Reviewed runtime intake preparation; agent scope is unchanged.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: cloudflared
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [cloudflared]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: cloudflared
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+
+---
+# Reviewed runtime intake preparation; agent scope is unchanged.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: mqtt
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [mosquitto]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: mqtt
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape
+
+---
+# Reviewed runtime intake preparation; agent scope is unchanged.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-receiver-inventory
+  namespace: security
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [vaultwarden]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-receiver-inventory
+  namespace: security
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-receiver-inventory
+subjects:
+  - kind: ServiceAccount
+    name: security-receiver
+    namespace: kubescape

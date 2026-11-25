@@ -79,9 +79,18 @@ class FakeGitHub:
 class PublisherTests(unittest.TestCase):
     def test_private_runtime_cohort_accepts_only_reviewed_identities(self):
         for workload in ('koito/Deployment/koito', 'koito/Deployment/koito-lastfm-bridge',
-                         'monitoring/Deployment/gatus', 'openbrew/Deployment/openbrew', 'openbrew/Deployment/openbrew-db', 'stirling-pdf/Deployment/stirling-pdf'):
+                         'monitoring/Deployment/gatus', 'openbrew/Deployment/openbrew', 'openbrew/Deployment/openbrew-db', 'stirling-pdf/Deployment/stirling-pdf',
+                         'cloudflared/Deployment/cloudflared', 'mqtt/Deployment/mosquitto', 'security/Deployment/vaultwarden'):
             self.assertEqual(pub.validate(envelope(dict(incident(),workload=workload)))[0]['workload'],workload)
         self.assertTrue(pub.RECEIVER.endswith('/v1/private-incidents'))
+
+    def test_expanded_runtime_projection_bound(self):
+        values=[]
+        for i in range(65):
+            values.append(dict(incident(),key=format(i+1,"064x")))
+        self.assertEqual(len(pub.validate({"schema":1,"source":"kubescape-native","incidents":values})),65)
+        with self.assertRaises(ValueError):
+            pub.validate({"schema":1,"source":"kubescape-native","incidents":values+[dict(incident(),key=format(66,"064x"))]})
 
     def setUp(self):
         self.github = FakeGitHub()
@@ -232,7 +241,7 @@ class CVEPublisherTests(unittest.TestCase):
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
         self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
         self.assertEqual(len(pub.CVE_ALLOWED),12)
-        self.assertEqual(len(pub.ALLOWED),9)
+        self.assertEqual(len(pub.ALLOWED),12)
         from security_receiver.store import PRIVATE_WORKLOADS
         self.assertEqual(pub.ALLOWED, set(PRIVATE_WORKLOADS.values()))
         self.assertNotIn("kubescape-public-cve",SOURCE.read_text())
