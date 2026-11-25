@@ -43,7 +43,7 @@ except Exception:
             date.chmod(0o755)
             values = values or [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
             if len(values) == 5:
-                values = [*values, 'healthy', stamp(-1), '12', '12']
+                values = [*values, 'healthy', stamp(-1), '16', '16']
             if len(values) == 9:
                 values = [*values, '49']
             if len(values) == 10:
@@ -90,12 +90,13 @@ except Exception:
     def test_cohort_health_requires_all_targets_and_fresh_evidence(self):
         base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24)]
         for fields, expected in (
-                (['healthy', stamp(-1), '12', '12'], 'healthy'),
+                (['healthy', stamp(-1), '16', '16'], 'healthy'),
                 (['healthy', stamp(-1), '6', '6'], 'unknown'),
                 (['healthy', stamp(-1), '9', '9'], 'unknown'),
-                (['unknown', stamp(-1), '12', '11'], 'unknown'),
-                (['healthy', stamp(1), '12', '12'], 'stale'),
-                (['healthy', stamp(-1), '12', '13'], 'unknown'),
+                (['healthy', stamp(-1), '12', '12'], 'unknown'),
+                (['unknown', stamp(-1), '16', '15'], 'unknown'),
+                (['healthy', stamp(1), '16', '16'], 'stale'),
+                (['healthy', stamp(-1), '16', '17'], 'unknown'),
                 (['healthy', stamp(-1), 'private', '9'], 'unknown'),
                 (['', '', '', ''], 'unknown')):
             with self.subTest(fields=fields):
@@ -106,7 +107,7 @@ except Exception:
 
     def test_inventory_observation_is_required_and_expires_independently(self):
         base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24),
-                'healthy', stamp(-1), '12', '12', '49']
+                'healthy', stamp(-1), '16', '16', '49']
         for observed, state in ((stamp(0),'healthy'), (stamp(2),'stale'),
                                 (stamp(-1),'unknown'), ('','unknown'), ('private','unknown')):
             with self.subTest(observed=observed):
@@ -117,7 +118,7 @@ except Exception:
 
     def test_previous_canary_posture_cannot_pass_expanded_scope(self):
         base = [stamp(24), stamp(24), 'healthy', 'healthy', stamp(24),
-                'healthy', stamp(-1), '12', '12']
+                'healthy', stamp(-1), '16', '16']
         for scope in ('', '1', '5', '48', '50', 'private'):
             with self.subTest(scope=scope):
                 result = self.health(base + [scope])

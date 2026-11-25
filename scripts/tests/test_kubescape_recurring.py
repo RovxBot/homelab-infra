@@ -159,7 +159,7 @@ class CoverageTests(unittest.TestCase):
 
 
     def test_curated_targets_resolve_independently(self):
-        self.assertEqual(len(CONFIG["targets"]), 12)
+        self.assertEqual(len(CONFIG["targets"]), 16)
         home = {**row(), "namespace": "homepage", "workload": "homepage-assets",
                 "container": "nginx", "workloadUID": "homepage-uid"}
         config = {**CONFIG, "targets": CONFIG["targets"][:2]}
@@ -273,7 +273,7 @@ class BatchTests(unittest.TestCase):
     def config(self):
         return {**CONFIG, "targets": CONFIG["targets"][:6], "databaseChecksum": EXPECTED["metadata"]["checksum"]}
 
-    def test_twelve_target_rotation_preserves_budget_and_fairness(self):
+    def test_sixteen_target_rotation_preserves_budget_and_fairness(self):
         config = {**CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"]}
         rows = []
         for i, target in enumerate(config["targets"]):
@@ -282,7 +282,7 @@ class BatchTests(unittest.TestCase):
                          "container": container, "workloadUID": str(i),
                          "runningDigest": "registry/image@sha256:" + format(i,"064x")})
         records, seen = {}, set()
-        for day in range(3):
+        for day in range(4):
             batch = R.select_batch(rows, records, config)
             self.assertLessEqual(len(batch), 4)
             for target in batch:
@@ -291,7 +291,7 @@ class BatchTests(unittest.TestCase):
                 records[key] = {"createdAt": R.db.stamp(NOW + timedelta(days=day)),
                                 "database": EXPECTED["metadata"]}
         self.assertEqual(seen, {R.row_key(r) for r in rows})
-        self.assertEqual(len(rows), 12)
+        self.assertEqual(len(rows), 16)
         self.assertEqual(R.PRIVATE_CVE_TARGETS, {t['identity'] for t in CONFIG['targets']})
 
     def test_equal_digest_requires_direct_workload_evidence_for_exceptions(self):
@@ -669,7 +669,7 @@ class FailureTests(unittest.TestCase):
             R.check_posture(result, summaries, R.db.stamp(NOW))
 
 class PrivateCVEProjectionTests(unittest.TestCase):
-    def test_twelve_target_private_projection_and_legacy_boundary(self):
+    def test_fifteen_workload_private_projection_and_legacy_boundary(self):
         rows, records = [], {}
         for target in sorted(R.PRIVATE_CVE_TARGETS):
             namespace, kind, workload, container = target.split("/")
@@ -680,7 +680,7 @@ class PrivateCVEProjectionTests(unittest.TestCase):
                 "privateCve":{"state":"complete","findings":[], "otherHighCriticalMatches":0}}
         inventory = {"generatedAt":R.db.stamp(NOW),"rows":rows}
         projection = R.private_cve_projection(inventory, records)
-        self.assertEqual(len(projection["entries"]),12)
+        self.assertEqual(len(projection["entries"]),15)
         self.assertTrue(all(e["state"]=="complete" for e in projection["entries"]))
         target = next(r for r in rows if R.target_key(r) not in R.LEGACY_PUBLIC_CVE_TARGETS)
         record = records[R.row_key(target)]

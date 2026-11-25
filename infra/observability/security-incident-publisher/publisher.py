@@ -36,6 +36,7 @@ FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "cou
 KEY = re.compile(r"[0-9a-f]{64}\Z")
 RULE = re.compile(r"R[0-9]{4}\Z")
 MAX_BODY = 128 * 1024
+MAX_CVE_BODY = 256 * 1024
 IMAGE = "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
 
 
@@ -161,8 +162,10 @@ def request_json(opener, url, token, *, method="GET", payload=None, phase="githu
             with opener.open(req, timeout=15) as response:
                 require(response.status in (200, 201) and
                         response.headers.get("Content-Encoding", "identity") == "identity")
-                data = response.read(MAX_BODY + 1)
-                require(len(data) <= MAX_BODY)
+                # Larger bounded reads only for the exact private CVE ConfigMap.
+                limit = MAX_CVE_BODY if method == "GET" and phase == "cve_api" and url == CVE_CONFIG else MAX_BODY
+                data = response.read(limit + 1)
+                require(len(data) <= limit)
                 return json.loads(data)
         except (HTTPError, URLError, OSError, UnicodeError, ValueError) as exc:
             failure = boundary_failure(phase, exc)
@@ -403,6 +406,9 @@ CVE_ALLOWED = frozenset((
     "wotlk/StatefulSet/wotlk-mariadb",
     "kube-system/DaemonSet/kube-proxy",
     "cloudflared/Deployment/cloudflared",
+    "invoiceninja/Deployment/invoiceninja-redis",
+    "immich/Deployment/immich-redis",
+    "wger/Deployment/wger-redis",
 ))
 CVE_TITLE = "Security (Kubescape CVE)"
 CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-private-cve"

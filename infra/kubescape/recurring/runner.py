@@ -377,9 +377,15 @@ PRIVATE_CVE_TARGETS = {
     "wotlk/StatefulSet/wotlk-mariadb/mysql",
     "kube-system/DaemonSet/kube-proxy/kube-proxy",
     "cloudflared/Deployment/cloudflared/cloudflared",
+    "openbrew/Deployment/openbrew/oauth2-proxy",
+    "invoiceninja/Deployment/invoiceninja-redis/redis",
+    "immich/Deployment/immich-redis/redis",
+    "wger/Deployment/wger-redis/redis",
 }
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 MAX_PRIVATE_CVES = 100
+# Bound the entire encoded private ConfigMap, leaving API metadata headroom.
+MAX_PRIVATE_PROJECTION_BYTES = 240 * 1024
 
 
 def private_cve_findings(matches):
@@ -626,7 +632,7 @@ def coverage_status(api, inventory, records, config):
     private_path = CORE + "/namespaces/kubescape/configmaps/kubescape-private-cve"
     projection = dict(api.call(private_path))
     projection["data"] = {"projection.json": json.dumps(private_cve_projection(inventory, records), separators=(",", ":"))}
-    db.require(len(json.dumps(projection)) < 100000, "private_projection_too_large")
+    db.require(len(json.dumps(projection).encode()) <= MAX_PRIVATE_PROJECTION_BYTES, "private_projection_too_large")
     api.call(private_path, projection, "PUT")
     status = api.call(path)
     data = status.setdefault("data", {})

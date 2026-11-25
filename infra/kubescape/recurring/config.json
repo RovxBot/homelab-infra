@@ -57,6 +57,22 @@
     {
       "identity": "cloudflared/Deployment/cloudflared/cloudflared",
       "reason": "Reviewed public registry edge application; immutable image assessment only"
+    },
+    {
+      "identity": "openbrew/Deployment/openbrew/oauth2-proxy",
+      "reason": "Reviewed OpenBrew authentication sidecar; aggregate only with qualified main container evidence"
+    },
+    {
+      "identity": "invoiceninja/Deployment/invoiceninja-redis/redis",
+      "reason": "Reviewed running public Redis cache; direct workload-specific assessment required despite matching image digest"
+    },
+    {
+      "identity": "immich/Deployment/immich-redis/redis",
+      "reason": "Reviewed running public Redis cache; direct workload-specific assessment required despite matching image digest"
+    },
+    {
+      "identity": "wger/Deployment/wger-redis/redis",
+      "reason": "Reviewed running public Redis cache; direct workload-specific assessment required despite matching image digest"
     }
   ],
   "maximumImagesPerRun": 4,

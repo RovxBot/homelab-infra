@@ -231,7 +231,7 @@ class CVEPublisherTests(unittest.TestCase):
         import json
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
         self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
-        self.assertEqual(len(pub.CVE_ALLOWED),12)
+        self.assertEqual(len(pub.CVE_ALLOWED),15)
         self.assertEqual(len(pub.ALLOWED),9)
         from security_receiver.store import PRIVATE_WORKLOADS
         self.assertEqual(pub.ALLOWED, set(PRIVATE_WORKLOADS.values()))
@@ -246,7 +246,7 @@ class CVEPublisherTests(unittest.TestCase):
     def test_freshness_privacy_and_exact_fields(self):
         projection = self.fixture()
         now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
-        self.assertEqual(len(pub.validate_cve(projection,now)),12)
+        self.assertEqual(len(pub.validate_cve(projection,now)),15)
         for change in ({"workload":"gitea/Deployment/private"},
                        {"findings":[{"id":"CVE-2026-4738","severity":"High","fixAvailable":True,"package":"secret"}]},
                        {"assessedAt":"2026-11-20T05:00:00Z"}):
@@ -259,7 +259,7 @@ class CVEPublisherTests(unittest.TestCase):
 
     def test_projection_observation_expires_before_assessment(self):
         projection=self.fixture()
-        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),12)
+        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),15)
         with self.assertRaises(ValueError):
             pub.validate_cve(projection,datetime(2026,11,24,7,6,tzinfo=timezone.utc))
 
@@ -308,12 +308,41 @@ class CVEPublisherTests(unittest.TestCase):
                     create_limit=min(9,len(pub.CVE_ALLOWED)))
             outcomes=pub.sync_cve_entries(writer(100000),entries)
             self.assertEqual(outcomes.count("created"),9)
-            self.assertEqual(outcomes.count("deferred"),3)
-            self.assertEqual(pub.sync_cve_entries(writer(103601),entries).count("deferred"),3)
+            self.assertEqual(outcomes.count("deferred"),6)
+            self.assertEqual(pub.sync_cve_entries(writer(103601),entries).count("deferred"),6)
             outcomes=pub.sync_cve_entries(writer(186401),entries)
-            self.assertEqual(outcomes.count("created"),3)
+            self.assertEqual(outcomes.count("created"),6)
             self.assertEqual(outcomes.count("unchanged"),9)
-            self.assertEqual(github.create_calls,12)
+            self.assertEqual(github.create_calls,15)
+
+    def test_private_projection_transport_has_exact_endpoint_and_size_boundary(self):
+        import io
+        import json
+        projection=self.fixture()
+        for entry in projection["entries"]:
+            entry["findings"]=[{"id":f"CVE-2026-{1000000000+i}","severity":"Critical","fixAvailable":True}
+                               for i in range(100)]
+        obj={"kind":"ConfigMap","metadata":{"namespace":"kubescape","name":"kubescape-private-cve"},
+             "data":{"projection.json":json.dumps(projection,separators=(",",":"))}}
+        body=json.dumps(obj).encode()
+        self.assertGreater(len(body),pub.MAX_BODY)
+        self.assertLess(len(body),240*1024)
+        class Response(io.BytesIO):
+            status=200
+            headers={}
+        class Opener:
+            def __init__(self, data):
+                self.data=data
+            def open(self,*args,**kwargs):
+                return Response(self.data)
+        parsed=pub.request_json(Opener(body),pub.CVE_CONFIG,"test-token",phase="cve_api")
+        self.assertEqual(len(pub.validate_cve(json.loads(parsed["data"]["projection.json"]),
+                             datetime(2026,11,24,6,1,tzinfo=timezone.utc))),15)
+        for endpoint,phase,data in ((pub.RECEIVER,"receiver_api",body),
+                                    (pub.RECEIVER,"cve_api",body),
+                                    (pub.CVE_CONFIG,"cve_api",b" "* (pub.MAX_CVE_BODY+1))):
+            with self.assertRaises(pub.PublisherFailure):
+                pub.request_json(Opener(data),endpoint,"test-token",phase=phase)
 
     def test_cve_batch_propagates_ambiguous_write_failure(self):
         entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))
