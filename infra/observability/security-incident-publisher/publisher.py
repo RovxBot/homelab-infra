@@ -42,6 +42,7 @@ FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "cou
 KEY = re.compile(r"[0-9a-f]{64}\Z")
 RULE = re.compile(r"R[0-9]{4}\Z")
 MAX_BODY = 128 * 1024
+MAX_CVE_BODY = 256 * 1024  # Only the exact private CVE ConfigMap read.
 IMAGE = "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
 
 
@@ -167,8 +168,10 @@ def request_json(opener, url, token, *, method="GET", payload=None, phase="githu
             with opener.open(req, timeout=15) as response:
                 require(response.status in (200, 201) and
                         response.headers.get("Content-Encoding", "identity") == "identity")
-                data = response.read(MAX_BODY + 1)
-                require(len(data) <= MAX_BODY)
+                limit = MAX_CVE_BODY if (url == CVE_CONFIG and method == "GET"
+                                         and phase == "cve_api") else MAX_BODY
+                data = response.read(limit + 1)
+                require(len(data) <= limit)
                 return json.loads(data)
         except (HTTPError, URLError, OSError, UnicodeError, ValueError) as exc:
             failure = boundary_failure(phase, exc)
@@ -414,6 +417,90 @@ CVE_TITLE = "Security (Kubescape CVE)"
 CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-private-cve"
 
 
+# Reviewed owning GitOps manifests; kube-proxy's Talos-managed source is not
+# established in this repository. A path is not a verified remediation.
+CVE_SOURCES = {
+    "gitea/Deployment/gitea-mcp": ("apps/gitea/mcp.yaml", ("mcp",)),
+    "homepage/Deployment/homepage-assets": ("apps/homepage/assets-deployment.yaml", ("nginx",)),
+    "homepage/Deployment/homepage": ("apps/homepage/deployment.yaml", ("homepage",)),
+    "koito/Deployment/koito-lastfm-bridge": ("apps/koito/lastfm-bridge.yaml", ("multi-scrobbler",)),
+    "koito/Deployment/koito": ("apps/koito/deployment.yaml", ("koito",)),
+    "memos/Deployment/memos": ("apps/memos/deployment.yaml", ("memos",)),
+    "monitoring/Deployment/gatus": ("infra/observability/gatus-helmrelease.yaml", ("gatus",)),
+    "openbrew/Deployment/openbrew": ("apps/openbrew/deployment.yaml", ("openbrew",)),
+    "stirling-pdf/Deployment/stirling-pdf": ("apps/stirling-pdf/deployment.yaml", ("stirling-pdf",)),
+    "wotlk/StatefulSet/wotlk-mariadb": ("apps/wotlk/mariadb-statefulset.yaml", ("mysql",)),
+    "kube-system/DaemonSet/kube-proxy": (None, ("kube-proxy",)),
+    "cloudflared/Deployment/cloudflared": ("infra/cloudflared/deployment.yaml", ("cloudflared",)),
+}
+# Strict display-safe fields: no markdown delimiters, URLs with schemes,
+# paths from report locations, arbitrary annotations or free-form prose.
+PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\Z")
+IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,383}@sha256:[a-f0-9]{64}\Z")
+MAX_DETAIL_MATCHES = 12
+
+
+def validate_cve_details(entry, generated):
+    containers = entry["containers"]
+    require(isinstance(containers, list))
+    if entry["state"] == "unknown":
+        require(not containers)
+        return []
+    expected = set(CVE_SOURCES[entry["workload"]][1])
+    require(len(containers) == len(expected))
+    seen, result, ids = set(), [], set()
+    summary = {f["id"]: f for f in entry["findings"]}
+    for item in containers:
+        require(isinstance(item, dict) and set(item) == {
+            "name", "image", "assessedAt", "detailState", "matches", "omittedMatches"})
+        name = item["name"]
+        require(name in expected and name not in seen)
+        seen.add(name)
+        require(isinstance(item["image"], str) and IMAGE_REF.fullmatch(item["image"]))
+        at = datetime.fromisoformat(normalize_date(item["assessedAt"]).replace("Z", "+00:00"))
+        require(timedelta(0) <= generated-at <= timedelta(hours=72))
+        require(normalize_date(item["assessedAt"]) >= normalize_date(entry["assessedAt"]))
+        state, matches, omitted = item["detailState"], item["matches"], item["omittedMatches"]
+        require(state in ("complete", "partial", "unavailable"))
+        require(isinstance(matches, list) and len(matches) <= MAX_DETAIL_MATCHES)
+        if state == "unavailable":
+            require(not matches and omitted is None)
+        else:
+            require(type(omitted) is int and 0 <= omitted <= 1000000)
+            require((state == "complete") == (omitted == 0))
+        unique = set()
+        for match in matches:
+            require(isinstance(match, dict) and set(match) == {
+                "id", "severity", "package", "ecosystem", "installedVersion", "fixedVersions", "fixState"})
+            identifier = match["id"]
+            require(isinstance(identifier, str) and identifier in summary)
+            require(match["severity"] in ("High", "Critical")
+                    and (match["severity"] != "Critical" or summary[identifier]["severity"] == "Critical"))
+            for field in ("package", "ecosystem", "installedVersion"):
+                value = match[field]
+                require(isinstance(value, str) and PACKAGE_FIELD.fullmatch(value)
+                        and "://" not in value)
+            require(match["fixState"] in ("fixed", "not-fixed", "wont-fix", "unknown"))
+            versions = match["fixedVersions"]
+            require(isinstance(versions, list) and len(versions) <= 4
+                    and all(isinstance(v, str) and PACKAGE_FIELD.fullmatch(v) and "://" not in v for v in versions)
+                    and len(set(versions)) == len(versions))
+            require(not versions or match["fixState"] == "fixed")
+            require(match["fixState"] != "fixed" or summary[identifier]["fixAvailable"])
+            key = json.dumps(match, sort_keys=True, separators=(",", ":"))
+            require(key not in unique)
+            unique.add(key)
+            ids.add(identifier)
+        result.append(dict(item, matches=sorted(matches, key=lambda m: (
+            m["severity"] != "Critical", m["id"], m["package"], m["ecosystem"], m["installedVersion"],
+            m["fixState"], tuple(m["fixedVersions"])))))
+    require(seen == expected)
+    require(min(normalize_date(c["assessedAt"]) for c in result) == normalize_date(entry["assessedAt"]))
+    if all(c["detailState"] == "complete" for c in result):
+        require(ids == set(summary))
+    return sorted(result, key=lambda c: c["name"])
+
+
 def cve_key(workload):
     return hashlib.sha256(("cve:" + workload).encode()).hexdigest()
 
@@ -421,14 +508,16 @@ def cve_key(workload):
 def validate_cve(projection, now=None):
     now = now or datetime.now(timezone.utc)
     require(isinstance(projection, dict) and set(projection) == {"schema", "source", "generatedAt", "entries"})
-    require(projection["schema"] == 1 and projection["source"] == "kubescape-cve")
+    schema = projection["schema"]
+    require(type(schema) is int and schema in (1, 2) and projection["source"] == "kubescape-cve")
     generated = datetime.fromisoformat(normalize_date(projection["generatedAt"]).replace("Z", "+00:00"))
     require(timedelta(0) <= now-generated <= timedelta(minutes=65))
     entries = projection["entries"]
     require(isinstance(entries, list) and len(entries) == len(CVE_ALLOWED))
     seen, ready = set(), []
     for entry in entries:
-        require(isinstance(entry, dict) and set(entry) == {"workload", "state", "assessedAt", "findings", "otherHighCriticalMatches"})
+        fields = {"workload", "state", "assessedAt", "findings", "otherHighCriticalMatches"}
+        require(isinstance(entry, dict) and set(entry) == (fields | {"containers"} if schema == 2 else fields))
         workload = entry["workload"]
         require(workload in CVE_ALLOWED and workload not in seen)
         seen.add(workload)
@@ -439,6 +528,8 @@ def validate_cve(projection, now=None):
         require(isinstance(findings, list) and len(findings) <= 100)
         if entry["state"] == "unknown":
             require(entry["assessedAt"] is None and not findings and other == 0)
+            if schema == 2:
+                validate_cve_details(entry, generated)
             continue
         assessed = datetime.fromisoformat(normalize_date(entry["assessedAt"]).replace("Z", "+00:00"))
         require(timedelta(0) <= generated-assessed <= timedelta(hours=72))
@@ -452,29 +543,79 @@ def validate_cve(projection, now=None):
             require(isinstance(identifier, str) and CVE_ID.fullmatch(identifier) and identifier not in ids)
             ids.add(identifier)
             require(finding["severity"] in ("High", "Critical") and type(finding["fixAvailable"]) is bool)
-        ready.append(dict(entry, key=cve_key(workload), findings=sorted(findings, key=lambda x: x["id"])))
+        value = dict(entry, key=cve_key(workload), findings=sorted(findings, key=lambda x: x["id"]))
+        if schema == 2:
+            value["containers"] = validate_cve_details(entry, generated)
+        ready.append(value)
     return ready
 
 
 def render_cve(entry):
     title = CVE_TITLE + ": " + entry["workload"]
-    lines = [marker(entry["key"]), "Verified Kubescape image-assessment summary (reviewed workload cohort).",
-             "Affected workload: " + entry["workload"],
-             "Last assessed: " + normalize_date(entry["assessedAt"]),
-             "", "| Advisory | Scanner severity | Fix reported for at least one match |",
-             "| --- | --- | --- |"]
+    findings = entry["findings"]
+    critical = sum(f["severity"] == "Critical" for f in findings)
+    fixable = sum(f["fixAvailable"] for f in findings)
+    path, names = CVE_SOURCES[entry["workload"]]
+    lines = [marker(entry["key"]), "## Summary",
+             f"{len(findings)} distinct High/Critical CVEs ({critical} Critical); "
+             f"{fixable} have a reported package-level fix for at least one match.",
+             "A scanner rating is not proof of exploitability; a package fix is not proof of a fixed application image.",
+             "", "## Affected resources", "- Workload: " + entry["workload"],
+             "- Reviewed containers: " + ", ".join(names),
+             "- Last qualified assessment (oldest container): " + normalize_date(entry["assessedAt"]),
+             "- Owning GitOps source: " + ("`" + path + "`" if path else
+                 "not established in this repository; verify Talos-managed component source"),
+             "- Verified replacement image / matching remediation PR: not established by this report.",
+             "", "## Required action"]
+    if fixable:
+        lines += ["1. Review the reported package fixes and applicability. Check for a supported image release or rebuild containing the fixes."]
+    else:
+        lines += ["1. No package fix is established by this assessment. Review vendor advisories and applicability; document risk or a supported mitigation if no fix exists."]
+    lines += ["2. Check the owning image dependency and existing Renovate proposals; verify candidate immutable digest and fix evidence before proposing a reviewed GitOps change.",
+              "3. Merge only after review and CI, verify the Flux rollout and assess the actual running replacement digest.",
+              "", "## Container and package evidence"]
+    containers = entry.get("containers")
+    if not containers:
+        lines += ["Package names, installed/fixed versions and running image references are not available in the current summary-only evidence. Inspect the qualified private assessment; do not infer a fixed image."]
+    else:
+        for c in containers:
+            lines += ["", "### " + c["name"], "- Running image: `" + c["image"] + "`",
+                      "- Assessed: " + normalize_date(c["assessedAt"]),
+                      "- Package-detail coverage: " + c["detailState"]]
+            if c["detailState"] == "partial":
+                lines.append("- Additional package matches not displayed or not safely representable: " + str(c["omittedMatches"]))
+            if c["detailState"] == "unavailable":
+                lines.append("- Package details unavailable; inspect the private qualified report.")
+            if c["matches"]:
+                lines += ["| Advisory | Severity | Package (ecosystem) | Installed | Fixed versions | Fix state |",
+                          "| --- | --- | --- | --- | --- | --- |"]
+                for m in c["matches"]:
+                    lines.append("| " + m["id"] + " | " + m["severity"] + " | `" + m["package"] + "` (" +
+                        m["ecosystem"] + ") | `" + m["installedVersion"] + "` | " +
+                        (", ".join("`" + v + "`" for v in m["fixedVersions"]) or "Not established") +
+                        " | " + m["fixState"] + " |")
+    lines += ["", "## Advisory summary (all qualified High/Critical CVE IDs)",
+              "| Advisory | Scanner severity | Fix reported for at least one match |",
+              "| --- | --- | --- |"]
     lines += ["| " + f["id"] + " | " + f["severity"] + " | " + ("Yes" if f["fixAvailable"] else "Not established") + " |"
-              for f in entry["findings"]]
+              for f in sorted(findings, key=lambda f: (f["severity"] != "Critical", f["id"]))]
     lines += ["", "Additional High/Critical non-CVE matches retained privately: " + str(entry["otherHighCriticalMatches"]),
-              "Inspect the original assessment for affected packages and applicability; a scanner severity is not proof of exploitability.",
-              "Review the owning image dependency and any Renovate proposal, then independently reassess the deployed replacement.",
-              "Never close automatically on absent or stale reports."]
+              "", "## Resolution checklist",
+              "- [ ] Applicability and supported fix or approved risk disposition reviewed.",
+              "- [ ] Remediation PR reviewed and merged, if a change is required.",
+              "- [ ] Flux and workload rollout verified against the actual running digest.",
+              "- [ ] Fresh complete assessment verifies tracked findings resolved or explicitly dispositioned.",
+              "", "Automatic closure is not enabled yet. Absent, incomplete or stale reports never establish recovery."]
     return title, "\n".join(lines)
 
 
 def cve_revision(entry):
-    # A daily repeat with identical findings does not create a new comment.
-    return revision({k: v for k, v in entry.items() if k != "assessedAt"})
+    # Refresh the existing issue once when the presentation contract changes.
+    # A daily repeat with identical evidence must not generate a new comment.
+    value = {k: v for k, v in entry.items() if k != "assessedAt"}
+    if "containers" in value:
+        value["containers"] = [{k: v for k, v in c.items() if k != "assessedAt"} for c in value["containers"]]
+    return revision({"formatVersion": 2, "evidence": value})
 
 
 def owns_cve(issue, key):
