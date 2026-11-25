@@ -294,57 +294,22 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(len(rows), 12)
         self.assertEqual(R.PRIVATE_CVE_TARGETS, {t['identity'] for t in CONFIG['targets']})
 
-    def test_same_digest_budgets_one_direct_request_and_preserves_peer_attribution(self):
+    def test_equal_digest_requires_direct_workload_evidence_for_exceptions(self):
         source, peer = self.rows()[:2]
         peer["runningDigest"] = source["runningDigest"]
         config = self.config()
         config["targets"] = config["targets"][:2]
-        self.assertEqual(R.select_batch([source, peer], {}, config), [source])
-        record = {"evidenceKind":"direct", "jobID":"recurring-"+"a"*32,
-                  "imageDigest":source["runningDigest"], "workloadUID":source["workloadUID"],
-                  "container":source["container"], "createdAt":R.db.stamp(NOW),
-                  "database":EXPECTED["metadata"], "severities":{}, "fixesAvailable":False,
-                  "manifestDigest":"sha256:"+"a"*64, "configDigest":"sha256:"+"b"*64,
-                  "lastAttempt":{"state":"healthy","checkedAt":R.db.stamp(NOW)},
+        self.assertEqual(R.select_batch([source, peer], {}, config), [source, peer])
+        record = {"evidenceKind":"sharedImage", "createdAt":R.db.stamp(NOW),
+                  "database":EXPECTED["metadata"], "lastAttempt":{"state":"healthy"},
                   "privateCve":{"state":"complete","findings":[],"otherHighCriticalMatches":0}}
-        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db,"utcnow",return_value=NOW):
-            runner=R.Runner(mock.Mock(),config,EXPECTED,Path(path),"vulnerability")
-            def scan(r,audit):
-                runner.records[R.row_key(r)] = copy.deepcopy(record)
-                runner.result["assessments"].append(record)
-            selected,outcomes=R.resolve_targets([source,peer],config)
-            with mock.patch.object(R,"workload_rows",return_value=[source,peer]), \
-                    mock.patch.object(runner,"publish"), \
-                    mock.patch.object(runner,"vulnerability",side_effect=scan) as direct:
-                runner.batch(selected,outcomes,{"checkedAt":R.db.stamp(NOW)})
-            direct.assert_called_once()
-            shared=runner.records[R.row_key(peer)]
-            self.assertEqual(shared["evidenceKind"],"sharedImage")
-            self.assertEqual(shared["sourceJobID"],record["jobID"])
-            self.assertNotIn("jobID",shared)
-            self.assertEqual(shared["createdAt"],record["createdAt"])
-            self.assertEqual(shared["workloadUID"],peer["workloadUID"])
-            self.assertEqual(len(runner.result["assessments"]),1)
-            self.assertEqual(outcomes[1]["state"],"healthy")
-            for changed in ({**peer,"generation":2},{**peer,"podUIDs":["new-pod"]},
-                            {**peer,"runningDigest":"registry/image@sha256:"+"f"*64}):
-                view=R.coverage([changed],runner.records,config,NOW)
-                self.assertEqual(view["rows"][0]["assessmentState"],"unknown")
-            for invalid in ({**record,"evidenceKind":"sharedImage"},
-                            {**record,"database":{**EXPECTED["metadata"],"checksum":"wrong"}},
-                            {**record,"createdAt":R.db.stamp(NOW-timedelta(hours=73))}):
-                with self.assertRaises(R.db.Rejected):
-                    R.shared_image_record(source,peer,invalid,config,NOW)
-            for observed in ([source,{**peer,"generation":2}],
-                             [{**source,"podUIDs":["changed"]},peer], [source,peer,copy.deepcopy(peer)]):
-                runner.records.pop(R.row_key(peer),None)
-                with mock.patch.object(R,"workload_rows",return_value=observed):
-                    runner.reuse_batch_image(source,[source,peer],outcomes)
-                self.assertNotIn(R.row_key(peer),runner.records)
-            runner.records[R.row_key(peer)]={"lastAttempt":{"state":"failed"}}
-            with mock.patch.object(R,"workload_rows",return_value=[source,peer]):
-                runner.reuse_batch_image(source,[source,peer],outcomes)
-            self.assertEqual(runner.records[R.row_key(peer)]["lastAttempt"]["state"],"failed")
+        inventory=R.coverage([peer],{R.row_key(peer):record},config,NOW)
+        self.assertEqual(inventory["rows"][0]["assessmentState"],"unknown")
+        projection=R.private_cve_projection(inventory,{R.row_key(peer):record})
+        workload=R.target_key(peer).rsplit("/",1)[0]
+        self.assertEqual(next(e for e in projection["entries"] if e["workload"]==workload)["state"],"unknown")
+        # Historical shared evidence does not prevent a direct retry.
+        self.assertIn(peer,R.select_batch([source,peer],{R.row_key(peer):record},config))
 
     def test_batch_rotates_unscanned_changed_stale_and_failures(self):
         rows, config = self.rows(), self.config()
@@ -723,6 +688,40 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         projected = R.private_cve_projection(inventory,records)
         self.assertEqual(sum(e["state"]=="unknown" for e in projected["entries"]),1)
         self.assertNotIn("runningDigest",json.dumps(projected))
+
+    def test_multicontainer_projection_requires_every_reviewed_container(self):
+        first = dict(row(), assessmentState="healthy")
+        second = dict(first, container="sidecar")
+        scope = {R.target_key(first), R.target_key(second)}
+        def evidence(when, ids, severity, fix, other):
+            return {"createdAt":R.db.stamp(when),"privateCve":{"state":"complete",
+                "findings":[{"id":i,"severity":severity,"fixAvailable":fix} for i in ids],
+                "otherHighCriticalMatches":other}}
+        records={R.row_key(first):evidence(NOW,["CVE-2026-1000"],"High",False,1),
+                 R.row_key(second):evidence(NOW-timedelta(hours=2),["CVE-2026-1000","CVE-2026-1001"],"Critical",True,2)}
+        def project(rows, data=records):
+            return R.private_cve_projection({"rows":rows,"generatedAt":R.db.stamp(NOW)},data)["entries"]
+        with mock.patch.object(R,"PRIVATE_CVE_TARGETS",scope):
+            entries=project([first,second])
+            self.assertEqual(len(entries),1)
+            result=entries[0]
+            self.assertEqual(result["state"],"complete")
+            self.assertEqual(result["assessedAt"],R.db.stamp(NOW-timedelta(hours=2)))
+            self.assertEqual(result["otherHighCriticalMatches"],3)
+            self.assertEqual(result["findings"],[
+                {"id":"CVE-2026-1000","severity":"Critical","fixAvailable":True},
+                {"id":"CVE-2026-1001","severity":"Critical","fixAvailable":True}])
+            for rows in ([first],[first,dict(second,assessmentState="stale")],
+                         [first,second,copy.deepcopy(second)]):
+                self.assertEqual(project(rows)[0]["state"],"unknown")
+            for invalid in ({"evidenceKind":"sharedImage"},{"privateCve":{"state":"overflow"}}):
+                altered=copy.deepcopy(records)
+                altered[R.row_key(second)].update(invalid)
+                self.assertEqual(project([first,second],altered)[0]["state"],"unknown")
+            overflow=copy.deepcopy(records)
+            overflow[R.row_key(second)]=evidence(NOW,[f"CVE-2026-{i}" for i in range(2000,2100)],"High",False,0)
+            self.assertEqual(project([first,second],overflow)[0]["state"],"unknown")
+            self.assertNotIn("sidecar",json.dumps(result))
 
     def test_only_bounded_high_critical_cves_and_fix_flags(self):
         result = R.private_cve_findings([

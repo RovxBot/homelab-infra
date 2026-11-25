@@ -204,9 +204,9 @@ Failure tests use isolated fault injection; they do not claim destructive
 production outages were induced. Committed acceptance records actual production
 checks, resource/storage growth and remaining unattended observations.
 
-### Bounded same-batch immutable image reuse
+### Immutable-image evidence boundary
 
-The four-request budget now counts distinct exact registry image digests within the reviewed Deployment cohort. A directly qualified result (including fresh scanner-generated WLID summary, independent report/SBOM rereads, current DB and stable workload identity) can supply separately labelled `sharedImage` evidence for another currently ready Deployment container using the identical full registry digest. Re-resolve peer inventory independently after the direct scan. Preserve original assessment time, source job ID and peer UID/generation/Pod membership; do not invent a native summary or submit another request. A changed peer identity invalidates shared evidence; a failed or uncertain peer requires a direct retry. No cross-run archive reuse, cross-registry digest equivalence, new scope, automatic remediation or private finding expansion is authorized by this change. Full live qualification remains required.
+The pinned engine applies workload-scoped security exceptions before storing CVE manifests and can refresh a workload summary from cached image data. Identical registry digests therefore do not alone qualify cross-workload findings. Require direct scanner-generated evidence per workload/container; retain previous shared records for audit but mark their coverage unknown until direct reassessment. Reintroducing reuse requires proven exception-independent image evidence or a native per-workload cached-summary contract. No new permissions, scanner requests beyond the existing budget, or deletion of evidence.
 
 ### Direct assessment contract for StatefulSets and DaemonSets
 
@@ -215,3 +215,7 @@ The runner recognizes the pinned engine's kind-derived WLID and `<kind>-<name>-<
 ### First direct non-Deployment canaries
 
 The reviewed vulnerability cohort now includes twelve container identities, adding WotLK MariaDB (StatefulSet), kube-proxy (DaemonSet) and Cloudflared (Deployment). Four requests per scheduled window, one worker, all existing storage and resource gates, and the 72-hour freshness requirement remain unchanged. Private publication and aggregate health require all twelve; the prior nine cannot satisfy expanded scope. The private publisher retains nine daily creates and ten hourly writes, so larger initial backlogs are deliberately deferred. No live acceptance is implied by configuration; confirm each new kind's independently attributed summary and resource usage.
+
+### Multi-container private CVE projection
+
+One stable private issue identity per reviewed workload. Require qualified evidence from every configured container; use the oldest assessment timestamp, union CVE IDs with highest severity and OR of fix flags, and sum non-CVE match counts. Missing, ambiguous, stale or overflowing evidence yields unknown, never a falsely complete or empty finding set. Existing twelve target identities, publication schema, issue keys and write budgets are unchanged. Sidecars can be added after live qualification. The projection remains bounded to 100 distinct CVEs per workload; an incomplete group is not published as a complete issue update.
