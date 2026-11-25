@@ -395,6 +395,87 @@ class CVEPublisherTests(unittest.TestCase):
             self.assertIn("CVE-2026-4738",issue["body"])
             self.assertNotIn("sha256:",issue["body"])
 
+    def test_recovery_shadow_requires_published_positive_baseline_and_new_clean_digest(self):
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        entry=pub.validate_cve(self.rich_fixture(),now)[0]
+        github=FakeGitHub()
+        with sqlite3.connect(":memory:") as db:
+            def writer():
+                return pub.DurablePublisher(db,github,renderer=pub.render_cve,
+                    fingerprint=pub.cve_revision,owns=pub.owns_cve)
+            positive=writer()
+            self.assertEqual(pub.observe_cve_recovery(positive,[entry],["deferred"])["baselines"],0)
+            outcomes=pub.sync_cve_entries(positive,[entry])
+            self.assertEqual(pub.observe_cve_recovery(positive,[entry],outcomes)["baselines"],1)
+            clean=copy.deepcopy(entry)
+            clean["findings"]=[]
+            for c in clean["containers"]:
+                c["matches"]=[]
+            def observe(value):
+                return pub.observe_cve_recovery(writer(),[value],pub.sync_cve_entries(writer(),[value]))
+            self.assertEqual(observe(clean)["candidates"],0)
+            clean["assessedAt"]="2026-11-24T05:30:00Z"
+            for c in clean["containers"]:
+                c["assessedAt"]=clean["assessedAt"]
+            self.assertEqual(observe(clean)["candidates"],0)
+            clean["containers"][0]["image"]="registry.example/app@sha256:"+"b"*64
+            self.assertEqual(observe(clean)["candidates"],1)
+            self.assertEqual(observe(clean)["candidates"],1)
+            self.assertEqual(github.create_calls,1)
+            self.assertEqual(github.comments_written,0)
+            self.assertEqual(next(iter(github.issues.values()))["state"],"open")
+            # A missing/stale/unknown projection is excluded by validate_cve.
+            self.assertEqual(pub.observe_cve_recovery(writer(),[],[])["candidates"],0)
+            self.assertEqual(db.execute("SELECT candidate FROM cve_recovery_observations").fetchone(),(None,))
+            self.assertEqual(observe(clean)["candidates"],1)
+            partial=copy.deepcopy(clean)
+            partial["containers"][0].update(detailState="partial",omittedMatches=1)
+            self.assertEqual(observe(partial)["candidates"],0)
+            legacy={k:v for k,v in clean.items() if k!="containers"}
+            self.assertEqual(observe(legacy)["candidates"],0)
+            other=dict(clean,otherHighCriticalMatches=1)
+            # Non-CVE positives are not clean even when the CVE list is empty.
+            self.assertIsNone(pub.recovery_candidate(pub.cve_recovery_snapshot(entry),other))
+            self.assertEqual(observe(clean)["candidates"],1)
+            db.execute("UPDATE issues SET pending_update=?",("a"*64,))
+            db.commit()
+            self.assertEqual(observe(clean)["candidates"],0)
+            db.execute("UPDATE issues SET pending_update=NULL")
+            db.commit()
+            next(iter(github.issues.values()))["state"]="closed"
+            result=observe(clean)
+            self.assertEqual(result["candidates"],0)
+            self.assertEqual(result["manualClosed"],1)
+            self.assertEqual(github.comments_written,0)
+
+    def test_recovery_shadow_rejects_scope_change_partial_rescan_and_unowned_issue(self):
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        entry=pub.validate_cve(self.rich_fixture(),now)[0]
+        baseline=pub.cve_recovery_snapshot(entry)
+        clean=copy.deepcopy(entry)
+        clean["findings"]=[]
+        c=clean["containers"][0]
+        c.update(matches=[],image="registry.example/app@sha256:"+"c"*64,
+                 assessedAt="2026-11-24T05:30:00Z")
+        self.assertIsNotNone(pub.recovery_candidate(baseline,clean))
+        changed=copy.deepcopy(clean)
+        changed["containers"].append(dict(c,name="sidecar"))
+        self.assertIsNone(pub.recovery_candidate(baseline,changed))
+        expanded=copy.deepcopy(baseline)
+        expanded["containers"]["sidecar"]=dict(baseline["containers"][c["name"]])
+        self.assertIsNone(pub.recovery_candidate(expanded,changed | {
+            "containers":[c,dict(changed["containers"][1],assessedAt="2026-11-24T05:00:00Z")]}))
+        github=FakeGitHub()
+        with sqlite3.connect(":memory:") as db:
+            writer=pub.DurablePublisher(db,github,renderer=pub.render_cve,
+                fingerprint=pub.cve_revision,owns=pub.owns_cve)
+            outcomes=pub.sync_cve_entries(writer,[entry])
+            pub.observe_cve_recovery(writer,[entry],outcomes)
+            next(iter(github.issues.values()))["body"]="human-owned"
+            with self.assertRaises(ValueError):
+                pub.observe_cve_recovery(writer,[clean],[])
+            self.assertEqual(github.comments_written,0)
+
     def test_cve_budget_deferral_does_not_block_other_keys_or_create_intents(self):
         entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))[:9]
         github = FakeGitHub()
