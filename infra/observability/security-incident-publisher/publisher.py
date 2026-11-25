@@ -224,8 +224,9 @@ def fetch_projection():
 
 class PrivateGitea:
     """Only the reviewed, private repository; no fallback or advisory API."""
-    def __init__(self, token, requester=request_json, *, allow_cve_closure=False):
+    def __init__(self, token, requester=request_json, *, allow_cve_closure=False, allow_cve_reopen=False):
         self.allow_cve_closure = allow_cve_closure is True
+        self.allow_cve_reopen = allow_cve_reopen is True
         require(isinstance(token, str) and 0 < len(token) <= 8192
                 and not any(ch.isspace() for ch in token))
         self.token = token
@@ -245,9 +246,9 @@ class PrivateGitea:
                         and isinstance(body, dict) and set(body) == {"body"}))
             self.verify_private()
         elif method == "PATCH":
-            require(self.allow_cve_closure and
-                    re.fullmatch(re.escape(ISSUE_PATH) + r"/[1-9][0-9]*", path)
-                    and body == {"state":"closed"})
+            require(re.fullmatch(re.escape(ISSUE_PATH) + r"/[1-9][0-9]*", path)
+                    and ((self.allow_cve_closure and body == {"state":"closed"})
+                         or (self.allow_cve_reopen and body == {"state":"open"})))
             self.verify_private()
         else:
             require(False)
@@ -304,6 +305,10 @@ class PrivateGitea:
     def close_cve(self, number):
         require(type(number) is int and 0 < number < 10**9)
         return self.call(ISSUE_PATH + "/" + str(number), "PATCH", {"state":"closed"})
+
+    def reopen_cve(self, number):
+        require(type(number) is int and 0 < number < 10**9)
+        return self.call(ISSUE_PATH + "/" + str(number), "PATCH", {"state":"open"})
 
 
 class WriteBudgetDeferred(ValueError):
@@ -860,6 +865,8 @@ def observe_cve_recovery(publisher, ready, outcomes):
 # Deliberately not configurable in production yet. Enablement requires a
 # separate reviewed change and real recovery acceptance, not an env toggle.
 CVE_CLOSURE_ENABLED = False
+CVE_REOPEN_ENABLED = False
+MAX_RECURRENCE_CYCLES = 32
 SECURITY_BOT = "homelab-security-bot"
 
 
@@ -907,7 +914,8 @@ def recovery_comments(github, number, key, proof_id):
                 c["user"].get("login") == SECURITY_BOT and
                 isinstance(c.get("body"), str) and
                 (c["body"].startswith("<!-- native-security-update:" + key + ":")
-                 or c["body"].startswith("<!-- native-security-recovery:" + key + ":"))
+                 or c["body"].startswith("<!-- native-security-recovery:" + key + ":")
+                 or c["body"].startswith("<!-- native-security-recurrence:" + key + ":"))
                 for c in comments)
     found = sum(c.get("body","").startswith(code + "\n") for c in comments if isinstance(c.get("body"),str))
     require(found <= 1)
@@ -1004,12 +1012,171 @@ def sync_cve_closure(publisher, ready, outcomes, *, enabled=False):
                 db.execute("UPDATE cve_closure_intents SET phase='patch_pending' WHERE key=?", (key,))
             closed = publisher.github.close_cve(number)
             require(bot_owned_issue(closed,number,key) and closed["state"] == "closed")
+            evidence = dict(candidate, closureAcknowledgement=closure_acknowledgement(closed))
             with db:
-                db.execute("UPDATE cve_closure_intents SET phase='closed' WHERE key=?", (key,))
+                db.execute("UPDATE cve_closure_intents SET phase='closed',evidence=? WHERE key=?",
+                           (json.dumps(evidence,sort_keys=True),key))
             counts["closed"] += 1
         except WriteBudgetDeferred:
             counts["deferred"] += 1
     counts["pending"] = db.execute("SELECT count(*) FROM cve_closure_intents WHERE phase != 'closed'").fetchone()[0]
+    return counts
+
+
+def closure_acknowledgement(issue):
+    # Missing timestamps or editable issue metadata never authorize reopening.
+    # Hash rather than persist the complete human-visible issue.
+    try:
+        updated = normalize_date(issue["updated_at"])
+        closed = normalize_date(issue["closed_at"])
+        if updated < closed:
+            return None
+        fields = ("title","body","labels","assignees","milestone")
+        if any(k not in issue for k in fields):
+            return None
+        return {"updatedAt":updated,"closedAt":closed,
+                "content":revision({k:issue[k] for k in fields})}
+    except (ValueError,KeyError,TypeError):
+        return None
+
+
+def recurrence_candidate(closed_evidence, entry):
+    current = cve_recovery_snapshot(entry)
+    before = closed_evidence.get("proof")
+    after = current.get("proof") if current else None
+    if (not before or not after or not current["findings"] or current["otherHighCriticalMatches"]
+            or before["workloadIdentity"] != after["workloadIdentity"]):
+        return None
+    old, new = closed_evidence["containers"], current["containers"]
+    previous = {c["name"]:c for c in before["containers"]}
+    latest = {c["name"]:c for c in after["containers"]}
+    if not old or set(old) != set(new) or set(old) != set(previous) or set(old) != set(latest):
+        return None
+    if any(new[n]["assessedAt"] <= old[n]["assessedAt"]
+           or latest[n]["assessmentId"] == previous[n]["assessmentId"]
+           or latest[n]["databaseBuilt"] < previous[n]["databaseBuilt"]
+           or (latest[n]["databaseBuilt"] == previous[n]["databaseBuilt"]
+               and latest[n]["databaseChecksum"] != previous[n]["databaseChecksum"]) for n in old):
+        return None
+    return current
+
+
+def recurrence_ledger(db):
+    db.execute("""CREATE TABLE IF NOT EXISTS cve_recurrence_intents
+        (key TEXT NOT NULL, closure_id TEXT NOT NULL, number INTEGER NOT NULL,
+         recurrence_id TEXT NOT NULL, phase TEXT NOT NULL, closure_evidence TEXT NOT NULL,
+         recurrence_evidence TEXT NOT NULL, PRIMARY KEY(key,closure_id))""")
+
+
+def sync_cve_recurrence(publisher, ready, *, enabled=False):
+    """Reopen only confirmed machine closures, with durable comment/PATCH intents.
+
+    Reconciliation never replays an uncertain write. Both state-change gates
+    remain hard disabled in production until live qualification.
+    """
+    db = publisher.db
+    cve_closure_ledger(db)
+    recurrence_ledger(db)
+    counts = {"candidates":0,"reopened":0,"manualReview":0,"deferred":0,"pending":0}
+    for entry in ready:
+        key = entry["key"]
+        row = db.execute("SELECT number,proof_id,phase,evidence FROM cve_closure_intents WHERE key=?",
+                         (key,)).fetchone()
+        if row is None or row[2] != "closed":
+            continue
+        number, closure_id, _, raw_closed = row
+        closed = json.loads(raw_closed)
+        current = recurrence_candidate(closed,entry)
+        if current is None:
+            continue
+        counts["candidates"] += 1
+        if not enabled:
+            continue
+        mapping = db.execute("SELECT number,pending_create,pending_update FROM issues WHERE key=?",(key,)).fetchone()
+        if mapping != (number,0,None):
+            counts["manualReview"] += 1
+            continue
+        ack = closed.get("closureAcknowledgement")
+        if not isinstance(ack,dict):
+            counts["manualReview"] += 1
+            continue
+        existing = db.execute("SELECT recurrence_id,phase FROM cve_recurrence_intents WHERE key=? AND closure_id=?",
+                              (key,closure_id)).fetchone()
+        recurrence_id = revision(current)
+        phase = existing[1] if existing else None
+        if (existing and existing[0] != recurrence_id) or phase in ("patch_pending","reopened"):
+            counts["manualReview"] += 1
+            continue
+        if existing is None and db.execute("SELECT count(*) FROM cve_recurrence_intents WHERE key=?",(key,)).fetchone()[0] >= MAX_RECURRENCE_CYCLES:
+            counts["manualReview"] += 1
+            continue
+        issue = publisher.github.issue(number)
+        current_ack = closure_acknowledgement(issue)
+        if (not bot_owned_issue(issue,number,key) or issue["state"] != "closed"
+                or current_ack is None or current_ack["closedAt"] != ack["closedAt"]
+                or current_ack["content"] != ack["content"]
+                or (phase is None and current_ack != ack)):
+            counts["manualReview"] += 1
+            continue
+        owned, recovered = recovery_comments(publisher.github,number,key,closure_id)
+        if not owned or not recovered:
+            counts["manualReview"] += 1
+            continue
+        code = "<!-- native-security-recurrence:" + key + ":" + recurrence_id + " -->"
+        body = code + "\n## Vulnerability recurrence\nA newer qualified assessment again reports High/Critical CVEs for this workload. The previous verified recovery remains in the issue history.\n\n" + render_cve(entry)[1].replace(marker(key)+"\n","",1)
+        def matching_comment():
+            comments = publisher.github.comments(number)
+            found = [c for c in comments if isinstance(c.get("body"),str) and c["body"].startswith(code+"\n")]
+            require(len(found) <= 1)
+            return bool(found and found[0].get("user",{}).get("login")==SECURITY_BOT
+                        and found[0]["body"] == body)
+        try:
+            if phase is None:
+                if matching_comment():
+                    counts["manualReview"] += 1
+                    continue
+                publisher.reserve("comment")
+                with db:
+                    db.execute("INSERT INTO cve_recurrence_intents VALUES (?,?,?,?,'comment_pending',?,?)",
+                               (key,closure_id,number,recurrence_id,raw_closed,json.dumps(current,sort_keys=True)))
+                publisher.github.comment(number,body)
+                phase = "comment_pending"
+            if phase == "comment_pending":
+                if not matching_comment():
+                    counts["manualReview"] += 1
+                    continue
+                with db:
+                    db.execute("UPDATE cve_recurrence_intents SET phase='comment_confirmed' WHERE key=? AND closure_id=?",
+                               (key,closure_id))
+                phase = "comment_confirmed"
+            latest_issue = publisher.github.issue(number)
+            latest_ack = closure_acknowledgement(latest_issue)
+            owned,recovered = recovery_comments(publisher.github,number,key,closure_id)
+            if (phase != "comment_confirmed" or not bot_owned_issue(latest_issue,number,key)
+                    or latest_issue["state"]!="closed" or latest_ack is None
+                    or latest_ack["closedAt"]!=ack["closedAt"] or latest_ack["content"]!=ack["content"]
+                    or not owned or not recovered or not matching_comment()):
+                counts["manualReview"] += 1
+                continue
+            publisher.reserve("reopen")
+            with db:
+                db.execute("UPDATE cve_recurrence_intents SET phase='patch_pending' WHERE key=? AND closure_id=?",
+                           (key,closure_id))
+            reopened = publisher.github.reopen_cve(number)
+            require(bot_owned_issue(reopened,number,key) and reopened["state"]=="open")
+            with db:
+                db.execute("UPDATE cve_recurrence_intents SET phase='reopened' WHERE key=? AND closure_id=?",
+                           (key,closure_id))
+                # Archive the confirmed close in the recurrence ledger; reset
+                # only the active lifecycle. The recurrence comment is the
+                # published positive baseline for the next recovery cycle.
+                db.execute("DELETE FROM cve_closure_intents WHERE key=? AND proof_id=?",(key,closure_id))
+                db.execute("DELETE FROM cve_recovery_observations WHERE key=?",(key,))
+                db.execute("UPDATE issues SET revision=? WHERE key=?",(cve_revision(entry),key))
+            counts["reopened"] += 1
+        except WriteBudgetDeferred:
+            counts["deferred"] += 1
+    counts["pending"] = db.execute("SELECT count(*) FROM cve_recurrence_intents WHERE phase!='reopened'").fetchone()[0]
     return counts
 
 
@@ -1025,11 +1192,13 @@ def cve_main(token):
         conn.execute("PRAGMA journal_mode=DELETE")
         conn.execute("PRAGMA synchronous=FULL")
         require(conn.execute("PRAGMA quick_check").fetchone()[0] == "ok")
-        publisher = DurablePublisher(conn, PrivateGitea(token, allow_cve_closure=CVE_CLOSURE_ENABLED), renderer=render_cve,
+        publisher = DurablePublisher(conn, PrivateGitea(token, allow_cve_closure=CVE_CLOSURE_ENABLED,
+                                                   allow_cve_reopen=CVE_REOPEN_ENABLED), renderer=render_cve,
                                      fingerprint=cve_revision, owns=owns_cve, create_limit=min(9, len(CVE_ALLOWED)))
         # Only positive findings cause remote writes. Recovery observations
         # are shadow-only and never change remote issue state.
         phase = "cve_sync"
+        recurrence = sync_cve_recurrence(publisher, ready, enabled=CVE_REOPEN_ENABLED)
         outcomes = sync_cve_entries(publisher, ready)
         recovery = observe_cve_recovery(publisher, ready, outcomes)
         closure = sync_cve_closure(publisher, ready, outcomes, enabled=CVE_CLOSURE_ENABLED)
@@ -1043,7 +1212,10 @@ def cve_main(token):
                           "recoveryProofQualified": recovery["proofQualified"],
                           "recoveryManualClosed": recovery["manualClosed"],
                           "closureEnabled": CVE_CLOSURE_ENABLED,
-                          "closurePending": closure["pending"]}), flush=True)
+                          "closurePending": closure["pending"],
+                          "recurrenceCandidates": recurrence["candidates"],
+                          "reopenEnabled": CVE_REOPEN_ENABLED,
+                          "reopenPending": recurrence["pending"]}), flush=True)
         if pending:
             raise PublisherFailure("cve_pending")
         if "deferred" in outcomes:
