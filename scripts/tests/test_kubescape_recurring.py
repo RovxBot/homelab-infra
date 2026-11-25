@@ -122,7 +122,7 @@ class RetainedProjectionTests(unittest.TestCase):
         self.assertEqual(R.ARCHIVE_LIMIT,64*1024**2)
 
     def test_strip_projection_details_only(self):
-        evidence={"privateCve":{"findings":["PRIVATE-ID"]},"publicCve":{"findings":["LEGACY-ID"]},"privateCveDetails":{"matches":["PRIVATE-PACKAGE"]},"state":"healthy"}
+        evidence={"privateCve":{"findings":["PRIVATE-ID"]},"publicCve":{"findings":["LEGACY-ID"]},"privateCveDetails":{"matches":["PRIVATE-PACKAGE"]},"privateRecoveryProof":{"allCves":["PRIVATE-RECOVERY"]},"state":"healthy"}
         self.assertEqual(R.status_safe({"assessments":[evidence],"state":"healthy"}),
                          {"assessments":[{"state":"healthy"}],"state":"healthy"})
         self.assertIn("privateCve",evidence)
@@ -791,7 +791,7 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         inventory={"rows":[current],"generatedAt":R.db.stamp(NOW)}
         records={R.row_key(current):evidence}
         projection=R.rich_private_cve_projection(inventory,records)
-        self.assertEqual(projection["schema"],2)
+        self.assertEqual(projection["schema"],3)
         entries=publisher.validate_cve(projection,NOW)
         self.assertEqual(len(entries),1)
         container=entries[0]["containers"][0]
@@ -803,6 +803,63 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         self.assertEqual(entries[0]["containers"][0]["detailState"],"unavailable")
         inventory["rows"][0]["assessmentState"]="stale"
         self.assertEqual(publisher.validate_cve(R.rich_private_cve_projection(inventory,records),NOW),[])
+
+
+    def test_recovery_proof_requires_direct_full_report_and_all_severities(self):
+        fixture=json.loads((ROOT/"scripts/tests/fixtures/kubescape-report-identity.json").read_text())
+        report=fixture["report"]
+        current=dict(row(),assessmentState="healthy",recoveryScopeReady=True)
+        record=R.check_report(report,fixture["sbom"],current,EXPECTED,
+                              report["spec"]["metadata"]["report"]["createdAt"])
+        record.update(evidenceKind="direct",jobID="recurring-"+"a"*32,
+                      workloadUID=current["workloadUID"],imageDigest=current["runningDigest"],
+                      container=current["container"])
+        payload=report["spec"]["payload"]
+        payload["matches"]=[
+            {"vulnerability":{"id":"CVE-2026-1000","severity":"Medium"}},
+            {"vulnerability":{"id":"VENDOR-1","severity":"Low"},
+             "relatedVulnerabilities":[{"id":"CVE-2026-1001"}]}]
+        proof=R.private_recovery_proof(report,current,record)
+        self.assertEqual(proof["allCves"],["CVE-2026-1000","CVE-2026-1001"])
+        for change in ("ignored","relevancy","invalid-db","non-cve","overflow","shared"):
+            copy_report,copy_record=copy.deepcopy(report),copy.deepcopy(record)
+            p=copy_report["spec"]["payload"]
+            if change=="ignored":
+                p["ignoredMatches"]=[{"vulnerability":{"id":"CVE-2026-1000"}}]
+            elif change=="relevancy":
+                copy_report["spec"]["metadata"]["withRelevancy"]=True
+            elif change=="invalid-db":
+                p["descriptor"]["db"]["valid"]=False
+            elif change=="non-cve":
+                p["matches"].append({"vulnerability":{"id":"UNKNOWN","severity":"Low"}})
+            elif change=="overflow":
+                p["matches"]=[{"vulnerability":{"id":f"CVE-2026-{1000+i}"}} for i in range(257)]
+            else:
+                copy_record["evidenceKind"]="sharedImage"
+            with self.subTest(change=change):
+                self.assertIsNone(R.private_recovery_proof(copy_report,current,copy_record))
+        record["privateCve"]=R.private_cve_findings(payload["matches"])
+        record["privateCveDetails"]=R.private_cve_details(payload["matches"])
+        record["privateRecoveryProof"]=proof
+        inventory={"rows":[current],"generatedAt":R.db.stamp(NOW)}
+        records={R.row_key(current):record}
+        projection=R.rich_private_cve_projection(inventory,records)
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("recovery_consumer",ROOT/"infra/observability/security-incident-publisher/publisher.py")
+        publisher=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(publisher)
+        entries=publisher.validate_cve(projection,NOW)
+        self.assertEqual(entries[0]["recoveryProof"]["containers"],[proof])
+        self.assertNotIn(current["workloadUID"],json.dumps(entries[0]["recoveryProof"]))
+        for extra in ("sidecar","init"):
+            inventory["rows"].append(dict(current,container=extra,
+                containerType="initContainers" if extra=="init" else "containers"))
+            entry=next(e for e in R.rich_private_cve_projection(inventory,records)["entries"]
+                       if e["workload"]=="memos/Deployment/memos")
+            self.assertIsNone(entry["recoveryProof"])
+            inventory["rows"].pop()
+        current["recoveryScopeReady"]=False
+        self.assertIsNone(publisher.validate_cve(R.rich_private_cve_projection(inventory,records),NOW)[0]["recoveryProof"])
 
     def test_projection_rejects_stale_records_and_unreviewed_workloads(self):
         current = row()
