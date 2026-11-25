@@ -324,6 +324,8 @@ class CVEPublisherTests(unittest.TestCase):
                                for i in range(100)]
         obj={"kind":"ConfigMap","metadata":{"namespace":"kubescape","name":"kubescape-private-cve"},
              "data":{"projection.json":json.dumps(projection,separators=(",",":"))}}
+        # API metadata adds overhead beyond the compact finding payload.
+        obj["metadata"]["annotations"]={"test.example/metadata":"x" * 32768}
         body=json.dumps(obj).encode()
         self.assertGreater(len(body),pub.MAX_BODY)
         self.assertLess(len(body),240*1024)
