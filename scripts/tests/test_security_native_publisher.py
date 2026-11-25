@@ -337,6 +337,76 @@ class CVEPublisherTests(unittest.TestCase):
             } for name in pub.CVE_SOURCES[entry["workload"]][1]]
         return projection
 
+    def proof_fixture(self):
+        projection=self.rich_fixture()
+        projection["schema"]=3
+        for entry in projection["entries"]:
+            entry["recoveryProof"]={"workloadIdentity":"c"*64,"containers":[
+                {"name":c["name"],"databaseBuilt":"2026-11-23T00:00:00Z",
+                 "databaseChecksum":"d"*64,"assessmentId":"e"*64,
+                 "allCves":["CVE-2026-4738","CVE-2026-9999"]}
+                for c in entry["containers"]]}
+        return projection
+
+    def test_recovery_proof_contract_and_compatibility(self):
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        projection=self.proof_fixture()
+        rich=pub.validate_cve(projection,now)[0]
+        old=pub.validate_cve(self.rich_fixture(),now)[0]
+        self.assertEqual(pub.cve_revision(rich),pub.cve_revision(old))
+        self.assertEqual(pub.cve_recovery_snapshot(rich)["proof"],rich["recoveryProof"])
+        projection["entries"][0]["recoveryProof"]=None
+        self.assertIsNone(pub.validate_cve(projection,now)[0]["recoveryProof"])
+        for field,value in (("databaseBuilt","2026-11-01T00:00:00Z"),
+                            ("databaseBuilt","2026-11-24T06:00:00Z"),
+                            ("databaseChecksum","untrusted"),("assessmentId","unknown"),
+                            ("name","unreviewed"),("allCves",[]),
+                            ("allCves",["CVE-2026-4738"]*2),
+                            ("allCves",[f"CVE-2026-{1000+i}" for i in range(257)])):
+            projection=self.proof_fixture()
+            projection["entries"][0]["recoveryProof"]["containers"][0][field]=value
+            with self.subTest(field=field),self.assertRaises(ValueError):
+                pub.validate_cve(projection,now)
+        projection=self.proof_fixture()
+        projection["entries"][0].update(state="unknown",assessedAt=None,findings=[],containers=[])
+        with self.assertRaises(ValueError):
+            pub.validate_cve(projection,now)
+
+    def test_recovery_proof_rejects_downgrade_replay_and_changed_scope(self):
+        now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        entry=pub.validate_cve(self.proof_fixture(),now)[0]
+        baseline=pub.cve_recovery_snapshot(entry)
+        clean=copy.deepcopy(entry)
+        clean["findings"]=[]
+        for c in clean["containers"]:
+            c.update(matches=[],image="registry.example/app@sha256:"+"f"*64,
+                     assessedAt="2026-11-24T05:30:00Z")
+        for c in clean["recoveryProof"]["containers"]:
+            c.update(allCves=["CVE-2026-9999"],assessmentId="a"*64)
+        candidate=pub.recovery_candidate(baseline,clean)
+        self.assertTrue(pub.proof_qualified_recovery(baseline,candidate))
+        for mutation in ("downgrade","replay","older-db","changed-db","new-controller","no-proof","non-cve"):
+            old,new=copy.deepcopy(baseline),copy.deepcopy(candidate)
+            if mutation=="downgrade":
+                new["proof"]["containers"][0]["allCves"].append("CVE-2026-4738")
+            elif mutation=="replay":
+                new["proof"]["containers"][0]["assessmentId"]="e"*64
+            elif mutation=="older-db":
+                new["proof"]["containers"][0]["databaseBuilt"]="2026-11-22T00:00:00Z"
+            elif mutation=="changed-db":
+                new["proof"]["containers"][0]["databaseChecksum"]="b"*64
+            elif mutation=="new-controller":
+                new["proof"]["workloadIdentity"]="f"*64
+            elif mutation=="no-proof":
+                new.pop("proof")
+            else:
+                old["otherHighCriticalMatches"]=1
+            with self.subTest(mutation=mutation):
+                self.assertFalse(pub.proof_qualified_recovery(old,new))
+        for c in clean["containers"]:
+            c["image"]="different.example/app@sha256:"+"a"*64
+        self.assertIsNone(pub.recovery_candidate(baseline,clean))
+
     def test_rich_private_evidence_and_stable_revision(self):
         projection=self.rich_fixture()
         now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
