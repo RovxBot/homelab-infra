@@ -211,3 +211,7 @@ The four-request budget now counts distinct exact registry image digests within 
 ### Direct assessment contract for StatefulSets and DaemonSets
 
 The runner recognizes the pinned engine's kind-derived WLID and `<kind>-<name>-<container>` summary name for StatefulSets and DaemonSets. Require observed controller generation, all desired replicas updated/ready/available, matching container template, full Pod membership and (StatefulSet) matching current/update and Pod revision. Reject scaled-zero, incomplete or ambiguous inventory, and summary names requiring sanitization. New kinds require direct scans; shared-image evidence remains Deployment-only until separately qualified. The configured nine targets and publication scope are unchanged; live canaries must be added through a separate reviewed scope change.
+
+### First direct non-Deployment canaries
+
+The reviewed vulnerability cohort now includes twelve container identities, adding WotLK MariaDB (StatefulSet), kube-proxy (DaemonSet) and Cloudflared (Deployment). Four requests per scheduled window, one worker, all existing storage and resource gates, and the 72-hour freshness requirement remain unchanged. Private publication and aggregate health require all twelve; the prior nine cannot satisfy expanded scope. The private publisher retains nine daily creates and ten hourly writes, so larger initial backlogs are deliberately deferred. No live acceptance is implied by configuration; confirm each new kind's independently attributed summary and resource usage.

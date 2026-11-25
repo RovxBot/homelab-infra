@@ -427,6 +427,9 @@ PRIVATE_CVE_TARGETS = {
     "monitoring/Deployment/gatus/gatus",
     "openbrew/Deployment/openbrew/openbrew",
     "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
+    "wotlk/StatefulSet/wotlk-mariadb/mysql",
+    "kube-system/DaemonSet/kube-proxy/kube-proxy",
+    "cloudflared/Deployment/cloudflared/cloudflared",
 }
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 MAX_PRIVATE_CVES = 100

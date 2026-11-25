@@ -44,12 +44,15 @@ def check(resources):
                         "homepage/Deployment/homepage/homepage", "koito/Deployment/koito/koito",
                         "koito/Deployment/koito-lastfm-bridge/multi-scrobbler", "gitea/Deployment/gitea-mcp/mcp",
                         "monitoring/Deployment/gatus/gatus", "openbrew/Deployment/openbrew/openbrew",
-                        "stirling-pdf/Deployment/stirling-pdf/stirling-pdf"}
+                        "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
+                        "wotlk/StatefulSet/wotlk-mariadb/mysql",
+                        "kube-system/DaemonSet/kube-proxy/kube-proxy",
+                        "cloudflared/Deployment/cloudflared/cloudflared"}
     assert len(selected) == len(config["targets"]), "duplicate target identity"
     assert 1 <= config["maximumImagesPerRun"] <= 4
     assert config["maximumScanAgeHours"] == 72
-    # Reserve a full three slots in each nominal three-day rotation for churn/failures.
-    assert len(selected) <= 3 * config["maximumImagesPerRun"] - 3
+    # Four windows/day; retain at least three request slots in a 72h rotation.
+    assert len(selected) <= min(12, 12 * config["maximumImagesPerRun"] - 3)
     assert config["scanTimeoutSeconds"] == 360 and config["maximumHistoryBytes"] <= 512 * 1024**2
     assert config["minimumDatabaseFreeBytes"] >= 3 * 1024**3
     assert config["minimumReportFreeBytes"] >= 1024**3
