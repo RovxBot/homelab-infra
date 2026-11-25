@@ -357,8 +357,9 @@ def cohort_health(inventory, config):
             "expected": len(expected), "healthy": healthy, "validUntil": db.stamp(expiry)}
 
 
-# Publication is a separate, explicit trust boundary. Do not include raw
-# package names, versions, digests, paths, report IDs or non-allowlisted rows.
+# Publication is a separate, explicit trust boundary. Only the named private
+# projection may contain strictly validated package/version/image evidence.
+# Never copy raw matches, report locations, metadata, URLs or arbitrary text.
 LEGACY_PUBLIC_CVE_TARGETS = {
     "homepage/Deployment/homepage/homepage",
     "homepage/Deployment/homepage-assets/nginx",
@@ -380,6 +381,10 @@ PRIVATE_CVE_TARGETS = {
 }
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 MAX_PRIVATE_CVES = 100
+MAX_PRIVATE_DETAIL_MATCHES = 12
+MAX_PRIVATE_PROJECTION_BYTES = 240 * 1024
+PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\Z")
+PRIVATE_IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,383}@sha256:[a-f0-9]{64}\Z")
 
 
 def private_cve_findings(matches):
@@ -402,6 +407,53 @@ def private_cve_findings(matches):
         return {"state": "overflow", "findings": [], "otherHighCriticalMatches": other}
     return {"state": "complete", "findings": sorted(findings.values(), key=lambda x: x["id"]),
             "otherHighCriticalMatches": other}
+
+
+def private_cve_details(matches):
+    """Qualified Grype 0.121.0 / kubevuln grypeToDomainMatch fields only.
+
+    Keep the existing complete advisory summary independent of bounded
+    package details. Unsupported/malformed/truncated details are explicit.
+    """
+    def safe(value):
+        return isinstance(value, str) and PACKAGE_FIELD.fullmatch(value) and "://" not in value
+
+    selected, omitted = {}, 0
+    for match in matches:
+        vuln = match["vulnerability"]
+        identifier, severity = vuln.get("id"), vuln.get("severity")
+        if severity not in ("High", "Critical") or not isinstance(identifier, str) or not CVE_ID.fullmatch(identifier):
+            continue
+        artifact = match.get("artifact")
+        fix = vuln.get("fix") or {}
+        if not isinstance(artifact, dict) or not isinstance(fix, dict):
+            omitted += 1
+            continue
+        package, ecosystem, installed = (artifact.get(k) for k in ("name", "type", "version"))
+        state, versions = fix.get("state", "unknown"), fix.get("versions", [])
+        if versions is None:
+            versions = []
+        if (not all(safe(v) for v in (package, ecosystem, installed))
+                or state not in ("fixed", "not-fixed", "wont-fix", "unknown")
+                or not isinstance(versions, list) or len(versions) > 4
+                or not all(safe(v) for v in versions)
+                or (versions and state != "fixed")):
+            omitted += 1
+            continue
+        detail = {"id":identifier, "severity":severity, "package":package,
+                  "ecosystem":ecosystem, "installedVersion":installed,
+                  "fixedVersions":sorted(set(versions)), "fixState":state}
+        key = json.dumps(detail, sort_keys=True, separators=(",", ":"))
+        selected[key] = detail
+        # Keep only the best bounded candidates, independent of report order.
+        if len(selected) > MAX_PRIVATE_DETAIL_MATCHES:
+            worst = max(selected, key=lambda k: (selected[k]["severity"] != "Critical", k))
+            del selected[worst]
+            omitted += 1
+    details = sorted(selected.values(), key=lambda m: (m["severity"] != "Critical", m["id"],
+                     m["package"], m["ecosystem"], m["installedVersion"], m["fixState"], tuple(m["fixedVersions"])))
+    return {"detailState":"partial" if omitted else "complete", "matches":details,
+            "omittedMatches":omitted}
 
 
 def private_cve_projection(inventory, records):
@@ -445,6 +497,29 @@ def private_cve_projection(inventory, records):
         entries.append(entry)
     return {"schema": 1, "source": "kubescape-cve", "generatedAt": inventory["generatedAt"],
             "entries": entries}
+
+
+def rich_private_cve_projection(inventory, records):
+    projection = private_cve_projection(inventory, records)
+    projection["schema"] = 2
+    for entry in projection["entries"]:
+        entry["containers"] = []
+        if entry["state"] != "complete":
+            continue
+        for target in sorted(t for t in PRIVATE_CVE_TARGETS if t.rsplit("/", 1)[0] == entry["workload"]):
+            row, = [r for r in inventory["rows"] if target_key(r) == target]
+            record = records[row_key(row)]
+            image = row["runningDigest"]
+            # Do not invalidate existing advisory reporting for a reference
+            # that cannot be represented safely in the richer contract.
+            if not isinstance(image, str) or not PRIVATE_IMAGE_REF.fullmatch(image):
+                return private_cve_projection(inventory, records)
+            detail = record.get("privateCveDetails")
+            if not isinstance(detail, dict):
+                detail = {"detailState":"unavailable", "matches":[], "omittedMatches":None}
+            entry["containers"].append({"name":row["container"], "image":image,
+                                        "assessedAt":record["createdAt"], **detail})
+    return projection
 
 
 def check_report(report, sbom, row, expected, started, previous=None):
@@ -554,7 +629,7 @@ def status_safe(value):
     """Finding content is confined to retained history and the named projection."""
     if isinstance(value, dict):
         return {k: status_safe(v) for k, v in value.items()
-                if k not in {"privateCve", "publicCve"}}
+                if k not in {"privateCve", "publicCve", "privateCveDetails"}}
     if isinstance(value, list):
         return [status_safe(v) for v in value]
     return value
@@ -579,7 +654,7 @@ def recover_private_projection(history, inventory, records, config):
         if (row["assessmentState"] != "healthy" or target_key(row) not in PRIVATE_CVE_TARGETS):
             continue
         record = records.get(row_key(row), {})
-        if record.get("evidenceKind") == "sharedImage" or "privateCve" in record or ("publicCve" in record and target_key(row) in LEGACY_PUBLIC_CVE_TARGETS):
+        if record.get("evidenceKind") == "sharedImage" or "privateCveDetails" in record:
             continue
         job = record.get("jobID", "")
         if not isinstance(job, str) or not re.fullmatch(r"recurring-[a-f0-9]{32}", job):
@@ -612,7 +687,14 @@ def recover_private_projection(history, inventory, records, config):
             terminal = json.loads(terminal_path.read_text())
             db.require(terminal["state"] == "succeeded" and terminal["phase"] == "completed",
                        "archive_terminal_invalid")
-            record["privateCve"] = private_cve_findings(report["spec"]["payload"]["matches"])
+            matches = report["spec"]["payload"]["matches"]
+            findings = private_cve_findings(matches)
+            previous = record.get("privateCve")
+            if previous is None and target_key(row) in LEGACY_PUBLIC_CVE_TARGETS:
+                previous = record.get("publicCve")
+            db.require(previous is None or previous == findings, "archive_projection_mismatch")
+            record["privateCve"] = findings
+            record["privateCveDetails"] = private_cve_details(matches)
             recovered += 1
         except (db.Rejected, OSError, ValueError, TypeError, KeyError, EOFError):
             # Never promote missing, malformed, oversized or inconsistent retained evidence.
@@ -625,8 +707,23 @@ def coverage_status(api, inventory, records, config):
     path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
     private_path = CORE + "/namespaces/kubescape/configmaps/kubescape-private-cve"
     projection = dict(api.call(private_path))
-    projection["data"] = {"projection.json": json.dumps(private_cve_projection(inventory, records), separators=(",", ":"))}
-    db.require(len(json.dumps(projection)) < 100000, "private_projection_too_large")
+    rich = rich_private_cve_projection(inventory, records)
+    def encode():
+        projection["data"] = {"projection.json": json.dumps(rich, separators=(",", ":"))}
+        return len(json.dumps(projection).encode("utf-8"))
+    size = encode()
+    if size > MAX_PRIVATE_PROJECTION_BYTES and rich["schema"] == 2:
+        # Keep all advisory IDs and qualified coverage. Detail display has a
+        # separate bound; explicitly account for omitted matches, never
+        # silently truncate the authoritative summary.
+        for entry in rich["entries"]:
+            for detail in entry["containers"]:
+                if detail["matches"]:
+                    detail["omittedMatches"] += len(detail["matches"])
+                    detail["matches"] = []
+                    detail["detailState"] = "partial"
+        size = encode()
+    db.require(size <= MAX_PRIVATE_PROJECTION_BYTES, "private_projection_too_large")
     api.call(private_path, projection, "PUT")
     status = api.call(path)
     data = status.setdefault("data", {})
@@ -1012,7 +1109,9 @@ class Runner:
                       workloadUID=row["workloadUID"], imageDigest=row["runningDigest"], container=row["container"])
         # The report and workload attribution have now passed independent rereads.
         if target_key(row) in PRIVATE_CVE_TARGETS:
-            result["privateCve"] = private_cve_findings(report["spec"]["payload"]["matches"])
+            matches = report["spec"]["payload"]["matches"]
+            result["privateCve"] = private_cve_findings(matches)
+            result["privateCveDetails"] = private_cve_details(matches)
         self.records[row_key(row)] = result
         atomic(self.history / "records.json", self.records)
         self.result["assessments"].append(result)
