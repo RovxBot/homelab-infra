@@ -7,6 +7,7 @@ from security_native_exporter_preflight import EXPORTER
 IMAGE = 'quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60'
 NODES = ["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"]
 NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test', 'koito', 'monitoring', 'openbrew', 'stirling-pdf', 'cloudflared', 'mqtt', 'security']
+AGENT_NAMESPACES = NAMESPACES + ['wotlk', 'mop']
 RULES = ['R0001', 'R0004', 'R0007', 'R1000', 'R1002']
 CAPS = ['SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'SYSLOG', 'SYS_RESOURCE', 'IPC_LOCK', 'NET_RAW']
 BUDGET = {'requests': {'cpu': '100m', 'memory': '180Mi'}, 'limits': {'cpu': '500m', 'memory': '1400Mi'}}
@@ -34,7 +35,7 @@ def check_values(values):
     assert agent['image']['tag'] == IMAGE.split(':', 1)[1]
     assert agent['nodeSelector'] == {'kubernetes.io/os': 'linux'}
     assert agent['resources'] == BUDGET
-    assert agent['env'] == [{'name': 'INCLUDENAMESPACES', 'value': ','.join(NAMESPACES)}]
+    assert agent['env'] == [{'name': 'INCLUDENAMESPACES', 'value': ','.join(AGENT_NAMESPACES)}]
     assert values['alertCRD'] == {'installDefault': True, 'scopeClustered': True, 'scopeNamespaced': False}
     assert agent['config']['stdoutExporter'] is True
     assert agent['config']['extra'] == {'hostMonitoringEnabled': False}
@@ -55,7 +56,7 @@ def findings(resource):
         assert not c.get('command') and not c.get('args')
         assert all(c[k]['httpGet']['path'] == path for k, path in
                    [('livenessProbe', '/livez'), ('readinessProbe', '/readyz'), ('startupProbe', '/readyz')])
-        assert next(e['value'] for e in c['env'] if e['name'] == 'INCLUDENAMESPACES') == ','.join(NAMESPACES)
+        assert next(e['value'] for e in c['env'] if e['name'] == 'INCLUDENAMESPACES') == ','.join(AGENT_NAMESPACES)
         return []
     except (AssertionError, KeyError, ValueError):
         return ['DaemonSet/node-agent: runtime canary contract differs']
@@ -116,6 +117,37 @@ def normalize_rules(resources):
             r['spec'] = visit(r['spec'])
 
 
+def check_direct_bindings(root):
+    import yaml
+    path = root / "infra/kubescape/runtime-bindings"
+    composition = yaml.safe_load((path / "kustomization.yaml").read_text())
+    assert composition == {"apiVersion":"kustomize.config.k8s.io/v1beta1",
+                           "kind":"Kustomization","resources":["mariadb.yaml"]}
+    bindings = list(yaml.safe_load_all((path / "mariadb.yaml").read_text()))
+    targets = [("wotlk","wotlk-mariadb"),("mop","skyfire-mariadb")]
+    assert len(bindings) == len(targets)
+    for binding, (namespace, name) in zip(bindings, targets):
+        assert binding == {
+            "apiVersion":"kubescape.io/v1","kind":"RuntimeRuleAlertBinding",
+            "metadata":{"name":"runtime-"+name},
+            "spec":{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":namespace}},
+                    "podSelector":{"matchLabels":{"app":name}},
+                    "rules":[{"ruleID":rule} for rule in RULES]}}
+        workload = yaml.safe_load((root / "apps" / namespace / "mariadb-statefulset.yaml").read_text())
+        assert workload["kind"] == "StatefulSet" and workload["metadata"]["name"] == name
+        assert workload["spec"]["template"]["metadata"]["labels"]["app"] == name
+    flux = yaml.safe_load((root / "clusters/home/infrastructure/kubescape-runtime-bindings-kustomization.yaml").read_text())
+    assert flux == {"apiVersion":"kustomize.toolkit.fluxcd.io/v1","kind":"Kustomization",
+        "metadata":{"name":"kubescape-runtime-bindings","namespace":"flux-system"},
+        "spec":{"interval":"10m","timeout":"5m","path":"./infra/kubescape/runtime-bindings",
+                "prune":True,"wait":True,"dependsOn":[{"name":"kubescape"}],
+                "sourceRef":{"kind":"GitRepository","name":"flux-system"}}}
+    parent = yaml.safe_load((root / "clusters/home/kustomization.yaml").read_text())
+    assert parent["resources"].count("infrastructure/kubescape-runtime-bindings-kustomization.yaml") == 1
+    assert "kube-system" not in AGENT_NAMESPACES
+    assert AGENT_NAMESPACES == NAMESPACES + ["wotlk","mop"]
+
+
 def check_boundary(kyverno, work, resources, root):
     """Exercise actual CEL admission for the agent and attempts to widen access."""
     import subprocess
@@ -153,7 +185,7 @@ def check_boundary(kyverno, work, resources, root):
     # Retain the previous exact scope for a controlled rollback.
     next_scope = deepcopy(pod)
     next_scope['metadata']['name'] = 'agent-rollback-scope-positive'
-    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test,koito,monitoring,openbrew,stirling-pdf'
+    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test,koito,monitoring,openbrew,stirling-pdf,cloudflared,mqtt,security'
     fixtures = [agent, pod, *allowed_node_pods, trusted_ca, next_scope]
     bound_ds = deepcopy(agent)
     bound_ds['metadata']['name'] = 'node-agent'
@@ -171,7 +203,7 @@ def check_boundary(kyverno, work, resources, root):
         'privileged': lambda p: p['containers'][0]['securityContext'].update(privileged=True),
         'command': lambda p: p['containers'][0].update(command=['sh']),
         'scope-unbounded': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value=''),
-        'scope-private': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value=','.join(NAMESPACES + ['gitea'])),
+        'scope-private': lambda p: next(e for e in p['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES').update(value=','.join(AGENT_NAMESPACES + ['gitea'])),
         'injected-env': lambda p: p['containers'][0]['env'].append({'name': 'LD_PRELOAD', 'value': '/host/tmp/lib.so'}),
         'writable-root': lambda p: next(m for m in p['containers'][0]['volumeMounts'] if m['name'] == 'host').update(readOnly=False),
         'extra-hostpath': lambda p: p['volumes'].append({'name': 'extra', 'hostPath': {'path': '/etc'}}),
