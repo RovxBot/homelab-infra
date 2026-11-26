@@ -138,3 +138,16 @@ must keep incidents active; do not manufacture acceptance by changing issue stat
 Revert through a reviewed GitOps change if needed, recognizing that reverting
 these thresholds restores the former premature recovery risk. This task stops
 at PR review and performs no deployment or incident-state writes.
+
+## Additional active incident diagnostics
+
+The helper enriches existing creator-owned backup and Koito bridge incidents with
+named Deployment readiness, bounded Pod/event categories and the existing Flux
+scope. Backup success still requires the monitored protection endpoint; a Ready
+Deployment is not backup proof. CVE reporting and existing policy assurance
+incidents use only the exact allowlisted health field and a fresh timestamp from
+`security-reporting-health.json`; no private report, exception identity, raw Job
+log, credential or finding data is queried or published. Both security endpoints
+share one read per helper invocation. The retired public policy-assurance alert
+creation route stays disabled; enrichment of an existing issue is not a new
+writer or a change to recovery criteria. All original recovery thresholds remain.
