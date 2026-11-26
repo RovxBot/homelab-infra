@@ -287,3 +287,18 @@ An unavailable archive, incompatible prior verdict or genuine above-bound
 finding set must remain unknown. No CVE IDs, workload identities or arbitrary
 exception content are included; diagnostics are not sent to public issue sync.
 No changes to scan or projection limits, schedules, storage or recovery gates.
+
+### Evidence-sized advisory projection qualification
+
+The 26 November 03:06 UTC manual refresh independently verified one retained
+above-bound projection with 298 distinct High/Critical CVE IDs. Qualify a 320-ID
+per-workload bound (22 IDs of headroom), 512 KiB serialized private ConfigMap
+producer and 528 KiB exact GET consumer. The serialized producer remains below
+the Kubernetes 1 MiB ConfigMap data limit; the ordinary HTTP response cap is
+unchanged. Retain historical 100/200/230-ID overflow reconstruction and all
+archive, running identity and database checks. Tests use 298 synthetic IDs,
+verify complete recovery without a new assessment, verify the worst-case
+current cohort serialized size and complete issue rendering, and reject
+321 IDs. Optional detail/proof limits and all state-transition gates remain
+unchanged. Future cohort expansion must requalify the full payload bound.
+No new PVC, scanner resource change or public advisory content.
