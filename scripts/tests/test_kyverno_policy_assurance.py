@@ -49,6 +49,14 @@ class PolicyAssuranceTests(unittest.TestCase):
         self.assertEqual(len(expected),25)
         self.assertEqual(ASSURANCE["EXCEPTIONS"], {p["metadata"]["name"] for p in self.objects[BASE+"policyexceptions"]})
 
+    def test_weekly_restart_image_satisfies_digest_and_latest_policy(self):
+        cron = yaml.safe_load((ROOT/"apps/wotlk/restart-cronjob.yaml").read_text())
+        image = cron["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]["image"]
+        self.assertRegex(image, r"^bitnami/kubectl(?::[^@]+)?@sha256:[a-f0-9]{64}$")
+        self.assertNotIn(":latest", image)
+        self.assertEqual(cron["spec"]["schedule"], "30 23 * * 2")
+        self.assertEqual(cron["spec"]["timeZone"], "Australia/Adelaide")
+
     def test_due_expired_invalid_and_unexpected_exceptions(self):
         items = self.objects[BASE+"policyexceptions"]
         for item, expiry in zip(items, ["2026-12-08","2026-11-23","2026-02-30","2026-12-09","2026-11-24","2027-01-01"]):
