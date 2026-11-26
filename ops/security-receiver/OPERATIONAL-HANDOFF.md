@@ -47,24 +47,24 @@ not a claim that every operational acceptance gate has passed.
 - Confirm #2284 applied and Ready on Kubescape, no disposable workload or
   temporary collector RBAC, restricted test namespace retained.
 - Confirm native receiver Ready, all eight agents Ready, native publisher
-  transport stage healthy, both evidence claims Bound with original identities.
-  Preserve legacy historical data in its existing claim; no dedicated legacy
-  backup or restore test is required for retirement. Do not inspect or copy
-  raw findings to public logs. Native receiver and active publisher volumes
-  are covered by the existing weekly Longhorn system backup policy; verify
-  actual remote completion after the next normal run, not as a retirement gate.
-- Retain the exact legacy PVC as a managed, prune-protected resource, and
-  keep historical collector manifests and source offline for rollback.
-- Remove only the legacy collector Deployment, Service, ServiceAccount,
-  named roles/bindings and generated ConfigMap from active GitOps. Remove only
-  its two non-alerting Gatus diagnostics. Preserve native health endpoints,
-  assessment and policy publishers, runtime bindings and all existing issues.
-  Update exact CI render/PSA/resource tests for retirement.
-- After merge verify absence of the old Deployment/Service/RBAC, both PVCs
-  still Bound, native receiver/agents Ready, independent native stage
-  successful, and no unintended alert or incident closure. Revert the scoped
-  PR to restore old configuration if needed; old pinned agent names may be
-  stale and must be reviewed before re-enrollment.
+  transport stage healthy. Remove legacy Deployment, Service, ServiceAccount,
+  named RBAC, generated config, PVC from desired state and the two non-alerting
+  Gatus checks. Preserve active security state, runtime bindings and all issues.
+- Operator explicitly chose permanent deletion of obsolete collector data
+  without a dedicated backup. Its old claim is prune-protected, so Flux can
+  remove the workload and permissions but leave the PVC behind.
+- After the exact retirement revision is Ready and no Pod references the old
+  claim, delete only `kubescape/security-collector-state`. The previously
+  inspected PV `pvc-28c469e0-c283-4576-ad49-1e8dc0c9384b` has reclaim policy
+  Delete. Check the claim still names that PV before deletion; never delete
+  a different claim or the receiver claim. Verify the old PV and Longhorn
+  volume disappear and native receiver/publisher claims remain Bound.
+- This is irreversible for historical collector data. No restoration of
+  legacy state is promised. Historical source files do not deploy resources;
+  they can be removed from the active repository separately.
+- Verify native receiver/agents Ready, independent native stage successful,
+  no unintended incident closure and no legacy deployment, RBAC, volume
+  or diagnostics remaining. Leave active state and normal backups intact.
 
 ## Completion gates
 
@@ -78,7 +78,7 @@ not a claim that every operational acceptance gate has passed.
 | Candidate guidance | Implemented, optional token not configured at last observed run |
 | Recovery | Shadow proof/state machines implemented; require controlled live positive/replacement/recurrence acceptance; automatic state transitions disabled |
 | Additional scope | Sidecar/cache draft must be rebased and qualified only after current cohort acceptance |
-| Legacy retirement | #2286 revised to retire active resources while preserving historical claim; verify rollout |
+| Legacy retirement | #2286 removes all legacy resources from desired state; verify rollout and explicitly delete old prune-protected claim |
 | CI remediation and posture | Broader coverage and risk-based policy dispositions still require explicit review |
 
 Do not close the overall project or child issues on a merge alone. Record
@@ -95,7 +95,5 @@ detached between Jobs, so current replica health was not independently qualified
 The existing Sunday 04:15 UTC SystemBackup uses `volume-backup-policy: always`.
 Verify completed remote backups and exact original volume identities after its
 next normal run, using the [existing Longhorn runbook](../../docs/runbooks/longhorn-volume-backups.md).
-No special backup manifest, new schedule or change to retention. The retained
-legacy claim may still be captured by the existing all-volume policy; do not
-change cluster-wide backup semantics just to exclude it. No remote backup or
+No special backup manifest, new schedule or change to retention. No dedicated legacy backup; remove its obsolete claim before the next normal backup where practical. No remote backup or
 restore acceptance is claimed here.

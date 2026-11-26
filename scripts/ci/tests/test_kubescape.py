@@ -182,7 +182,7 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertNotIn("../../../infra/kubescape", infrastructure["resources"])
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
         baseline = {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml",
-                    "recurring/rbac.yaml", "recurring/cronjobs.yaml", "collector-retained-state.yaml"}
+                    "recurring/rbac.yaml", "recurring/cronjobs.yaml"}
         # The two encrypted receiver TLS/CA Secrets are intentionally owned
         # by this namespace's SOPS-enabled Flux Kustomization. Keep all other
         # resource additions fail-closed until independently reviewed.
@@ -204,10 +204,8 @@ class StagedReleaseTests(unittest.TestCase):
         receiver = "receiver"
         self.assertEqual(resources, baseline | {"../../secrets",receiver})
         self.assertNotIn(trigger, resources)
-        historical = list(yaml.safe_load_all((ROOT / "infra/kubescape/collector/workload.yaml").read_text()))
-        retained = yaml.safe_load((ROOT / "infra/kubescape/collector-retained-state.yaml").read_text())
-        self.assertEqual(retained, next(d for d in historical if d["kind"] == "PersistentVolumeClaim"))
-        self.assertEqual(retained["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
+        self.assertNotIn("collector", resources)
+        self.assertNotIn("collector-retained-state.yaml", resources)
         namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
         labels = namespace["metadata"]["labels"]
         self.assertEqual(labels["pod-security.kubernetes.io/enforce"], "privileged")

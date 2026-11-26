@@ -10,8 +10,6 @@ resources:
   - ../../secrets
   - recurring/rbac.yaml
   - recurring/cronjobs.yaml
-  # Historical evidence claim only; no legacy log collector or log access.
-  - collector-retained-state.yaml
   # Independent authenticated native HTTPS receiver; disposable trigger retired.
   - receiver
 configMapGenerator:

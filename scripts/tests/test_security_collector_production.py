@@ -218,8 +218,7 @@ class DeploymentBoundaries(unittest.TestCase):
         self.assertEqual(checks, [])
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
         self.assertNotIn("collector", source["resources"])
-        self.assertIn("collector-retained-state.yaml", source["resources"])
-        self.assertEqual(yaml.safe_load((ROOT / "infra/kubescape/collector-retained-state.yaml").read_text()), pvc)
+        self.assertNotIn("collector-retained-state.yaml", source["resources"])
 
     def test_source_layer_reproducibility(self):
         spec = importlib.util.spec_from_file_location('collector_image', ROOT / 'ops/security-collector/build-image.py')

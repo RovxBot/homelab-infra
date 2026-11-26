@@ -106,10 +106,11 @@ The disposable trigger has been removed from desired state by #2284; the
 restricted namespace and reusable fixture remain. Verify its actual removal
 and native transport before retiring the old collector.
 
-The legacy collector is retired from desired state by #2286; its original
-claim remains managed and prune-protected alongside the native receiver claim.
-No dedicated legacy backup is needed. Verify actual removal after Flux reconciles.
-Active security state uses the existing weekly Longhorn backup policy.
-Do not delete either claim, clear state, manually patch Flux-managed resources
-or infer delivery coverage from agent readiness. See the handoff checklist
-for retirement, rollback and explicit outstanding acceptance.
+The legacy collector and its PVC are removed from desired state by #2286.
+After Flux reconciles and no Pod references the old prune-protected claim,
+explicitly delete only the obsolete `security-collector-state` PVC as described
+in the handoff checklist. This permanently removes its historical data; no
+dedicated legacy backup is wanted. Preserve the active native receiver and
+publisher claims. Active security state uses the existing weekly Longhorn
+backup policy. Never delete active claims or infer delivery coverage from
+agent readiness.
