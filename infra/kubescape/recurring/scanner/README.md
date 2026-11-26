@@ -38,3 +38,12 @@ Rollback restores the original scanner digest through GitOps and suspends the
 new vulnerability schedule: the original binary cannot satisfy the fresh
 evaluation contract for cached reports. Existing reports, SBOMs, history and DB
 remain preserved. No unrelated upstream issue/PR is introduced.
+
+The isolated read-only scan job now assesses the exact verified published
+scanner digest using the pinned Grype contract shared by the receiver and MCP
+builds. Its source commit is the original recorded build commit, not the
+current PR when reusing existing build evidence. It retains only sanitized
+provenance, not CVE IDs, counts, package names or raw reports. A scan failure
+is an unknown result and fails the scan job; a successful scan does not mean
+zero vulnerabilities. No promotion, cluster access or vulnerability threshold
+is introduced. Runtime private assessment remains a separate contract.
