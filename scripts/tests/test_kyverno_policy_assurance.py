@@ -59,7 +59,7 @@ class PolicyAssuranceTests(unittest.TestCase):
 
     def test_due_expired_invalid_and_unexpected_exceptions(self):
         items = self.objects[BASE+"policyexceptions"]
-        for item, expiry in zip(items, ["2026-12-08","2026-11-23","2026-02-30","2026-12-09","2026-11-24","2027-01-01"]):
+        for item, expiry in zip(items, ["2026-12-08","2026-11-23","2026-02-30","2026-12-09","2026-11-24"]):
             item["metadata"]["annotations"]["kyverno.cooked.beer/expires-at"]=expiry
         result=self.evaluate()
         self.assertEqual(result["exceptionDue"],2)
@@ -69,6 +69,15 @@ class PolicyAssuranceTests(unittest.TestCase):
         result=self.evaluate()
         self.assertEqual(result["exceptionInventory"],2)
         self.assertNotIn("private-namespace",json.dumps(result))
+
+    def test_retired_exception_is_absent_and_reintroduction_is_drift(self):
+        self.assertEqual(len(ASSURANCE["EXCEPTIONS"]), 5)
+        self.assertNotIn("wotlk-latest-tag", ASSURANCE["EXCEPTIONS"])
+        items = self.objects[BASE+"policyexceptions"]
+        retired = copy.deepcopy(items[0])
+        retired["metadata"]["name"] = "wotlk-latest-tag"
+        items.append(retired)
+        self.assertEqual(self.evaluate()["exceptionInventory"], 1)
 
     def test_missing_or_weak_policy_and_unready_status(self):
         policies=self.objects[BASE+"validatingpolicies"]

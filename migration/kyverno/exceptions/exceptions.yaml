@@ -128,24 +128,3 @@ spec:
   - name: legacy-scope
     expression: ((request.namespace == "longhorn-system" || request.namespace == "wireguard" || request.namespace
       == "wotlk"))
----
-apiVersion: policies.kyverno.io/v1
-kind: PolicyException
-metadata:
-  name: wotlk-latest-tag
-  namespace: kyverno
-  labels:
-    homelab.cooked.beer/owner: platform
-  annotations:
-    kyverno.cooked.beer/reason: The weekly WotLK restart job intentionally tracks the latest built image tag.
-    kyverno.cooked.beer/expires-at: '2026-12-05'
-    github.cooked.beer/issue-create: 'true'
-    github.cooked.beer/issue-url: https://github.com/RovxBot/homelab-infra/issues/2133
-spec:
-  policyRefs:
-  - name: platform-pod-standards-disallow-latest-tags
-    kind: ValidatingPolicy
-  matchConditions:
-  - name: legacy-scope
-    expression: ((object.kind == "CronJob") && (request.namespace == "wotlk") && (object.metadata.name == "wotlk-weekly-restart"))
-      || ((object.kind == "Job") && (request.namespace == "wotlk") && (object.metadata.name.startsWith("wotlk-weekly-restart")))

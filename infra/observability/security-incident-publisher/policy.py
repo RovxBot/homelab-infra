@@ -17,7 +17,7 @@ IGNORED_SCOPE_KINDS = {"Pod", "ReplicaSet", "Job"}
 IGNORED_POLICIES = {"platform-flux-guardrails"}
 EXCLUDE_NAMESPACE_RE = re.compile(r"^(flux-system|kube-.*|kyverno|sops)$")
 EXCEPTIONS = {"chart-managed-workloads", "gpu-operator-workloads", "home-assistant",
-              "mutable-image-tags", "privileged-namespaces", "wotlk-latest-tag"}
+              "mutable-image-tags", "privileged-namespaces"}
 
 WARNING_DAYS = 14
 IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,252}")
@@ -252,7 +252,6 @@ EXCEPTION_GUIDANCE = {
     "home-assistant": "Review the host networking and runtime-hardening requirements for LAN discovery. Test discovery and device connectivity before removing an exception.",
     "mutable-image-tags": "Check whether affected workloads can use immutable digest pins and reviewed image updates instead of mutable tags.",
     "privileged-namespaces": "Review the storage, networking and game-workload host access requirements individually. Do not remove necessary privileges without compatibility tests.",
-    "wotlk-latest-tag": "Review the weekly WotLK restart job and image build/deployment workflow. Prefer a reviewed immutable image digest if it can preserve the intended update behavior; otherwise justify and approve a narrowly scoped renewal.",
 }
 
 RULE_GUIDANCE = {

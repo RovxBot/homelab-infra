@@ -60,19 +60,31 @@ class PolicyPublisherTests(unittest.TestCase):
     def test_actionable_exception_guidance_and_stable_identity(self):
         self.assertTrue((ROOT/P.EXCEPTION_SOURCE).is_file())
         self.assertEqual(set(P.EXCEPTION_GUIDANCE),P.EXCEPTIONS)
-        item=P.stable_item("exception",("kyverno","wotlk-latest-tag"),
+        item=P.stable_item("exception",("kyverno","home-assistant"),
                            {"status":"Review due","expires":"2026-12-05"})
         title,body=P.render_policy(item)
         for value in ("## Required action","## Resolution checklist",P.EXCEPTION_SOURCE,
-                      "weekly WotLK restart job","immutable image digest","2026-12-05",
+                      "LAN discovery","runtime-hardening","2026-12-05",
                       "not proof of an active policy violation","Automatic closure is not enabled yet"):
             self.assertIn(value,body)
         self.assertEqual(body.count(P.marker(item["key"])),1)
         self.assertNotEqual(P.policy_revision(item),P.revision(item))
         self.assertEqual(P.policy_revision(item),P.policy_revision(dict(item)))
-        unknown=P.stable_item("exception",("other","wotlk-latest-tag"),
+        unknown=P.stable_item("exception",("other","home-assistant"),
                              {"status":"Review due","expires":"2026-12-05","inventory":"Unexpected exception"})
-        self.assertNotIn("weekly WotLK restart job",P.render_policy(unknown)[1])
+        self.assertNotIn("LAN discovery",P.render_policy(unknown)[1])
+
+    def test_retired_exception_is_not_expected_or_silently_accepted(self):
+        objects = self.exceptions()
+        for item in objects:
+            item["metadata"]["annotations"]["kyverno.cooked.beer/expires-at"] = "2027-01-01"
+        self.assertNotIn("wotlk-latest-tag", P.EXCEPTIONS)
+        self.assertEqual(P.exception_items(lambda _: {"items": objects}, NOW.date()), [])
+        retired = json.loads(json.dumps(objects[0]))
+        retired["metadata"]["name"] = "wotlk-latest-tag"
+        objects.append(retired)
+        item, = P.exception_items(lambda _: {"items": objects}, NOW.date())
+        self.assertEqual(item["details"]["inventory"], "Unexpected exception")
 
     def test_actionable_policy_guidance_and_unknown_fallback(self):
         for (policy,rule),(path,guidance) in P.RULE_GUIDANCE.items():
@@ -92,7 +104,7 @@ class PolicyPublisherTests(unittest.TestCase):
         writer=Mock()
         writer.sync.side_effect=[P.WriteBudgetDeferred("write_budget_deferred"),"updated"]
         items=[P.stable_item("exception",("kyverno",name),{"status":"Review due"})
-               for name in ("wotlk-latest-tag","home-assistant")]
+               for name in ("mutable-image-tags","home-assistant")]
         self.assertEqual(P.sync_policy_items(writer,items),["deferred","updated"])
         writer.sync.reset_mock()
         writer.sync.side_effect=OSError("ambiguous")
