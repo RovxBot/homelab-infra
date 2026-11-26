@@ -32,8 +32,8 @@ Chart scan schedulers and automatic operator image routing remain suspended.
 The separate recurring Jobs own scans. UTC schedules: vulnerability 01:13,
 10:13, 13:13, 19:13; posture 20:13; inventory refresh at :07 and :37.
 One worker, one outstanding request and at most four sequential image
-requests per window. The scanner-only image cap is 1.5 GiB, SBOM cap 32 MiB,
-engine memory/ephemeral-storage limits 3 GiB each, sampled working-set gate
+requests per window. The scanner-only image cap is 2.5 GiB, SBOM cap 32 MiB,
+engine memory limit 3 GiB, ephemeral-storage request/limit 3/4 GiB, sampled working-set gate
 2 GiB. Shared chart image and SBOM defaults remain 512 MiB and 20 MiB.
 The Grype database PVC is 10 GiB and report storage PVC 5 GiB; both retained.
 Keep node pressure, fresh metrics, CI workload, storage, DB identity and

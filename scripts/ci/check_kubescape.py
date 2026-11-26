@@ -99,8 +99,11 @@ def check_release(release, active=False):
     assert values["kubevuln"]["env"] == [
         {"name": "CA_MAX_VULN_SCAN_ROUTINES", "value": "1"},
         {"name": "MAXQUEUEDEPTH", "value": "1"},
-        {"name": "MAXIMAGESIZE", "value": "1610612736"},
+        {"name": "MAXIMAGESIZE", "value": "2684354560"},
         {"name": "MAXSBOMSIZE", "value": "33554432"}]
+    assert values["kubevuln"]["resources"] == {
+        "requests": {"cpu": "300m", "memory": "1Gi", "ephemeral-storage": "3Gi"},
+        "limits": {"cpu": "1000m", "memory": "3Gi", "ephemeral-storage": "4Gi"}}
     assert values["kubevuln"]["tmpDirPersistence"]["enabled"] is False
     assert values["kubescapeScheduler"]["requestBody"] == {"commands": [{
         "CommandName": "kubescapeScan", "args": {"scanV1": {
