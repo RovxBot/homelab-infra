@@ -8,6 +8,7 @@ import base64
 from datetime import datetime, timezone, timedelta
 import fcntl
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,8 @@ import re
 import sqlite3
 import ssl
 import time
+import zipfile
+from urllib.parse import urlsplit
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler
 
@@ -633,6 +636,171 @@ def validate_cve(projection, now=None):
     return ready
 
 
+REMEDIATION_REPO = "RovxBot/homelab-infra"
+REMEDIATION_API = "https://api.github.com/repos/" + REMEDIATION_REPO
+REMEDIATION_WORKFLOW = "security-remediation-candidates.yml"
+REMEDIATION_ARTIFACT = "security-remediation-candidates"
+MAX_REMEDIATION_BYTES = 512 * 1024
+MAX_REMEDIATION_PRS = 50
+MAX_REMEDIATION_PER_CONTAINER = 5
+CANDIDATE_REF = re.compile(r"[a-z0-9][a-z0-9._:/-]{0,300}(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127})?@sha256:[a-f0-9]{64}\\Z")
+
+
+def canonical_repository(value):
+    parts = value.split("/")
+    if len(parts) == 1:
+        return "docker.io/library/" + value
+    if parts[0] in ("docker.io", "index.docker.io"):
+        rest = parts[1:]
+        return "docker.io/" + ("library/" if len(rest) == 1 else "") + "/".join(rest)
+    if "." not in parts[0] and ":" not in parts[0] and parts[0] != "localhost":
+        return "docker.io/" + value
+    return value
+
+
+def candidate_image_identity(value):
+    if not isinstance(value, str) or not CANDIDATE_REF.fullmatch(value):
+        return None
+    named, digest = value.rsplit("@", 1)
+    repository = named.rsplit(":", 1)[0] if ":" in named.rsplit("/", 1)[-1] else named
+    return canonical_repository(repository), digest
+
+
+def validate_remediation_snapshot(snapshot, base, now):
+    require(isinstance(snapshot, dict) and set(snapshot) ==
+            {"schema", "repository", "base", "state", "openPrCount", "skipped", "candidates", "generatedAt"})
+    require(type(snapshot["schema"]) is int and snapshot["schema"] == 1
+            and snapshot["repository"] == REMEDIATION_REPO and snapshot["state"] == "observed"
+            and isinstance(base, str) and re.fullmatch(r"[a-f0-9]{40}", base) and snapshot["base"] == base)
+    generated = datetime.fromisoformat(normalize_date(snapshot["generatedAt"]).replace("Z", "+00:00"))
+    require(timedelta(0) <= now-generated <= timedelta(hours=2))
+    count = snapshot["openPrCount"]
+    require(type(count) is int and 0 <= count <= MAX_REMEDIATION_PRS)
+    skipped = snapshot["skipped"]
+    require(isinstance(skipped, dict) and set(skipped) <=
+            {"not_ready", "unsupported_base_or_repository", "head_changed", "branch_behind_main"}
+            and all(type(v) is int and 0 < v <= count for v in skipped.values())
+            and sum(skipped.values()) <= count)
+    candidates = snapshot["candidates"]
+    require(isinstance(candidates, list) and len(candidates) <= count * sum(len(v[1]) for v in CVE_SOURCES.values()))
+    seen, prs = set(), {}
+    for item in candidates:
+        require(isinstance(item, dict) and set(item) ==
+                {"workload", "container", "path", "dependency", "before", "after", "state", "pr", "base", "head"})
+        workload, name, number = item["workload"], item["container"], item["pr"]
+        require(workload in CVE_DEPENDENCIES and workload in CVE_SOURCES)
+        path, names = CVE_SOURCES[workload]
+        require(path and not path.endswith("-helmrelease.yaml") and item["path"] == path
+                and name in names and item["state"] == "candidate_not_assessed"
+                and type(number) is int and 0 < number < 10**9 and item["base"] == base
+                and isinstance(item["head"], str) and re.fullmatch(r"[a-f0-9]{40}", item["head"])
+                and item["head"] != base)
+        old, new = candidate_image_identity(item["before"]), candidate_image_identity(item["after"])
+        expected = canonical_repository(CVE_DEPENDENCIES[workload])
+        require(old is not None and new is not None and old[0] == new[0] == expected == item["dependency"]
+                and old[1] != new[1])
+        key = (number, workload, name)
+        require(key not in seen and prs.setdefault(number, item["head"]) == item["head"])
+        seen.add(key)
+    require(len(prs) <= count - sum(skipped.values()))
+    return sorted(candidates, key=lambda x: (x["workload"], x["container"], x["pr"]))
+
+
+def correlate_remediation(ready, candidates):
+    """Match qualified running repository AND digest; not a fix or closure proof."""
+    for entry in ready:
+        matches = []
+        for container in entry.get("containers", []):
+            current = candidate_image_identity(container["image"])
+            if current is None:
+                continue
+            options = [x for x in candidates if x["workload"] == entry["workload"]
+                       and x["container"] == container["name"]
+                       and candidate_image_identity(x["before"]) == current]
+            for item in options[:MAX_REMEDIATION_PER_CONTAINER]:
+                matches.append({k: item[k] for k in ("container", "pr", "head", "after")})
+        if matches:
+            entry["remediationCandidates"] = matches
+    return sum(len(e.get("remediationCandidates", [])) for e in ready)
+
+
+class ArtifactRedirect(HTTPRedirectHandler):
+    # Return the redirect to the caller; never forward an Authorization header.
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def artifact_bytes(url, token):
+    api = build_opener(ProxyHandler({}), ArtifactRedirect(), HTTPSHandler(context=ssl.create_default_context()))
+    request = Request(url, headers={"Authorization": "Bearer " + token, "User-Agent": "security-remediation-reader",
+                                    "Accept": "application/vnd.github+json"})
+    try:
+        with api.open(request, timeout=10):
+            raise ValueError("expected artifact redirect")
+    except HTTPError as exc:
+        require(exc.code == 302)
+        location = exc.headers.get("Location", "")
+        exc.close()
+    parsed = urlsplit(location)
+    require(parsed.scheme == "https" and parsed.hostname is not None and
+            (parsed.hostname.endswith(".blob.core.windows.net") or
+             parsed.hostname.endswith(".actions.githubusercontent.com")) and
+            parsed.username is None and parsed.password is None and parsed.port in (None, 443)
+            and not parsed.fragment)
+    # Fresh request; only the signed storage URL, never the GitHub or Gitea token.
+    blob = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
+    with blob.open(Request(location, headers={"Accept-Encoding": "identity"}), timeout=10) as response:
+        require(response.status == 200 and response.headers.get("Content-Encoding", "identity") == "identity")
+        data = response.read(MAX_REMEDIATION_BYTES + 1)
+        require(len(data) <= MAX_REMEDIATION_BYTES)
+        return data
+
+
+def decode_remediation_artifact(data, digest):
+    require(isinstance(data, bytes) and len(data) <= MAX_REMEDIATION_BYTES
+            and digest == "sha256:" + hashlib.sha256(data).hexdigest())
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        members = archive.infolist()
+        require(len(members) == 1 and members[0].filename == "candidates.json"
+                and 0 < members[0].file_size <= MAX_REMEDIATION_BYTES)
+        with archive.open(members[0]) as stream:
+            raw = stream.read(MAX_REMEDIATION_BYTES + 1)
+        require(len(raw) == members[0].file_size)
+        return json.loads(raw)
+
+
+def fetch_remediation_candidates(token, now=None, requester=request_json, downloader=artifact_bytes):
+    now = now or datetime.now(timezone.utc)
+    require(isinstance(token, str) and 0 < len(token) <= 8192 and not any(c.isspace() for c in token))
+    opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
+    def get(path):
+        return requester(opener, REMEDIATION_API + path, token, phase="github_api")
+    runs = get("/actions/workflows/" + REMEDIATION_WORKFLOW + "/runs?branch=main&status=success&per_page=1")
+    require(isinstance(runs["workflow_runs"], list) and len(runs["workflow_runs"]) == 1)
+    run = runs["workflow_runs"][0]
+    number, base = run["id"], run["head_sha"]
+    require(type(number) is int and 0 < number < 10**15 and isinstance(base, str)
+            and re.fullmatch(r"[a-f0-9]{40}", base) and run["head_branch"] == "main"
+            and run["head_repository"]["full_name"] == REMEDIATION_REPO
+            and run["event"] in ("schedule", "workflow_dispatch") and run["conclusion"] == "success")
+    created = datetime.fromisoformat(normalize_date(run["created_at"]).replace("Z", "+00:00"))
+    require(timedelta(0) <= now-created <= timedelta(hours=2))
+    artifacts = get("/actions/runs/" + str(number) + "/artifacts?per_page=20")
+    require(type(artifacts["total_count"]) is int and artifacts["total_count"] == len(artifacts["artifacts"]) <= 20)
+    matches = [a for a in artifacts["artifacts"] if a["name"] == REMEDIATION_ARTIFACT]
+    require(len(matches) == 1)
+    artifact = matches[0]
+    identifier, size = artifact["id"], artifact["size_in_bytes"]
+    require(type(identifier) is int and 0 < identifier < 10**15 and artifact["expired"] is False
+            and type(size) is int and 0 < size <= MAX_REMEDIATION_BYTES
+            and isinstance(artifact.get("digest"), str) and re.fullmatch(r"sha256:[a-f0-9]{64}", artifact["digest"]))
+    raw = downloader(REMEDIATION_API + "/actions/artifacts/" + str(identifier) + "/zip", token)
+    require(len(raw) == size)
+    snapshot = decode_remediation_artifact(raw, artifact["digest"])
+    require(created <= datetime.fromisoformat(normalize_date(snapshot["generatedAt"]).replace("Z", "+00:00")))
+    return validate_remediation_snapshot(snapshot, base, now)
+
+
 def render_cve(entry):
     title = CVE_TITLE + ": " + entry["workload"]
     findings = entry["findings"]
@@ -651,7 +819,16 @@ def render_cve(entry):
              "- Reviewed image dependency: " + (CVE_DEPENDENCIES.get(entry["workload"]) or
                  "not established; verify Talos-managed component release"),
              "- Verified replacement image / matching remediation PR: not established by this report.",
-             "", "## Required action"]
+             ""]
+    if entry.get("remediationCandidates"):
+        lines += ["", "## Observed replacement PR candidates (not assessed)"]
+        for candidate in entry["remediationCandidates"]:
+            lines.append("- " + candidate["container"] + ": https://github.com/" + REMEDIATION_REPO +
+                         "/pull/" + str(candidate["pr"]) + " at head `" + candidate["head"] +
+                         "`; replacement `" + candidate["after"] + "`.")
+        lines += ["These are recent manifest matches only. Recheck that the PR is still open and the head unchanged; "
+                  "no fix or successful replacement assessment is established.", ""]
+    lines.append("## Required action")
     if fixable:
         lines += ["1. Review the reported package fixes and applicability. Check for a supported image release or rebuild containing the fixes."]
     else:
@@ -1200,6 +1377,16 @@ def sync_cve_recurrence(publisher, ready, *, enabled=False):
 
 def cve_main(token):
     ready = fetch_cve_projection()
+    remediation_token = os.environ.get("REMEDIATION_GITHUB_READ_TOKEN")
+    remediation_state, remediation_count = "unconfigured", 0
+    if remediation_token:
+        try:
+            candidates = fetch_remediation_candidates(remediation_token)
+            remediation_count = correlate_remediation(ready, candidates)
+            remediation_state = "observed"
+        except Exception:
+            # Optional advisory enrichment never gates qualified CVE reporting.
+            remediation_state = "unavailable"
     fd = None
     conn = None
     phase = "cve_state"
@@ -1223,6 +1410,7 @@ def cve_main(token):
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(CVE_ALLOWED), "created": outcomes.count("created"),
+                          "remediationCorrelation": remediation_state, "remediationCandidates": remediation_count,
                           "updated": outcomes.count("updated"), "pending": pending,
                           "deferred": outcomes.count("deferred"),
                           "recoveryBaselines": recovery["baselines"],
