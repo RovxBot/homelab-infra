@@ -82,3 +82,37 @@ not a claim that every operational acceptance gate has passed.
 Do not close the overall project or child issues on a merge alone. Record
 verified live evidence, keep specific unresolved acceptance and scope limitations,
 and retain manual disposition for vulnerabilities lacking a qualified replacement.
+
+### One-time recovery points before collector retirement
+
+The 26 November live inspection confirmed both 256Mi claims Bound, with
+three-replica healthy Longhorn volumes and no recorded last remote backup.
+The following one-time manifests are **not** Flux resources. They target
+only the two verified existing volume identities. Do not execute if the
+claim/PV identity has changed. Run from the repository root:
+
+```bash
+kubectl -n kubescape get pvc security-collector-state security-receiver-state
+kubectl -n longhorn-system get volumes.longhorn.io pvc-28c469e0-c283-4576-ad49-1e8dc0c9384b pvc-d431a342-8db1-435b-b899-a501908b7873
+kubectl create --dry-run=server -f ops/security-receiver/evidence-snapshots-20261126.yaml
+kubectl create -f ops/security-receiver/evidence-snapshots-20261126.yaml
+kubectl -n longhorn-system wait --for=jsonpath='{.status.readyToUse}'=true --timeout=300s snapshots.longhorn.io/security-collector-retirement-20261126 snapshots.longhorn.io/security-receiver-retirement-20261126
+kubectl create --dry-run=server -f ops/security-receiver/evidence-backups-20261126.yaml
+kubectl create -f ops/security-receiver/evidence-backups-20261126.yaml
+kubectl -n longhorn-system wait --for=jsonpath='{.status.state}'=Completed --timeout=900s backups.longhorn.io/security-collector-retirement-20261126 backups.longhorn.io/security-receiver-retirement-20261126
+python3 ops/security-receiver/verify-evidence-backups.py
+```
+
+Stop on any error or timeout, inspect the existing objects and do not
+recreate or delete the recovery points. Both verification results must be
+true. The read-only verifier checks the original claim and volume identities,
+snapshot readiness, completed backup progress and exact source linkage.
+A remote backup completion is not a restored database test. Before retiring
+the collector, independently verify SQLite quick_check in both existing
+deployments using read-only mode; collector database is
+`/state/private/collector.sqlite`, receiver is `/state/receiver.sqlite`.
+Do not publish raw findings. The existing weekly system backup and retention
+policy remain unchanged; do not create a new recurring backup schedule.
+
+References: [Longhorn native snapshot CR](https://longhorn.io/docs/1.13.0/snapshots-and-backups/setup-a-snapshot/),
+[Longhorn native backup CR](https://longhorn.io/docs/1.13.0/snapshots-and-backups/backup-and-restore/create-a-backup/).
