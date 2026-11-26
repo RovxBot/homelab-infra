@@ -40,10 +40,55 @@ EDGE_ROOT = "terraform/oci-free-tier/ops/wireguard/"
 # Keep the retired prefix for PR diffs that delete or rename old source files.
 KYVERNO_PATHS = ('infra/kyverno/', 'infra/kyverno-policies/',
                  'scripts/ci/kyverno/', 'migration/kyverno/')
+# Reviewed sources, tests and helpers only. Prefix-based script ownership would
+# silently narrow new inputs before their reverse consumers have been reviewed.
+# Keep whole suites: Longhorn's engine, retention and snapshot guards have
+# transitive consumers within the family; its retention test helper is shared.
+COMPONENT_SCRIPT_PATHS = {
+    'test_koito*.py': {
+        'scripts/koito-audit-lastfm.py',
+        'scripts/koito-export-lastfm.py',
+        'scripts/koito-prepare-lastfm-import.py',
+        'scripts/tests/test_koito_audit_lastfm.py',
+        'scripts/tests/test_koito_bridge_manifest.py',
+        'scripts/tests/test_koito_export_lastfm.py',
+        'scripts/tests/test_koito_prepare_lastfm_import.py',
+    },
+    'test_longhorn*.py': {
+        'scripts/longhorn-b2-object-lifecycle.py',
+        'scripts/longhorn-prune-snapshots.py',
+        'scripts/longhorn-refresh-share-manager.py',
+        'scripts/longhorn-remove-stale-attachment.py',
+        'scripts/longhorn-repair-empty-disk.py',
+        'scripts/longhorn-resume-idle-snapshot-purge.py',
+        'scripts/longhorn-retire-backup-history.py',
+        'scripts/longhorn-retire-retired-volumes.py',
+        'scripts/longhorn-upgrade-engines.py',
+        'scripts/tests/test_longhorn_b2_object_lifecycle.py',
+        'scripts/tests/test_longhorn_prune_snapshots.py',
+        'scripts/tests/test_longhorn_refresh_share_manager.py',
+        'scripts/tests/test_longhorn_remove_stale_attachment.py',
+        'scripts/tests/test_longhorn_repair_empty_disk.py',
+        'scripts/tests/test_longhorn_resume_idle_snapshot_purge.py',
+        'scripts/tests/test_longhorn_retire_backup_history.py',
+        'scripts/tests/test_longhorn_retire_retired_volumes.py',
+        'scripts/tests/test_longhorn_upgrade_engines.py',
+        'scripts/tests/helpers/longhorn_retention.py',
+    },
+}
 
 
 def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
-    if full or any(path.startswith('scripts/') and path.endswith(('.py', '.json', '.go')) for path in paths):
+    reviewed_paths = set().union(*COMPONENT_SCRIPT_PATHS.values())
+    reviewed_change = not reviewed_paths.isdisjoint(paths)
+    # Also fail broad for an unfamiliar side alongside a reviewed script,
+    # including scripts moved outside scripts/ or renamed to another suffix.
+    # The no-renames diff supplies both sides; a familiar old path is not proof
+    # of ownership of its new destination (or vice versa).
+    if full or any(path not in reviewed_paths and (
+        path.startswith('scripts/') and (reviewed_change or path.endswith(('.py', '.json', '.go')))
+        or reviewed_change and path.endswith(('.py', '.go', '.sh'))
+    ) for path in paths):
         return ['test_*.py']
     owners = {
         ('apps/koito/',): ['test_koito*.py'],
@@ -57,8 +102,11 @@ def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
         KYVERNO_PATHS:
             ['test_kyverno*.py', 'test_kubescape_status_guardrail.py'],
     }
-    return sorted({pattern for prefixes, patterns in owners.items()
-                   if any(path.startswith(prefixes) for path in paths) for pattern in patterns})
+    return sorted(
+        {pattern for pattern, sources in COMPONENT_SCRIPT_PATHS.items() if sources.intersection(paths)}
+        | {pattern for prefixes, patterns in owners.items()
+           if any(path.startswith(prefixes) for path in paths) for pattern in patterns}
+    )
 
 
 def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:

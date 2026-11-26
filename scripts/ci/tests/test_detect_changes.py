@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -138,6 +139,300 @@ class CheckSelectionTests(unittest.TestCase):
                 self.assertEqual(self.selected([path]), expected)
         result = detect.classify_changes([], full=True)
         self.assertEqual(json.loads(result["terraform_matrix"]), {"stack": list(detect.TERRAFORM_STACKS)})
+
+
+class ComponentSelectionTests(unittest.TestCase):
+    # Independent reviewed inventory: do not derive expected ownership from the
+    # selector's map or compare only counts (equal counts can hide missing IDs).
+    SOURCE_STEMS = {
+        'koito': ('koito-audit-lastfm', 'koito-export-lastfm', 'koito-prepare-lastfm-import'),
+        'longhorn': (
+            'longhorn-b2-object-lifecycle', 'longhorn-prune-snapshots',
+            'longhorn-refresh-share-manager', 'longhorn-remove-stale-attachment',
+            'longhorn-repair-empty-disk', 'longhorn-resume-idle-snapshot-purge',
+            'longhorn-retire-backup-history', 'longhorn-retire-retired-volumes',
+            'longhorn-upgrade-engines',
+        ),
+    }
+    TEST_MODULES = {
+        'koito': {
+            'test_koito_audit_lastfm', 'test_koito_bridge_manifest',
+            'test_koito_export_lastfm', 'test_koito_prepare_lastfm_import',
+        },
+        'longhorn': {
+            'test_longhorn_b2_object_lifecycle', 'test_longhorn_prune_snapshots',
+            'test_longhorn_refresh_share_manager', 'test_longhorn_remove_stale_attachment',
+            'test_longhorn_repair_empty_disk', 'test_longhorn_resume_idle_snapshot_purge',
+            'test_longhorn_retire_backup_history', 'test_longhorn_retire_retired_volumes',
+            'test_longhorn_upgrade_engines',
+        },
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        # Isolate script-test imports from CI discovery (both have helpers and
+        # similarly named modules). Exercise Batch 1's real discovery entrypoint.
+        code = '''
+import json, sys
+sys.path.insert(0, 'scripts/ci')
+from run_selected_tests import discover_suite, test_cases
+patterns = ['test_*.py', 'test_koito*.py', 'test_longhorn*.py',
+            'test_gatus_alert_config.py', 'test_kyverno*.py',
+            'test_kubescape_status_guardrail.py']
+print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/tests', [p])))
+                  for p in patterns}))
+'''
+        result = subprocess.run([sys.executable, '-B', '-c', code], cwd=SCRIPT.parents[2],
+                                check=True, capture_output=True, text=True)
+        cls.discovered = {pattern: set(ids) for pattern, ids in json.loads(result.stdout).items()}
+        cls.all_ids = cls.discovered['test_*.py']
+        cls.owner_ids = {
+            owner: {name for name in cls.all_ids if name.split('.')[0] in modules}
+            for owner, modules in cls.TEST_MODULES.items()
+        }
+
+    @classmethod
+    def reviewed_paths(cls, owner):
+        paths = {f'scripts/{stem}.py' for stem in cls.SOURCE_STEMS[owner]}
+        paths.update(f'scripts/tests/{module}.py' for module in cls.TEST_MODULES[owner])
+        if owner == 'longhorn':
+            paths.add('scripts/tests/helpers/longhorn_retention.py')
+        return paths
+
+    def assert_ids(self, checks, expected):
+        patterns = json.loads(checks['script_tests'])
+        self.assertTrue(patterns)
+        self.assertEqual(set().union(*(self.discovered[p] for p in patterns)), expected)
+
+    def test_map_contains_only_reviewed_sources_tests_and_helper(self):
+        self.assertEqual(detect.COMPONENT_SCRIPT_PATHS, {
+            f'test_{owner}*.py': self.reviewed_paths(owner) for owner in self.TEST_MODULES
+        })
+        for owner in self.TEST_MODULES:
+            for path in self.reviewed_paths(owner):
+                self.assertTrue((SCRIPT.parents[2] / path).is_file(), path)
+
+    def test_every_reviewed_path_selects_exact_complete_owner_ids(self):
+        manifest_inputs = {
+            'scripts/longhorn-retire-backup-history.py', 'scripts/longhorn-upgrade-engines.py',
+            'scripts/tests/test_longhorn_retire_backup_history.py',
+            'scripts/tests/test_longhorn_upgrade_engines.py',
+        }
+        for owner in self.TEST_MODULES:
+            for path in sorted(self.reviewed_paths(owner)):
+                with self.subTest(path=path):
+                    checks = detect.classify_changes([path])
+                    self.assert_ids(checks, self.owner_ids[owner])
+                    self.assertEqual(json.loads(checks['script_tests']), [f'test_{owner}*.py'])
+                    self.assertEqual(checks['unit_tests'], 'true')
+                    self.assertEqual(checks['manifests'], str(path in manifest_inputs).lower())
+                    for flag in ('ci_tests', 'gitea_tests', 'shell', 'workflows', 'renovate',
+                                 'terraform', 'public_edge'):
+                        self.assertEqual(checks[flag], 'false', flag)
+                    self.assertEqual(json.loads(checks['terraform_matrix']), {'stack': []})
+
+    def test_mixed_components_union_exact_ids_once(self):
+        for koito in self.reviewed_paths('koito'):
+            for longhorn in self.reviewed_paths('longhorn'):
+                with self.subTest(koito=koito, longhorn=longhorn):
+                    self.assert_ids(detect.classify_changes([koito, longhorn, koito]),
+                                    self.owner_ids['koito'] | self.owner_ids['longhorn'])
+
+    def test_koito_application_and_configuration_retain_gatus_ids(self):
+        for path in ('apps/koito/lastfm-bridge.yaml', 'apps/koito/lastfm-bridge-config.json',
+                     'apps/koito/kustomization.yaml'):
+            with self.subTest(path=path):
+                checks = detect.classify_changes(['scripts/koito-export-lastfm.py', path])
+                self.assert_ids(checks, self.owner_ids['koito'] |
+                                self.discovered['test_gatus_alert_config.py'])
+                self.assertEqual(checks['manifests'], 'true')
+        checks = detect.classify_changes(['scripts/longhorn-upgrade-engines.py',
+                                          'apps/koito/lastfm-bridge.yaml'])
+        self.assert_ids(checks, self.owner_ids['koito'] | self.owner_ids['longhorn'] |
+                        self.discovered['test_gatus_alert_config.py'])
+
+    def test_longhorn_manifests_and_runtime_qualification_remain_selected(self):
+        for path in ('infra/longhorn/weekly-backup-retention.yaml',
+                     'infra/longhorn/kustomization.yaml', 'infra/longhorn/longhorn-helmrelease.yaml',
+                     'infra/longhorn-node-disks/kustomization.yaml',
+                     'ops/longhorn/reviewed-backup-retention-job.yaml'):
+            with self.subTest(path=path):
+                checks = detect.classify_changes([path])
+                self.assert_ids(checks, self.owner_ids['longhorn'])
+                self.assertEqual(checks['manifests'], 'true')
+        # These are the existing mounted sources/tests that select the manifest
+        # job, including its proposed-runtime-image qualification step.
+        import yaml
+        workflow = yaml.safe_load((SCRIPT.parents[2] / '.github/workflows/ci.yml').read_text())
+        step = next(s for s in workflow['jobs']['manifest-validation']['steps']
+                    if s.get('name') == 'Test Python helpers on their proposed images')
+        self.assertIn('python3 scripts/ci/check_python_helpers.py', step['run'])
+
+    def test_unknown_new_and_fixture_script_paths_keep_full_fallback(self):
+        for path in (
+            'scripts/koito-new-operation.py', 'scripts/longhorn-new-operation.py',
+            'scripts/tests/test_koito_new.py', 'scripts/tests/test_longhorn_new.py',
+            'scripts/tests/helpers/new_retention.py', 'scripts/tests/helpers/__init__.py',
+            'scripts/shared.py', 'scripts/koito-export-lastfm.py.go',
+            'scripts/longhorn-upgrade-engines.py.json',
+            'scripts/tests/fixtures/koito.json', 'scripts/tests/fixtures/longhorn.json',
+            'scripts/tests/fixtures/security-collector/assessment.json',
+        ):
+            for known in ([], ['scripts/koito-audit-lastfm.py'],
+                          ['scripts/longhorn-upgrade-engines.py']):
+                with self.subTest(path=path, known=known):
+                    checks = detect.classify_changes([*known, path])
+                    self.assertEqual(json.loads(checks['script_tests']), ['test_*.py'])
+                    self.assert_ids(checks, self.all_ids)
+
+    def test_shared_ci_security_json_and_go_inputs_keep_broad_coverage(self):
+        for path in (
+            'scripts/ci/image_reference.py', 'scripts/tests/test_image_reference.py',
+            'scripts/ci/check_python_helpers.py', 'scripts/ci/kyverno/validation.py',
+            'scripts/ci/security_native_exporter_preflight.py',
+            'scripts/security_receiver/native.py', 'scripts/security_collector/engine.py',
+            'scripts/tests/test_security_receiver_native.py',
+            'scripts/tests/test_security_ci_scan.py', 'scripts/tests/test_kyverno_policy_assurance.py',
+            'scripts/tests/test_kubescape_recurring.py',
+            'scripts/tests/fixtures/gatus_recovery_test.go',
+            *detect.FULL_CHECK_PATHS,
+        ):
+            with self.subTest(path=path):
+                checks = detect.classify_changes(['scripts/koito-audit-lastfm.py', path])
+                self.assert_ids(checks, self.all_ids)
+                self.assertEqual(json.loads(checks['script_tests']), ['test_*.py'])
+                if path.startswith('scripts/ci/') or path in detect.FULL_CHECK_PATHS:
+                    self.assertEqual(checks['ci_tests'], 'true')
+
+    def test_mixed_policy_inputs_retain_existing_suites_and_job_flags(self):
+        for path in ('infra/kyverno-policies/policies/workloads.yaml',
+                     'migration/kyverno/policies/workloads.yaml'):
+            with self.subTest(path=path):
+                checks = detect.classify_changes(['scripts/longhorn-prune-snapshots.py', path])
+                self.assert_ids(checks, self.owner_ids['longhorn'] |
+                                self.discovered['test_kyverno*.py'] |
+                                self.discovered['test_kubescape_status_guardrail.py'])
+                self.assertEqual(checks['ci_tests'], 'true')
+                self.assertEqual(checks['manifests'], 'true')
+
+    def test_full_mode_retains_every_script_id_even_for_known_paths(self):
+        for paths in ([], ['scripts/koito-audit-lastfm.py'],
+                      ['scripts/tests/helpers/longhorn_retention.py']):
+            self.assert_ids(detect.classify_changes(paths, full=True), self.all_ids)
+
+    def test_unrelated_paths_do_not_select_script_tests(self):
+        for path in ('docs/koito.md', 'docs/longhorn.md', 'apps/immich/server.yaml',
+                     'renovate.json', 'ops/unrelated.py', 'scripts/cilium-primary-health.sh'):
+            with self.subTest(path=path):
+                self.assertEqual(json.loads(detect.classify_changes([path])['script_tests']), [])
+
+    def git_selection(self, removed, added, *, base_only=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def git(*args):
+                return subprocess.check_output(['git', *args], cwd=root, text=True,
+                                               stderr=subprocess.DEVNULL).strip()
+
+            def write(path):
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text('# identical content exercises rename detection\n')
+
+            git('init', '-b', 'main')
+            git('config', 'user.name', 'CI selection test')
+            git('config', 'user.email', 'ci-test@example.invalid')
+            write('baseline.md')
+            for path in removed:
+                write(path)
+            git('add', '.')
+            git('commit', '-m', 'baseline')
+            base = git('rev-parse', 'HEAD')
+            git('checkout', '-b', 'change')
+            for path in removed:
+                (root / path).unlink()
+            for path in added:
+                write(path)
+            git('add', '-A')
+            git('commit', '-m', 'change')
+            head = git('rev-parse', 'HEAD')
+            if base_only:
+                git('checkout', 'main')
+                write(base_only)
+                git('add', '.')
+                git('commit', '-m', 'base-only change')
+                base = git('rev-parse', 'HEAD')
+            result = subprocess.run(
+                [sys.executable, '-B', str(SCRIPT), '--event', 'pull_request',
+                 '--base', base, '--head', head], cwd=root,
+                env={**os.environ, 'GITHUB_OUTPUT': str(root / 'outputs')},
+                check=True, capture_output=True, text=True,
+            )
+            payload = json.loads(result.stdout)
+            self.assertEqual(set(payload['changed_paths']), set(removed) | set(added))
+            return payload['checks']
+
+    def test_every_mapped_addition_and_deletion_selects_complete_owner(self):
+        for owner in self.TEST_MODULES:
+            for path in sorted(self.reviewed_paths(owner)):
+                for removed, added in (([], [path]), ([path], [])):
+                    with self.subTest(path=path, deletion=bool(removed)):
+                        self.assert_ids(self.git_selection(removed, added), self.owner_ids[owner])
+
+    def test_deleted_mapped_source_fails_real_discovery_before_execution(self):
+        for owner, deleted in (('koito', 'scripts/koito-export-lastfm.py'),
+                               ('longhorn', 'scripts/longhorn-upgrade-engines.py')):
+            with self.subTest(deleted=deleted), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                for path in self.reviewed_paths(owner) | {'scripts/ci/image_reference.py'}:
+                    if path == deleted:
+                        continue
+                    target = root / path
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(SCRIPT.parents[2] / path, target)
+                result = subprocess.run(
+                    [sys.executable, '-B', str(SCRIPT.parent / 'run_selected_tests.py'),
+                     '--suite', 'scripts'], cwd=root,
+                    env={**os.environ, 'CHECK_SELECTION': json.dumps(detect.classify_changes([deleted]))},
+                    capture_output=True, text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('Invalid test selection or discovery', result.stderr)
+                self.assertIn(Path(deleted).name, result.stderr)
+                self.assertNotIn('Ran ', result.stderr)
+
+    def test_known_renames_union_old_and_new_owners(self):
+        for old, new, owners in (
+            ('scripts/koito-export-lastfm.py', 'scripts/tests/test_koito_export_lastfm.py', ('koito',)),
+            ('scripts/longhorn-upgrade-engines.py', 'scripts/tests/helpers/longhorn_retention.py', ('longhorn',)),
+            ('scripts/koito-audit-lastfm.py', 'scripts/longhorn-retire-backup-history.py', ('koito', 'longhorn')),
+            ('scripts/tests/test_longhorn_prune_snapshots.py', 'scripts/tests/test_koito_bridge_manifest.py', ('koito', 'longhorn')),
+        ):
+            with self.subTest(old=old, new=new):
+                self.assert_ids(self.git_selection([old], [new]),
+                                set().union(*(self.owner_ids[o] for o in owners)))
+
+    def test_renames_with_unknown_script_side_fall_back_in_both_directions(self):
+        for known in ('scripts/koito-export-lastfm.py', 'scripts/longhorn-upgrade-engines.py',
+                      'scripts/tests/helpers/longhorn_retention.py'):
+            for unknown in ('scripts/retired.py', 'scripts/tests/test_new_owner.py',
+                            'scripts/tests/helpers/renamed_retention.py',
+                            'scripts/retired.sh', 'scripts/retired',
+                            'retired.py', 'archive/retired.py', 'archive/retired.go',
+                            'archive/retired.sh'):
+                for old, new in ((known, unknown), (unknown, known)):
+                    with self.subTest(old=old, new=new):
+                        self.assert_ids(self.git_selection([old], [new]), self.all_ids)
+
+    def test_base_only_unknown_and_component_changes_do_not_wake_tests(self):
+        for base_only in ('scripts/unknown.py', 'scripts/koito-export-lastfm.py',
+                          'scripts/longhorn-upgrade-engines.py'):
+            with self.subTest(base_only=base_only):
+                checks = self.git_selection([], ['docs/report.md'], base_only=base_only)
+                self.assertEqual(checks, detect.classify_changes(['docs/report.md']))
+        checks = self.git_selection([], ['scripts/koito-export-lastfm.py'],
+                                    base_only='scripts/unknown.py')
+        self.assert_ids(checks, self.owner_ids['koito'])
 
 
 class GitDiffTests(unittest.TestCase):
