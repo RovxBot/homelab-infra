@@ -46,8 +46,8 @@ def run(version, engine):
         ]
         flux = load("infra/kyverno/policies/platform-flux-guardrails.yaml")[0]
     else:
-        owner = load("migration/kyverno/policies/workloads.yaml")[0]
-        flux = load("migration/kyverno/policies/flux.yaml")[0]
+        owner = load("infra/kyverno-policies/policies/workloads.yaml")[0]
+        flux = load("infra/kyverno-policies/policies/flux.yaml")[0]
     bad = workload(name="pre-existing-violation", ns=ns)
     bad["spec"]["template"]["metadata"]["labels"].pop(OWNER)
     apply(bad)

@@ -202,7 +202,7 @@ def main():
     sys.path.insert(0, str(root/'scripts/ci'))
     from kyverno_gate import render_kustomization
     entries = production_entries(root)
-    example = root/'migration/kyverno/namespace-example/flux.yaml'
+    example = root/'scripts/ci/kyverno/fixtures/namespace-example/flux.yaml'
     samples = [(ks, render_kustomization(root, ks['spec']['path'])) for ks in yaml.safe_load_all(example.read_text())]
     errors = check_graph(entries, root) + check_graph(samples, root)
     if errors:

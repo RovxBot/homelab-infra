@@ -72,7 +72,7 @@ with tempfile.TemporaryDirectory() as directory:
         match=re.search(r'^Version: v?(\d+)\.(\d+)\.(\d+)$',version,re.MULTILINE)
         assert match, 'Unknown executed Kyverno version'
         if tuple(map(int,match.groups())) >= (1,20,0):
-            policies=[d for d in yaml.safe_load_all((root/'migration/kyverno/policies/runners.yaml').read_text()) if d['metadata']['namespace']==config['kubernetes']['namespace']]
+            policies=[d for d in yaml.safe_load_all((root/'infra/kyverno-policies/policies/runners.yaml').read_text()) if d['metadata']['namespace']==config['kubernetes']['namespace']]
             policy_path=pathlib.Path(directory)/'policies.yaml'
             policy_path.write_text(yaml.safe_dump_all(policies))
     for name, candidate, allowed in cases:

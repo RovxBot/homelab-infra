@@ -17,7 +17,7 @@ NOW = datetime(2026, 11, 24, 10, tzinfo=timezone.utc)
 
 class PolicyPublisherTests(unittest.TestCase):
     def exceptions(self):
-        return list(yaml.safe_load_all((ROOT / "migration/kyverno/exceptions/exceptions.yaml").read_text()))
+        return list(yaml.safe_load_all((ROOT / "infra/kyverno-policies/exceptions/exceptions.yaml").read_text()))
 
     def test_expiry_review_and_expired_share_identity(self):
         objects = self.exceptions()

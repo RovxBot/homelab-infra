@@ -29,7 +29,7 @@ This is a **short route map**, not a checklist of files to read. The repository 
 | Infrastructure | `infra/<component>/` |
 | Kubescape security scanning | Matching Wiki page for operations; implementation: `infra/kubescape/`, recurring: `infra/kubescape/recurring/`, DB refresh: `infra/kubescape/database-maintenance.md` |
 | Kubescape tests and validation | `scripts/ci/check_kubescape.py`, `scripts/ci/check_kubescape_recurring.py`, `.github/workflows/kubescape-checks.yml` |
-| Kyverno/PSA | `infra/kyverno-policies/`, `infra/kyverno/`, `migration/kyverno/` |
+| Kyverno/PSA | `infra/kyverno-policies/`, `infra/kyverno/`, `scripts/ci/kyverno/`, `docs/kyverno/` |
 | Cilium | Matching Wiki page; source: `infra/cilium/` |
 | Longhorn / recovery | Matching Wiki page; source: `infra/longhorn/`, `infra/longhorn-node-disks/` |
 | Gatus/health | `infra/observability/` |

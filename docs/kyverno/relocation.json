@@ -1,0 +1,1022 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "86f6e1ddb92739ed78b3e16698cff4e309f8651b",
+  "classification": "Path relocation receipt; not deployment or fresh qualification evidence.",
+  "path_semantics": "original_path and original_sha256 record baseline bytes before relocation. Historical receipts keep their original recorded paths, hashes and immutable archive URLs; resolve an old checkout path through this map. No historical run is attributed to the new layout.",
+  "requested_file_count": 55,
+  "observed_file_count": 58,
+  "count_discrepancy": "Current main contains 58 files rather than the stated 55. This map includes every tracked file, including the three retained historical validation-contract/admission JSONL inputs. All 58 are relocated, none deleted.",
+  "files": [
+    {
+      "original_path": "migration/kyverno/README.md",
+      "path": "scripts/ci/kyverno/README.md",
+      "original_sha256": "fee84910d1b0dfd0051683e7d808639bdc511451c6a03f16f3aa92f33b3fc32b"
+    },
+    {
+      "original_path": "migration/kyverno/activation/README.md",
+      "path": "docs/kyverno/activation/README.md",
+      "original_sha256": "39457d7e5ea5175bc46e452f7bd267fe7149193d6b03035077c3468721c56bf3"
+    },
+    {
+      "original_path": "migration/kyverno/activation/exception-review.md",
+      "path": "docs/kyverno/activation/exception-review.md",
+      "original_sha256": "283b570cc33b843eec974ad02f15a626173fda99a5813dd82cf1eb7d3f13042f"
+    },
+    {
+      "original_path": "migration/kyverno/activation/freeze.yaml",
+      "path": "scripts/ci/kyverno/fixtures/freeze.yaml",
+      "original_sha256": "9fe8b0159339450f0cf9cca46d489c0f33ae7cb37d1556d547407e3b756eb016"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/admission-decisions.jsonl",
+      "path": "docs/kyverno/evidence/admission-decisions.jsonl",
+      "original_sha256": "58c6c388bd7fb25c9d7d4a4e8ab81ad1626daef4076cad9433ed99586dd04ccb"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/admission-results.jsonl",
+      "path": "docs/kyverno/evidence/admission-results.jsonl",
+      "original_sha256": "9f531a4f4cd7df2ea55eca6ef6b1a7242b4e6c5834c5d0b8fc62d8326df3e232"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/artifact-trust.json",
+      "path": "docs/kyverno/evidence/artifact-trust.json",
+      "original_sha256": "9a806fe57bbf820e23e6fc07c080fa6a289cdaf245a71ea1888a088f9425135d"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/qualification.json",
+      "path": "docs/kyverno/evidence/qualification.json",
+      "original_sha256": "d3e3a3ad8c889fa8fc04b1a5d5ed0a422971402547a78563e8f21db570d79b8b"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task17/files.json",
+      "path": "docs/kyverno/evidence/task17/files.json",
+      "original_sha256": "752e5a77c33d68d31b78e633ba1b435b7a16dd330e6fc9072d9d262d787481b7"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task17/findings.md",
+      "path": "docs/kyverno/evidence/task17/findings.md",
+      "original_sha256": "9fc46a447c506bca93e886f43413757986491b53dbbde7a165b4b830ab6b9acc"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task17/local-compatibility.json",
+      "path": "docs/kyverno/evidence/task17/local-compatibility.json",
+      "original_sha256": "e9eb1b168db90fd0ec5470391b888a2ea3c2068de5423fcefea4cef25d1b20a6"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task17/production-inventory-initial.json",
+      "path": "docs/kyverno/evidence/task17/production-inventory-initial.json",
+      "original_sha256": "41d42a0fdac1f38d436809241f99b60beba9128809cac34b83ac8a41b5bc9975"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task17/production-inventory.json",
+      "path": "docs/kyverno/evidence/task17/production-inventory.json",
+      "original_sha256": "84f1ad513fe4906077d4a716652b85a8526437ad6cd862c5ecc866d287f89c36"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task17/qualification.json",
+      "path": "docs/kyverno/evidence/task17/qualification.json",
+      "original_sha256": "af9f14977161545a57b919349746ccb71386ce69e3a028447251031eefba305e"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task17/release-target.json",
+      "path": "docs/kyverno/evidence/task17/release-target.json",
+      "original_sha256": "546cf7c74ad99ede22ac2bec20f017aa7062401b4f539dceceadbc90a0c10ead"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task18/activation-renders.json",
+      "path": "docs/kyverno/evidence/task18/activation-renders.json",
+      "original_sha256": "fd8ba5e3ab529ab92f8cdc3474df0daa9090df944c4b149be15204681a99420a"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task18/exception-audit.json",
+      "path": "docs/kyverno/evidence/task18/exception-audit.json",
+      "original_sha256": "50deffd13794c69b6ea63ade0b3bc3d487636959383407b6f0bb7856bbc80aad"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task18/live-chart-comparison.json",
+      "path": "docs/kyverno/evidence/task18/live-chart-comparison.json",
+      "original_sha256": "cee885e6fc3a1ff9b64d2c0ea46cf8461e5ed726e74e1ad707ec6ddc0a061167"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task18/production-inventory.json",
+      "path": "docs/kyverno/evidence/task18/production-inventory.json",
+      "original_sha256": "a9771f6d93ecdf7ba11dfd702af68d0a040b79fb9e86e993a3aae5dc37530b78"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task18/qualification.json",
+      "path": "docs/kyverno/evidence/task18/qualification.json",
+      "original_sha256": "84d9fbf02bc6941dc45fc91e57985389c37d92a3c663f8f6a5ad8c789f212514"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task18/validation-results.json",
+      "path": "docs/kyverno/evidence/task18/validation-results.json",
+      "original_sha256": "f0f2940b4f440d27c5373578ff8fbc5b09259fbe5f6c22adf4e63854479ee0c8"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task20/deployment.json",
+      "path": "docs/kyverno/evidence/task20/deployment.json",
+      "original_sha256": "81fa7f645b1756da9fee6107c5fa93568d58bb79b89b3f085cce198b2b2f92ee"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task20/namespace-onboarding.json",
+      "path": "docs/kyverno/evidence/task20/namespace-onboarding.json",
+      "original_sha256": "e63aecf4cef13b86f23a23a27893857cae60f611ec287be91408f7634fa8272a"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/task21/deployment.json",
+      "path": "docs/kyverno/evidence/task21/deployment.json",
+      "original_sha256": "fc15f15089af9d48383211708053b2f1b7ec8d03614ef498350eb110f70d5198"
+    },
+    {
+      "original_path": "migration/kyverno/evidence/validation-contract.json",
+      "path": "docs/kyverno/evidence/validation-contract.json",
+      "original_sha256": "f6bf4796d4a8fdfdeac40ea0f72cdf8f54d8f90081fa1642132be132db6f42cd"
+    },
+    {
+      "original_path": "migration/kyverno/exceptions/exceptions.yaml",
+      "path": "infra/kyverno-policies/exceptions/exceptions.yaml",
+      "original_sha256": "d780f419940cac1c9c40b88b4cc624cad9c3ef321608d0cf54705277ebbd5877"
+    },
+    {
+      "original_path": "migration/kyverno/harness/audit_exceptions.py",
+      "path": "scripts/ci/kyverno/audit_exceptions.py",
+      "original_sha256": "0ce8e0bbbc172e656cf58e32dbdf147c02b24c9b45ef0e11b93ef33f25c84398"
+    },
+    {
+      "original_path": "migration/kyverno/harness/build.py",
+      "path": "scripts/ci/kyverno/build.py",
+      "original_sha256": "d5f12e8f0cfb10cab8848ab3447e022bc56bcb8521466a161fdcc56ba7ab2950"
+    },
+    {
+      "original_path": "migration/kyverno/harness/corpus.py",
+      "path": "scripts/ci/kyverno/corpus.py",
+      "original_sha256": "549aaae0303d70ac4d3b5d16068ca7ed8ceb953f390f016f4d7006021bbc5e90"
+    },
+    {
+      "original_path": "migration/kyverno/harness/equivalence.py",
+      "path": "scripts/ci/kyverno/equivalence.py",
+      "original_sha256": "0ef677fd1eb0fae55a3b6ffd6e9158f3a4fbc5ff6bd12cdf1728972e7c099e0a"
+    },
+    {
+      "original_path": "migration/kyverno/harness/flux.py",
+      "path": "scripts/ci/kyverno/flux.py",
+      "original_sha256": "b5187d80154e0794d0deb4167f25c57d1a7cfd981eb71bf8aea942d4c16a8f2e"
+    },
+    {
+      "original_path": "migration/kyverno/harness/git_http.py",
+      "path": "scripts/ci/kyverno/git_http.py",
+      "original_sha256": "468374b6b115ec47b51e21a4434f96cdaed1d0d5c2bebecd6f6c3ab0e43a7ca7"
+    },
+    {
+      "original_path": "migration/kyverno/harness/inventory.py",
+      "path": "scripts/ci/kyverno/inventory.py",
+      "original_sha256": "cd1abb505792b31b1f1ef1996b781e626a3a483f20b84df6a705a07980319a3b"
+    },
+    {
+      "original_path": "migration/kyverno/harness/mutation.py",
+      "path": "scripts/ci/kyverno/mutation.py",
+      "original_sha256": "bb1e0e37ff6eaedb5660ecc5f48e4062b4f0b10519a45d659b89d611b458eabb"
+    },
+    {
+      "original_path": "migration/kyverno/harness/namespace_lifecycle.py",
+      "path": "scripts/ci/kyverno/namespace_lifecycle.py",
+      "original_sha256": "3ffda0aa6145d0cc2a72fae6207f018be01f3042bd2cad0e137deee715f10959"
+    },
+    {
+      "original_path": "migration/kyverno/harness/production_sequence.py",
+      "path": "scripts/ci/kyverno/production_sequence.py",
+      "original_sha256": "f217ce2ded6c392ca0cdfb50661b7cd8dc3bc8f6cddf3f85933b88c2ab8f1a9f"
+    },
+    {
+      "original_path": "migration/kyverno/harness/qualify.py",
+      "path": "scripts/ci/kyverno/qualify.py",
+      "original_sha256": "773b03485781f9fc01cef80b9014bf1a80a8d51062edbd61d3825065e8a6c66b"
+    },
+    {
+      "original_path": "migration/kyverno/harness/rehearse.py",
+      "path": "scripts/ci/kyverno/rehearse.py",
+      "original_sha256": "4cd1952822cba2ee3825ade947f720adf9c52d4bc296317b20179d4aab89d636"
+    },
+    {
+      "original_path": "migration/kyverno/harness/render-report-identities.py",
+      "path": "scripts/ci/kyverno/render-report-identities.py",
+      "original_sha256": "dd16260d98c1f2d69a24429e2f2f80d13abfb61f419170611591e20d12aa3da5"
+    },
+    {
+      "original_path": "migration/kyverno/harness/reporting.py",
+      "path": "scripts/ci/kyverno/reporting.py",
+      "original_sha256": "9ef5cd397b1130826cd5a5f919c77039ec5eb1f58318275d755368d1655ef486"
+    },
+    {
+      "original_path": "migration/kyverno/harness/resolve.py",
+      "path": "scripts/ci/kyverno/resolve.py",
+      "original_sha256": "b270032ec85a66999da6193d7eef97cab24994fff028a35d7c3fef19be0cfb4f"
+    },
+    {
+      "original_path": "migration/kyverno/harness/run.sh",
+      "path": "scripts/ci/kyverno/run.sh",
+      "original_sha256": "bf13c0dd6ff92aa1d55110b892ecc74cb0f8808d7a9a6fe6a47680249f507183"
+    },
+    {
+      "original_path": "migration/kyverno/harness/traffic.py",
+      "path": "scripts/ci/kyverno/traffic.py",
+      "original_sha256": "571213cf35894d4766aa1e8fc7c8acd5718dcda7c171cc5b5d3cda4b63f5f697"
+    },
+    {
+      "original_path": "migration/kyverno/harness/trust-summary.py",
+      "path": "scripts/ci/kyverno/trust-summary.py",
+      "original_sha256": "d4ada20ea94caff5cdae83654c83561cbccd2829aa3a36e45905af634cb9f293"
+    },
+    {
+      "original_path": "migration/kyverno/harness/trust.sh",
+      "path": "scripts/ci/kyverno/trust.sh",
+      "original_sha256": "b1c2eb12459b432343e1b6a03aac1df8b6262da1b3b3aee0c6a5c9f5ad0c7eba"
+    },
+    {
+      "original_path": "migration/kyverno/harness/validation.py",
+      "path": "scripts/ci/kyverno/validation.py",
+      "original_sha256": "9560df845800982acc4adecbd5f5e5186cb5d09cd1150709fce2e741ea3d47ea"
+    },
+    {
+      "original_path": "migration/kyverno/namespace-example/flux.yaml",
+      "path": "scripts/ci/kyverno/fixtures/namespace-example/flux.yaml",
+      "original_sha256": "5cd3a15019c8618cfb5079734b63633ad62886d647130dd4d68762248df8feda"
+    },
+    {
+      "original_path": "migration/kyverno/namespace-example/namespace/kustomization.yaml",
+      "path": "scripts/ci/kyverno/fixtures/namespace-example/namespace/kustomization.yaml",
+      "original_sha256": "7201ad7fb41e18cc496ee220f53d506dc5a10693d9993546335e25bbeeead22c"
+    },
+    {
+      "original_path": "migration/kyverno/namespace-example/workloads/kustomization.yaml",
+      "path": "scripts/ci/kyverno/fixtures/namespace-example/workloads/kustomization.yaml",
+      "original_sha256": "7cd9a6957197fcd441a2db01329774525b6d9167f880a36a1af9837d2de75581"
+    },
+    {
+      "original_path": "migration/kyverno/namespace-example/workloads/workload.yaml",
+      "path": "scripts/ci/kyverno/fixtures/namespace-example/workloads/workload.yaml",
+      "original_sha256": "530e5bd943ba729926ba6a742d1c6b91afae341ea8fb8c1565df6a4a6880b381"
+    },
+    {
+      "original_path": "migration/kyverno/policies/flux.yaml",
+      "path": "infra/kyverno-policies/policies/flux.yaml",
+      "original_sha256": "d6ab1f680747a6962b4a43c0183de8955902a3971e0d2622aa7f1fc9ed4f5873"
+    },
+    {
+      "original_path": "migration/kyverno/policies/governance-native.yaml",
+      "path": "infra/kyverno-policies/policies/governance-native.yaml",
+      "original_sha256": "1dd7dd746e8775ac068e68695f8b4ba7a5ae103470240cf88bb4c3ad32eb5f4d"
+    },
+    {
+      "original_path": "migration/kyverno/policies/mutation.yaml",
+      "path": "infra/kyverno-policies/policies/mutation.yaml",
+      "original_sha256": "65291e88e12981a2c571a732ca02f1a62d77544ac07741062c15005a01ad815f"
+    },
+    {
+      "original_path": "migration/kyverno/policies/namespace.yaml",
+      "path": "infra/kyverno-policies/policies/namespace.yaml",
+      "original_sha256": "85a6eabaa58c7d19900c1a23e12d814ae3ba748a7bfc44253093e2bf603089f8"
+    },
+    {
+      "original_path": "migration/kyverno/policies/reporting-rbac.yaml",
+      "path": "infra/kyverno-policies/policies/reporting-rbac.yaml",
+      "original_sha256": "840ab4f128f42e977ed2a308a9a5fb656fc93839891e116ddbc11c7979c2b2fa"
+    },
+    {
+      "original_path": "migration/kyverno/policies/runners.yaml",
+      "path": "infra/kyverno-policies/policies/runners.yaml",
+      "original_sha256": "75ca3bfe094279b0da8e027755f808bc75e290c4a888753c9c415aa0e5cf1222"
+    },
+    {
+      "original_path": "migration/kyverno/policies/workloads.yaml",
+      "path": "infra/kyverno-policies/policies/workloads.yaml",
+      "original_sha256": "211ad4d4b59fa5a27545a01da98f040cd1b05e3844e0860037a5efeaa7f1fb5b"
+    },
+    {
+      "original_path": "migration/kyverno/policy-map.json",
+      "path": "infra/kyverno-policies/policy-map.json",
+      "original_sha256": "70aadc53b8519708b5b29495047efffd1b03cdfee5b3b45394eb992747d2556f"
+    }
+  ],
+  "validation": {
+    "classification": "Local relocation checks against the baseline commit; not hosted fresh qualification, merge or reconciliation acceptance.",
+    "renders": {
+      "status": "verified",
+      "baseline_commit": "86f6e1ddb92739ed78b3e16698cff4e309f8651b",
+      "kustomize_version": "v5.5.0",
+      "comparison": "All rendered objects equal after narrowly normalizing the user-approved publisher path strings and generated ConfigMap name/references. Other roots are raw byte-identical. Isolated example roots are compared at their relocated destinations.",
+      "root_count": 65,
+      "raw_equal_roots": 62,
+      "production_policy_root_resources": 52,
+      "unchanged_flux_kustomizations": 28,
+      "flux_kustomization_contract_sha256": "3f5ead413b0b3081f33fce6815bc7b3ccd921247ea76300f2579f6116dc1037f",
+      "approved_publisher_differences": [
+        {
+          "root": "clusters/home/infrastructure",
+          "changes": [
+            {
+              "kind": "ConfigMap",
+              "namespace": "monitoring",
+              "old_name": "security-incident-publisher-code-d42tfdmd77",
+              "new_name": "security-incident-publisher-code-f292d956c5",
+              "changed_field": "data.policy.py",
+              "allowed_change": "repository path strings only"
+            },
+            {
+              "field": "61.metadata.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "86.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "87.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "88.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            }
+          ]
+        },
+        {
+          "root": "infra/observability",
+          "changes": [
+            {
+              "kind": "ConfigMap",
+              "namespace": "monitoring",
+              "old_name": "security-incident-publisher-code-d42tfdmd77",
+              "new_name": "security-incident-publisher-code-f292d956c5",
+              "changed_field": "data.policy.py",
+              "allowed_change": "repository path strings only"
+            },
+            {
+              "field": "24.metadata.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "29.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "30.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "31.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            }
+          ]
+        },
+        {
+          "root": "infra/observability/security-incident-publisher",
+          "changes": [
+            {
+              "kind": "ConfigMap",
+              "namespace": "monitoring",
+              "old_name": "security-incident-publisher-code-d42tfdmd77",
+              "new_name": "security-incident-publisher-code-f292d956c5",
+              "changed_field": "data.policy.py",
+              "allowed_change": "repository path strings only"
+            },
+            {
+              "field": "11.metadata.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "15.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "16.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            },
+            {
+              "field": "17.spec.jobTemplate.spec.template.spec.volumes.1.configMap.name",
+              "allowed_change": "normal Kustomize ConfigMap name/reference rewriting"
+            }
+          ]
+        }
+      ],
+      "roots": [
+        {
+          "original_root": "apps/birdnet-go",
+          "root": "apps/birdnet-go",
+          "resources": 10,
+          "baseline_sha256": "024d4174dd419483c0a2f1867345a1565a3b3d6b0d1f7bf98f15962b295b421a",
+          "sha256": "024d4174dd419483c0a2f1867345a1565a3b3d6b0d1f7bf98f15962b295b421a",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/gitea-runners",
+          "root": "apps/gitea-runners",
+          "resources": 17,
+          "baseline_sha256": "e87e851d0d8922eb702fbea2c0fab43730113d5e9f001ff2a1d411418ce056f4",
+          "sha256": "e87e851d0d8922eb702fbea2c0fab43730113d5e9f001ff2a1d411418ce056f4",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/gitea-runners/wowdecomp",
+          "root": "apps/gitea-runners/wowdecomp",
+          "resources": 8,
+          "baseline_sha256": "45baff3678937c77eb69124c2fdc8d786ea3a2ebaea360bba38227409aad5272",
+          "sha256": "45baff3678937c77eb69124c2fdc8d786ea3a2ebaea360bba38227409aad5272",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/gitea",
+          "root": "apps/gitea",
+          "resources": 34,
+          "baseline_sha256": "344422b827a8e65352add10fb7d5d35b5f8c0eecfa08f63c76fd7b98e73fa5ea",
+          "sha256": "344422b827a8e65352add10fb7d5d35b5f8c0eecfa08f63c76fd7b98e73fa5ea",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/grimguzzler-registration",
+          "root": "apps/grimguzzler-registration",
+          "resources": 4,
+          "baseline_sha256": "355114f810cecacc7fa1155a27e52a99df2b3f62bbd733f32b05324312009e34",
+          "sha256": "355114f810cecacc7fa1155a27e52a99df2b3f62bbd733f32b05324312009e34",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/home-assistant",
+          "root": "apps/home-assistant",
+          "resources": 6,
+          "baseline_sha256": "a5c846f89775f632c0c95ef15471273717eb35e8a1ad4e4da3d28927c872395a",
+          "sha256": "a5c846f89775f632c0c95ef15471273717eb35e8a1ad4e4da3d28927c872395a",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/homepage",
+          "root": "apps/homepage",
+          "resources": 11,
+          "baseline_sha256": "cb98cee39f2de37569b8eaadcc70cd454c2c3ccfd59710a2db0f700383e7930a",
+          "sha256": "cb98cee39f2de37569b8eaadcc70cd454c2c3ccfd59710a2db0f700383e7930a",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/immich",
+          "root": "apps/immich",
+          "resources": 18,
+          "baseline_sha256": "8ebd8e76318af9ad29d282e0dba4c00a3da19696ea8fc65b71ade13acaf5dde1",
+          "sha256": "8ebd8e76318af9ad29d282e0dba4c00a3da19696ea8fc65b71ade13acaf5dde1",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/invoiceninja",
+          "root": "apps/invoiceninja",
+          "resources": 13,
+          "baseline_sha256": "964711ae9c136cfe18a1f0c9d1684591b1bd4ea822dc8d37b18e1dc8833f48d7",
+          "sha256": "964711ae9c136cfe18a1f0c9d1684591b1bd4ea822dc8d37b18e1dc8833f48d7",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/jellyfin",
+          "root": "apps/jellyfin",
+          "resources": 7,
+          "baseline_sha256": "e3470beb9afbb811e6fb589dc2d3506afa99dc51f73662297fa08fc401c19ab4",
+          "sha256": "e3470beb9afbb811e6fb589dc2d3506afa99dc51f73662297fa08fc401c19ab4",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/jellyseerr",
+          "root": "apps/jellyseerr",
+          "resources": 3,
+          "baseline_sha256": "613f140e5d6d74d33051fd9cf841dac74812c08b5de3f52c7c8d75bae9e22fee",
+          "sha256": "613f140e5d6d74d33051fd9cf841dac74812c08b5de3f52c7c8d75bae9e22fee",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/koito",
+          "root": "apps/koito",
+          "resources": 11,
+          "baseline_sha256": "d8ae13db4404a58599b6d49c7e3402844ec2eb8194ee443745ba5e87c9ea2f7d",
+          "sha256": "d8ae13db4404a58599b6d49c7e3402844ec2eb8194ee443745ba5e87c9ea2f7d",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/memos",
+          "root": "apps/memos",
+          "resources": 5,
+          "baseline_sha256": "fc159497fb77c79225b180955599c4d34ebfd6e43c245344f256c7345fd644d6",
+          "sha256": "fc159497fb77c79225b180955599c4d34ebfd6e43c245344f256c7345fd644d6",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/mop",
+          "root": "apps/mop",
+          "resources": 16,
+          "baseline_sha256": "01232e5541358528ee43798c2d32c357ba7b42db35327fe114fb429abe2026de",
+          "sha256": "01232e5541358528ee43798c2d32c357ba7b42db35327fe114fb429abe2026de",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/openbrew",
+          "root": "apps/openbrew",
+          "resources": 12,
+          "baseline_sha256": "96c5090252af7cce3c5e1813cdaf0f58c692dc3c3217ddd038c3b19303deba0d",
+          "sha256": "96c5090252af7cce3c5e1813cdaf0f58c692dc3c3217ddd038c3b19303deba0d",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/prowlarr",
+          "root": "apps/prowlarr",
+          "resources": 3,
+          "baseline_sha256": "277395fd7e1c0a87739616aac1139010058a54b00030af286e2073ff99f7fcf9",
+          "sha256": "277395fd7e1c0a87739616aac1139010058a54b00030af286e2073ff99f7fcf9",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/radarr",
+          "root": "apps/radarr",
+          "resources": 3,
+          "baseline_sha256": "9964db0d6ed21f6a90278154e86219c9b9f3517c465ca2aa56da1a302e097995",
+          "sha256": "9964db0d6ed21f6a90278154e86219c9b9f3517c465ca2aa56da1a302e097995",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/sabnzbd",
+          "root": "apps/sabnzbd",
+          "resources": 3,
+          "baseline_sha256": "3ba3397e718708d3240a1524524460edf6c3a4df61a112afbc44ec45a6fca134",
+          "sha256": "3ba3397e718708d3240a1524524460edf6c3a4df61a112afbc44ec45a6fca134",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/shared",
+          "root": "apps/shared",
+          "resources": 5,
+          "baseline_sha256": "d90b4789c312a5741f9de7abb4ba9ea9a4edc13da0ebed1524a717408d3124d3",
+          "sha256": "d90b4789c312a5741f9de7abb4ba9ea9a4edc13da0ebed1524a717408d3124d3",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/sonarr",
+          "root": "apps/sonarr",
+          "resources": 3,
+          "baseline_sha256": "983105d44755c8b0364fb781c23e7a428fd4fe4353a43a940744c1d65da8e159",
+          "sha256": "983105d44755c8b0364fb781c23e7a428fd4fe4353a43a940744c1d65da8e159",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/stirling-pdf",
+          "root": "apps/stirling-pdf",
+          "resources": 7,
+          "baseline_sha256": "23007573248a3f13e06f88080ce11c2d7734bb37a5bfbe3b71f7270b3f472f33",
+          "sha256": "23007573248a3f13e06f88080ce11c2d7734bb37a5bfbe3b71f7270b3f472f33",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/vaultwarden",
+          "root": "apps/vaultwarden",
+          "resources": 6,
+          "baseline_sha256": "82164f7a537df7f90b1794be7ff4176530a856ed257d937bfc4d0bc45dd80490",
+          "sha256": "82164f7a537df7f90b1794be7ff4176530a856ed257d937bfc4d0bc45dd80490",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/wger",
+          "root": "apps/wger",
+          "resources": 28,
+          "baseline_sha256": "a2aa6dbc4ccf280782ebf34311686ae7eb5cbd62a1096ba441ea6e5e4a511f3c",
+          "sha256": "a2aa6dbc4ccf280782ebf34311686ae7eb5cbd62a1096ba441ea6e5e4a511f3c",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "apps/wotlk",
+          "root": "apps/wotlk",
+          "resources": 29,
+          "baseline_sha256": "cf7edeca444056454496b8240064af7eea3737fd2774bd3f7cf4840ecd4fad59",
+          "sha256": "cf7edeca444056454496b8240064af7eea3737fd2774bd3f7cf4840ecd4fad59",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "clusters/home/apps/arr",
+          "root": "clusters/home/apps/arr",
+          "resources": 15,
+          "baseline_sha256": "14bc159c8e6657f679f03d15f35e7faae96f9444fb7f8748307f86ab65663140",
+          "sha256": "14bc159c8e6657f679f03d15f35e7faae96f9444fb7f8748307f86ab65663140",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "clusters/home/apps/grimguzzler-registration",
+          "root": "clusters/home/apps/grimguzzler-registration",
+          "resources": 4,
+          "baseline_sha256": "355114f810cecacc7fa1155a27e52a99df2b3f62bbd733f32b05324312009e34",
+          "sha256": "355114f810cecacc7fa1155a27e52a99df2b3f62bbd733f32b05324312009e34",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "clusters/home/apps/media",
+          "root": "clusters/home/apps/media",
+          "resources": 36,
+          "baseline_sha256": "6c92083abbfc04a5bb06a0d0b839b290650e9f40528cf48257a130e6b417c4fe",
+          "sha256": "6c92083abbfc04a5bb06a0d0b839b290650e9f40528cf48257a130e6b417c4fe",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "clusters/home/flux-system",
+          "root": "clusters/home/flux-system",
+          "resources": 34,
+          "baseline_sha256": "c847976c244eead9118fa93e5deb4812ad485e54b3d56d34e9250fe320170498",
+          "sha256": "c847976c244eead9118fa93e5deb4812ad485e54b3d56d34e9250fe320170498",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "clusters/home/infrastructure",
+          "root": "clusters/home/infrastructure",
+          "resources": 107,
+          "baseline_sha256": "c66608d00d0cb3dbafc230e95a30c1a8864e950734f9b5cf37b7407ef692c8fe",
+          "sha256": "5390032588320a723102d1f544066ccf1070361013b7b138810b8dbfa602c83f",
+          "result": "only approved publisher path strings and ConfigMap hash/references"
+        },
+        {
+          "original_root": "clusters/home",
+          "root": "clusters/home",
+          "resources": 61,
+          "baseline_sha256": "11bfa7d42ef15b48252036888939ac83bc7065625a43db7eb9eb89dc7d47db23",
+          "sha256": "11bfa7d42ef15b48252036888939ac83bc7065625a43db7eb9eb89dc7d47db23",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/access",
+          "root": "infra/access",
+          "resources": 5,
+          "baseline_sha256": "63deba3115e6bb27a566a2c886579bc917ef0e03d0ea79624bb9b25eb975629e",
+          "sha256": "63deba3115e6bb27a566a2c886579bc917ef0e03d0ea79624bb9b25eb975629e",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/backups",
+          "root": "infra/backups",
+          "resources": 1,
+          "baseline_sha256": "433d3c354ac146f29e2ded51b89e8ada6fb369f64eb0d289cfe35a92135a3d30",
+          "sha256": "433d3c354ac146f29e2ded51b89e8ada6fb369f64eb0d289cfe35a92135a3d30",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/cilium",
+          "root": "infra/cilium",
+          "resources": 2,
+          "baseline_sha256": "e03748c49a5657e61646a0fe12e30b2aa77d249ca98ba8ee83d40ade3c68e736",
+          "sha256": "e03748c49a5657e61646a0fe12e30b2aa77d249ca98ba8ee83d40ade3c68e736",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/cloudflared",
+          "root": "infra/cloudflared",
+          "resources": 6,
+          "baseline_sha256": "9f3e00212c65acb33b5b6a34720245427d0acbe1248ea2ff830ef1f9fd2f7cba",
+          "sha256": "9f3e00212c65acb33b5b6a34720245427d0acbe1248ea2ff830ef1f9fd2f7cba",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/gpu-operator",
+          "root": "infra/gpu-operator",
+          "resources": 4,
+          "baseline_sha256": "09fce9c79a34c7c255404770221605c782963e8be1f92b5a2aed47aceb3198bd",
+          "sha256": "09fce9c79a34c7c255404770221605c782963e8be1f92b5a2aed47aceb3198bd",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kubernetes-mcp",
+          "root": "infra/kubernetes-mcp",
+          "resources": 8,
+          "baseline_sha256": "ed23020650db05acae372bcf962b35658cb45c8eb80e1fa312a3c991d0831e67",
+          "sha256": "ed23020650db05acae372bcf962b35658cb45c8eb80e1fa312a3c991d0831e67",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kubernetes-mcp/validation",
+          "root": "infra/kubernetes-mcp/validation",
+          "resources": 1,
+          "baseline_sha256": "22b35f111fd8dfb2eafe4e0c2ab49817898325cce18333e8c8cc3ae57f0262d0",
+          "sha256": "22b35f111fd8dfb2eafe4e0c2ab49817898325cce18333e8c8cc3ae57f0262d0",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kubescape/collector",
+          "root": "infra/kubescape/collector",
+          "resources": 9,
+          "baseline_sha256": "8085b5b49fc7a01c76f536743a69e046e31d9cdbb2dc55b4400f92e5a3dd9be1",
+          "sha256": "8085b5b49fc7a01c76f536743a69e046e31d9cdbb2dc55b4400f92e5a3dd9be1",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kubescape",
+          "root": "infra/kubescape",
+          "resources": 59,
+          "baseline_sha256": "3b95f8a74b136f217fff9dea745409bddd6c008232dec5fbccea145c142acd8c",
+          "sha256": "3b95f8a74b136f217fff9dea745409bddd6c008232dec5fbccea145c142acd8c",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kubescape/receiver",
+          "root": "infra/kubescape/receiver",
+          "resources": 38,
+          "baseline_sha256": "7e22904e99e93cdb5956a7d78c97548c13d7d6ed7b6fff8ff966c6f4b3ee9604",
+          "sha256": "7e22904e99e93cdb5956a7d78c97548c13d7d6ed7b6fff8ff966c6f4b3ee9604",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kubescape/runtime-bindings",
+          "root": "infra/kubescape/runtime-bindings",
+          "resources": 2,
+          "baseline_sha256": "9b46b333393ee2bbc750fd2d90902a52d7a230b66431406d8e5171905baa0b8a",
+          "sha256": "9b46b333393ee2bbc750fd2d90902a52d7a230b66431406d8e5171905baa0b8a",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kyverno-policies",
+          "root": "infra/kyverno-policies",
+          "resources": 52,
+          "baseline_sha256": "f397f81c26cbb04ad6d00e30a7bb241c0f2d7155b6b2d5546ac6d626e7efb92f",
+          "sha256": "f397f81c26cbb04ad6d00e30a7bb241c0f2d7155b6b2d5546ac6d626e7efb92f",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kyverno/automation",
+          "root": "infra/kyverno/automation",
+          "resources": 10,
+          "baseline_sha256": "7ba9cb30687cf7f90766cf17cbdfe107375482faa08e75c67139bb733e249a29",
+          "sha256": "7ba9cb30687cf7f90766cf17cbdfe107375482faa08e75c67139bb733e249a29",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kyverno/exceptions",
+          "root": "infra/kyverno/exceptions",
+          "resources": 5,
+          "baseline_sha256": "e34c8ed4a7d3c0a347372e23897fb46cf14978ebedd69226b6871595119a3434",
+          "sha256": "e34c8ed4a7d3c0a347372e23897fb46cf14978ebedd69226b6871595119a3434",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kyverno",
+          "root": "infra/kyverno",
+          "resources": 6,
+          "baseline_sha256": "3a31609da8f96734d7d44812936ccdf923d2ecb6695fca17af35e3c20db3e86a",
+          "sha256": "3a31609da8f96734d7d44812936ccdf923d2ecb6695fca17af35e3c20db3e86a",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/kyverno/policies",
+          "root": "infra/kyverno/policies",
+          "resources": 5,
+          "baseline_sha256": "fe71bf859303cb12eb1e02e448d8623c3aff1a05740d13cce8b4578c9b6dda32",
+          "sha256": "fe71bf859303cb12eb1e02e448d8623c3aff1a05740d13cce8b4578c9b6dda32",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/longhorn-node-disks",
+          "root": "infra/longhorn-node-disks",
+          "resources": 8,
+          "baseline_sha256": "cd9680462bf983d545ec91476ab11f4869d6f5b465ddb52f69de0e3749a6ae61",
+          "sha256": "cd9680462bf983d545ec91476ab11f4869d6f5b465ddb52f69de0e3749a6ae61",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/longhorn",
+          "root": "infra/longhorn",
+          "resources": 20,
+          "baseline_sha256": "7e1e20bdc38eda3e61d8b4f683c809e46a773dde0ef47a23fe3a89bcfe18f435",
+          "sha256": "7e1e20bdc38eda3e61d8b4f683c809e46a773dde0ef47a23fe3a89bcfe18f435",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/metrics-server",
+          "root": "infra/metrics-server",
+          "resources": 9,
+          "baseline_sha256": "22744231a77775f8ae26495c991d0e68fac589157dbab83a75673819fcebdeb5",
+          "sha256": "22744231a77775f8ae26495c991d0e68fac589157dbab83a75673819fcebdeb5",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/mosquitto",
+          "root": "infra/mosquitto",
+          "resources": 7,
+          "baseline_sha256": "03793a498077f686e63c8642bc1b10469168d3afb709458f7d059a321982f751",
+          "sha256": "03793a498077f686e63c8642bc1b10469168d3afb709458f7d059a321982f751",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/namespace-defaults/base",
+          "root": "infra/namespace-defaults/base",
+          "resources": 4,
+          "baseline_sha256": "d3d816af8fe773809df870e2e772ee4c61a1ec9a0ec6d9299f37c661890e256f",
+          "sha256": "d3d816af8fe773809df870e2e772ee4c61a1ec9a0ec6d9299f37c661890e256f",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/namespace-defaults/policy-check/consumer",
+          "root": "infra/namespace-defaults/policy-check/consumer",
+          "resources": 1,
+          "baseline_sha256": "bc0f0a220d7bc312d6b9d55632dc1e4beebb990682b58409868458ec187bd4a9",
+          "sha256": "bc0f0a220d7bc312d6b9d55632dc1e4beebb990682b58409868458ec187bd4a9",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/namespace-defaults/policy-check/namespace",
+          "root": "infra/namespace-defaults/policy-check/namespace",
+          "resources": 4,
+          "baseline_sha256": "610c95a0f901d3d2d3c5e1e5ccee5f0f6fa338dc1874df99204a253f4f4a0fc4",
+          "sha256": "610c95a0f901d3d2d3c5e1e5ccee5f0f6fa338dc1874df99204a253f4f4a0fc4",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/observability",
+          "root": "infra/observability",
+          "resources": 34,
+          "baseline_sha256": "498c07213ccc6f2a7b1d62b231e67d8e2c8588eacea5e77b0b4f9b0acc135041",
+          "sha256": "38903a6bf4d9e88b0ef33901dadce40d6373fbf94a738c02a0fb947ba4f72944",
+          "result": "only approved publisher path strings and ConfigMap hash/references"
+        },
+        {
+          "original_root": "infra/observability/security-incident-publisher",
+          "root": "infra/observability/security-incident-publisher",
+          "resources": 18,
+          "baseline_sha256": "2e2b8bfb3d602b01675f9548ce5da728491ef4fdc167c5e246986fcb5c2948f3",
+          "sha256": "1a8721f4a6ecf53bdc5305d7280dbad4bf5170774f9d6b4c7ea25d1cab1a9a0c",
+          "result": "only approved publisher path strings and ConfigMap hash/references"
+        },
+        {
+          "original_root": "infra/pod-report",
+          "root": "infra/pod-report",
+          "resources": 5,
+          "baseline_sha256": "590c261bc7e51bff9e9ce017a7628ff890a29ba116aba0b4ea6d8ebbd9af2da7",
+          "sha256": "590c261bc7e51bff9e9ce017a7628ff890a29ba116aba0b4ea6d8ebbd9af2da7",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/priorityclasses",
+          "root": "infra/priorityclasses",
+          "resources": 2,
+          "baseline_sha256": "fa100f304fd5f45dffa48bcfb18f6291268d627213db787b1bda80472f4e3b06",
+          "sha256": "fa100f304fd5f45dffa48bcfb18f6291268d627213db787b1bda80472f4e3b06",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/snapshot-controller",
+          "root": "infra/snapshot-controller",
+          "resources": 9,
+          "baseline_sha256": "4f5a4992754aff5637e2a448bca6d9c081b1d1754eabbc51b5764c0e934a842b",
+          "sha256": "4f5a4992754aff5637e2a448bca6d9c081b1d1754eabbc51b5764c0e934a842b",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "infra/wireguard",
+          "root": "infra/wireguard",
+          "resources": 2,
+          "baseline_sha256": "e2044216c8830fec5835767ac09b3ef964f79574eb33f1e9b306c94a0d046599",
+          "sha256": "e2044216c8830fec5835767ac09b3ef964f79574eb33f1e9b306c94a0d046599",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "migration/kyverno/namespace-example/namespace",
+          "root": "scripts/ci/kyverno/fixtures/namespace-example/namespace",
+          "resources": 4,
+          "baseline_sha256": "1714171937ae14c6dab618d7f19b447f0c281f28af1591460e2a59bd2944033d",
+          "sha256": "1714171937ae14c6dab618d7f19b447f0c281f28af1591460e2a59bd2944033d",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "migration/kyverno/namespace-example/workloads",
+          "root": "scripts/ci/kyverno/fixtures/namespace-example/workloads",
+          "resources": 2,
+          "baseline_sha256": "17bc4d82c7019d45016b19c1ab83b483eeaddb9bebff86ca3a3e729d94403680",
+          "sha256": "17bc4d82c7019d45016b19c1ab83b483eeaddb9bebff86ca3a3e729d94403680",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "ops/security-collector/acceptance/base",
+          "root": "ops/security-collector/acceptance/base",
+          "resources": 5,
+          "baseline_sha256": "b8763c709f6b035e0163a9c6749b033b26e841cc4bd3676bf2c7c4a9fcad5a44",
+          "sha256": "b8763c709f6b035e0163a9c6749b033b26e841cc4bd3676bf2c7c4a9fcad5a44",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "ops/security-collector/acceptance",
+          "root": "ops/security-collector/acceptance",
+          "resources": 5,
+          "baseline_sha256": "b8763c709f6b035e0163a9c6749b033b26e841cc4bd3676bf2c7c4a9fcad5a44",
+          "sha256": "b8763c709f6b035e0163a9c6749b033b26e841cc4bd3676bf2c7c4a9fcad5a44",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "ops/security-collector/acceptance/trigger",
+          "root": "ops/security-collector/acceptance/trigger",
+          "resources": 5,
+          "baseline_sha256": "1faa6cc892032d6d14d7eb12aa13e51779df0657a83c0cdcbcbd4a0940238804",
+          "sha256": "1faa6cc892032d6d14d7eb12aa13e51779df0657a83c0cdcbcbd4a0940238804",
+          "result": "byte-identical"
+        },
+        {
+          "original_root": "secrets",
+          "root": "secrets",
+          "resources": 2,
+          "baseline_sha256": "6fb63386bcb3fdc1a1a94b278e5872ed8a38ceaec6ee283bd9eef26f3310ed71",
+          "sha256": "6fb63386bcb3fdc1a1a94b278e5872ed8a38ceaec6ee283bd9eef26f3310ed71",
+          "result": "byte-identical"
+        }
+      ]
+    },
+    "policy_regeneration": {
+      "status": "verified",
+      "commands": [
+        "python scripts/ci/kyverno/build.py",
+        "python scripts/ci/kyverno/render-report-identities.py",
+        "git diff --exit-code -- infra/kyverno-policies/policies infra/kyverno-policies/exceptions infra/kyverno-policies/policy-map.json infra/kyverno/automation/github-issue-sync-configmap.yaml"
+      ],
+      "result": "No generated-file differences; all nine relocated production files retain their original bytes."
+    },
+    "historical_payloads": {
+      "status": "verified",
+      "evidence_files": 21,
+      "exception_decisions": "byte-identical",
+      "original_hashes_paths_and_archive_urls": "unchanged, including embedded JSON references"
+    },
+    "private_audit_helper": {
+      "status": "verified",
+      "result": "Retained byte-identically; repository-root import and --help work. No private snapshot collected."
+    },
+    "regression": {
+      "status": "verified",
+      "ci_tests": 130,
+      "script_tests": 605,
+      "gitea_tests": 38,
+      "initial_skips": 2,
+      "skip_followups": "Both skipped optional integrations passed after supplying kustomize 5.5.0 and zstandard 0.25.0: 34 Kubescape tests and 21 Grype DB tests.",
+      "coverage": "Includes renamed and deleted old/new paths, staged temporary Flux fixture renders, publisher policy/native/admission regressions, identity/exception/PSA and mandatory aggregate fail-closed tests.",
+      "selector_suite_tests": 30
+    },
+    "validators": {
+      "status": "verified",
+      "inventory": "8 legacy policies, 29 rules, 5 exceptions",
+      "namespace_defaults": "28 production reconciliations and isolated example",
+      "local_markdown_links": 55,
+      "workflow_lint": "actionlint 1.7.8 (shellcheck integration disabled), yamllint, zizmor offline",
+      "shell_syntax": "run.sh and trust.sh"
+    },
+    "required_check_names": {
+      "status": "verified",
+      "workflows": {
+        "ci.yml": {
+          "workflow": "Repo Checks",
+          "jobs": {
+            "changes": "changes",
+            "unit-tests": "unit-tests",
+            "manifest-validation": "manifest-validation",
+            "public-edge": "public-edge",
+            "shell-syntax": "shell-syntax",
+            "actionlint": "actionlint",
+            "yamllint": "yamllint",
+            "gitleaks": "gitleaks",
+            "zizmor": "zizmor",
+            "terraform-validation": "terraform-validation",
+            "validate": "validate",
+            "renovate-config": "renovate-config",
+            "kyverno-release-change": "kyverno-release-change",
+            "kyverno-compatibility": "kyverno-compatibility",
+            "repo-checks": "repo-checks"
+          },
+          "matrices": {
+            "terraform-validation": "${{ fromJSON(needs.changes.outputs.terraform_matrix) }}"
+          }
+        },
+        "kubescape-checks.yml": {
+          "workflow": "Kubescape Assessment Checks",
+          "jobs": {
+            "qualify-release": "qualify-release"
+          },
+          "matrices": {}
+        },
+        "kyverno-compatibility.yml": {
+          "workflow": "Kyverno proposed release compatibility",
+          "jobs": {
+            "contracts": "contracts",
+            "deployment-qualification": "deployment-qualification"
+          },
+          "matrices": {
+            "contracts": {
+              "scenario": "${{ fromJSON(inputs.scenarios || '[\"namespace-lifecycle\", \"production-sequence\", \"mutation\", \"validation\"]') }}"
+            }
+          }
+        },
+        "kyverno-cel-rehearsal.yml": {
+          "workflow": "Isolated Kyverno deployment qualification",
+          "jobs": {
+            "qualification": "qualification"
+          },
+          "matrices": {}
+        }
+      }
+    },
+    "fresh_isolated_qualification": {
+      "status": "not run locally",
+      "gate": "Dispatch all four mandatory scenarios and aggregate on exact PR head; retain run URL and head SHA in the PR and issue handoff. Independent review/merge/reconciliation acceptance remain required."
+    },
+    "rollback": "Revert the cohesive code PR through Flux; preserve historical archive references. Publisher ConfigMap hashing and reference rewriting remain enabled."
+  }
+}

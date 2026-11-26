@@ -56,7 +56,7 @@ def admission_object(doc, operation):
 def run(version, engine):
     for ns in ['longhorn-system', 'cel-tests']:
         apply(namespace(ns))
-    policy = load('infra/kyverno/policies/longhorn-csi-registrar-lifecycle.yaml' if engine == 'legacy' else 'migration/kyverno/policies/mutation.yaml')[0]
+    policy = load('infra/kyverno/policies/longhorn-csi-registrar-lifecycle.yaml' if engine == 'legacy' else 'infra/kyverno-policies/policies/mutation.yaml')[0]
     apply(policy)
     ready(policy)
     rows = []

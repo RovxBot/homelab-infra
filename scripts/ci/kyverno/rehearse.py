@@ -354,7 +354,7 @@ def governance(version):
     if version == "1.19.2":
         apply(old)
         ready(old)
-    native = load("migration/kyverno/policies/governance-native.yaml")
+    native = load("infra/kyverno-policies/policies/governance-native.yaml")
     for mode in ["original", "native"] if version == "1.19.2" else ["native"]:
         if mode == "native":
             apply(native)
@@ -368,7 +368,7 @@ def governance(version):
             base = (
                 load("infra/kyverno/exceptions/home-assistant.yaml")[0]
                 if group == "legacy"
-                else load("migration/kyverno/exceptions/exceptions.yaml")[1]
+                else load("infra/kyverno-policies/exceptions/exceptions.yaml")[1]
             )
             base = copy.deepcopy(base)
             base["apiVersion"] = api
@@ -502,7 +502,7 @@ def governance(version):
             # the deliberate zero-replica bootstrap probe. Establish actual
             # admission availability before starting strict decision tests.
             probe = (load('infra/kyverno/exceptions/home-assistant.yaml')[0]
-                     if version == '1.19.2' else next(d for d in load('migration/kyverno/exceptions/exceptions.yaml') if d['metadata']['name']=='home-assistant'))
+                     if version == '1.19.2' else next(d for d in load('infra/kyverno-policies/exceptions/exceptions.yaml') if d['metadata']['name']=='home-assistant'))
             probe = copy.deepcopy(probe)
             probe['metadata']['name'] = 'admission-readiness-probe'
             wait('admission service resumes after bootstrap probe',lambda:k('create','--dry-run=server','-f','-',data=yaml.safe_dump(probe),check=False).returncode==0)
@@ -530,7 +530,7 @@ def prepare_reporting_rbac():
         )
 
     before = can_read()
-    apply(load("migration/kyverno/policies/reporting-rbac.yaml"))
+    apply(load("infra/kyverno-policies/policies/reporting-rbac.yaml"))
     wait("aggregate explicit runner reporting permission", can_read)
     record(
         "runner-reporting-rbac",

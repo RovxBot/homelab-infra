@@ -19,9 +19,9 @@ def run(kyverno, policy=POLICY):
     assert match, 'Unknown executed Kyverno version'
     cel = tuple(map(int,match.groups())) >= (1,20,0)
     if cel:
-        docs=list(yaml.safe_load_all((ROOT/'migration/kyverno/policies/workloads.yaml').read_text()))
+        docs=list(yaml.safe_load_all((ROOT/'infra/kyverno-policies/policies/workloads.yaml').read_text()))
         chosen=next(d for d in docs if d['metadata']['name']=='platform-pod-standards-require-requests-and-limits')
-        exception_docs=[d for d in yaml.safe_load_all((ROOT/'migration/kyverno/exceptions/exceptions.yaml').read_text()) if d['metadata']['name'] in ['chart-managed-workloads','home-assistant']]
+        exception_docs=[d for d in yaml.safe_load_all((ROOT/'infra/kyverno-policies/exceptions/exceptions.yaml').read_text()) if d['metadata']['name'] in ['chart-managed-workloads','home-assistant']]
     else:
         chosen=yaml.safe_load(Path(policy).read_text())
         exception_docs=[yaml.safe_load((ROOT/f'infra/kyverno/exceptions/{name}.yaml').read_text()) for name in ['chart-managed-workloads','home-assistant']]

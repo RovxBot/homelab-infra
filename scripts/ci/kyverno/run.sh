@@ -68,7 +68,7 @@ kubectl --context "$REHEARSAL_CONTEXT" apply --server-side -f clusters/home/flux
 kubectl --context "$REHEARSAL_CONTEXT" -n flux-system rollout status deployment/source-controller --timeout=120s
 kubectl --context "$REHEARSAL_CONTEXT" -n flux-system rollout status deployment/kustomize-controller --timeout=120s
 python3 scripts/ci/check_kyverno_migration_inventory.py
-python3 migration/kyverno/harness/build.py
-git diff --exit-code -- migration/kyverno/policies migration/kyverno/exceptions migration/kyverno/policy-map.json
+python3 scripts/ci/kyverno/build.py
+git diff --exit-code -- infra/kyverno-policies/policies infra/kyverno-policies/exceptions infra/kyverno-policies/policy-map.json
 export KYVERNO_TARGET_VERSION="$(python3 -c 'import json; print(json.load(open(".work/cel/trust/target.json"))["application"])')"
-python3 -u migration/kyverno/harness/rehearse.py
+python3 -u scripts/ci/kyverno/rehearse.py

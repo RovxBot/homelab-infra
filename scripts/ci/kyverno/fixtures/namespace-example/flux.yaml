@@ -10,7 +10,7 @@ spec:
   interval: 10s
   retryInterval: 5s
   timeout: 30s
-  path: ./migration/kyverno/namespace-example/namespace
+  path: ./scripts/ci/kyverno/fixtures/namespace-example/namespace
   prune: true
   deletionPolicy: Orphan
   wait: true
@@ -27,7 +27,7 @@ spec:
   interval: 10s
   retryInterval: 5s
   timeout: 30s
-  path: ./migration/kyverno/namespace-example/workloads
+  path: ./scripts/ci/kyverno/fixtures/namespace-example/workloads
   prune: true
   wait: true
   dependsOn:

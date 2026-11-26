@@ -47,10 +47,10 @@ Original helpers:
 [prepare.py](https://github.com/RovxBot/homelab-infra/blob/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/activation/prepare.py) and
 [check_activation.py](https://github.com/RovxBot/homelab-infra/blob/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/harness/check_activation.py).
 
-[freeze.yaml](freeze.yaml) remains an active isolated qualification input, along
+[freeze.yaml](../../../scripts/ci/kyverno/fixtures/freeze.yaml) remains an active isolated qualification input, along
 with the legacy namespace bootstrap policy. Current Flux lifecycle, traffic,
 upgrade/rollback, validation, mutation and exception tests remain in the
-[harness](../harness). All four mandatory scenarios and migration inventory/policy
-identity checks remain required; see the [qualification contract](../README.md).
+[harness](../../../scripts/ci/kyverno). All four mandatory scenarios and migration inventory/policy
+identity checks remain required; see the [qualification contract](../../../scripts/ci/kyverno/README.md).
 Current namespace operations are maintained in the
 [Wiki](https://github.com/RovxBot/homelab-infra/wiki/Namespace-Onboarding).

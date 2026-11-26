@@ -40,12 +40,12 @@ jobs:
         env:
           KYVERNO_CANDIDATE_CHART: ${{ inputs.chart }}
           GH_TOKEN: ${{ github.token }}
-        run: bash migration/kyverno/harness/trust.sh
+        run: bash scripts/ci/kyverno/trust.sh
       - name: Test the verified pair in an isolated enforcing CNI
         env:
           REHEARSAL_SCENARIO: ${{ matrix.scenario }}
           CANDIDATE_TRUST: success
-        run: timeout 1500 bash migration/kyverno/harness/run.sh
+        run: timeout 1500 bash scripts/ci/kyverno/run.sh
       - name: Always destroy the rehearsal cluster
         if: always()
         run: |

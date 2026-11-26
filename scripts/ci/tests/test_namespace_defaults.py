@@ -15,9 +15,9 @@ contract = importlib.util.module_from_spec(spec); spec.loader.exec_module(contra
 
 class NamespaceBundleTests(unittest.TestCase):
     def setUp(self):
-        raw = subprocess.check_output(['kubectl','kustomize','--load-restrictor=LoadRestrictionsNone',str(ROOT/'migration/kyverno/namespace-example/namespace')], text=True)
+        raw = subprocess.check_output(['kubectl','kustomize','--load-restrictor=LoadRestrictionsNone',str(ROOT/'scripts/ci/kyverno/fixtures/namespace-example/namespace')], text=True)
         self.docs = list(yaml.safe_load_all(raw))
-        self.ks, self.workload = list(yaml.safe_load_all((ROOT/'migration/kyverno/namespace-example/flux.yaml').read_text()))
+        self.ks, self.workload = list(yaml.safe_load_all((ROOT/'scripts/ci/kyverno/fixtures/namespace-example/flux.yaml').read_text()))
         self.marker = {'apiVersion':'v1','kind':'ConfigMap','metadata':{'name':'marker','namespace':'namespace-example'}}
 
     def errors(self, docs=None, ks=None, workloads=None):
