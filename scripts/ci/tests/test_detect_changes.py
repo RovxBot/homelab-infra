@@ -7,7 +7,6 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import textwrap
 import unittest
 from unittest.mock import patch
 
@@ -142,6 +141,38 @@ class CheckSelectionTests(unittest.TestCase):
 
 
 class GitDiffTests(unittest.TestCase):
+    def test_helper_additions_deletions_and_renames_force_full_checks(self):
+        for change in ('add', 'delete', 'rename'):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+
+                def git(*args):
+                    return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
+
+                git('init', '-b', 'main')
+                git('config', 'user.name', 'CI selection test')
+                git('config', 'user.email', 'ci-test@example.invalid')
+                old = root / 'scripts/ci/run_selected_tests.py'
+                old.parent.mkdir(parents=True)
+                old.write_text('# baseline helper\n')
+                git('add', '.')
+                git('commit', '-m', 'baseline')
+                base = git('rev-parse', 'HEAD')
+                if change == 'add':
+                    (root / 'scripts/ci/require_checks.py').write_text('# added helper\n')
+                elif change == 'delete':
+                    old.unlink()
+                else:
+                    old.rename(root / 'scripts/retired_runner.py')
+                git('add', '-A')
+                git('commit', '-m', change)
+                result = subprocess.run(
+                    [sys.executable, str(SCRIPT), '--event', 'pull_request', '--base', base, '--head', 'HEAD'],
+                    cwd=root, env={**os.environ, 'GITHUB_OUTPUT': str(root / 'outputs')},
+                    capture_output=True, text=True, check=True,
+                )
+                self.assertEqual(json.loads(result.stdout)['checks'], detect.classify_changes([], full=True))
+
     def test_kyverno_rename_and_deletion_select_checks_from_both_paths(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -231,30 +262,26 @@ class GitDiffTests(unittest.TestCase):
         for event in ["schedule", "workflow_dispatch"]:
             with self.subTest(event=event), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory) / "outputs"
-                subprocess.run(
+                result = subprocess.run(
                     [sys.executable, str(SCRIPT), "--event", event],
                     env={**os.environ, "GITHUB_OUTPUT": str(output)}, check=True, capture_output=True,
                 )
                 self.assertNotIn("=false\n", output.read_text())
+                self.assertEqual(json.loads(result.stdout)['checks'], detect.classify_changes([], full=True))
 
 
 class RequiredGateTests(unittest.TestCase):
     @staticmethod
-    def run_step(name: str, env: dict[str, str], *, capture=False):
+    def run_step(name: str, env: dict[str, str], *, capture=False, cwd=None):
         # Execute the actual gate's shell block so the tests cover its failure
         # behavior rather than a second implementation of the workflow logic.
-        workflow = (SCRIPT.parents[2] / ".github/workflows/ci.yml").read_text()
-        step = workflow.split(f"      - name: {name}\n", 1)[1]
-        lines = step.split("        run: |\n", 1)[1].splitlines()
-        block = []
-        for line in lines:
-            if line.strip() and not line.startswith("          "):
-                break
-            block.append(line)
-        command = textwrap.dedent("\n".join(block))
+        import yaml
+        workflow = yaml.safe_load((SCRIPT.parents[2] / '.github/workflows/ci.yml').read_text())
+        command = next(step['run'] for job in workflow['jobs'].values()
+                       for step in job.get('steps', []) if step.get('name') == name)
         result = subprocess.run(
             ["bash", "-e", "-o", "pipefail", "-c", command],
-            env={**os.environ, **env}, capture_output=True,
+            env={**os.environ, **env}, cwd=cwd or SCRIPT.parents[2], capture_output=True,
         )
         return result if capture else result.returncode
 
@@ -265,7 +292,7 @@ class RequiredGateTests(unittest.TestCase):
     def successful_results() -> dict:
         names = ["kyverno-release-change", "kyverno-compatibility", "changes", "unit-tests", "manifest-validation", "public-edge", "shell-syntax", "actionlint", "yamllint", "gitleaks", "zizmor", "validate", "renovate-config"]
         results = {name: {"result": "success"} for name in names}
-        results["changes"]["outputs"] = {selector: "true" for selector in ["unit_tests", "manifests", "public_edge", "shell", "workflows", "renovate", "terraform"]}
+        results["changes"]["outputs"] = detect.classify_changes([], full=True)
         results["kyverno-release-change"]["outputs"] = {"changed": "true", "chart": "3.10.0"}
         return results
 
@@ -308,7 +335,7 @@ class RequiredGateTests(unittest.TestCase):
 
     def test_unrelated_jobs_may_be_skipped(self):
         results = self.successful_results()
-        results["changes"]["outputs"] = {selector: "false" for selector in results["changes"]["outputs"]}
+        results["changes"]["outputs"] = detect.classify_changes(['docs/unrelated.md'])
         results["kyverno-release-change"]["outputs"]["changed"] = "false"
         for name in results:
             if name not in {"changes", "gitleaks", "kyverno-release-change"}:

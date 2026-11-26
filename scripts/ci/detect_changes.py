@@ -15,6 +15,10 @@ FULL_CHECK_PATHS = {
     ".github/workflows/ci.yml",
     "scripts/ci/detect_changes.py",
     "scripts/ci/tests/test_detect_changes.py",
+    "scripts/ci/run_selected_tests.py",
+    "scripts/ci/require_checks.py",
+    "scripts/ci/tests/test_run_selected_tests.py",
+    "scripts/ci/tests/test_require_checks.py",
 }
 MANIFEST_CHECK_PATHS = {
     ".github/kyverno-baseline.yaml",
