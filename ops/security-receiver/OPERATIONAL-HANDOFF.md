@@ -126,3 +126,17 @@ credential, response body, candidate contents or signed redirect URL. This
 remains optional enrichment: existing qualified incident publishing and
 recovery safeguards are unaffected. Do not weaken freshness or integrity checks
 just to achieve `observed`.
+
+## Retire the WotLK weekly restart exception
+
+First apply the digest-only reference to the existing kubectl image; the exact
+SHA256 is unchanged and no unverified release tag is asserted. The active CEL
+rules require `@sha256:` and reject `:latest`; this reference satisfies both.
+The weekly restart schedule and announcement commands are unchanged. Do not run
+the restart Job as an acceptance probe. After Flux applies the CronJob, verify
+its template and absence of active legacy-template Jobs, and qualify a
+nonpersisted admission probe. Only then retire the active exception and adjust
+the exact assurance inventory and historical compatibility fixtures in a second
+reviewed change. Do not extend the deadline or suppress the assurance reminder.
+Confirm Renovate tracking for a digest-only reference; if unsupported, qualify
+a version tag against the same digest before changing the maintenance contract.
