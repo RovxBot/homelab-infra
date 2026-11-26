@@ -310,6 +310,46 @@ class CVEPublisherTests(unittest.TestCase):
         self.assertEqual(candidate.image_identity("registry.example:5000/app:v1@sha256:"+"a"*64),
                          ("registry.example:5000/app","sha256:"+"a"*64))
 
+    def test_live_remediation_discovery_fences_untrusted_or_stale_prs(self):
+        candidate_spec = importlib.util.spec_from_file_location(
+            "remediation_candidates", ROOT/"scripts/security_remediation_candidates.py")
+        candidate = importlib.util.module_from_spec(candidate_spec)
+        candidate_spec.loader.exec_module(candidate)
+        base, head = "a"*40, "b"*40
+        repo = {"full_name": candidate.REPOSITORY}
+        def pr(number, **extra):
+            return dict({"number": number, "state": "open", "draft": False,
+                         "base": {"ref": "main", "sha": base, "repo": repo},
+                         "head": {"sha": head, "repo": repo}}, **extra)
+        pulls = [pr(1), pr(2, draft=True), pr(3, head={"sha": head, "repo": {"full_name": "other/repo"}}),
+                 pr(4), pr(5, head={"sha": "c"*40, "repo": repo}),
+                 pr(6, base={"ref": "main", "sha": "d"*40, "repo": repo})]
+        fetched = []
+        def fetch(number):
+            fetched.append(number)
+            return "e"*40 if number == 4 else pulls[number-1]["head"]["sha"]
+        def current(path):
+            f = ROOT/path
+            return f.read_text() if f.is_file() else None
+        workload = "memos/Deployment/memos"
+        path = pub.CVE_SOURCES[workload][0]
+        old = candidate.declared_image(current, workload, "memos")
+        new = old.rsplit("@",1)[0] + "@sha256:" + "f"*64
+        def reader(commit):
+            return lambda source: current(source).replace(old,new) if commit == head and source == path else current(source)
+        result = candidate.live_candidates(pulls, base, fetch,
+                                           lambda before, after: after == head, reader)
+        self.assertEqual(fetched, [1,4,5])
+        self.assertEqual(result["skipped"], {"not_ready":1, "unsupported_base_or_repository":2,
+                                             "head_changed":1, "branch_behind_main":1})
+        self.assertEqual(len(result["candidates"]), 1)
+        self.assertEqual(result["candidates"][0]["pr"], 1)
+        self.assertEqual(result["candidates"][0]["state"], "candidate_not_assessed")
+        with self.assertRaises(ValueError):
+            candidate.live_candidates([pr(1), pr(1)], base, fetch, lambda *_: True, reader)
+        with self.assertRaises(ValueError):
+            candidate.live_candidates([pr(i) for i in range(1,52)], base, fetch, lambda *_: True, reader)
+
     def test_private_projection_scope_matches_reviewed_scan_config(self):
         import json
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
