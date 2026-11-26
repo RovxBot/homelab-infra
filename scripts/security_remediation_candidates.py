@@ -6,6 +6,7 @@ Outputs candidate metadata only, never reads scanner findings, credentials,
 issue bodies or private Gitea. A candidate is not a verified vulnerability fix.
 """
 import argparse
+from datetime import datetime, timezone
 import importlib.util
 import json
 from pathlib import Path
@@ -19,30 +20,8 @@ SPEC = importlib.util.spec_from_file_location(
 P = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(P)
 SHA = re.compile(r"[0-9a-f]{40}")
-REF = re.compile(r"([a-z0-9][a-z0-9._:/-]{0,300})(?::([A-Za-z0-9_][A-Za-z0-9_.-]{0,127}))?@(sha256:[a-f0-9]{64})")
-
-
-def canonical_repository(value):
-    # Docker Hub's default registry/library names are equivalent; explicit
-    # registry ports and non-Hub repositories must never be conflated.
-    parts = value.split("/")
-    if len(parts) == 1:
-        return "docker.io/library/" + value
-    if parts[0] in ("docker.io", "index.docker.io"):
-        rest = parts[1:]
-        return "docker.io/" + ("library/" if len(rest) == 1 else "") + "/".join(rest)
-    if "." not in parts[0] and ":" not in parts[0] and parts[0] != "localhost":
-        return "docker.io/" + value
-    return value
-
-
-def image_identity(value):
-    if not isinstance(value, str) or not REF.fullmatch(value):
-        return None
-    named, digest = value.rsplit("@", 1)
-    last = named.rsplit("/", 1)[-1]
-    repository = named.rsplit(":", 1)[0] if ":" in last else named
-    return canonical_repository(repository), digest
+canonical_repository = P.canonical_repository
+image_identity = P.candidate_image_identity
 
 
 def declared_image(read, workload, container):
@@ -158,7 +137,8 @@ def live_candidates(pulls, base, fetch_head, ancestor, reader=git_reader):
                        for item in candidate["candidates"])
     return {"schema": 1, "repository": REPOSITORY, "base": base,
             "state": "observed", "openPrCount": len(pulls),
-            "skipped": skipped, "candidates": results}
+            "skipped": skipped, "candidates": results,
+            "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
 
 def discover_live():
