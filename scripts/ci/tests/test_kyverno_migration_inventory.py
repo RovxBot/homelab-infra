@@ -18,7 +18,8 @@ class MigrationInventoryTests(unittest.TestCase):
         self.assertEqual(check.check(check.ROOT, self.inventory), [])
         self.assertEqual(len(self.inventory["policies"]), 8)
         self.assertEqual(sum(len(p["rules"]) for p in self.inventory["policies"]), 29)
-        self.assertEqual(len(self.inventory["exceptions"]), 6)
+        self.assertEqual(len(self.inventory["exceptions"]), 5)
+        self.assertNotIn("wotlk-latest-tag", {item["name"] for item in self.inventory["exceptions"]})
 
     def test_new_legacy_policy_outside_kyverno_directory_is_not_silently_ignored(self):
         with tempfile.TemporaryDirectory() as temp:

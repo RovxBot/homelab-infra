@@ -5,5 +5,4 @@ resources:
   - mutable-image-tags.yaml
   - chart-managed-workloads.yaml
   - gpu-operator-workloads.yaml
-  - wotlk-latest-tag.yaml
   - home-assistant.yaml

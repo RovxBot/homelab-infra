@@ -992,76 +992,7 @@
           "name": "platform-pod-standards-require-runtime-hardening"
         }
       ]
-    },
-    {
-      "path": "infra/kyverno/exceptions/wotlk-latest-tag.yaml",
-      "apiVersion": "kyverno.io/v2",
-      "kind": "PolicyException",
-      "namespace": "kyverno",
-      "name": "wotlk-latest-tag",
-      "contract_sha256": "a8ee29775694eb87972b877fe43cdde3ef730cb731ecfb5a0c50fc848785536b",
-      "legacy_policy_refs": [
-        {
-          "policyName": "platform-pod-standards",
-          "ruleNames": [
-            "disallow-latest-tags"
-          ]
-        }
-      ],
-      "match": {
-        "any": [
-          {
-            "resources": {
-              "kinds": [
-                "CronJob"
-              ],
-              "names": [
-                "wotlk-weekly-restart"
-              ],
-              "namespaces": [
-                "wotlk"
-              ]
-            }
-          },
-          {
-            "resources": {
-              "kinds": [
-                "Job"
-              ],
-              "names": [
-                "wotlk-weekly-restart*"
-              ],
-              "namespaces": [
-                "wotlk"
-              ]
-            }
-          }
-        ]
-      },
-      "governance": {
-        "labels": {
-          "homelab.cooked.beer/owner": "platform"
-        },
-        "annotations": {
-          "kyverno.cooked.beer/reason": "The weekly WotLK restart job intentionally tracks the latest built image tag.",
-          "kyverno.cooked.beer/expires-at": "2026-12-05",
-          "github.cooked.beer/issue-create": "true",
-          "github.cooked.beer/issue-url": "https://github.com/RovxBot/homelab-infra/issues/2133"
-        }
-      },
-      "test_cases": [
-        "all match.any branches retain OR and internal AND/cartesian semantics",
-        "positive exception skips only named targets; adjacent name/kind/namespace remains enforced",
-        "owner/reason/expiry/issue marker retained; missing governance denied"
-      ],
-      "status": "not run",
-      "target_policy_refs": [
-        {
-          "kind": "ValidatingPolicy",
-          "name": "platform-pod-standards-disallow-latest-tags"
-        }
-      ]
     }
   ],
-  "maintenance_review": "Task 20, 22 November 2026: metadata-only bounded renewal of five exceptions; original spec/match and policy targets unchanged. Historical snapshot remains in #2159."
+  "maintenance_review": "Task 20, 22 November 2026: metadata-only bounded renewal of five exceptions; original spec/match and policy targets unchanged. Historical snapshot remains in #2159. 26 November 2026: retire the WotLK restart exception after the digest-only CronJob was deployed; original acceptance remains in Git history."
 }

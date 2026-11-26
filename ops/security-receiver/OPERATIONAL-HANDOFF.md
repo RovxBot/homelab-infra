@@ -140,3 +140,17 @@ the exact assurance inventory and historical compatibility fixtures in a second
 reviewed change. Do not extend the deadline or suppress the assurance reminder.
 Confirm Renovate tracking for a digest-only reference; if unsupported, qualify
 a version tag against the same digest before changing the maintenance contract.
+
+## WotLK exception retirement — stage 2
+
+PR #2310 is deployed: the exact original kubectl digest is retained, the latest
+label is absent, and no old restart Job is active. The retired exception is
+removed from active CEL and legacy source/compatibility inventory, both assurance
+and private policy publisher expected sets, and reviewed guidance. The old
+identity is unexpected drift if reintroduced; the five other exceptions and
+all enforcing policies are unchanged. Historical six-exception acceptance is
+retained in Git history, not rewritten. CI and live Flux prune must be verified;
+then qualify the current CronJob and representative Job with server dry-run and
+verify fresh assurance. Do not execute the weekly restart to test admission.
+Any existing private review issue remains open until positive compliance is
+verified and the operator resolves it; no automatic closure on disappearance.

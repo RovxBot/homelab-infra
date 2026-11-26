@@ -36,7 +36,7 @@ def main():
         hashes[p.name]=hashlib.sha256(p.read_bytes()).hexdigest()
     original=yaml.safe_load((ROOT/'infra/kyverno/policies/platform-pod-standards.yaml').read_text())
     result=dict(status='verified',read_only=True,method='Kyverno 1.19.2 CLI; selected original rules, exact exception match scopes, no exceptions supplied; CREATE evaluation of current specs',input_sha256=hashes,exceptions={})
-    for name in ['chart-managed-workloads','gpu-operator-workloads','mutable-image-tags','privileged-namespaces','wotlk-latest-tag']:
+    for name in ['chart-managed-workloads','gpu-operator-workloads','mutable-image-tags','privileged-namespaces']:
         ex=yaml.safe_load((ROOT/'infra/kyverno/exceptions'/f'{name}.yaml').read_text());rules=ex['spec']['exceptions'][0]['ruleNames']
         policy=copy.deepcopy(original);policy['spec']['rules']=[r for r in policy['spec']['rules'] if r['name'] in rules]
         work=folder/name;work.mkdir(exist_ok=True);policies=work/'policies';policies.mkdir(exist_ok=True)
