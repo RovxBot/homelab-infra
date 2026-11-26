@@ -262,3 +262,17 @@ eligible; healthy images (including reporting-only overflow) are not rescanned
 merely because a publication projection is incomplete. A failed extra attempt
 consumes the allowance. Do not delete completion markers or bypass the fence.
 The catch-up does not replace the ordinary slot marker or create a new schedule.
+
+### Second bounded projection qualification
+
+The 26 November 01:37 UTC refresh observed 11/12 healthy assessments and
+10/12 complete private projections. Increase the per-workload complete
+High/Critical CVE summary bound from 200 to 230, with the existing 240 KiB
+producer / 256 KiB exact consumer wire bounds unchanged. The worst-case
+12-workload test requires additional metadata headroom. Retained overflow
+recovery accepts only the original 100 or 200-ID overflow verdict reproduced
+from exact qualified archives, with the original assessment timestamp retained.
+This is a bounded qualification attempt, not evidence that the remaining
+actual advisory set fits; no ID truncation or increase in recovery-proof cap.
+Stirling PDF's separate image size rejection requires measured registry
+manifest evidence before scanner capacity changes.

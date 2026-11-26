@@ -423,7 +423,8 @@ PRIVATE_CVE_TARGETS = {
 }
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 LEGACY_PRIVATE_CVE_LIMIT = 100
-MAX_PRIVATE_CVES = 200
+PREVIOUS_PRIVATE_CVE_LIMIT = 200
+MAX_PRIVATE_CVES = 230
 MAX_PRIVATE_DETAIL_MATCHES = 12
 MAX_RECOVERY_CVES = 256
 MAX_PRIVATE_PROJECTION_BYTES = 240 * 1024
@@ -855,7 +856,8 @@ def recover_private_projection(history, inventory, records, config):
                 # archive that would not have produced the original verdict.
                 if findings["state"] != "complete":
                     continue
-                db.require(previous == private_cve_findings(matches, limit=LEGACY_PRIVATE_CVE_LIMIT),
+                db.require(any(previous == private_cve_findings(matches, limit=limit)
+                               for limit in (LEGACY_PRIVATE_CVE_LIMIT, PREVIOUS_PRIVATE_CVE_LIMIT)),
                            "archive_projection_mismatch")
             else:
                 db.require(previous is None or previous == findings, "archive_projection_mismatch")

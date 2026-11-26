@@ -111,11 +111,12 @@ class RetainedProjectionTests(unittest.TestCase):
         report["metadata"]["name"] = R.client.REPORT
         report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(NOW)
         matches = [{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}}
-                   for i in range(R.LEGACY_PRIVATE_CVE_LIMIT+1)]
+                   for i in range(R.PREVIOUS_PRIVATE_CVE_LIMIT+1)]
         report["spec"]["payload"]["matches"] = matches
         checked = R.check_report(report,sbom,current,EXPECTED,R.db.stamp(NOW))
         job = "recurring-" + "b"*32
-        prior = R.private_cve_findings(matches, limit=R.LEGACY_PRIVATE_CVE_LIMIT)
+        prior = R.private_cve_findings(matches, limit=R.PREVIOUS_PRIVATE_CVE_LIMIT)
+        self.assertEqual(prior, R.private_cve_findings(matches, limit=R.LEGACY_PRIVATE_CVE_LIMIT))
         self.assertEqual(prior["state"],"overflow")
         record = dict(checked, jobID=job, workloadUID=current["workloadUID"],
                       imageDigest=current["runningDigest"],container=current["container"],
@@ -144,7 +145,8 @@ class RetainedProjectionTests(unittest.TestCase):
                 self.assertEqual(saved["createdAt"],record["createdAt"])
                 self.assertEqual(saved["privateCve"]["state"],"overflow" if corrupt else "complete")
                 if not corrupt:
-                    self.assertEqual(len(saved["privateCve"]["findings"]),101)
+                    self.assertEqual(len(saved["privateCve"]["findings"]), R.PREVIOUS_PRIVATE_CVE_LIMIT + 1)
+                    self.assertEqual(saved["privateCve"], R.private_cve_findings(matches))
                     self.assertEqual(R.recover_private_projection(history,inventory,records,config),0)
 
     def test_retained_reader_rejects_oversize_and_symlink(self):
@@ -944,7 +946,9 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         projection=R.rich_private_cve_projection(inventory,records)
         wire=json.dumps({"metadata":{"name":"kubescape-private-cve","namespace":"kubescape"},
                          "data":{"projection.json":json.dumps(projection,separators=(",",":"))}}).encode()
-        self.assertLess(len(wire),R.MAX_PRIVATE_PROJECTION_BYTES)
+        # Leave at least 8 KiB for actual Kubernetes object metadata and
+        # serialization overhead; optional detail/proof still falls back.
+        self.assertLess(len(wire)+8*1024,R.MAX_PRIVATE_PROJECTION_BYTES)
         self.assertLess(len(wire),publisher.MAX_CVE_BODY)
         entries=publisher.validate_cve(projection,NOW)
         self.assertEqual(len(entries),len(R.PRIVATE_CVE_TARGETS))
