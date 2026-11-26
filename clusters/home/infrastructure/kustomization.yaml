@@ -19,3 +19,4 @@ resources:
   - ../../../secrets/gatus-github-token.enc.yaml
   - ../../../secrets/homelab-security-gitea.enc.yaml
   - ../../../secrets/wotlk-mariadb-auth.enc.yaml
+  - ../../../secrets/security-remediation-github-read.enc.yaml
