@@ -1,12 +1,13 @@
 # Kyverno migration with Flux-owned namespace defaults
 
-Task 18 replaces unused namespace generation with explicit Flux reconciliation.
+The accepted migration uses explicit Flux reconciliation for namespace defaults.
 Kyverno remains responsible for validation, mutation, scoped exceptions and
-reporting. The [activation sequence](activation/README.md),
-[exception decision table](activation/exception-review.md) and
-[qualification evidence](evidence/task18/qualification.json) define review gates.
-No production entrypoint references the namespace example, new admission guards
-or CEL policy fixtures. Production chart, exceptions and Cilium are unchanged.
+reporting. Production consumes the CEL manifests through infra/kyverno-policies.
+The [completed activation history](activation/README.md),
+[exception decisions](activation/exception-review.md) and
+[Task 21 acceptance](evidence/task21/deployment.json) retain the cutover record.
+Current namespace operations belong in the
+[Wiki](https://github.com/RovxBot/homelab-infra/wiki/Namespace-Onboarding).
 
 The [reusable namespace base](../../infra/namespace-defaults/README.md) preserves
 all three legacy resource specifications. A complete four-object bundle and a
@@ -14,17 +15,19 @@ separate Flux workload dependency are required. A label alone does not onboard a
 namespace. CI checks completeness/dependencies; native admission restricts
 identity, metadata, accessible shapes/network specification and destructive deletion;
 CI verifies the complete Quantity-map specifications. The empty
-legacy generator is retired only under proven native freeze, repeated complete
-zero inventories, observed orphan settings and explicit policy/queue absence.
+legacy generator retirement was qualified under proven native freeze, repeated
+complete zero inventories, observed orphan settings and explicit policy/queue absence.
 
 The [architectural decision](../../docs/decisions/0003-flux-namespace-defaults.md)
-retains historical generator failures. Historical generation manifests/modules
-remain diagnostic evidence, are excluded from every runnable qualification path,
-and must never be added to a production Kustomization. No GeneratingPolicy or
-additional generator write RBAC is needed by the selected architecture.
+retains historical generator failures. The abandoned implementation is linked
+from the [historical assessment](../../docs/kyverno/migration-plan.md); its replay
+tooling is retired. No GeneratingPolicy or additional generator write RBAC is
+needed by the selected architecture. The legacy bootstrap policy and
+activation/freeze.yaml remain inputs to isolated qualification.
 
 Run the [manual deployment workflow](../../.github/workflows/kyverno-cel-rehearsal.yml)
-on the implementation branch. Blank scenarios runs **all four mandatory jobs**:
+on the exact implementation head with **reuse_validation=false**. Leaving scenarios
+blank runs **all four mandatory jobs**:
 namespace-lifecycle, production-sequence, mutation and validation. A JSON subset
 is diagnostic and cannot qualify deployment. Each disposable hosted kind v0.30.0 /
 Kubernetes v1.34.0 environment uses enforcing Calico v3.31.0, Helm v3.19.0 and the
@@ -57,26 +60,24 @@ resolves and tests the actual proposed chart/application pair, authenticates exa
 release/source/CLI identities, validates image signatures/provenance and vendor
 Kubernetes support, and never silently substitutes an older version. Unchanged
 evidence can be reused only with complete input **and implementation** hashes and
-identical verified release artifacts; Task 18 reruns validation because shared
-harness installation changed. Its successful validation job now has a complete
-input/implementation contract; exact matches can reuse that job in the final
-full run. Set workflow reuse_validation=false to force new admissions. Historical
-incomplete contracts cannot pass.
-Kyverno remains separate from Monday maintenance, manual review and no automerge;
-temporary Renovate cap removal is prepared only in the final reviewed upgrade
-patch, with no permanent single-release pin.
+identical verified release artifacts. The retained validation contract is
+historical: build.py is an implementation input and its old hashes must never be
+refreshed to approve untested changes. This retirement requires fresh admissions
+with reuse_validation=false. The manual workflow's reuse default is unchanged;
+set the input explicitly. Historical incomplete or mismatched contracts fail closed.
+Kyverno remains separate from Monday maintenance, with manual review and no
+automerge. Task 21 records removal of the temporary Renovate cap after live upgrade
+acceptance, with no permanent single-release pin.
 
 For local reproduction, use a disposable Linux Docker host with Python/PyYAML
 6.0.3, run trust.sh successfully, then set KYVERNO_REHEARSAL_LOCAL=1,
 CANDIDATE_TRUST=success and REHEARSAL_SCENARIO to one of the mandatory jobs before
-running harness/run.sh under timeout 1500. The entrypoint refuses existing kind
-clusters/kubeconfigs. GH_TOKEN may provide read-only GitHub metadata access;
+running harness/run.sh under timeout 1500 with REUSE_VALIDATION=false. The
+entrypoint refuses existing kind clusters/kubeconfigs. GH_TOKEN may provide read-only GitHub metadata access;
 credentials are not written into evidence. Artifact trust uses Sigstore's official
 certificate/transparency/TUF checks. New hosted runs stay manual and bounded.
 
 Policy regeneration remains harness/build.py followed by
-harness/render-report-identities.py. activation/prepare.py only prepares reviewed
-Git patches. Task 20 authorizes execution of the qualified architecture and staged
-merges after CI and live acceptance. Keep #2133 open and #2158 independent/unmerged
-pending assessment against the deployed version. The Renovate cap is removed in
-phase 05 only after live acceptance of the phase 04 upgrade.
+harness/render-report-identities.py. Migration inventory and policy identity
+checks remain required. Task 21's historical acceptance does not establish fresh
+qualification or security-project acceptance; #2133 and #2139 remain independent.
