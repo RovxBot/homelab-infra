@@ -380,6 +380,7 @@ class CVEPublisherTests(unittest.TestCase):
             pub.decode_remediation_artifact(*encoded(snapshot, "../candidates.json"))
         def request(opener, url, token, **kw):
             self.assertEqual(token, "read-only")
+            self.assertEqual(kw, {"method":"GET", "payload":None, "phase":"github_api"})
             self.assertTrue(url.startswith(pub.REMEDIATION_API + "/actions/"))
             if "/workflows/" in url:
                 return {"workflow_runs":[{"id":1,"head_sha":base,"head_branch":"main",
@@ -1018,7 +1019,21 @@ class PrivateDestinationTests(unittest.TestCase):
         self.assertIn("/state/gitea-cve-publisher.sqlite",source)
         self.assertNotIn('"/state/publisher.sqlite"',source)
         self.assertNotIn('"/state/cve-publisher.sqlite"',source)
-        self.assertNotIn("api.github.com",source)
+        # GitHub is now an explicitly scoped read-only candidate source, not
+        # an issue destination. Keep the original private writer boundary.
+        reader=next(e for e in env if e["name"]=="REMEDIATION_GITHUB_READ_TOKEN")
+        self.assertEqual(reader["valueFrom"]["secretKeyRef"],
+                         {"name":"security-remediation-github-read","key":"token","optional":True})
+        self.assertNotEqual(reader["valueFrom"]["secretKeyRef"]["name"],
+                            credential["valueFrom"]["secretKeyRef"]["name"])
+        self.assertEqual(pub.REMEDIATION_API, "https://api.github.com/repos/RovxBot/homelab-infra")
+        self.assertEqual(source.count("api.github.com"),1)
+        client=pub.PrivateGitea("test-token",requester=self.request)
+        with self.assertRaises(ValueError):
+            client.call(pub.REMEDIATION_API+"/issues","POST",{"title":"x","body":"x"})
+        with self.assertRaises(ValueError):
+            client.call(pub.REMEDIATION_API+"/actions/runs")
+        self.assertTrue(all(url.startswith(pub.GITEA+"/") for url, _, _ in self.calls))
         old=yaml.safe_load((ROOT/"infra/kyverno/automation/github-issue-sync-cronjob.yaml").read_text())
         self.assertIs(old["spec"]["suspend"],True)
         oldenv=old["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]["env"]
