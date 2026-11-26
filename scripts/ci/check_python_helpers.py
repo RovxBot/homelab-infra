@@ -21,11 +21,12 @@ HELPERS = {
 }
 SOURCES = {
     "kyverno": "infra/kyverno/automation/github-issue-sync-configmap.yaml",
-    "gatus": "infra/observability/gatus-github-issue-sync-configmap.yaml",
+    "gatus": "infra/observability/gatus-github-issue-sync.py",
 }
 
 # Only the standard library is needed inside the candidate images. Load the
-# embedded scripts as modules so their live API entrypoints are never invoked.
+# embedded and standalone scripts as modules so their live API entrypoints
+# are never invoked.
 RUNTIME_CHECKS = r'''
 import json
 import sys
@@ -87,7 +88,8 @@ def helper_images() -> list[str]:
 
 def main() -> None:
     sources = {
-        name: yaml.safe_load((ROOT / path).read_text())["data"]["sync.py"]
+        name: (ROOT / path).read_text() if path.endswith(".py")
+        else yaml.safe_load((ROOT / path).read_text())["data"]["sync.py"]
         for name, path in SOURCES.items()
     }
     for image in helper_images():
