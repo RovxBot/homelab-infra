@@ -415,11 +415,11 @@ spec:
         requests:
           cpu: 300m
           memory: 1Gi
-          ephemeral-storage: 1Gi
+          ephemeral-storage: 3Gi
         limits:
           cpu: 1000m
           memory: 3Gi
-          ephemeral-storage: 3Gi
+          ephemeral-storage: 4Gi
       env:
         - name: CA_MAX_VULN_SCAN_ROUTINES
           value: "1"
@@ -427,9 +427,10 @@ spec:
           value: "1"
         # Viper AutomaticEnv uses the uppercase maxImageSize key; isolate
         # this scanner-only qualification from the chart node-agent config.
-        # Bounded larger-image qualification; retain the 3Gi engine limit.
+        # Measured Stirling PDF layer content: 2493237880 bytes.
+        # Qualify 2.5GiB; retain 3Gi memory and allow bounded temp overhead.
         - name: MAXIMAGESIZE
-          value: "1610612736"
+          value: "2684354560"
         # Scanner-only 32 MiB SBOM qualification; shared chart config stays pinned.
         - name: MAXSBOMSIZE
           value: "33554432"

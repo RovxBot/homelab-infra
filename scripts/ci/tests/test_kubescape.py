@@ -250,11 +250,21 @@ class StagedReleaseTests(unittest.TestCase):
                     CHECK.check_release(changed)
 
     def test_scanner_only_image_limit_is_exact_and_cannot_be_unbounded(self):
-        for invalid in ("1073741824", "0", "3221225472"):
+        for invalid in ("1610612736", "0", "3221225472"):
             changed = copy.deepcopy(self.release)
             env = changed["spec"]["values"]["kubevuln"]["env"]
             next(e for e in env if e["name"] == "MAXIMAGESIZE")["value"] = invalid
             with self.subTest(value=invalid), self.assertRaises(AssertionError):
+                CHECK.check_release(changed)
+
+    def test_scanner_resource_budget_is_exact(self):
+        for side, unit, invalid in (("requests", "ephemeral-storage", "1Gi"),
+                                    ("limits", "ephemeral-storage", "5Gi"),
+                                    ("limits", "memory", "4Gi"),
+                                    ("limits", "cpu", "2")):
+            changed = copy.deepcopy(self.release)
+            changed["spec"]["values"]["kubevuln"]["resources"][side][unit] = invalid
+            with self.subTest(side=side, unit=unit, value=invalid), self.assertRaises(AssertionError):
                 CHECK.check_release(changed)
 
     def test_scope_guard_still_applies_to_kubescape_infrastructure(self):

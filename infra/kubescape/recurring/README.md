@@ -302,3 +302,21 @@ current cohort serialized size and complete issue rendering, and reject
 321 IDs. Optional detail/proof limits and all state-transition gates remain
 unchanged. Future cohort expansion must requalify the full payload bound.
 No new PVC, scanner resource change or public advisory content.
+
+### Measured large-image qualification
+
+Operator streamed all 36 layers of the pinned Stirling PDF linux/amd64 image
+and summed tar member data sizes: 2,493,237,880 bytes (2.322 GiB); compressed
+registry layer bytes 1,171,964,638. The pinned stereoscope v0.3.4-ks.1
+layerTarIndexer counts tar header data sizes, not compressed manifest sizes.
+Qualify scanner-only MAXIMAGESIZE=2684354560 (2.5 GiB; 191,116,680 bytes
+above measured size), with ephemeral storage request 3Gi and limit 4Gi for
+uncompressed tar/cache overhead. This is local ephemeral capacity, not a
+PVC enlargement. The exact CI release guard pins both budgets. CPU, memory,
+2Gi working-set gate, SBOM size, single worker/queue, 300/360s deadlines,
+shared config, storage gates and scheduling remain unchanged. At inspection
+metal4 was Ready without pressure, scanner idle, with approximately 17.2Gi
+node working memory on 30.8Gi allocatable. This does not prove peak disk or
+memory consumption fits. Verify new engine readiness, actual effective cap,
+no evictions/restarts, qualified fresh image report and publisher delivery.
+Stop on any new resource or timeout rejection; do not bypass the gates.
