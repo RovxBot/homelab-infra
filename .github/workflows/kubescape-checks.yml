@@ -125,15 +125,23 @@ jobs:
           import yaml
           text = open('.work/kubescape-preflight/recurring-kyverno.yaml').read()
           report = yaml.safe_load(text[text.index('apiVersion:'):])
-          # Current collector baseline: 20 checks; opt-in disposable
-          # R1000 fixture: +8; one reviewed, nonprivileged receiver
-          # Deployment: +7. Require all checks to PASS, never weaken policy.
+          # Retain the restricted acceptance namespace for receiver inventory
+          # RBAC even when the disposable Deployment is absent: one namespace
+          # check is unconditional, seven workload checks are opt-in.
           source = yaml.safe_load(open('infra/kubescape/kustomization.yaml'))
           trigger = '../../ops/security-collector/acceptance/trigger'
           count = source['resources'].count(trigger)
           assert count in (0, 1), 'unexpected duplicate R1000 fixture'
           assert source['resources'].count('receiver') == 1, 'receiver activation missing/duplicated'
-          expected = 20 + 8 * count + 7 + 6  # reviewed inventory-refresh CronJob
+          receiver = yaml.safe_load(open('infra/kubescape/receiver/kustomization.yaml'))
+          assert receiver['resources'].count('acceptance-namespace.yaml') == 1 - count
+          docs = [d for d in yaml.safe_load_all(open('.work/kubescape-preflight/source.yaml')) if isinstance(d, dict)]
+          namespaces = [d for d in docs if d['kind'] == 'Namespace' and d['metadata']['name'] == 'kubescape-runtime-test']
+          assert len(namespaces) == 1, 'missing or duplicate restricted acceptance namespace'
+          assert namespaces[0]['metadata']['labels']['pod-security.kubernetes.io/enforce'] == 'restricted'
+          fixtures = [d for d in docs if d['kind'] == 'Deployment' and d['metadata']['name'] == 'runtime-acceptance' and d['metadata'].get('namespace') == 'kubescape-runtime-test']
+          assert len(fixtures) == count, 'unexpected rendered acceptance workload'
+          expected = 20 + 1 + 7 * count + 7 + 6  # collector, namespace, fixture, receiver, refresh
           assert report['summary'] == {'pass': expected, 'fail': 0, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
           PY
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
