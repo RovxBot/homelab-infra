@@ -1,4 +1,4 @@
-# Documentary while Cilium policyEnforcementMode is never. See architecture.md.
+# Documentary while Cilium policyEnforcementMode is never. See https://github.com/RovxBot/homelab-infra/wiki/Gitea.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
