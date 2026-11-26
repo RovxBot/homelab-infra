@@ -786,36 +786,79 @@ def decode_remediation_artifact(data, digest):
         return json.loads(raw)
 
 
+class RemediationUnavailable(ValueError):
+    """Fixed operational reason, never an exception message or signed URL."""
+    STAGES = frozenset(("credential", "client_setup", "workflow_api", "workflow_selection",
+                        "no_successful_run", "workflow_freshness", "artifact_list_api",
+                        "artifact_metadata", "artifact_download", "artifact_integrity",
+                        "snapshot_validation", "correlation"))
+    CATEGORIES = frozenset(("http_400", "http_401", "http_403", "http_404", "http_408",
+                            "http_409", "http_422", "http_429", "http_500", "http_502",
+                            "http_503", "http_504", "http_other", "timeout", "tls",
+                            "connection", "invalid_response"))
+
+    def __init__(self, stage, category=None):
+        self.code = stage if stage in self.STAGES else "correlation"
+        if category in self.CATEGORIES:
+            self.code += "_" + category
+        super().__init__(self.code)
+
+
 def fetch_remediation_candidates(token, now=None, requester=request_json, downloader=artifact_bytes):
-    now = now or datetime.now(timezone.utc)
-    require(isinstance(token, str) and 0 < len(token) <= 8192 and not any(c.isspace() for c in token))
-    opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
-    def get(path):
-        return requester(opener, REMEDIATION_API + path, token, method="GET", payload=None, phase="github_api")
-    runs = get("/actions/workflows/" + REMEDIATION_WORKFLOW + "/runs?branch=main&status=success&per_page=1")
-    require(isinstance(runs["workflow_runs"], list) and len(runs["workflow_runs"]) == 1)
-    run = runs["workflow_runs"][0]
-    number, base = run["id"], run["head_sha"]
-    require(type(number) is int and 0 < number < 10**15 and isinstance(base, str)
-            and re.fullmatch(r"[a-f0-9]{40}", base) and run["head_branch"] == "main"
-            and run["head_repository"]["full_name"] == REMEDIATION_REPO
-            and run["event"] in ("schedule", "workflow_dispatch") and run["conclusion"] == "success")
-    created = datetime.fromisoformat(normalize_date(run["created_at"]).replace("Z", "+00:00"))
-    require(timedelta(0) <= now-created <= timedelta(hours=2))
-    artifacts = get("/actions/runs/" + str(number) + "/artifacts?per_page=20")
-    require(type(artifacts["total_count"]) is int and artifacts["total_count"] == len(artifacts["artifacts"]) <= 20)
-    matches = [a for a in artifacts["artifacts"] if a["name"] == REMEDIATION_ARTIFACT]
-    require(len(matches) == 1)
-    artifact = matches[0]
-    identifier, size = artifact["id"], artifact["size_in_bytes"]
-    require(type(identifier) is int and 0 < identifier < 10**15 and artifact["expired"] is False
-            and type(size) is int and 0 < size <= MAX_REMEDIATION_BYTES
-            and isinstance(artifact.get("digest"), str) and re.fullmatch(r"sha256:[a-f0-9]{64}", artifact["digest"]))
-    raw = downloader(REMEDIATION_API + "/actions/artifacts/" + str(identifier) + "/zip", token)
-    require(len(raw) == size)
-    snapshot = decode_remediation_artifact(raw, artifact["digest"])
-    require(created <= datetime.fromisoformat(normalize_date(snapshot["generatedAt"]).replace("Z", "+00:00")))
-    return validate_remediation_snapshot(snapshot, base, now)
+    stage = "credential"
+    try:
+        now = now or datetime.now(timezone.utc)
+        require(isinstance(token, str) and 0 < len(token) <= 8192 and not any(c.isspace() for c in token))
+        stage = "client_setup"
+        opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
+        def get(path):
+            return requester(opener, REMEDIATION_API + path, token, method="GET", payload=None, phase="github_api")
+        stage = "workflow_api"
+        runs = get("/actions/workflows/" + REMEDIATION_WORKFLOW + "/runs?branch=main&status=success&per_page=1")
+        stage = "workflow_selection"
+        require(isinstance(runs["workflow_runs"], list))
+        if not runs["workflow_runs"]:
+            raise RemediationUnavailable("no_successful_run")
+        require(len(runs["workflow_runs"]) == 1)
+        run = runs["workflow_runs"][0]
+        number, base = run["id"], run["head_sha"]
+        require(type(number) is int and 0 < number < 10**15 and isinstance(base, str)
+                and re.fullmatch(r"[a-f0-9]{40}", base) and run["head_branch"] == "main"
+                and run["head_repository"]["full_name"] == REMEDIATION_REPO
+                and run["event"] in ("schedule", "workflow_dispatch") and run["conclusion"] == "success")
+        created = datetime.fromisoformat(normalize_date(run["created_at"]).replace("Z", "+00:00"))
+        stage = "workflow_freshness"
+        require(timedelta(0) <= now-created <= timedelta(hours=2))
+        stage = "artifact_list_api"
+        artifacts = get("/actions/runs/" + str(number) + "/artifacts?per_page=20")
+        stage = "artifact_metadata"
+        require(type(artifacts["total_count"]) is int and artifacts["total_count"] == len(artifacts["artifacts"]) <= 20)
+        matches = [a for a in artifacts["artifacts"] if a["name"] == REMEDIATION_ARTIFACT]
+        require(len(matches) == 1)
+        artifact = matches[0]
+        identifier, size = artifact["id"], artifact["size_in_bytes"]
+        require(type(identifier) is int and 0 < identifier < 10**15 and artifact["expired"] is False
+                and type(size) is int and 0 < size <= MAX_REMEDIATION_BYTES
+                and isinstance(artifact.get("digest"), str) and re.fullmatch(r"sha256:[a-f0-9]{64}", artifact["digest"]))
+        stage = "artifact_download"
+        raw = downloader(REMEDIATION_API + "/actions/artifacts/" + str(identifier) + "/zip", token)
+        stage = "artifact_integrity"
+        require(len(raw) == size)
+        snapshot = decode_remediation_artifact(raw, artifact["digest"])
+        stage = "snapshot_validation"
+        require(created <= datetime.fromisoformat(normalize_date(snapshot["generatedAt"]).replace("Z", "+00:00")))
+        return validate_remediation_snapshot(snapshot, base, now)
+    except RemediationUnavailable:
+        raise
+    except Exception as exc:
+        # request_json already classifies HTTP/TLS errors; revalidate the
+        # category before exposing it. All other failures use fixed stages.
+        category = None
+        if isinstance(exc, PublisherFailure) and exc.code.startswith("github_api_"):
+            category = exc.code.removeprefix("github_api_")
+        elif isinstance(exc, (HTTPError, URLError, OSError)):
+            category = boundary_failure("github_api", exc).code.removeprefix("github_api_")
+        raise RemediationUnavailable(stage, category) from None
 
 
 def render_cve(entry):
@@ -1395,18 +1438,25 @@ def cve_main(token):
     ready = fetch_cve_projection()
     remediation_token = os.environ.get("REMEDIATION_GITHUB_READ_TOKEN")
     remediation_state, remediation_count = "unconfigured", 0
+    remediation_reason = "not_configured"
     if remediation_token and remediation_token == token:
         # A misconfigured Secret must not send the private writer credential
         # to GitHub, even for an otherwise permitted GET.
         remediation_state = "credential_conflict"
+        remediation_reason = "credential_conflict"
     elif remediation_token:
         try:
             candidates = fetch_remediation_candidates(remediation_token)
             remediation_count = correlate_remediation(ready, candidates)
             remediation_state = "observed"
+            remediation_reason = "observed"
+        except RemediationUnavailable as exc:
+            remediation_state = "unavailable"
+            remediation_reason = exc.code
         except Exception:
             # Optional advisory enrichment never gates qualified CVE reporting.
             remediation_state = "unavailable"
+            remediation_reason = "correlation"
     fd = None
     conn = None
     phase = "cve_state"
@@ -1430,7 +1480,8 @@ def cve_main(token):
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(CVE_ALLOWED), "created": outcomes.count("created"),
-                          "remediationCorrelation": remediation_state, "remediationCandidates": remediation_count,
+                          "remediationCorrelation": remediation_state, "remediationReason": remediation_reason,
+                          "remediationCandidates": remediation_count,
                           "updated": outcomes.count("updated"), "pending": pending,
                           "deferred": outcomes.count("deferred"),
                           "recoveryBaselines": recovery["baselines"],

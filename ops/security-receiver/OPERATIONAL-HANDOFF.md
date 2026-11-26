@@ -115,3 +115,14 @@ identity. The currently enrolled assessment scope and artifact schema remain
 unchanged. Before adding the sidecar/cache cohort, review each new dependency,
 requalify projection size and health thresholds, and require the initial cohort's
 live acceptance. No private findings enter GitHub discovery artifacts.
+
+## Remediation credential acceptance diagnostics
+
+If the optional reader is configured but unavailable, inspect the publisher's
+`remediationReason` fixed stage/category code. Distinguish no successful main
+workflow run, stale run, API authentication/authorization, artifact metadata,
+download, integrity and snapshot validation. Only fixed codes are logged; no
+credential, response body, candidate contents or signed redirect URL. This
+remains optional enrichment: existing qualified incident publishing and
+recovery safeguards are unaffected. Do not weaken freshness or integrity checks
+just to achieve `observed`.
