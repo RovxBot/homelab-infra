@@ -793,7 +793,7 @@ class CVEPublisherTests(unittest.TestCase):
             def close_cve(self,number):
                 self.issues[number]["state"]="closed"
                 return self.issues[number]
-        for scenario in ("success","human","budget","ambiguous"):
+        for scenario in ("success","human","budget","ambiguous","notice","notice_lost"):
             with self.subTest(scenario=scenario),sqlite3.connect(":memory:") as db:
                 github=BotGitea()
                 writer=pub.DurablePublisher(db,github,renderer=pub.render_cve,
@@ -805,6 +805,28 @@ class CVEPublisherTests(unittest.TestCase):
                 self.assertFalse(pub.CVE_CLOSURE_ENABLED)
                 self.assertEqual(pub.sync_cve_closure(writer,[clean],[])["closed"],0)
                 self.assertEqual(github.comments_written,0)
+                if scenario in ("notice","notice_lost"):
+                    with patch.object(github,"close_cve",side_effect=AssertionError("state mutation")) as close:
+                        self.assertEqual(pub.sync_cve_closure(writer,[],[],notify_only=True)["notified"],0)
+                        if scenario=="notice_lost":
+                            original = github.comment
+                            def lost_notice(number,body):
+                                original(number,body)
+                                raise OSError("lost response")
+                            with patch.object(github,"comment",side_effect=lost_notice):
+                                with self.assertRaises(OSError):
+                                    pub.sync_cve_closure(writer,[clean],[],notify_only=True)
+                            self.assertEqual(db.execute("SELECT phase FROM cve_closure_intents").fetchone()[0],"comment_pending")
+                        first=pub.sync_cve_closure(writer,[clean],[],notify_only=True)
+                        self.assertEqual(first["notified"],1)
+                        self.assertEqual(first["pending"],0)
+                        self.assertEqual(pub.sync_cve_closure(writer,[clean],[],notify_only=True)["notified"],0)
+                        self.assertEqual(github.comments_written,1)
+                        self.assertEqual(github.issues[number]["state"],"open")
+                        self.assertEqual(db.execute("SELECT phase FROM cve_closure_intents").fetchone()[0],"comment_confirmed")
+                        self.assertIn("Automatic closure is disabled",github.issues[number]["comment_items"][0]["body"])
+                        close.assert_not_called()
+                    continue
                 if scenario=="human":
                     github.issues[number]["comment_items"]=[{"body":"review","user":{"login":"human"}}]
                     self.assertEqual(pub.sync_cve_closure(writer,[clean],[],enabled=True)["manualReview"],1)

@@ -1120,6 +1120,7 @@ def observe_cve_recovery(publisher, ready, outcomes):
 # separate reviewed change and real recovery acceptance, not an env toggle.
 CVE_CLOSURE_ENABLED = False
 CVE_REOPEN_ENABLED = False
+CVE_RECOVERY_NOTICES_ENABLED = True
 MAX_RECURRENCE_CYCLES = 32
 SECURITY_BOT = "homelab-security-bot"
 
@@ -1176,7 +1177,7 @@ def recovery_comments(github, number, key, proof_id):
     return owned, found == 1
 
 
-def sync_cve_closure(publisher, ready, outcomes, *, enabled=False):
+def sync_cve_closure(publisher, ready, outcomes, *, enabled=False, notify_only=False):
     """Durable closure state machine. Production caller is hard-disabled.
 
     Recovery is requalified from the current successful observation, not
@@ -1185,9 +1186,10 @@ def sync_cve_closure(publisher, ready, outcomes, *, enabled=False):
     """
     db = publisher.db
     cve_closure_ledger(db)
-    if not enabled:
-        return {"closed":0,"pending":0,"manualReview":0,"deferred":0}
-    counts = {"closed":0,"pending":0,"manualReview":0,"deferred":0}
+    require(not (enabled and notify_only))
+    counts = {"closed":0,"pending":0,"manualReview":0,"deferred":0,"notified":0}
+    if not enabled and not notify_only:
+        return counts
     ready_by_key = {e["key"]:e for e in ready}
     for key, number, published, raw_baseline, raw_candidate in db.execute(
             "SELECT key,number,published_revision,baseline,candidate FROM cve_recovery_observations ORDER BY key").fetchall():
@@ -1208,6 +1210,8 @@ def sync_cve_closure(publisher, ready, outcomes, *, enabled=False):
         if mapping != (number,published,0,None):
             continue
         proof_id, body = render_recovery(key,baseline,candidate)
+        if notify_only:
+            body += "\n\nAutomatic closure is disabled. Review the verified recovery evidence before closing this issue."
         if existing and existing[:2] != (number,proof_id):
             counts["manualReview"] += 1
             continue
@@ -1251,6 +1255,12 @@ def sync_cve_closure(publisher, ready, outcomes, *, enabled=False):
                 with db:
                     db.execute("UPDATE cve_closure_intents SET phase='comment_confirmed' WHERE key=?", (key,))
                 phase = "comment_confirmed"
+                if notify_only:
+                    counts["notified"] += 1
+            if notify_only:
+                # The durable notice is the terminal action in this mode.
+                # Never perform a state-changing request, even after restart.
+                continue
             if phase != "comment_confirmed" or not found:
                 counts["manualReview"] += 1
                 continue
@@ -1273,7 +1283,10 @@ def sync_cve_closure(publisher, ready, outcomes, *, enabled=False):
             counts["closed"] += 1
         except WriteBudgetDeferred:
             counts["deferred"] += 1
-    counts["pending"] = db.execute("SELECT count(*) FROM cve_closure_intents WHERE phase != 'closed'").fetchone()[0]
+    counts["pending"] = db.execute(
+        "SELECT count(*) FROM cve_closure_intents WHERE phase = 'comment_pending'"
+        if notify_only else "SELECT count(*) FROM cve_closure_intents WHERE phase != 'closed'"
+    ).fetchone()[0]
     return counts
 
 
@@ -1470,13 +1483,16 @@ def cve_main(token):
         publisher = DurablePublisher(conn, PrivateGitea(token, allow_cve_closure=CVE_CLOSURE_ENABLED,
                                                    allow_cve_reopen=CVE_REOPEN_ENABLED), renderer=render_cve,
                                      fingerprint=cve_revision, owns=owns_cve, create_limit=min(9, len(CVE_ALLOWED)))
-        # Only positive findings cause remote writes. Recovery observations
-        # are shadow-only and never change remote issue state.
+        # Recovery notices require a fresh positive recovery proof and full
+        # enrolled coverage. Remote issue state changes remain hard disabled.
         phase = "cve_sync"
         recurrence = sync_cve_recurrence(publisher, ready, enabled=CVE_REOPEN_ENABLED)
         outcomes = sync_cve_entries(publisher, ready)
         recovery = observe_cve_recovery(publisher, ready, outcomes)
-        closure = sync_cve_closure(publisher, ready, outcomes, enabled=CVE_CLOSURE_ENABLED)
+        notices_enabled = (CVE_RECOVERY_NOTICES_ENABLED and not CVE_CLOSURE_ENABLED
+                           and len(ready) == len(CVE_ALLOWED))
+        closure = sync_cve_closure(publisher, ready, outcomes,
+                                   enabled=CVE_CLOSURE_ENABLED, notify_only=notices_enabled)
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]
         print(json.dumps({"source": "kubescape-cve", "qualifiedWorkloads": len(ready),
                           "expectedWorkloads": len(CVE_ALLOWED), "created": outcomes.count("created"),
@@ -1489,7 +1505,12 @@ def cve_main(token):
                           "recoveryProofQualified": recovery["proofQualified"],
                           "recoveryManualClosed": recovery["manualClosed"],
                           "closureEnabled": CVE_CLOSURE_ENABLED,
-                          "closurePending": closure["pending"],
+                          "closurePending": closure["pending"] if CVE_CLOSURE_ENABLED else 0,
+                          "recoveryNoticesEnabled": notices_enabled,
+                          "recoveryNotices": closure["notified"],
+                          "recoveryNoticePending": closure["pending"] if notices_enabled else 0,
+                          "recoveryManualReview": closure["manualReview"],
+                          "recoveryNoticeDeferred": closure["deferred"],
                           "recurrenceCandidates": recurrence["candidates"],
                           "reopenEnabled": CVE_REOPEN_ENABLED,
                           "reopenPending": recurrence["pending"]}), flush=True)

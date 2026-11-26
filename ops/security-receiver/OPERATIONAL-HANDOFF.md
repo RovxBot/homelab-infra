@@ -154,3 +154,16 @@ then qualify the current CronJob and representative Job with server dry-run and
 verify fresh assurance. Do not execute the weekly restart to test admission.
 Any existing private review issue remains open until positive compliance is
 verified and the operator resolves it; no automatic closure on disappearance.
+
+## Recovery notice stage
+
+With full enrolled coverage and a current proof-qualified recovery, the private
+publisher may append one durable recovery notice to a machine-owned issue. It
+uses the existing write budget, proof marker and locked intent ledger. Unknown
+or incomplete coverage cannot authorize notices. Existing human discussion,
+ambiguous writes and changed proof identities remain manual-review conditions.
+The notice asks the operator to review before closing; it does not close or
+reopen an issue. Confirmed notices are not pending closure actions. Both state
+mutation flags remain hard disabled; no API concurrency guarantee is assumed.
+A separate positive recovery acceptance and version-specific server-side
+conditional state-transition qualification remain required before enabling them.
