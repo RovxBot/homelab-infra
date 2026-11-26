@@ -73,3 +73,11 @@ don't delete either Longhorn PVC.
 
 This rollout remains separated from sanitized incident publishing, recovery
 checks, and eventual legacy log collector retirement.
+
+## Post-acceptance fixture retirement (26 November 2026)
+
+The accepted native canary and restart evidence above supersede the old draft cleanup design. The live check before this change observed 8/8 agents Ready, receiver and legacy collector Ready, both 256Mi evidence claims Bound, and only the disposable acceptance Pod and no PVC in its test namespace. Remove the trigger overlay from the Flux resource list and its exact workload identity from the legacy collector configuration. The overlay source, policy test fixtures, receiver intake configuration, runtime bindings, historical SQLite state and both prune-protected evidence claims remain. No runtime event or issue is fabricated, closed or deleted. Existing historical evidence is recorded above; the present check does not reread private SQLite contents.
+
+After merge, verify the exact Flux revision, removal of the disposable Deployment, ServiceAccount and its collector-specific RBAC; retain the restricted test namespace for the receiver's existing inventory Role and RoleBinding, eight Ready agents, receiver readiness, both unchanged Bound evidence claims, and native publisher transport stage. Recheck private receipt persistence through the existing read-only acceptance procedure if needed. A failed cleanup must not be addressed by deleting any evidence claim. The old collector and its production RBAC/health checks are retained for a separate reviewed retirement. Do not merge the obsolete draft cleanup independently of this change.
+
+The namespace is now explicitly managed by `infra/kubescape/receiver/acceptance-namespace.yaml`, with exactly the original restricted PSA labels. For any separately approved future fixture activation, replace that namespace reference in the same review when including the trigger overlay (which already defines the namespace), avoiding a duplicate Kustomize resource. No namespace deletion or recreation is required.

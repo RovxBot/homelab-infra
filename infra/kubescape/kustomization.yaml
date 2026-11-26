@@ -6,15 +6,13 @@ resources:
   - helmrelease.yaml
   # Receiver TLS Secrets are encrypted at rest; encrypted manifests are
   # reconciled by the Kubescape Flux Kustomization's SOPS decryption.
-  # Receiver and two-node native HTTPS exporter are active; retain SOPS trust.
+  # Eight-node native HTTPS exporter is active; retain SOPS trust.
   - ../../secrets
   - recurring/rbac.yaml
   - recurring/cronjobs.yaml
   - collector
-  # Independent, authenticated HTTPS receiver; no exporter cutover yet.
+  # Independent authenticated native HTTPS receiver; disposable trigger retired.
   - receiver
-  # Explicitly approved disposable R1000 runtime acceptance on metal3.
-  - ../../ops/security-collector/acceptance/trigger
 configMapGenerator:
   - name: kubescape-assessment-code
     namespace: kubescape

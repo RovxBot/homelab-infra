@@ -2,6 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - workload.yaml
+  # Keep the restricted namespace for existing receiver inventory RBAC.
+  - acceptance-namespace.yaml
   - rbac.yaml
 configMapGenerator:
   - name: security-receiver-config
