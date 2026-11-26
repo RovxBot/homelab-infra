@@ -145,7 +145,8 @@ class RetainedProjectionTests(unittest.TestCase):
                 self.assertEqual(saved["createdAt"],record["createdAt"])
                 self.assertEqual(saved["privateCve"]["state"],"overflow" if corrupt else "complete")
                 if not corrupt:
-                    self.assertEqual(len(saved["privateCve"]["findings"]),101)
+                    self.assertEqual(len(saved["privateCve"]["findings"]), R.PREVIOUS_PRIVATE_CVE_LIMIT + 1)
+                    self.assertEqual(saved["privateCve"], R.private_cve_findings(matches))
                     self.assertEqual(R.recover_private_projection(history,inventory,records,config),0)
 
     def test_retained_reader_rejects_oversize_and_symlink(self):
