@@ -10,7 +10,6 @@ resources:
   - ../../secrets
   - recurring/rbac.yaml
   - recurring/cronjobs.yaml
-  - collector
   # Independent authenticated native HTTPS receiver; disposable trigger retired.
   - receiver
 configMapGenerator:
