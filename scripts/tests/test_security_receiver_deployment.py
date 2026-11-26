@@ -17,15 +17,17 @@ def documents(path):
 
 
 class ReceiverStageTests(unittest.TestCase):
-    def test_native_receiver_active_fixture_retired_and_original_collector_retained(self):
+    def test_native_receiver_active_fixture_retired_and_only_legacy_claim_retained(self):
         infra=yaml.safe_load((ROOT/"infra/kubescape/kustomization.yaml").read_text())
-        self.assertIn("collector",infra["resources"])
+        self.assertNotIn("collector",infra["resources"])
+        self.assertIn("collector-retained-state.yaml",infra["resources"])
         self.assertIn("receiver",infra["resources"])
         self.assertNotIn("../../ops/security-collector/acceptance/trigger", infra["resources"])
         collector=json.loads((ROOT/"infra/kubescape/collector/collector.json").read_text())
         self.assertFalse(any(w["namespace"]=="kubescape-runtime-test" for w in collector["workloads"]))
         claim=next(x for x in documents(ROOT/"infra/kubescape/collector/workload.yaml")
                    if x["kind"]=="PersistentVolumeClaim")
+        self.assertEqual(documents(ROOT/"infra/kubescape/collector-retained-state.yaml"),[claim])
         self.assertEqual(claim["metadata"]["name"],"security-collector-state")
         self.assertEqual(claim["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"],"disabled")
         fixture=ROOT/"ops/security-collector/acceptance"

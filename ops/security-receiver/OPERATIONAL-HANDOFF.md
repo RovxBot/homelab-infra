@@ -48,9 +48,11 @@ not a claim that every operational acceptance gate has passed.
   temporary collector RBAC, restricted test namespace retained.
 - Confirm native receiver Ready, all eight agents Ready, native publisher
   transport stage healthy, both evidence claims Bound with original identities.
-  Verify read-only database integrity and retained evidence; obtain and verify
-  a recovery point for each evidence claim before removal. Do not inspect
-  or copy raw findings to public logs.
+  Preserve legacy historical data in its existing claim; no dedicated legacy
+  backup or restore test is required for retirement. Do not inspect or copy
+  raw findings to public logs. Native receiver and active publisher volumes
+  are covered by the existing weekly Longhorn system backup policy; verify
+  actual remote completion after the next normal run, not as a retirement gate.
 - Retain the exact legacy PVC as a managed, prune-protected resource, and
   keep historical collector manifests and source offline for rollback.
 - Remove only the legacy collector Deployment, Service, ServiceAccount,
@@ -70,49 +72,30 @@ not a claim that every operational acceptance gate has passed.
 | --- | --- |
 | Admission prevention | CEL and PSA active; retain reviewed exceptions and independent assurance |
 | Runtime transport | Genuine canary and restart recorded; eight agents deployed, lossless coverage unverified |
-| Fixture retirement | Desired state merged; actual removal and native health must be verified |
+| Fixture retirement | Verified removed on 26 November; native receiver and eight agents Ready |
 | CVE assessment | Last observed refresh 9/12 healthy, 7/12 complete projections; #2281–#2283 need live qualification |
 | Private reporting | Native stage successful; CVE stage reports incomplete coverage until qualified cohort complete |
 | Candidate guidance | Implemented, optional token not configured at last observed run |
 | Recovery | Shadow proof/state machines implemented; require controlled live positive/replacement/recurrence acceptance; automatic state transitions disabled |
 | Additional scope | Sidecar/cache draft must be rebased and qualified only after current cohort acceptance |
-| Legacy retirement | Pending separate PR and evidence preservation checks |
+| Legacy retirement | #2286 revised to retire active resources while preserving historical claim; verify rollout |
 | CI remediation and posture | Broader coverage and risk-based policy dispositions still require explicit review |
 
 Do not close the overall project or child issues on a merge alone. Record
 verified live evidence, keep specific unresolved acceptance and scope limitations,
 and retain manual disposition for vulnerabilities lacking a qualified replacement.
 
-### One-time recovery points before collector retirement
 
-The 26 November live inspection confirmed both 256Mi claims Bound, with
-three-replica healthy Longhorn volumes and no recorded last remote backup.
-The following one-time manifests are **not** Flux resources. They target
-only the two verified existing volume identities. Do not execute if the
-claim/PV identity has changed. Run from the repository root:
+## Existing backup coverage
 
-```bash
-kubectl -n kubescape get pvc security-collector-state security-receiver-state
-kubectl -n longhorn-system get volumes.longhorn.io pvc-28c469e0-c283-4576-ad49-1e8dc0c9384b pvc-d431a342-8db1-435b-b899-a501908b7873
-kubectl create --dry-run=server -f ops/security-receiver/evidence-snapshots-20261126.yaml
-kubectl create -f ops/security-receiver/evidence-snapshots-20261126.yaml
-kubectl -n longhorn-system wait --for=jsonpath='{.status.readyToUse}'=true --timeout=300s snapshots.longhorn.io/security-collector-retirement-20261126 snapshots.longhorn.io/security-receiver-retirement-20261126
-kubectl create --dry-run=server -f ops/security-receiver/evidence-backups-20261126.yaml
-kubectl create -f ops/security-receiver/evidence-backups-20261126.yaml
-kubectl -n longhorn-system wait --for=jsonpath='{.status.state}'=Completed --timeout=900s backups.longhorn.io/security-collector-retirement-20261126 backups.longhorn.io/security-receiver-retirement-20261126
-python3 ops/security-receiver/verify-evidence-backups.py
-```
-
-Stop on any error or timeout, inspect the existing objects and do not
-recreate or delete the recovery points. Both verification results must be
-true. The read-only verifier checks the original claim and volume identities,
-snapshot readiness, completed backup progress and exact source linkage.
-A remote backup completion is not a restored database test. Before retiring
-the collector, independently verify SQLite quick_check in both existing
-deployments using read-only mode; collector database is
-`/state/private/collector.sqlite`, receiver is `/state/receiver.sqlite`.
-Do not publish raw findings. The existing weekly system backup and retention
-policy remain unchanged; do not create a new recurring backup schedule.
-
-References: [Longhorn native snapshot CR](https://longhorn.io/docs/1.13.0/snapshots-and-backups/setup-a-snapshot/),
-[Longhorn native backup CR](https://longhorn.io/docs/1.13.0/snapshots-and-backups/backup-and-restore/create-a-backup/).
+The receiver and the incident, policy and admission publisher state claims are
+Bound and provisioned with three Longhorn replicas. None had a recorded last
+remote backup at the 26 November inspection; the three publisher volumes were
+detached between Jobs, so current replica health was not independently qualified.
+The existing Sunday 04:15 UTC SystemBackup uses `volume-backup-policy: always`.
+Verify completed remote backups and exact original volume identities after its
+next normal run, using the [existing Longhorn runbook](../../docs/runbooks/longhorn-volume-backups.md).
+No special backup manifest, new schedule or change to retention. The retained
+legacy claim may still be captured by the existing all-volume policy; do not
+change cluster-wide backup semantics just to exclude it. No remote backup or
+restore acceptance is claimed here.

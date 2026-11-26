@@ -215,8 +215,11 @@ class DeploymentBoundaries(unittest.TestCase):
         gatus = yaml.safe_load((ROOT / 'infra/observability/gatus-helmrelease.yaml').read_text())
         checks = [e for e in gatus['spec']['values']['config']['endpoints']
                   if e['name'].startswith('security-collector-')]
-        self.assertEqual(len(checks), 2)
-        self.assertTrue(all(e['alerts'] == [] for e in checks))
+        self.assertEqual(checks, [])
+        source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
+        self.assertNotIn("collector", source["resources"])
+        self.assertIn("collector-retained-state.yaml", source["resources"])
+        self.assertEqual(yaml.safe_load((ROOT / "infra/kubescape/collector-retained-state.yaml").read_text()), pvc)
 
     def test_source_layer_reproducibility(self):
         spec = importlib.util.spec_from_file_location('collector_image', ROOT / 'ops/security-collector/build-image.py')

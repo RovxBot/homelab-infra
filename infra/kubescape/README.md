@@ -106,8 +106,10 @@ The disposable trigger has been removed from desired state by #2284; the
 restricted namespace and reusable fixture remain. Verify its actual removal
 and native transport before retiring the old collector.
 
-The legacy collector remains deployed until a separately reviewed
-retirement. Both historical claims must remain Bound and prune-protected.
+The legacy collector is retired from desired state by #2286; its original
+claim remains managed and prune-protected alongside the native receiver claim.
+No dedicated legacy backup is needed. Verify actual removal after Flux reconciles.
+Active security state uses the existing weekly Longhorn backup policy.
 Do not delete either claim, clear state, manually patch Flux-managed resources
 or infer delivery coverage from agent readiness. See the handoff checklist
 for retirement, rollback and explicit outstanding acceptance.

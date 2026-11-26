@@ -182,7 +182,7 @@ class StagedReleaseTests(unittest.TestCase):
         self.assertNotIn("../../../infra/kubescape", infrastructure["resources"])
         source = yaml.safe_load((ROOT / "infra/kubescape/kustomization.yaml").read_text())
         baseline = {"namespace.yaml", "helmrepository.yaml", "helmrelease.yaml",
-                    "recurring/rbac.yaml", "recurring/cronjobs.yaml", "collector"}
+                    "recurring/rbac.yaml", "recurring/cronjobs.yaml", "collector-retained-state.yaml"}
         # The two encrypted receiver TLS/CA Secrets are intentionally owned
         # by this namespace's SOPS-enabled Flux Kustomization. Keep all other
         # resource additions fail-closed until independently reviewed.
@@ -202,16 +202,12 @@ class StagedReleaseTests(unittest.TestCase):
         resources = set(source["resources"])
         self.assertEqual(len(resources), len(source["resources"]), "duplicate Kubescape resource include")
         receiver = "receiver"
-        self.assertIn(resources, (baseline | {"../../secrets",receiver},
-                                  baseline | {"../../secrets",receiver,trigger}))
-        collector = json.loads((ROOT / "infra/kubescape/collector/collector.json").read_text())
-        test_workloads = [w for w in collector["workloads"] if w["namespace"] == "kubescape-runtime-test"]
-        if trigger in resources:
-            self.assertEqual(test_workloads, [{"cluster": "home", "namespace": "kubescape-runtime-test",
-                                               "kind": "Deployment", "name": "runtime-acceptance",
-                                               "container": "test"}])
-        else:
-            self.assertEqual(test_workloads, [])
+        self.assertEqual(resources, baseline | {"../../secrets",receiver})
+        self.assertNotIn(trigger, resources)
+        historical = list(yaml.safe_load_all((ROOT / "infra/kubescape/collector/workload.yaml").read_text()))
+        retained = yaml.safe_load((ROOT / "infra/kubescape/collector-retained-state.yaml").read_text())
+        self.assertEqual(retained, next(d for d in historical if d["kind"] == "PersistentVolumeClaim"))
+        self.assertEqual(retained["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
         namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
         labels = namespace["metadata"]["labels"]
         self.assertEqual(labels["pod-security.kubernetes.io/enforce"], "privileged")
@@ -279,13 +275,18 @@ class StagedReleaseTests(unittest.TestCase):
         endpoints[:] = [e for e in endpoints if e["name"] != "kubescape-assessments"
                         and not e['name'].startswith('security-collector-')]
         CHECK.check_assessment_alert(before, after)
-        for endpoint in (e for e in after['spec']['values']['config']['endpoints']
-                         if e['name'].startswith('security-collector-')):
-            original = endpoint['alerts']
-            endpoint['alerts'] = [{'type': 'github'}]
-            with self.assertRaisesRegex(AssertionError, 'assessment/collector alert differs'):
-                CHECK.check_assessment_alert(before, after)
-            endpoint['alerts'] = original
+        # The legacy endpoints may be removed but may never become public alerts.
+        self.assertFalse(any(e["name"].startswith("security-collector-")
+                             for e in after["spec"]["values"]["config"]["endpoints"]))
+        legacy = {"name":"security-collector-process","group":"cluster",
+                  "url":"http://security-collector.kubescape.svc.cluster.local:8080/readyz",
+                  "interval":"1m","conditions":["[STATUS] == 200","[BODY].ready == true"],"alerts":[]}
+        endpoints.append(legacy)
+        CHECK.check_assessment_alert(before, after)
+        legacy["alerts"] = [{"type":"github"}]
+        with self.assertRaisesRegex(AssertionError, "assessment/collector alert differs"):
+            CHECK.check_assessment_alert(before, after)
+        endpoints.remove(legacy)
         next(e for e in after["spec"]["values"]["config"]["endpoints"] if e['name'] == 'gitea')['interval'] = '20m'
         with self.assertRaisesRegex(AssertionError, "outside the assessment/collector endpoints"):
             CHECK.check_assessment_alert(before, after)

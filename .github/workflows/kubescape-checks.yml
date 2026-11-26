@@ -141,7 +141,14 @@ jobs:
           assert namespaces[0]['metadata']['labels']['pod-security.kubernetes.io/enforce'] == 'restricted'
           fixtures = [d for d in docs if d['kind'] == 'Deployment' and d['metadata']['name'] == 'runtime-acceptance' and d['metadata'].get('namespace') == 'kubescape-runtime-test']
           assert len(fixtures) == count, 'unexpected rendered acceptance workload'
-          expected = 20 + 1 + 7 * count + 7 + 6  # collector, namespace, fixture, receiver, refresh
+          assert count == 0, 'legacy fixture is retired'
+          assert 'collector' not in source['resources']
+          assert source['resources'].count('collector-retained-state.yaml') == 1
+          legacy = [d for d in docs if d['metadata']['name'].startswith('security-collector')]
+          assert len(legacy) == 1 and legacy[0]['kind'] == 'PersistentVolumeClaim', 'legacy active resources remain'
+          assert legacy[0]['metadata']['name'] == 'security-collector-state'
+          assert legacy[0]['metadata']['annotations']['kustomize.toolkit.fluxcd.io/prune'] == 'disabled'
+          expected = 13 + 1 + 7 + 6  # base without collector Deployment, namespace, receiver, refresh
           assert report['summary'] == {'pass': expected, 'fail': 0, 'error': 0, 'skip': 0, 'warn': 0}, report['summary']
           PY
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home/infrastructure > .work/kubescape-preflight/infrastructure.yaml
