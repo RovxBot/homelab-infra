@@ -535,6 +535,7 @@ def validate_cve_details(entry, generated):
     return sorted(result, key=lambda c: c["name"])
 
 
+MAX_PRIVATE_CVES = 200
 MAX_RECOVERY_CVES = 256
 
 
@@ -607,7 +608,7 @@ def validate_cve(projection, now=None):
         findings = entry["findings"]
         other = entry["otherHighCriticalMatches"]
         require(type(other) is int and 0 <= other <= 1000000)
-        require(isinstance(findings, list) and len(findings) <= 100)
+        require(isinstance(findings, list) and len(findings) <= MAX_PRIVATE_CVES)
         if entry["state"] == "unknown":
             require(entry["assessedAt"] is None and not findings and other == 0)
             if schema >= 2:

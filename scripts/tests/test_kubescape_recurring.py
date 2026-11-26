@@ -104,6 +104,49 @@ class RetainedProjectionTests(unittest.TestCase):
                 else:
                     self.assertNotIn("privateCve",records[R.row_key(current)])
 
+    def test_recover_legacy_overflow_only_from_exact_qualified_archive(self):
+        fixture = json.loads((ROOT / "scripts/tests/fixtures/kubescape-report-identity.json").read_text())
+        current = row()
+        report, sbom = fixture["report"], fixture["sbom"]
+        report["metadata"]["name"] = R.client.REPORT
+        report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(NOW)
+        matches = [{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}}
+                   for i in range(R.LEGACY_PRIVATE_CVE_LIMIT+1)]
+        report["spec"]["payload"]["matches"] = matches
+        checked = R.check_report(report,sbom,current,EXPECTED,R.db.stamp(NOW))
+        job = "recurring-" + "b"*32
+        prior = R.private_cve_findings(matches, limit=R.LEGACY_PRIVATE_CVE_LIMIT)
+        self.assertEqual(prior["state"],"overflow")
+        record = dict(checked, jobID=job, workloadUID=current["workloadUID"],
+                      imageDigest=current["runningDigest"],container=current["container"],
+                      evidenceKind="direct", privateCve=prior, privateCveDetails=R.private_cve_details(matches),
+                      privateRecoveryProof=None)
+        config = {**CANARY_CONFIG,"databaseChecksum":EXPECTED["metadata"]["checksum"]}
+        inventory = {"rows":[dict(current,assessmentState="healthy")],"generatedAt":R.db.stamp(NOW)}
+        summary = {"metadata":{"annotations":{"kubescape.io/image-id":current["runningDigest"],
+                   "kubescape.io/workload-container-name":current["container"],
+                   "kubescape.io/wlid":R.workload_wlid(current)}},
+                   "spec":{"vulnerabilitiesRef":{"all":{"name":R.client.REPORT}}}}
+        with tempfile.TemporaryDirectory() as tmp:
+            history = Path(tmp)
+            run = history/"vulnerability-fixture"
+            run.mkdir()
+            for name, value in (("reports",{"vulnerability":report,"sbom":sbom}),("summary",summary)):
+                with gzip.open(run/(name+"-"+job+".json.gz"),"wt") as stream:
+                    json.dump(value,stream)
+            R.atomic(run/("terminal-"+job+".json"),{"state":"succeeded","phase":"completed"})
+            for corrupt in (True,False):
+                records={R.row_key(current):copy.deepcopy(record)}
+                saved=records[R.row_key(current)]
+                if corrupt:
+                    saved["privateCve"]["otherHighCriticalMatches"]=1
+                self.assertEqual(R.recover_private_projection(history,inventory,records,config),int(not corrupt))
+                self.assertEqual(saved["createdAt"],record["createdAt"])
+                self.assertEqual(saved["privateCve"]["state"],"overflow" if corrupt else "complete")
+                if not corrupt:
+                    self.assertEqual(len(saved["privateCve"]["findings"]),101)
+                    self.assertEqual(R.recover_private_projection(history,inventory,records,config),0)
+
     def test_retained_reader_rejects_oversize_and_symlink(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"reports.json.gz"
@@ -708,7 +751,7 @@ class PrivateCVEProjectionTests(unittest.TestCase):
             ([current], dict(good, privateCve={"state": "PRIVATE-TEXT"}), "projection_unqualified"),
             ([current], dict(good, privateCve=dict(good["privateCve"],
                 findings=[{"id": f"CVE-2026-{1000+i}", "severity": "High", "fixAvailable": True}
-                          for i in range(101)])), "workload_projection_bound"),
+                          for i in range(R.MAX_PRIVATE_CVES + 1)])), "workload_projection_bound"),
             ([current], good, "complete"),
         ]
         with mock.patch.object(R, "PRIVATE_CVE_TARGETS", {target}):
@@ -773,7 +816,7 @@ class PrivateCVEProjectionTests(unittest.TestCase):
                 altered[R.row_key(second)].update(invalid)
                 self.assertEqual(project([first,second],altered)[0]["state"],"unknown")
             overflow=copy.deepcopy(records)
-            overflow[R.row_key(second)]=evidence(NOW,[f"CVE-2026-{i}" for i in range(2000,2100)],"High",False,0)
+            overflow[R.row_key(second)]=evidence(NOW,[f"CVE-2026-{i}" for i in range(2000,2000+R.MAX_PRIVATE_CVES)],"High",False,0)
             self.assertEqual(project([first,second],overflow)[0]["state"],"unknown")
             self.assertNotIn("sidecar",json.dumps(result))
 
@@ -786,7 +829,7 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         ])
         self.assertEqual(result, {"state":"complete","findings":[{"id":"CVE-2026-4738","severity":"Critical","fixAvailable":True}],"otherHighCriticalMatches":1})
         self.assertNotIn("PRIVATE", json.dumps(result))
-        self.assertEqual(R.private_cve_findings([{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}} for i in range(101)])["state"], "overflow")
+        self.assertEqual(R.private_cve_findings([{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}} for i in range(R.MAX_PRIVATE_CVES+1)])["state"], "overflow")
 
 
     def test_qualified_package_details_are_bounded_and_display_safe(self):
@@ -810,6 +853,34 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         self.assertNotIn("PRIVATE",json.dumps(details))
         self.assertEqual(len(R.private_cve_findings(matches)["findings"]),17)
         self.assertEqual(R.private_cve_details([]),{"detailState":"complete","matches":[],"omittedMatches":0})
+
+    def test_full_cohort_maximum_advisory_summary_fits_existing_wire_bound(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("bounded_publisher",ROOT/"infra/observability/security-incident-publisher/publisher.py")
+        publisher=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(publisher)
+        self.assertEqual(R.MAX_PRIVATE_CVES,publisher.MAX_PRIVATE_CVES)
+        rows, records = [], {}
+        findings = [{"id":f"CVE-2026-{1000000000+i}","severity":"Critical","fixAvailable":False}
+                    for i in range(R.MAX_PRIVATE_CVES)]
+        for target in sorted(R.PRIVATE_CVE_TARGETS):
+            ns, kind, workload, container = target.split("/")
+            current = dict(row(),namespace=ns,kind=kind,workload=workload,container=container,assessmentState="healthy")
+            rows.append(current)
+            records[R.row_key(current)]={"createdAt":R.db.stamp(NOW),
+                "privateCve":{"state":"complete","findings":findings,"otherHighCriticalMatches":1000000}}
+        inventory={"rows":rows,"generatedAt":R.db.stamp(NOW)}
+        projection=R.rich_private_cve_projection(inventory,records)
+        wire=json.dumps({"metadata":{"name":"kubescape-private-cve","namespace":"kubescape"},
+                         "data":{"projection.json":json.dumps(projection,separators=(",",":"))}}).encode()
+        self.assertLess(len(wire),R.MAX_PRIVATE_PROJECTION_BYTES)
+        self.assertLess(len(wire),publisher.MAX_CVE_BODY)
+        entries=publisher.validate_cve(projection,NOW)
+        self.assertEqual(len(entries),len(R.PRIVATE_CVE_TARGETS))
+        self.assertTrue(all(len(e["findings"])==R.MAX_PRIVATE_CVES for e in entries))
+        projection["entries"][0]["findings"].append({"id":"CVE-2026-9999","severity":"High","fixAvailable":False})
+        with self.assertRaises(ValueError):
+            publisher.validate_cve(projection,NOW)
 
     def test_rich_projection_consumer_accepts_qualified_and_legacy_records(self):
         import importlib.util
