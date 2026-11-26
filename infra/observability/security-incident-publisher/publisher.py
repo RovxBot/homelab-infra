@@ -430,6 +430,9 @@ CVE_ALLOWED = frozenset((
     "wotlk/StatefulSet/wotlk-mariadb",
     "kube-system/DaemonSet/kube-proxy",
     "cloudflared/Deployment/cloudflared",
+    "invoiceninja/Deployment/invoiceninja-redis",
+    "immich/Deployment/immich-redis",
+    "wger/Deployment/wger-redis",
 ))
 CVE_TITLE = "Security (Kubescape CVE)"
 CVE_CONFIG = "https://kubernetes.default.svc/api/v1/namespaces/kubescape/configmaps/kubescape-private-cve"
@@ -445,11 +448,14 @@ CVE_SOURCES = {
     "koito/Deployment/koito": ("apps/koito/deployment.yaml", ("koito",)),
     "memos/Deployment/memos": ("apps/memos/deployment.yaml", ("memos",)),
     "monitoring/Deployment/gatus": ("infra/observability/gatus-helmrelease.yaml", ("gatus",)),
-    "openbrew/Deployment/openbrew": ("apps/openbrew/deployment.yaml", ("openbrew",)),
+    "openbrew/Deployment/openbrew": ("apps/openbrew/deployment.yaml", ("openbrew", "oauth2-proxy")),
     "stirling-pdf/Deployment/stirling-pdf": ("apps/stirling-pdf/deployment.yaml", ("stirling-pdf",)),
     "wotlk/StatefulSet/wotlk-mariadb": ("apps/wotlk/mariadb-statefulset.yaml", ("mysql",)),
     "kube-system/DaemonSet/kube-proxy": (None, ("kube-proxy",)),
     "cloudflared/Deployment/cloudflared": ("infra/cloudflared/deployment.yaml", ("cloudflared",)),
+    "invoiceninja/Deployment/invoiceninja-redis": ("apps/invoiceninja/redis.yaml", ("redis",)),
+    "immich/Deployment/immich-redis": ("apps/immich/redis.yaml", ("redis",)),
+    "wger/Deployment/wger-redis": ("apps/wger/redis.yaml", ("redis",)),
 }
 # Reviewed dependency identities are not a version or fix claim. Keep chart
 # and Talos dependencies separate from directly declared container images.
@@ -461,10 +467,13 @@ CVE_DEPENDENCIES = {
     "koito/Deployment/koito": {"koito": "gabehf/koito"},
     "memos/Deployment/memos": {"memos": "neosmemo/memos"},
     "monitoring/Deployment/gatus": {"gatus": "twinproduction/gatus"},
-    "openbrew/Deployment/openbrew": {"openbrew": "austinderbique/openbrew"},
+    "openbrew/Deployment/openbrew": {"openbrew": "austinderbique/openbrew", "oauth2-proxy": "quay.io/oauth2-proxy/oauth2-proxy"},
     "stirling-pdf/Deployment/stirling-pdf": {"stirling-pdf": "ghcr.io/stirling-tools/stirling-pdf"},
     "wotlk/StatefulSet/wotlk-mariadb": {"mysql": "mysql"},
     "cloudflared/Deployment/cloudflared": {"cloudflared": "cloudflare/cloudflared"},
+    "invoiceninja/Deployment/invoiceninja-redis": {"redis": "redis"},
+    "immich/Deployment/immich-redis": {"redis": "redis"},
+    "wger/Deployment/wger-redis": {"redis": "redis"},
 }
 
 def reviewed_dependency(workload, container):
