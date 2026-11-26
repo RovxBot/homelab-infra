@@ -966,9 +966,23 @@ def completion_markers(history, mode, now, digest):
     return marker, (marker, legacy)
 
 
+def catchup_marker(history, now):
+    # One explicit extra attempt across all cohorts per UTC day, not one
+    # per target or per Job name. Never delete this marker to force a retry.
+    return history / ("vulnerability-catchup-" + now.strftime("%Y-%m-%d") + ".done")
+
+
+def catchup_targets(selected, records, config, now):
+    inventory = coverage([dict(row) for row in selected], records, config, now)
+    return [row for row in inventory["rows"]
+            if row["assessmentState"] != "healthy"]
+
+
 class Runner:
-    def __init__(self, api, config, expected, history, mode):
+    def __init__(self, api, config, expected, history, mode, *, catchup=False):
         self.api, self.config, self.expected, self.history, self.mode = api, config, expected, history, mode
+        db.require(not catchup or mode == "vulnerability", "catchup_mode_invalid")
+        self.catchup = catchup
         self.deadline = time.monotonic() + 25 * 60
         self.run_id = mode + "-" + db.utcnow().strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:6]
         self.work = history / self.run_id
@@ -1384,14 +1398,39 @@ class Runner:
         self.result["state"] = "unknown" if "unknown" in states else "failed" if "failed" in states else "stale" if "stale" in states else "healthy" if self.result["assessments"] else "unknown"
         self.result["reasons"] = sorted({r for o in outcomes for r in o["reasons"] if r != "daily_batch_limit"})
 
+    def skip(self, reason):
+        # A refused duplicate does not replace the previous real assessment,
+        # nor refresh its timestamps or private projection.
+        self.result.update(state="skipped", reasons=[reason])
+        print(json.dumps(status_safe(self.result), sort_keys=True), flush=True)
+        return 0
+
     def run(self):
         with locked(self.history):
             try:
                 self.load_state()  # Re-read under the lock before any record mutation.
-                self.fence()
+                now = db.utcnow()
                 digest = hashlib.sha256(json.dumps(self.config["targets"], sort_keys=True).encode()).hexdigest()[:12]
-                completed, blockers = completion_markers(self.history, self.mode, db.utcnow(), digest)
-                db.require(not any(path.exists() for path in blockers), "duplicate_execution")
+                completed, blockers = completion_markers(self.history, self.mode, now, digest)
+                if self.catchup:
+                    # Require a completed normal batch in the current slot.
+                    # A daily legacy marker is not proof of the current slot.
+                    extra = catchup_marker(self.history, now)
+                    if not completed.exists() or extra.exists():
+                        return self.skip("catchup_window_unavailable")
+                    self.fence()
+                    selected, outcomes = resolve_targets(workload_rows(self.api), self.config)
+                    selected = catchup_targets(selected, self.records, self.config, now)
+                    if not selected:
+                        return self.skip("catchup_no_unqualified_assessments")
+                    # Reserve the extra attempt before any scanner request;
+                    # even a failed preflight cannot grant unlimited retries.
+                    atomic(extra, {"runID": self.run_id})
+                    self.result["catchup"] = True
+                else:
+                    if any(path.exists() for path in blockers):
+                        return self.skip("duplicate_execution")
+                    self.fence()
                 self.result["reasons"] = ["assessment_in_progress"]
                 self.publish(terminal=False)
                 self.result["reasons"] = []
@@ -1399,14 +1438,26 @@ class Runner:
                 audit = self.audit(engine)
                 self.gate(audit)
                 if self.mode == "vulnerability":
-                    selected, outcomes = resolve_targets(workload_rows(self.api), self.config)
+                    if not self.catchup:
+                        selected, outcomes = resolve_targets(workload_rows(self.api), self.config)
+                    else:
+                        # Recheck the current inventory after preflight. Do not
+                        # scan a replaced digest under an earlier reservation.
+                        fresh, outcomes = resolve_targets(workload_rows(self.api), self.config)
+                        reserved = {row_key(row) for row in selected}
+                        selected = [row for row in catchup_targets(fresh, self.records, self.config, db.utcnow())
+                                    if row_key(row) in reserved]
+                        for outcome in outcomes:
+                            if outcome["identity"] not in {target_key(row) for row in selected} and not outcome["reasons"]:
+                                outcome.update(state="skipped", reasons=["daily_batch_limit"])
                     self.result["targets"] = outcomes
                     self.batch(selected, outcomes, audit)
                 else:
                     self.posture(audit)
                     self.result["state"] = "healthy"
                 # A completed partial batch is retried in the next scheduled rotation.
-                atomic(completed, {"runID": self.run_id})
+                if not self.catchup:
+                    atomic(completed, {"runID": self.run_id})
             except db.Rejected as error:
                 self.result.update(state="stale" if error.reason == "stale_database" else "unknown" if error.reason == "uncertain_previous_request" else "failed", reasons=[error.reason])
             except Exception as error:
@@ -1422,7 +1473,10 @@ def main():
     parser.add_argument("--expected", type=Path, default=Path("/config/grype-database.json"))
     parser.add_argument("--history", type=Path, default=Path("/history"))
     parser.add_argument("--local", action="store_true", help="Read-only inventory through workstation kubectl")
+    parser.add_argument("--catchup", action="store_true", help="One bounded extra vulnerability attempt per UTC day")
     args = parser.parse_args()
+    if args.catchup and args.mode != "vulnerability":
+        parser.error("--catchup requires vulnerability mode")
     config, expected = json.loads(args.config.read_text()), json.loads(args.expected.read_text())
     config["databaseChecksum"] = expected["metadata"]["checksum"]
     api = API(args.local)
@@ -1442,7 +1496,7 @@ def main():
                 # evidence or trigger a redundant Job failure for this skip.
                 print(json.dumps({"mode": "refresh", "state": "skipped", "reason": "assessment_active"}))
                 return 0
-        return Runner(api, config, expected, args.history, args.mode).run()
+        return Runner(api, config, expected, args.history, args.mode, catchup=args.catchup).run()
     except Exception as error:
         print(json.dumps({"state": "failed", "reasons": [getattr(error, "reason", "runner_unavailable")], "errorType": type(error).__name__}))
         return 4
