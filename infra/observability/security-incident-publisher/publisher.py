@@ -774,7 +774,7 @@ def fetch_remediation_candidates(token, now=None, requester=request_json, downlo
     require(isinstance(token, str) and 0 < len(token) <= 8192 and not any(c.isspace() for c in token))
     opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
     def get(path):
-        return requester(opener, REMEDIATION_API + path, token, phase="github_api")
+        return requester(opener, REMEDIATION_API + path, token, method="GET", payload=None, phase="github_api")
     runs = get("/actions/workflows/" + REMEDIATION_WORKFLOW + "/runs?branch=main&status=success&per_page=1")
     require(isinstance(runs["workflow_runs"], list) and len(runs["workflow_runs"]) == 1)
     run = runs["workflow_runs"][0]
@@ -1379,7 +1379,11 @@ def cve_main(token):
     ready = fetch_cve_projection()
     remediation_token = os.environ.get("REMEDIATION_GITHUB_READ_TOKEN")
     remediation_state, remediation_count = "unconfigured", 0
-    if remediation_token:
+    if remediation_token and remediation_token == token:
+        # A misconfigured Secret must not send the private writer credential
+        # to GitHub, even for an otherwise permitted GET.
+        remediation_state = "credential_conflict"
+    elif remediation_token:
         try:
             candidates = fetch_remediation_candidates(remediation_token)
             remediation_count = correlate_remediation(ready, candidates)
