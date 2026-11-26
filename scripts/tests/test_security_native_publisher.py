@@ -467,6 +467,37 @@ class CVEPublisherTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             pub.validate_remediation_snapshot(bad, base, now)
 
+    def test_remediation_failure_reasons_are_fixed_and_redacted(self):
+        now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        run = {"id":1,"head_sha":"a"*40,"head_branch":"main",
+               "head_repository":{"full_name":pub.REMEDIATION_REPO},"event":"schedule",
+               "conclusion":"success","created_at":"2026-11-24T05:59:00Z"}
+        artifact = {"name":pub.REMEDIATION_ARTIFACT,"id":2,"expired":False,
+                    "size_in_bytes":1,"digest":"sha256:"+"a"*64}
+        def call(runs, artifacts=None, downloader=None):
+            def request(opener, url, token, **kw):
+                value = runs if "/workflows/" in url else artifacts
+                if isinstance(value, Exception):
+                    raise value
+                return value
+            return pub.fetch_remediation_candidates("fixture-token", now, request,
+                downloader or (lambda *_: b"x"))
+        for runs, artifacts, download, code in (
+                (pub.PublisherFailure("github_api_http_401"),None,None,"workflow_api_http_401"),
+                (pub.PublisherFailure("github_api_SECRET"),None,None,"workflow_api"),
+                ({"workflow_runs":[]},None,None,"no_successful_run"),
+                ({"workflow_runs":[dict(run,created_at="2026-11-24T01:00:00Z")]},None,None,"workflow_freshness"),
+                ({"workflow_runs":[run]},pub.PublisherFailure("github_api_http_403"),None,"artifact_list_api_http_403"),
+                ({"workflow_runs":[run]},{"total_count":0,"artifacts":[]},None,"artifact_metadata"),
+                ({"workflow_runs":[run]},{"total_count":1,"artifacts":[artifact]},
+                 lambda *_: (_ for _ in ()).throw(ValueError("SECRET")),"artifact_download"),
+                ({"workflow_runs":[run]},{"total_count":1,"artifacts":[artifact]},None,"artifact_integrity")):
+            with self.subTest(code=code), self.assertRaises(pub.RemediationUnavailable) as caught:
+                call(runs,artifacts,download)
+            self.assertEqual(caught.exception.code,code)
+            self.assertNotIn("SECRET",str(caught.exception))
+            self.assertNotIn("fixture-token",str(caught.exception))
+
     def test_private_projection_scope_matches_reviewed_scan_config(self):
         import json
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
