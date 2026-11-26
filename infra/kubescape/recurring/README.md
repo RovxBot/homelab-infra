@@ -223,3 +223,15 @@ One stable private issue identity per reviewed workload. Require qualified evide
 ### Bounded larger SBOM qualification
 
 The 25 November 01:13 UTC batch rejected the first StatefulSet SBOM at 23,056,159 bytes against 20,971,520 bytes. Candidate scanner-only `MAXSBOMSIZE=33554432` leaves shared Helm config, node-agent resources, engine 3Gi limit, one worker, image limit, schedule, storage and history budgets unchanged. Pinned kubevuln config defaults the key and uses Viper AutomaticEnv; changed size limit invalidates prior TooLarge SBOM verdicts through its native lifecycle. Pinned storage v0.0.382 permits 1 GiB request bodies; runner HTTP reads stay bounded at 64 MiB. Retained report-pair reader rises from 16 to 64 MiB decompressed, with vulnerability and refresh Job memory requests/limits 256/768 MiB (posture unchanged). Release old SBOM/report payloads after archiving before new scan. These are candidate resource bounds, not proof of sufficient peak memory. Verify new engine readiness, scanner-only env, direct MariaDB summary, fresh DB/report identity, no OOM/restarts, storage headroom and retained evidence. Do not bypass gates or delete existing evidence manually. Stop on new storage, response size or resource failure.
+
+### Private CVE eligibility diagnostics
+
+The inventory refresh emits `privateCveReasons` and the general assessment status
+stores `coverage.privateCveReasons` as aggregate fixed-code counts (one outcome
+per reviewed workload, first blocking container in deterministic order). This
+separates missing/ambiguous inventory, nonhealthy assessments, unqualified shared
+evidence, missing/overflow/unqualified projections and workload aggregation bounds
+from complete producer eligibility. It is not a remote publication receipt or
+recovery proof. No workload identities, findings, package details, raw errors or
+report references are included in these counts. Existing health gates, private
+projection schema, scan limits and recovery gates remain unchanged.

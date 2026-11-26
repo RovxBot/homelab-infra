@@ -267,6 +267,10 @@ class RefreshTests(unittest.TestCase):
                 self.assertEqual(data["coverage.validUntil"],R.db.stamp(NOW+timedelta(minutes=65)))
                 self.assertTrue(all(data[k]==v for k,v in original.items()))
                 self.assertIn("CVE-2026-4738",objects[public_path]["data"]["projection.json"])
+                reasons = json.loads(data["coverage.privateCveReasons"])
+                self.assertEqual(reasons["complete"], 1)
+                self.assertEqual(sum(reasons.values()), len({x.rsplit("/", 1)[0] for x in R.PRIVATE_CVE_TARGETS}))
+                self.assertNotIn("CVE-2026-4738", json.dumps(reasons))
                 rows.return_value=[{**current,"runningDigest":"registry/image@sha256:"+"f"*64}]
                 self.assertEqual(R.refresh_inventory(api,config,history),0)
                 self.assertEqual(objects[status_path]["data"]["coverage.state"],"unknown")
@@ -688,6 +692,37 @@ class FailureTests(unittest.TestCase):
             R.check_posture(result, summaries, R.db.stamp(NOW))
 
 class PrivateCVEProjectionTests(unittest.TestCase):
+    def test_projection_diagnostics_are_bounded_and_match_eligibility(self):
+        current = dict(row(), assessmentState="healthy")
+        target = R.target_key(current)
+        good = {"createdAt": R.db.stamp(NOW), "privateCve": {
+            "state": "complete", "findings": [], "otherHighCriticalMatches": 0}}
+        cases = [
+            ([], good, "inventory_missing"),
+            ([current, copy.deepcopy(current)], good, "inventory_ambiguous"),
+            ([dict(current, assessmentState="stale")], good, "assessment_stale"),
+            ([dict(current, assessmentState="PRIVATE-TEXT")], good, "assessment_unknown"),
+            ([current], {}, "projection_missing"),
+            ([current], dict(good, evidenceKind="sharedImage"), "shared_evidence_unqualified"),
+            ([current], dict(good, privateCve={"state": "overflow"}), "projection_overflow"),
+            ([current], dict(good, privateCve={"state": "PRIVATE-TEXT"}), "projection_unqualified"),
+            ([current], dict(good, privateCve=dict(good["privateCve"],
+                findings=[{"id": f"CVE-2026-{1000+i}", "severity": "High", "fixAvailable": True}
+                          for i in range(101)])), "workload_projection_bound"),
+            ([current], good, "complete"),
+        ]
+        with mock.patch.object(R, "PRIVATE_CVE_TARGETS", {target}):
+            for rows, record, reason in cases:
+                with self.subTest(reason=reason):
+                    counts = R.Counter()
+                    inventory = {"rows": rows, "generatedAt": R.db.stamp(NOW)}
+                    result = R.rich_private_cve_projection(
+                        inventory, {R.row_key(current): record}, counts)
+                    self.assertEqual(dict(counts), {reason: 1})
+                    self.assertEqual(result["entries"][0]["state"],
+                                     "complete" if reason == "complete" else "unknown")
+                    self.assertNotIn("PRIVATE-TEXT", json.dumps(counts))
+
     def test_twelve_target_private_projection_and_legacy_boundary(self):
         rows, records = [], {}
         for target in sorted(R.PRIVATE_CVE_TARGETS):

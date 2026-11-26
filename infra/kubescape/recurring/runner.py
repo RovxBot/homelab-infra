@@ -465,7 +465,7 @@ def private_cve_details(matches):
             "omittedMatches":omitted}
 
 
-def private_cve_projection(inventory, records):
+def private_cve_projection(inventory, records, diagnostics=None):
     """One bounded issue per workload, covering every reviewed container.
 
     All containers must have qualified evidence. Use the oldest assessment
@@ -481,15 +481,31 @@ def private_cve_projection(inventory, records):
         entry = {"workload": workload, "state": "unknown", "assessedAt": None,
                  "findings": [], "otherHighCriticalMatches": 0}
         findings, other, times = {}, 0, []
+        reason = "complete"
         for target in group:
             selected = [row for row in rows if target_key(row) == target]
             record = records.get(row_key(selected[0]), {}) if len(selected) == 1 else {}
             evidence = record.get("privateCve")
             if evidence is None and target in LEGACY_PUBLIC_CVE_TARGETS:
                 evidence = record.get("publicCve")
-            if (len(selected) != 1 or selected[0]["assessmentState"] != "healthy"
-                    or record.get("evidenceKind") == "sharedImage"
-                    or not isinstance(evidence, dict) or evidence.get("state") != "complete"):
+            if len(selected) != 1:
+                reason = "inventory_missing" if not selected else "inventory_ambiguous"
+                break
+            assessment = selected[0]["assessmentState"]
+            if assessment != "healthy":
+                # Fixed codes only: never emit arbitrary retained record fields.
+                reason = ("assessment_" + assessment if assessment in
+                          {"unknown", "failed", "stale", "skipped", "unsupported", "deliberately_excluded"}
+                          else "assessment_unknown")
+                break
+            if record.get("evidenceKind") == "sharedImage":
+                reason = "shared_evidence_unqualified"
+                break
+            if not isinstance(evidence, dict):
+                reason = "projection_missing"
+                break
+            if evidence.get("state") != "complete":
+                reason = "projection_overflow" if evidence.get("state") == "overflow" else "projection_unqualified"
                 break
             times.append(record["createdAt"])
             other += evidence["otherHighCriticalMatches"]
@@ -503,6 +519,10 @@ def private_cve_projection(inventory, records):
                 entry.update(state="complete", assessedAt=min(times, key=db.timestamp),
                              findings=sorted(findings.values(), key=lambda x: x["id"]),
                              otherHighCriticalMatches=other)
+            else:
+                reason = "workload_projection_bound"
+        if diagnostics is not None:
+            diagnostics[reason] += 1
         entries.append(entry)
     return {"schema": 1, "source": "kubescape-cve", "generatedAt": inventory["generatedAt"],
             "entries": entries}
@@ -597,8 +617,8 @@ def workload_recovery_proof(entry, inventory, records):
     return {"workloadIdentity":hashlib.sha256(identity.encode()).hexdigest(), "containers":proof}
 
 
-def rich_private_cve_projection(inventory, records):
-    projection = private_cve_projection(inventory, records)
+def rich_private_cve_projection(inventory, records, diagnostics=None):
+    projection = private_cve_projection(inventory, records, diagnostics)
     projection["schema"] = 3
     for entry in projection["entries"]:
         entry["containers"] = []
@@ -808,7 +828,8 @@ def coverage_status(api, inventory, records, config):
     path = CORE + "/namespaces/kubescape/configmaps/kubescape-assessment-status"
     private_path = CORE + "/namespaces/kubescape/configmaps/kubescape-private-cve"
     projection = dict(api.call(private_path))
-    rich = rich_private_cve_projection(inventory, records)
+    diagnostics = Counter()
+    rich = rich_private_cve_projection(inventory, records, diagnostics)
     def encode():
         projection["data"] = {"projection.json": json.dumps(rich, separators=(",", ":"))}
         return len(json.dumps(projection).encode("utf-8"))
@@ -846,6 +867,9 @@ def coverage_status(api, inventory, records, config):
     data["coverage.expected"] = str(cohort["expected"])
     data["coverage.healthy"] = str(cohort["healthy"])
     data["coverage.observedAt"] = inventory["generatedAt"]
+    # Aggregate projection eligibility only, not a publisher receipt or proof
+    # of recovery. One fixed reason per reviewed workload, no identities.
+    data["coverage.privateCveReasons"] = json.dumps(dict(diagnostics), sort_keys=True, separators=(",", ":"))
     return path, status
 
 
@@ -877,7 +901,9 @@ def refresh_inventory(api, config, history):
         # Never publish raw inventory in logs. This is a successful observation,
         # not proof every workload has a current successful vulnerability scan.
         print(json.dumps({"mode": "refresh", "state": "observed",
-                          "coverage": cohort_health(inventory, config), "recoveredProjections": recovered}), flush=True)
+                          "coverage": cohort_health(inventory, config),
+                          "privateCveReasons": json.loads(status["data"]["coverage.privateCveReasons"]),
+                          "recoveredProjections": recovered}), flush=True)
         return 0
 
 
