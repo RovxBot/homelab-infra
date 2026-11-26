@@ -1,20 +1,13 @@
-"""Reuse exact historical validation contracts or test the proposed release."""
-import hashlib
+"""Run fresh admission and reporting contracts for the proposed release."""
 import json
 import os
-from rehearse import ROOT, WORK, EVIDENCE, RESULTS, install, smoke, governance, record, prepare_reporting_rbac
+from rehearse import WORK, RESULTS, install, smoke, governance, record, prepare_reporting_rbac
 
 
 def main():
-    contract=json.loads((ROOT/'migration/kyverno/evidence/validation-contract.json').read_text())
+    if os.environ.get('REUSE_VALIDATION', '').lower() == 'true':
+        raise ValueError('REUSE_VALIDATION=true is no longer supported; fresh validation is required')
     target=json.loads((WORK/'trust/target.json').read_text())
-    if os.environ.get('REUSE_VALIDATION')=='true':
-        assert contract.get('implementation_files'), 'Historical contract lacks complete implementation hashes: rerun validation'
-        assert all(hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==digest for p,digest in contract['implementation_files'].items()), 'Validation implementation changed: rerun the contracts'
-        assert all(hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==digest for p,digest in contract['files'].items()),'Validation inputs changed: rerun the contracts'
-        assert all(target[k]==v for k,v in contract['target'].items()),'Release changed: actual proposed-version testing required'
-        record('validation-evidence-reused',status='verified',source_run=contract['source_run'],files=len(contract['files']))
-        return
     from equivalence import suite,whole_runners
     from reporting import run as reports
     install('1.19.2');smoke();governance('1.19.2');prepare_reporting_rbac()

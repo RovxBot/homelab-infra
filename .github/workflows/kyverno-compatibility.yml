@@ -9,9 +9,6 @@ on:
       scenarios:
         type: string
         default: ''
-      reuse_validation:
-        type: boolean
-        default: false
   workflow_dispatch:
     inputs:
       scenarios:
@@ -48,7 +45,6 @@ jobs:
         env:
           REHEARSAL_SCENARIO: ${{ matrix.scenario }}
           CANDIDATE_TRUST: success
-          REUSE_VALIDATION: ${{ inputs.reuse_validation && 'true' || 'false' }}
         run: timeout 1500 bash migration/kyverno/harness/run.sh
       - name: Always destroy the rehearsal cluster
         if: always()

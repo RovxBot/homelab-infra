@@ -9,7 +9,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 import yaml
 import copy
 
@@ -82,6 +82,19 @@ class EmptyStateGateTests(unittest.TestCase):
 
 
 class ProposedReleaseTests(unittest.TestCase):
+    def test_blank_chart_reads_proposal_and_explicit_chart_is_preserved(self):
+        resolver=module('resolve')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            proposal=root/'infra/kyverno/helmrelease.yaml'
+            proposal.parent.mkdir(parents=True)
+            proposal.write_text(yaml.safe_dump({'spec':{'chart':{'spec':{'version':'3.11.2'}}}}))
+            output=root/'trust'
+            for args,expected in [([], '3.11.2'), (['--chart',''], '3.11.2'), (['--chart','3.12.0'], '3.12.0')]:
+                with self.subTest(args=args),patch.object(resolver,'ROOT',root),patch.object(resolver,'resolve',return_value={}) as resolve,patch('sys.stdout',new_callable=io.StringIO):
+                    resolver.main([*args,'--output',str(output)])
+                    resolve.assert_called_once_with(expected,output)
+
     def test_release_selection_distinguishes_artifacts_from_drain_and_replicas(self):
         spec=importlib.util.spec_from_file_location('release_change',ROOT/'scripts/ci/kyverno_release_change.py')
         detector=importlib.util.module_from_spec(spec);spec.loader.exec_module(detector)
@@ -145,6 +158,89 @@ class ProposedReleaseTests(unittest.TestCase):
             with patch.object(resolver,'fetch') as fetch:
                 with self.assertRaises(ValueError):resolver.resolve(chart,Path('/unreachable'))
                 fetch.assert_not_called()
+
+
+class FreshValidationTests(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(patch.object(sys,'path',[str(ROOT/'migration/kyverno/harness'),*sys.path]))
+        self.validation=module('validation')
+        self.equivalence=__import__('equivalence')
+        self.reporting=__import__('reporting')
+        work=Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (work/'trust').mkdir()
+        self.target=work/'trust/target.json'
+        self.target.write_text(json.dumps({'application':'1.21.4'}))
+        self.enterContext(patch.object(self.validation,'WORK',work))
+        self.enterContext(patch.object(self.validation,'RESULTS',[]))
+        self.enterContext(patch.dict(os.environ))
+        os.environ.pop('REUSE_VALIDATION',None)
+        self.calls=Mock()
+        for owner,names in [(self.validation,['install','smoke','governance','prepare_reporting_rbac','record']),
+                            (self.equivalence,['suite','whole_runners']), (self.reporting,['run'])]:
+            for name in names:
+                self.enterContext(patch.object(owner,name,getattr(self.calls,name)))
+        # Any attempted use of checked-in historical evidence must fail, even
+        # though the real files remain in the checkout for historical review.
+        read_text=Path.read_text
+        def without_history(path,*args,**kwargs):
+            if path.name in {'validation-contract.json','admission-decisions.jsonl','admission-results.jsonl'}:
+                raise AssertionError('Historical evidence is not a qualification input')
+            return read_text(path,*args,**kwargs)
+        self.enterContext(patch.object(Path,'read_text',without_history))
+
+    def test_default_reruns_complete_baseline_and_proposed_contracts_without_history(self):
+        self.validation.main()
+        self.assertEqual(self.calls.mock_calls,[
+            call.install('1.19.2'),call.smoke(),call.governance('1.19.2'),call.prepare_reporting_rbac(),
+            call.suite('1.19.2','legacy'),call.whole_runners('1.19.2','legacy'),call.run('1.19.2','legacy'),
+            call.suite('1.19.2','cel'),call.whole_runners('1.19.2','cel'),call.run('1.19.2','cel'),
+            call.install('1.21.4'),call.smoke(),call.governance('1.21.4'),
+            call.suite('1.21.4','cel'),call.whole_runners('1.21.4','cel'),call.run('1.21.4','cel'),
+            call.record('proposed-validation-contracts',status='verified',version='1.21.4'),
+        ])
+
+    def test_old_false_environment_still_runs_fresh(self):
+        os.environ['REUSE_VALIDATION']='false'
+        self.validation.main()
+        self.assertEqual(self.calls.suite.call_args_list,[call('1.19.2','legacy'),call('1.19.2','cel'),call('1.21.4','cel')])
+
+    def test_old_true_request_is_rejected_before_reading_target_or_running_admission(self):
+        os.environ['REUSE_VALIDATION']='true'
+        self.target.unlink()
+        with self.assertRaisesRegex(ValueError,'fresh validation is required'):
+            self.validation.main()
+        self.assertEqual(self.calls.mock_calls,[])
+
+    def test_admission_failure_cannot_record_verification(self):
+        self.calls.suite.side_effect=RuntimeError('admission unavailable')
+        with self.assertRaisesRegex(RuntimeError,'admission unavailable'):
+            self.validation.main()
+        self.calls.record.assert_not_called()
+
+    def test_failed_result_cannot_record_verification(self):
+        self.validation.RESULTS.append({'status':'failed'})
+        with self.assertRaises(AssertionError):
+            self.validation.main()
+        self.calls.record.assert_not_called()
+
+
+class FreshWorkflowTests(unittest.TestCase):
+    def test_all_workflow_entrypoints_remove_reuse_and_pass_chart_unchanged(self):
+        manual=yaml.load((ROOT/'.github/workflows/kyverno-cel-rehearsal.yml').read_text(),Loader=yaml.BaseLoader)
+        compatibility=yaml.load((ROOT/'.github/workflows/kyverno-compatibility.yml').read_text(),Loader=yaml.BaseLoader)
+        for workflow in [manual,compatibility]:
+            for event in workflow['on'].values():
+                self.assertNotIn('reuse_validation',event['inputs'])
+        dispatch=manual['on']['workflow_dispatch']['inputs']
+        self.assertEqual(dispatch['chart']['default'],'')
+        self.assertEqual(manual['jobs']['qualification']['with'],{'chart':'${{ inputs.chart }}','scenarios':'${{ inputs.scenarios }}'})
+        contract=compatibility['jobs']['contracts']
+        self.assertEqual(json.loads(contract['strategy']['matrix']['scenario'].split("'",2)[1]),
+                         ['namespace-lifecycle','production-sequence','mutation','validation'])
+        execution=next(step for step in contract['steps'] if step.get('run')=='timeout 1500 bash migration/kyverno/harness/run.sh')
+        self.assertNotIn('REUSE_VALIDATION',execution['env'])
+        trust=next(step for step in contract['steps'] if step.get('run')=='bash migration/kyverno/harness/trust.sh')
+        self.assertEqual(trust['env']['KYVERNO_CANDIDATE_CHART'],'${{ inputs.chart }}')
 
 
 if __name__=='__main__':unittest.main()

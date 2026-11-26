@@ -4,18 +4,18 @@
     "commit": "4468df762841f1341d1e1061f25f0e0b29da67e0",
     "directory_url": "https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence",
     "file_url_template": "https://github.com/RovxBot/homelab-infra/blob/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/{path}",
-    "path_semantics": "Each durable_file_hashes key is an exact path relative to the archived evidence directory. Substitute the key for {path}. Historical filenames in embedded receipts and validation-contract.json results_sha256 refer to original run artifacts; active validation.py reads only that contract files and implementation_files as checkout inputs.",
+    "path_semantics": "Each durable_file_hashes key is an exact path relative to the archived evidence directory. Substitute the key for {path}. Historical filenames in embedded receipts and validation-contract.json results_sha256 refer to original run artifacts. The retained contract and admission JSONLs are historical evidence, not runtime qualification inputs.",
     "hash_semantics": "Original SHA-256 hashes of bytes at archive.commit, including the original versions of both retained receipts. These are not current receipt hashes or a validation reuse contract. All 46 preexisting path/hash pairs are unchanged; the original qualification.json hash is added to make the archive index complete.",
     "retained_receipts": [
       "artifact-trust.json",
       "qualification.json"
     ],
-    "retained_active_inputs": [
+    "retained_historical_inputs": [
       "admission-decisions.jsonl",
       "admission-results.jsonl",
       "validation-contract.json"
     ],
-    "retirement_semantics": "All indexed paths except retained_receipts and retained_active_inputs are retired from the checkout. The active validation contract is retained but is not part of this historical hash index.",
+    "retirement_semantics": "All indexed paths except retained_receipts and retained_historical_inputs are retired from the checkout. The historical validation contract is retained unchanged but is not part of this historical hash index.",
     "retired_file_count": 43,
     "retired_file_bytes": 188014
   },
