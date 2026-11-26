@@ -247,3 +247,18 @@ The 26 November 00:37 UTC refresh observed nine healthy assessments but seven co
 ### Stable running image with external-service readiness failure
 
 The reviewed single-replica Last.fm bridge can have a running, started container and an observed fully updated Deployment while an upstream service failure makes its application readiness probe fail. Assess that exact running image independently of the application health result, only for the named reviewed bridge container. Require one nonterminating Running Pod, a started/running container, registry digest, exact current template, observed generation and one updated/total replica; duplicate or mixed identities remain ineligible. Recheck the same controller, generation, Pod UID and digest after scanning as before. The ordinary `ready` field, Gatus and Flux application health, and stricter `recoveryScopeReady` gate are unchanged. No readiness bypass for other workloads, no scan resource or schedule change, and no recovery proof from an unready workload. Verify a direct qualified report and preserve the independent application-health alert until its actual recovery.
+
+### Explicit operator catch-up
+
+Ordinary manual clones are subject to the same six-hour completion marker as
+scheduled Jobs. A refused duplicate logs a skip without replacing the last
+actual assessment. The operator may request **one extra vulnerability attempt
+per UTC day** after the current slot's ordinary batch completed, using the
+existing CronJob pod template and appending `--catchup` to the assessment
+container command. The runner reserves its durable daily marker before
+preflight and retains the lock, in-flight fence, four-image maximum and all
+resource/identity checks. Only current unqualified assessment rows are
+eligible; healthy images (including reporting-only overflow) are not rescanned
+merely because a publication projection is incomplete. A failed extra attempt
+consumes the allowance. Do not delete completion markers or bypass the fence.
+The catch-up does not replace the ordinary slot marker or create a new schedule.

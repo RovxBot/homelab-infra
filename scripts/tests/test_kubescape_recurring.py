@@ -583,6 +583,37 @@ class BatchTests(unittest.TestCase):
 
 
 class SchedulingTests(unittest.TestCase):
+    def test_catchup_is_daily_and_only_unqualified_rows(self):
+        history = Path("/history")
+        self.assertEqual(R.catchup_marker(history,NOW), R.catchup_marker(history,NOW.replace(hour=19)))
+        self.assertNotEqual(R.catchup_marker(history,NOW), R.catchup_marker(history,NOW+timedelta(days=1)))
+        a = row()
+        b = dict(a, workload="another", workloadUID="other")
+        config = {**CANARY_CONFIG, "databaseChecksum": EXPECTED["metadata"]["checksum"],
+                  "targets":[{"identity":R.target_key(x)} for x in (a,b)]}
+        records = {R.row_key(a): {"createdAt":R.db.stamp(NOW),"database":EXPECTED["metadata"]}}
+        self.assertEqual([R.row_key(x) for x in R.catchup_targets([a,b],records,config,NOW)], [R.row_key(b)])
+        with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db,"utcnow",return_value=NOW):
+            root = Path(path)
+            runner = R.Runner(mock.Mock(),config,EXPECTED,root,"vulnerability",catchup=True)
+            with mock.patch.object(runner,"publish") as publish, mock.patch("builtins.print"):
+                self.assertEqual(runner.run(),0)
+                publish.assert_not_called()
+            marker,_ = R.completion_markers(root,"vulnerability",NOW,
+                R.hashlib.sha256(json.dumps(config["targets"],sort_keys=True).encode()).hexdigest()[:12])
+            R.atomic(marker,{"runID":"normal"})
+            R.atomic(root/"records.json",records)
+            with mock.patch.object(R,"workload_rows",return_value=[a,b]), \
+                    mock.patch.object(runner,"publish"), mock.patch.object(runner,"preflight",side_effect=R.db.Rejected("node_unhealthy")):
+                self.assertEqual(runner.run(),4)
+            self.assertTrue(R.catchup_marker(root,NOW).exists())
+            again = R.Runner(mock.Mock(),config,EXPECTED,root,"vulnerability",catchup=True)
+            with mock.patch.object(again,"publish") as publish, mock.patch.object(again,"preflight") as preflight, mock.patch("builtins.print"):
+                self.assertEqual(again.run(),0)
+                publish.assert_not_called()
+                preflight.assert_not_called()
+            self.assertEqual(json.loads(marker.read_text())["runID"],"normal")
+
     def test_duplicate_process_fails_without_queueing(self):
         with tempfile.TemporaryDirectory() as path:
             with R.locked(Path(path)):
@@ -1079,8 +1110,9 @@ class SubmissionTests(unittest.TestCase):
             self.assertTrue(list(runner.work.glob("previous-*.json.gz")))
             duplicate = R.Runner(api, config, EXPECTED, history, "vulnerability")
             with mock.patch("builtins.print"):
-                self.assertEqual(duplicate.run(), 4)
+                self.assertEqual(duplicate.run(), 0)
             self.assertEqual(duplicate.result["reasons"], ["duplicate_execution"])
+            self.assertEqual(json.loads((history / "latest-vulnerability.json").read_text())["runID"], runner.run_id)
             self.assertEqual(len(posted), 1)
             # A completed earlier slot cannot suppress the next scheduled batch.
             clock.return_value = NOW + timedelta(hours=6)
