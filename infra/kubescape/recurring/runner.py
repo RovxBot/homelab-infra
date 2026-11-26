@@ -187,6 +187,37 @@ def workload_wlid(row):
     return f"wlid://cluster-home/namespace-{row['namespace']}/{row['kind'].lower()}-{row['workload']}"
 
 
+# One reviewed external-service-dependent Deployment. Application readiness
+# is not required to assess its stable running image; recovery still requires
+# the original fully Ready controller and complete scope.
+UNREADY_IMAGE_TARGET = "koito/Deployment/koito-lastfm-bridge/multi-scrobbler"
+
+
+def stable_unready_image(workload, container, pod, status, digest):
+    if (workload["kind"] != "Deployment"
+            or "/".join((pod["metadata"]["namespace"], workload["kind"],
+                         workload["metadata"]["name"], container["name"])) != UNREADY_IMAGE_TARGET
+            or not digest or pod["metadata"].get("deletionTimestamp")
+            or pod["status"].get("phase") != "Running"
+            or not isinstance(status.get("state", {}).get("running"), dict)
+            or status.get("started") is not True):
+        return False
+    spec, observed = workload["spec"], workload.get("status", {})
+    # Deliberately single-replica only. Never accept a rollout, old replica,
+    # scaled-zero workload, crashloop or absent container runtime identity.
+    return (spec.get("replicas", 1) == 1
+            and observed.get("observedGeneration") == workload["metadata"].get("generation")
+            and observed.get("replicas") == 1 and observed.get("updatedReplicas") == 1
+            and any(c["name"] == container["name"] and c["image"] == container["image"]
+                    for c in spec["template"]["spec"].get("containers", [])))
+
+
+def assessment_eligible(row):
+    return row["ready"] or (target_key(row) == UNREADY_IMAGE_TARGET
+                            and row.get("stableUnreadyImage") is True
+                            and row["containerType"] == "containers")
+
+
 def workload_rows(api):
     """Resolve actual controller UIDs; include init/ephemeral and nonrunning specs."""
     objects = {}
@@ -220,11 +251,14 @@ def workload_rows(api):
                        "ready": ready(pod) and status.get("ready", False)
                                 and (workload["kind"] not in DIRECT_SCAN_KINDS or field != "containers"
                                      or controller_current(workload, container, pod))}
+                row["stableUnreadyImage"] = (field == "containers" and
+                    stable_unready_image(workload, container, pod, status, digest))
                 key = row_key(row)
                 if key in seen:
                     previous = next(r for r in rows if row_key(r) == key)
                     previous["podUIDs"].extend(row["podUIDs"])
                     previous["ready"] = previous["ready"] and row["ready"]
+                    previous["stableUnreadyImage"] = False  # never multiple Pods
                 else:
                     rows.append(row)
                     seen.add(key)
@@ -280,7 +314,7 @@ def resolve_targets(rows, config):
             outcome["reasons"] = ["workload_missing" if not matches else "workload_rolling"]
         elif matches[0]["kind"] not in DIRECT_SCAN_KINDS:
             outcome.update(state="unsupported", reasons=["unsupported_workload"])
-        elif not matches[0]["ready"]:
+        elif not assessment_eligible(matches[0]):
             outcome.update(state="skipped", reasons=["workload_not_ready"])
         elif not matches[0]["runningDigest"]:
             outcome.update(state="unsupported", reasons=["running_digest_unavailable"])
@@ -332,7 +366,7 @@ def coverage(rows, records, config, now=None):
                 invalid = True
         if target_key(row) not in selected:
             row.update(assessmentState="deliberately_excluded", exclusionReason="Outside the curated application targets")
-        elif not row["ready"]:
+        elif not assessment_eligible(row):
             row.update(assessmentState="skipped", exclusionReason="Workload not ready")
         elif not row["runningDigest"] or row["containerType"] != "containers":
             row.update(assessmentState="unsupported", exclusionReason="No running registry digest or unsupported container type")

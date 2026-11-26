@@ -236,6 +236,46 @@ class CoverageTests(unittest.TestCase):
 
 
 class RefreshTests(unittest.TestCase):
+    def test_stable_unready_bridge_is_image_eligible_not_recovery_ready(self):
+        ns, kind, name, container_name = R.UNREADY_IMAGE_TARGET.split("/")
+        digest = "registry/image@sha256:"+"a"*64
+        container = {"name":container_name,"image":digest}
+        workload = {"kind":kind,"metadata":{"name":name,"generation":2},
+                    "spec":{"replicas":1,"template":{"spec":{"containers":[container]}}},
+                    "status":{"observedGeneration":2,"replicas":1,"updatedReplicas":1,
+                              "readyReplicas":0,"availableReplicas":0}}
+        pod = {"metadata":{"namespace":ns},"status":{"phase":"Running"}}
+        status = {"started":True,"state":{"running":{"startedAt":"2026-11-24T00:00:00Z"}}}
+        self.assertTrue(R.stable_unready_image(workload,container,pod,status,digest))
+        self.assertFalse(R.deployment_current(workload,container))
+        for altered in ({"observedGeneration":1},{"updatedReplicas":0},{"replicas":2}):
+            bad = copy.deepcopy(workload)
+            bad["status"].update(altered)
+            self.assertFalse(R.stable_unready_image(bad,container,pod,status,digest))
+        for bad_status in ({"started":False,"state":status["state"]},
+                           {"started":True,"state":{"waiting":{}}}):
+            self.assertFalse(R.stable_unready_image(workload,container,pod,bad_status,digest))
+        self.assertFalse(R.stable_unready_image(workload,container,pod,status,None))
+        self.assertFalse(R.stable_unready_image(workload,container,
+            dict(pod,metadata={"namespace":ns,"deletionTimestamp":"now"}),status,digest))
+        self.assertFalse(R.stable_unready_image(workload,dict(container,image="other"),pod,status,digest))
+        current = dict(row(),namespace=ns,kind=kind,workload=name,container=container_name,
+                       runningDigest=digest,ready=False,stableUnreadyImage=True,recoveryScopeReady=False)
+        config = {**CONFIG,"targets":[{"identity":R.UNREADY_IMAGE_TARGET}],
+                  "databaseChecksum":EXPECTED["metadata"]["checksum"]}
+        records = {R.row_key(current):{"createdAt":R.db.stamp(NOW),"database":EXPECTED["metadata"],
+                    "privateCve":{"state":"complete","findings":[],"otherHighCriticalMatches":0}}}
+        self.assertEqual(R.resolve_targets([current],config)[0],[current])
+        inventory = R.coverage([copy.deepcopy(current)],records,config,NOW)
+        self.assertEqual(R.cohort_health(inventory,config)["state"],"healthy")
+        projection = R.rich_private_cve_projection(inventory,records)
+        entry = next(e for e in projection["entries"] if e["workload"]==R.UNREADY_IMAGE_TARGET.rsplit("/",1)[0])
+        self.assertEqual(entry["state"],"complete")
+        self.assertIsNone(entry["recoveryProof"])
+        self.assertEqual(R.resolve_targets([dict(current,stableUnreadyImage=False)],config)[0],[])
+        self.assertEqual(R.resolve_targets([current,copy.deepcopy(current)],config)[0],[])
+        self.assertFalse(R.assessment_eligible(dict(current,workload="another-deployment")))
+
     def test_deployment_requires_current_template_and_all_updated_replicas(self):
         container = {"name": "memos", "image": "registry/memos@sha256:"+"a"*64}
         workload = {"metadata": {"generation": 2},
