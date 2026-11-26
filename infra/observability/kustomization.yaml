@@ -4,7 +4,16 @@ resources:
   - namespace.yaml
   - gatus-helmrepository.yaml
   - gatus-helmrelease.yaml
-  - gatus-github-issue-sync-configmap.yaml
   - gatus-github-issue-sync-rbac.yaml
   - gatus-github-issue-sync-cronjob.yaml
   - security-incident-publisher
+configMapGenerator:
+  - name: gatus-github-issue-sync
+    namespace: monitoring
+    files:
+      - sync.py=gatus-github-issue-sync.py
+    options:
+      disableNameSuffixHash: true
+      labels:
+        homelab.cooked.beer/component: gatus-alerting
+        homelab.cooked.beer/owner: sam

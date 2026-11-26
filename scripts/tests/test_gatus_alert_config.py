@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class GatusAlertConfigTests(unittest.TestCase):
     def sync_helper(self):
-        source = yaml.safe_load((ROOT / 'infra/observability/gatus-github-issue-sync-configmap.yaml').read_text())['data']['sync.py']
+        source = (ROOT / 'infra/observability/gatus-github-issue-sync.py').read_text()
         helper = {'__name__': 'gatus_config_test'}
         exec(compile(source, 'sync.py', 'exec'), helper)
         return helper
@@ -186,7 +186,22 @@ class GatusAlertConfigTests(unittest.TestCase):
 
     def test_cronjob_policy_matches_native_recovery_and_available_history(self):
         cronjob = yaml.safe_load((ROOT / 'infra/observability/gatus-github-issue-sync-cronjob.yaml').read_text())
-        container = cronjob['spec']['jobTemplate']['spec']['template']['spec']['containers'][0]
+        pod = cronjob['spec']['jobTemplate']['spec']['template']['spec']
+        container = pod['containers'][0]
+        # The runtime command and mounted key must stay aligned with the
+        # standalone source; a valid ConfigMap with the wrong key cannot run.
+        self.assertEqual(container['command'], ['python', '/opt/gatus-github-issue-sync/sync.py'])
+        self.assertIn({'name': 'script', 'configMap': {'name': 'gatus-github-issue-sync', 'defaultMode': 0o555}},
+                      pod['volumes'])
+        kustomization = yaml.safe_load((ROOT / 'infra/observability/kustomization.yaml').read_text())
+        generator, = [item for item in kustomization['configMapGenerator']
+                      if item['name'] == 'gatus-github-issue-sync']
+        self.assertEqual(generator, {
+            'name': 'gatus-github-issue-sync', 'namespace': 'monitoring',
+            'files': ['sync.py=gatus-github-issue-sync.py'],
+            'options': {'disableNameSuffixHash': True, 'labels': {
+                'homelab.cooked.beer/component': 'gatus-alerting', 'homelab.cooked.beer/owner': 'sam'}},
+        })
         env = {entry['name']: entry.get('value') for entry in container['env']}
         self.assertEqual(env['SUCCESS_THRESHOLD'], '2')
         self.assertEqual(env['MAX_RESULT_AGE_SECONDS'], '900')

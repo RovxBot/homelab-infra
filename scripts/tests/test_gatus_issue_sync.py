@@ -17,8 +17,7 @@ class GatusIssueTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {}, clear=True)
         self.environment.start()
         self.addCleanup(self.environment.stop)
-        text = (ROOT / 'infra/observability/gatus-github-issue-sync-configmap.yaml').read_text().split('  sync.py: |\n',1)[1]
-        source = '\n'.join(line[4:] for line in text.splitlines())
+        source = (ROOT / 'infra/observability/gatus-github-issue-sync.py').read_text()
         self.helper = {'__name__': 'gatus_test'}
         exec(compile(source, 'sync.py', 'exec'), self.helper)
         self.helper.update(MAX_RESULT_AGE_SECONDS=900, SUCCESS_THRESHOLD=2, GITHUB_TOKEN='fixture',
