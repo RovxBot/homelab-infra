@@ -119,13 +119,85 @@ def git_reader(commit):
     return read
 
 
+REPOSITORY = "RovxBot/homelab-infra"
+MAX_OPEN_PRS = 50
+
+
+def live_candidates(pulls, base, fetch_head, ancestor, reader=git_reader):
+    """Only same-repository, ready, current-base PRs; never execute head code."""
+    if not SHA.fullmatch(base) or not isinstance(pulls, list) or len(pulls) > MAX_OPEN_PRS:
+        raise ValueError("PR inventory bound or base invalid")
+    results, skipped, seen = [], {}, set()
+    def skip(reason):
+        skipped[reason] = skipped.get(reason, 0) + 1
+    for pr in pulls:
+        number = pr["number"]
+        if type(number) is not int or not 0 < number < 10**9 or number in seen:
+            raise ValueError("invalid PR identity")
+        seen.add(number)
+        if pr.get("state") != "open" or pr.get("draft") is not False:
+            skip("not_ready")
+            continue
+        before, after = pr["base"], pr["head"]
+        if (before.get("ref") != "main" or before.get("sha") != base
+                or (before.get("repo") or {}).get("full_name") != REPOSITORY
+                or (after.get("repo") or {}).get("full_name") != REPOSITORY):
+            skip("unsupported_base_or_repository")
+            continue
+        head = after.get("sha")
+        if not isinstance(head, str) or not SHA.fullmatch(head):
+            raise ValueError("invalid PR head")
+        if fetch_head(number) != head:
+            skip("head_changed")
+            continue
+        if not ancestor(base, head):
+            skip("branch_behind_main")
+            continue
+        candidate = correlate(reader(base), reader(head))
+        results.extend(dict(item, pr=number, base=base, head=head)
+                       for item in candidate["candidates"])
+    return {"schema": 1, "repository": REPOSITORY, "base": base,
+            "state": "observed", "openPrCount": len(pulls),
+            "skipped": skipped, "candidates": results}
+
+
+def discover_live():
+    def run(args):
+        return subprocess.run(args, cwd=ROOT, capture_output=True, text=True,
+                              check=True, timeout=90).stdout.strip()
+    base = run(["git", "rev-parse", "HEAD"])
+    # Trusted checkout, no untrusted title/body, no head checkout or execution.
+    pulls = json.loads(run(["gh", "api", "--method", "GET",
+                           "repos/" + REPOSITORY + "/pulls",
+                           "-f", "state=open", "-f", "per_page=51"]))
+    def fetch(number):
+        run(["git", "fetch", "--no-tags", "--no-recurse-submodules",
+             "https://github.com/" + REPOSITORY + ".git", "refs/pull/" + str(number) + "/head"])
+        return run(["git", "rev-parse", "FETCH_HEAD"])
+    def ancestor(before, after):
+        result = subprocess.run(["git", "merge-base", "--is-ancestor", before, after],
+                                cwd=ROOT, capture_output=True, timeout=30)
+        if result.returncode not in (0, 1):
+            raise ValueError("ancestry unavailable")
+        return result.returncode == 0
+    return live_candidates(pulls, base, fetch, ancestor)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base",required=True)
-    parser.add_argument("--head",required=True)
+    parser.add_argument("--base")
+    parser.add_argument("--head")
+    parser.add_argument("--live", action="store_true")
     args=parser.parse_args()
-    result=correlate(git_reader(args.base),git_reader(args.head))
-    result.update(base=args.base,head=args.head)
+    if args.live:
+        if args.base or args.head:
+            parser.error("--live cannot be combined with explicit commits")
+        result = discover_live()
+    else:
+        if not args.base or not args.head:
+            parser.error("--base and --head are required")
+        result=correlate(git_reader(args.base),git_reader(args.head))
+        result.update(base=args.base,head=args.head)
     print(json.dumps(result,sort_keys=True,indent=2))
 
 
