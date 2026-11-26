@@ -71,6 +71,21 @@ class ScanContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 S.provenance(report,DIGEST,SHA,ASSET,NOW,image=image)
 
+    def test_scanner_image_workflow_is_read_only_and_attributed(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root/".github/workflows/kubescape-scanner-image.yml").read_text()
+        scan = workflow.split("\n  scan:\n",1)[1]
+        self.assertIn("needs: test-build",scan)
+        self.assertIn("SCAN_IMAGE_REPOSITORY: ghcr.io/rovxbot/kubevuln@",scan)
+        self.assertIn("needs.test-build.outputs.digest",scan)
+        self.assertIn("needs.test-build.outputs.source",scan)
+        self.assertIn("contents: read",scan)
+        self.assertNotIn("packages: write",scan)
+        self.assertNotIn("GHCR_TOKEN",scan)
+        self.assertIn("path: .work/image-scan/provenance.json",scan)
+        self.assertIn('evidence["image"] == image',workflow)
+        self.assertIn('evidence["sourceCommit"]',workflow)
+
     def test_exact_binary_checksum_required(self):
         self.assertEqual(S.ASSET_DIGEST,"sha256:e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85")
         payload=b"fixture binary"

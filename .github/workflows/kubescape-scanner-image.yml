@@ -6,6 +6,8 @@ on:
       - .github/workflows/kubescape-scanner-image.yml
       - scripts/ci/scanner_build_evidence.py
       - scripts/ci/tests/test_scanner_build_evidence.py
+      - scripts/ci/scan_image.py
+      - scripts/tests/test_security_ci_scan.py
   workflow_dispatch:
     inputs:
       build_candidate:
@@ -21,6 +23,9 @@ jobs:
   test-build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      digest: ${{ steps.scan-input.outputs.digest }}
+      source: ${{ steps.scan-input.outputs.source }}
     permissions:
       contents: read
       packages: write
@@ -95,6 +100,22 @@ jobs:
             --upstream-commit "$UPSTREAM_COMMIT" --upstream-sha "$UPSTREAM_ARCHIVE_SHA256" \
             --source-commit "$REVISION" --build-run "$BUILD_RUN" \
             --image-file scanner-image-digest.txt --output .work/scanner-build-evidence.json
+      - name: Select exact verified scanner digest and original build commit
+        id: scan-input
+        env:
+          REBUILD: ${{ steps.artifact.outputs.rebuild }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          proof = pathlib.Path(".work/scanner-build-evidence.json" if os.environ["REBUILD"] == "true" else "infra/kubescape/recurring/scanner/build-evidence.json")
+          evidence = json.loads(proof.read_text())
+          image = pathlib.Path("scanner-image-digest.txt").read_text().strip()
+          assert evidence["status"] == "verified" and evidence["image"] == image
+          match = re.fullmatch(r"ghcr\.io/rovxbot/kubevuln@(sha256:[0-9a-f]{64})", image)
+          assert match and re.fullmatch(r"[0-9a-f]{40}", evidence["sourceCommit"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("digest=" + match.group(1) + "\nsource=" + evidence["sourceCommit"] + "\n")
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         with:
@@ -121,3 +142,30 @@ jobs:
                   if steps.get(step, {}).get('outcome') == 'failure':
                       summary.write('- ' + label + '.\n')
           PY
+
+  scan:
+    needs: test-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate digest-scanning contract
+        run: python3 -m unittest discover -s scripts/tests -p 'test_security_ci_scan.py' -v
+      - name: Scan exact qualified immutable scanner image
+        env:
+          SCAN_IMAGE_REPOSITORY: ghcr.io/rovxbot/kubevuln@
+          SCANNED_DIGEST: ${{ needs.test-build.outputs.digest }}
+          SOURCE_SHA: ${{ needs.test-build.outputs.source }}
+        run: python3 scripts/ci/scan_image.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: kubevuln-scan-provenance
+          path: .work/image-scan/provenance.json
+          if-no-files-found: error
+          retention-days: 14
