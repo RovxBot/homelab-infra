@@ -454,18 +454,33 @@ CVE_SOURCES = {
 # Reviewed dependency identities are not a version or fix claim. Keep chart
 # and Talos dependencies separate from directly declared container images.
 CVE_DEPENDENCIES = {
-    "gitea/Deployment/gitea-mcp": "docker.gitea.com/gitea-mcp-server",
-    "homepage/Deployment/homepage-assets": "nginxinc/nginx-unprivileged",
-    "homepage/Deployment/homepage": "ghcr.io/gethomepage/homepage",
-    "koito/Deployment/koito-lastfm-bridge": "foxxmd/multi-scrobbler",
-    "koito/Deployment/koito": "gabehf/koito",
-    "memos/Deployment/memos": "neosmemo/memos",
-    "monitoring/Deployment/gatus": "twinproduction/gatus",
-    "openbrew/Deployment/openbrew": "austinderbique/openbrew",
-    "stirling-pdf/Deployment/stirling-pdf": "ghcr.io/stirling-tools/stirling-pdf",
-    "wotlk/StatefulSet/wotlk-mariadb": "mysql",
-    "cloudflared/Deployment/cloudflared": "cloudflare/cloudflared",
+    "gitea/Deployment/gitea-mcp": {"mcp": "docker.gitea.com/gitea-mcp-server"},
+    "homepage/Deployment/homepage-assets": {"nginx": "nginxinc/nginx-unprivileged"},
+    "homepage/Deployment/homepage": {"homepage": "ghcr.io/gethomepage/homepage"},
+    "koito/Deployment/koito-lastfm-bridge": {"multi-scrobbler": "foxxmd/multi-scrobbler"},
+    "koito/Deployment/koito": {"koito": "gabehf/koito"},
+    "memos/Deployment/memos": {"memos": "neosmemo/memos"},
+    "monitoring/Deployment/gatus": {"gatus": "twinproduction/gatus"},
+    "openbrew/Deployment/openbrew": {"openbrew": "austinderbique/openbrew"},
+    "stirling-pdf/Deployment/stirling-pdf": {"stirling-pdf": "ghcr.io/stirling-tools/stirling-pdf"},
+    "wotlk/StatefulSet/wotlk-mariadb": {"mysql": "mysql"},
+    "cloudflared/Deployment/cloudflared": {"cloudflared": "cloudflare/cloudflared"},
 }
+
+def reviewed_dependency(workload, container):
+    """Only the explicitly reviewed repository of this exact container."""
+    source = CVE_SOURCES.get(workload)
+    if source is None or container not in source[1]:
+        return None
+    return CVE_DEPENDENCIES.get(workload, {}).get(container)
+
+
+def dependency_description(workload, names):
+    values = [(name, reviewed_dependency(workload, name)) for name in names]
+    if len(values) == 1:
+        return values[0][1] or "not established; verify Talos-managed component release"
+    return "; ".join(name + ": " + (dependency or "not established")
+                     for name, dependency in values)
 
 # Strict display-safe fields: no markdown delimiters, URLs with schemes,
 # paths from report locations, arbitrary annotations or free-form prose.
@@ -689,7 +704,8 @@ def validate_remediation_snapshot(snapshot, base, now):
         require(isinstance(item, dict) and set(item) ==
                 {"workload", "container", "path", "dependency", "before", "after", "state", "pr", "base", "head"})
         workload, name, number = item["workload"], item["container"], item["pr"]
-        require(workload in CVE_DEPENDENCIES and workload in CVE_SOURCES)
+        dependency = reviewed_dependency(workload, name)
+        require(dependency is not None)
         path, names = CVE_SOURCES[workload]
         require(path and not path.endswith("-helmrelease.yaml") and item["path"] == path
                 and name in names and item["state"] == "candidate_not_assessed"
@@ -697,7 +713,7 @@ def validate_remediation_snapshot(snapshot, base, now):
                 and isinstance(item["head"], str) and re.fullmatch(r"[a-f0-9]{40}", item["head"])
                 and item["head"] != base)
         old, new = candidate_image_identity(item["before"]), candidate_image_identity(item["after"])
-        expected = canonical_repository(CVE_DEPENDENCIES[workload])
+        expected = canonical_repository(dependency)
         require(old is not None and new is not None and old[0] == new[0] == expected == item["dependency"]
                 and old[1] != new[1])
         key = (number, workload, name)
@@ -817,8 +833,7 @@ def render_cve(entry):
              "- Last qualified assessment (oldest container): " + normalize_date(entry["assessedAt"]),
              "- Owning GitOps source: " + ("`" + path + "`" if path else
                  "not established in this repository; verify Talos-managed component source"),
-             "- Reviewed image dependency: " + (CVE_DEPENDENCIES.get(entry["workload"]) or
-                 "not established; verify Talos-managed component release"),
+             "- Reviewed image dependency: " + dependency_description(entry["workload"], names),
              "- Verified replacement image / matching remediation PR: not established by this report.",
              ""]
     if entry.get("remediationCandidates"):
