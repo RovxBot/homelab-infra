@@ -1,4 +1,31 @@
 {
+  "schema_version": 2,
+  "evidence_classification": "Historical Task 17 failed generator qualification; not current acceptance evidence.",
+  "archive": {
+    "commit": "4468df762841f1341d1e1061f25f0e0b29da67e0",
+    "directory_url": "https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17",
+    "file_url_template": "https://github.com/RovxBot/homelab-infra/blob/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17/{path}",
+    "path_semantics": "Each historical_files_sha256 key is an exact path relative to the archived Task 17 directory. Substitute the key for {path} in file_url_template.",
+    "hash_semantics": "Original SHA-256 hashes of bytes at archive.commit, including the original findings.md. These are not current checkout hashes or a validation reuse contract. files.json does not index itself."
+  },
+  "retired_capture_directories": [
+    "adopted",
+    "empty-upgraded",
+    "fresh-target",
+    "mutation",
+    "upgraded"
+  ],
+  "retired_capture_count": 109,
+  "retired_capture_bytes": 5522522,
+  "retained_receipts": [
+    "files.json",
+    "findings.md",
+    "local-compatibility.json",
+    "production-inventory-initial.json",
+    "production-inventory.json",
+    "qualification.json",
+    "release-target.json"
+  ],
   "source_runs": [
     {
       "url": "https://github.com/RovxBot/homelab-infra/actions/runs/44882022959",
@@ -18,7 +45,7 @@
       ]
     }
   ],
-  "files": {
+  "historical_files_sha256": {
     "adopted/generation-existing-adopted-target-after-quota-drift-background-current.log": "85116164f60439bea88ac91dff76c6263c0efcf40d62a6822ef633d3f8be3dda",
     "adopted/generation-existing-adopted-target-after-quota-drift-snapshot.json": "f3b09e8a6534694464fd78db1004e514ce78ac719473e4d4c4612e03bf30ee02",
     "adopted/generation-existing-adopted-target-before-quota-drift-snapshot.json": "d6d99bbaa6aedf2ea67892dd467d79289c7afa4f1f9e05134531f1183b8b524a",
