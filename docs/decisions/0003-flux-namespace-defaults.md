@@ -36,7 +36,7 @@ Any nonempty/unknown inventory stops the process. Never delete outputs, change
 labels or transfer ownership to manufacture an empty state. Replace the freeze
 only after the permanent GitOps contract and isolated lifecycle are qualified.
 
-The [staged plan](../../migration/kyverno/activation/README.md) keeps legacy
+The [completed activation history](../../migration/kyverno/activation/README.md) keeps legacy
 validation and exceptions until replacements pass live acceptance; prunes them
 in a separately observed phase before Helm's original legacy safety hook.
 Storage migration and supported chart/policy rollback retain enforcing CEL/native

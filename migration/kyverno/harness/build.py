@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build reviewable draft CEL manifests from the fixed #2159 contracts.
+"""Build CEL validation, mutation and exception manifests from the legacy contracts.
 
-No production Kustomization references migration/. Predicates deliberately retain
+infra/kyverno-policies consumes these manifests. Predicates deliberately retain
 legacy substring, truthiness, regular-container image scope and UPDATE handling.
 """
 import copy
@@ -419,45 +419,6 @@ def main():
             )
         )
     emit("exceptions/exceptions.yaml", exceptions)
-    old = yaml.safe_load(
-        (ROOT / "infra/kyverno/policies/platform-namespace-bootstrap.yaml").read_text()
-    )
-    outputs = []
-    for r in old["spec"]["rules"]:
-        g = r["generate"]
-        obj = copy.deepcopy(g["data"])
-        obj.update(apiVersion=g["apiVersion"], kind=g["kind"])
-        obj["metadata"]["name"] = g["name"]
-        outputs.append(obj)
-    expr = "[" + ", ".join("dyn(" + json.dumps(o) + ")" for o in outputs) + "]"
-    gp = dict(
-        apiVersion="policies.kyverno.io/v1",
-        kind="GeneratingPolicy",
-        metadata=dict(name=old["metadata"]["name"]),
-        spec=dict(
-            evaluation=dict(
-                synchronize=dict(enabled=True),
-                generateExisting=dict(enabled=False),
-                orphanDownstreamOnPolicyDelete=dict(enabled=False),
-            ),
-            matchConstraints=dict(resourceRules=[rule(["namespaces"], [""])]),
-            matchConditions=[
-                dict(
-                    name="bootstrap-label",
-                    expression=label("object", "homelab.cooked.beer/bootstrap")
-                    + " == 'enabled'",
-                ),
-                dict(
-                    name="exclude-system",
-                    expression=f'!(object.metadata.name in {lit(["default"]+SYSTEM)})',
-                ),
-            ],
-            generate=[
-                dict(expression="generator.apply(object.metadata.name, " + expr + ")")
-            ],
-        ),
-    )
-    emit("policies/generator.yaml", [gp])
     old_mutation = SOURCES["longhorn-csi-registrar-lifecycle"]
     refs = old_mutation["spec"]["rules"][0]["preconditions"]["all"][1]["value"]
     c = "object.spec.template.spec.containers[0]"
