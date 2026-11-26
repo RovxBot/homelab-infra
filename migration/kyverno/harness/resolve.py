@@ -90,10 +90,14 @@ def resolve(chart, folder):
     return result
 
 
-if __name__=='__main__':
+def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--chart')
     p.add_argument('--output',type=Path,default=ROOT/'.work/cel/trust')
-    args=p.parse_args()
+    args=p.parse_args(argv)
     chart=args.chart or str(yaml.safe_load((ROOT/'infra/kyverno/helmrelease.yaml').read_text())['spec']['chart']['spec']['version'])
     print(json.dumps(resolve(chart,args.output),indent=2))
+
+
+if __name__=='__main__':
+    main()

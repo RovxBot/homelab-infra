@@ -41,5 +41,5 @@ Current namespace operations belong in the
 [active qualification contract](../../migration/kyverno/README.md) retains legacy/CEL
 validation, mutation, exceptions, Flux lifecycle/traffic/rollback and all four
 mandatory scenarios. The historical validation hashes remain untouched; changes
-to implementation inputs such as build.py require fresh qualification with
-reuse_validation=false on the exact proposed head.
+to implementation inputs such as build.py require fresh qualification on the
+exact proposed head. Historical validation reuse is no longer supported.

@@ -4,17 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       chart:
-        description: Exact proposed chart (blank uses the migration target)
+        description: Exact proposed chart; blank reads the proposed HelmRelease
         type: string
         default: ''
       scenarios:
         description: JSON array of diagnostic scenarios; blank runs full qualification
         type: string
         default: ''
-      reuse_validation:
-        description: Reuse only exact hashed validation evidence; false forces all admission tests
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -27,6 +23,5 @@ jobs:
   qualification:
     uses: ./.github/workflows/kyverno-compatibility.yml # zizmor: ignore[self-repository] -- same-commit call; pinned actionlint lacks $/ syntax
     with:
-      chart: ${{ inputs.chart || '3.10.0' }}
+      chart: ${{ inputs.chart }}
       scenarios: ${{ inputs.scenarios }}
-      reuse_validation: ${{ inputs.reuse_validation && (inputs.chart == '' || inputs.chart == '3.10.0') }}

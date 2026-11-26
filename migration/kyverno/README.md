@@ -26,8 +26,9 @@ needed by the selected architecture. The legacy bootstrap policy and
 activation/freeze.yaml remain inputs to isolated qualification.
 
 Run the [manual deployment workflow](../../.github/workflows/kyverno-cel-rehearsal.yml)
-on the exact implementation head with **reuse_validation=false**. Leaving scenarios
-blank runs **all four mandatory jobs**:
+on the exact implementation head. Qualification always runs fresh validation.
+Leave chart blank to read the proposed HelmRelease, or select an exact chart
+explicitly. Leaving scenarios blank runs **all four mandatory jobs**:
 namespace-lifecycle, production-sequence, mutation and validation. A JSON subset
 is diagnostic and cannot qualify deployment. Each disposable hosted kind v0.30.0 /
 Kubernetes v1.34.0 environment uses enforcing Calico v3.31.0, Helm v3.19.0 and the
@@ -58,13 +59,12 @@ same-finding pass evidence is required to close an incident.
 The [version-aware workflow](../../.github/workflows/kyverno-compatibility.yml)
 resolves and tests the actual proposed chart/application pair, authenticates exact
 release/source/CLI identities, validates image signatures/provenance and vendor
-Kubernetes support, and never silently substitutes an older version. Unchanged
-evidence can be reused only with complete input **and implementation** hashes and
-identical verified release artifacts. The retained validation contract is
-historical: build.py is an implementation input and its old hashes must never be
-refreshed to approve untested changes. This retirement requires fresh admissions
-with reuse_validation=false. The manual workflow's reuse default is unchanged;
-set the input explicitly. Historical incomplete or mismatched contracts fail closed.
+Kubernetes support, and never silently substitutes an older version. Each
+qualification reruns admission and reporting contracts. The retained
+validation contract and admission JSONLs are historical evidence, not runtime
+inputs; their old hashes must never be refreshed to approve untested changes.
+The obsolete reuse_validation workflow input has been removed; callers must omit
+it. Direct REUSE_VALIDATION=true requests fail explicitly.
 Kyverno remains separate from Monday maintenance, with manual review and no
 automerge. Task 21 records removal of the temporary Renovate cap after live upgrade
 acceptance, with no permanent single-release pin.
@@ -72,7 +72,7 @@ acceptance, with no permanent single-release pin.
 For local reproduction, use a disposable Linux Docker host with Python/PyYAML
 6.0.3, run trust.sh successfully, then set KYVERNO_REHEARSAL_LOCAL=1,
 CANDIDATE_TRUST=success and REHEARSAL_SCENARIO to one of the mandatory jobs before
-running harness/run.sh under timeout 1500 with REUSE_VALIDATION=false. The
+running harness/run.sh under timeout 1500. The
 entrypoint refuses existing kind clusters/kubeconfigs. GH_TOKEN may provide read-only GitHub metadata access;
 credentials are not written into evidence. Artifact trust uses Sigstore's official
 certificate/transparency/TUF checks. New hosted runs stay manual and bounded.
