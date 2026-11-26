@@ -1,5 +1,13 @@
 # Protected repositories
 
+**Historical GitHub-primary procedure.** Since 10 November 2026,
+`github-dr/wowdecomp` is the writable Gitea primary, `wowdecomp15595` is a frozen
+reference and upstream imports are stopped. The mirroring roles and manual sync
+commands below describe the earlier design; do not execute them against the
+current writable primary or re-enable imports for an exercise. Use the
+[current Gitea Wiki](https://github.com/RovxBot/homelab-infra/wiki/Gitea) and
+[mirror-only exercise eligibility gates](github-failover.md#safe-exercise).
+
 `ops/gitea/protected-repositories.json` is the source allowlist. It contains
 exactly `RovxBot/wowdecomp` → `github-dr/wowdecomp` (`main`) and
 `RovxBot/wowdecomp15595` → `github-dr/wowdecomp15595` (`w15595`). The second
