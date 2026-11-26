@@ -17,11 +17,20 @@ def documents(path):
 
 
 class ReceiverStageTests(unittest.TestCase):
-    def test_staged_not_active_and_original_collector_retained(self):
+    def test_native_receiver_active_fixture_retired_and_original_collector_retained(self):
         infra=yaml.safe_load((ROOT/"infra/kubescape/kustomization.yaml").read_text())
         self.assertIn("collector",infra["resources"])
         self.assertIn("receiver",infra["resources"])
-        self.assertIn("../../ops/security-collector/acceptance/trigger", infra["resources"])
+        self.assertNotIn("../../ops/security-collector/acceptance/trigger", infra["resources"])
+        collector=json.loads((ROOT/"infra/kubescape/collector/collector.json").read_text())
+        self.assertFalse(any(w["namespace"]=="kubescape-runtime-test" for w in collector["workloads"]))
+        claim=next(x for x in documents(ROOT/"infra/kubescape/collector/workload.yaml")
+                   if x["kind"]=="PersistentVolumeClaim")
+        self.assertEqual(claim["metadata"]["name"],"security-collector-state")
+        self.assertEqual(claim["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"],"disabled")
+        fixture=ROOT/"ops/security-collector/acceptance"
+        self.assertTrue((fixture/"trigger/kustomization.yaml").is_file())
+        self.assertTrue((fixture/"base/workload.yaml").is_file())
         self.assertIn("../../secrets",infra["resources"])
         secret_kustom=yaml.safe_load((ROOT/"secrets/kustomization.yaml").read_text())
         self.assertEqual(set(secret_kustom["resources"]),
@@ -34,7 +43,13 @@ class ReceiverStageTests(unittest.TestCase):
         parent=yaml.safe_load((ROOT/"clusters/home/infrastructure/kustomization.yaml").read_text())
         self.assertFalse(any("security-receiver" in path for path in parent["resources"]))
         manifest=yaml.safe_load((RECEIVER/"kustomization.yaml").read_text())
-        self.assertEqual(set(manifest["resources"]),{"rbac.yaml","workload.yaml"})
+        self.assertEqual(set(manifest["resources"]),{"rbac.yaml","workload.yaml","acceptance-namespace.yaml"})
+        namespace,=documents(RECEIVER/"acceptance-namespace.yaml")
+        self.assertEqual(namespace["kind"],"Namespace")
+        self.assertEqual(namespace["metadata"]["name"],"kubescape-runtime-test")
+        self.assertEqual(namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"],"restricted")
+        historical=next(x for x in documents(fixture/"base/workload.yaml") if x["kind"]=="Namespace")
+        self.assertEqual(namespace,historical)
 
     def test_tls_nonroot_dedicated_longhorn_and_no_public_ingress(self):
         items=documents(RECEIVER/"workload.yaml")
