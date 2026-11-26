@@ -6,7 +6,7 @@ import pprint
 import re
 
 root=Path(__file__).resolve().parents[3]
-rows=json.loads((root/'migration/kyverno/policy-map.json').read_text())
+rows=json.loads((root/'infra/kyverno-policies/policy-map.json').read_text())
 identities={((r.get('namespace','')+'/') if r.get('namespace') else '')+r['name']:(r['source_policy'],r['source_rule']) for r in rows}
 # Namespaced live reports use ns/name. Also retain bare names emitted by the CLI.
 for row in rows:

@@ -11,7 +11,7 @@ import re
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-OUT = ROOT / "migration/kyverno"
+OUT = ROOT / "infra/kyverno-policies"
 OWNER = "homelab.cooked.beer/owner"
 SYSTEM = ["flux-system", "kube-node-lease", "kube-public", "kube-system", "kyverno"]
 INDEX = []

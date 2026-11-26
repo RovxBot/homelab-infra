@@ -245,7 +245,7 @@ def exception_items(list_resource, today):
 
 
 # Reviewed guidance is code-owned, not report messages or annotation prose.
-EXCEPTION_SOURCE = "migration/kyverno/exceptions/exceptions.yaml"
+EXCEPTION_SOURCE = "infra/kyverno-policies/exceptions/exceptions.yaml"
 EXCEPTION_GUIDANCE = {
     "chart-managed-workloads": "Review the chart values for owner labels, resource requests/limits and probes. Narrow the exception to only the settings the chart cannot support.",
     "gpu-operator-workloads": "Review the GPU Operator and device-discovery hardware-access requirements. Preserve necessary host access; narrow unrelated exceptions only after device and workload tests.",
@@ -256,21 +256,21 @@ EXCEPTION_GUIDANCE = {
 
 RULE_GUIDANCE = {
     ("platform-pod-standards", "require-owner-label"):
-        ("migration/kyverno/policies/workloads.yaml", "Set the required owner label on the affected workload/Pod template in GitOps; check the rendered labels."),
+        ("infra/kyverno-policies/policies/workloads.yaml", "Set the required owner label on the affected workload/Pod template in GitOps; check the rendered labels."),
     ("platform-pod-standards", "require-requests-and-limits"):
-        ("migration/kyverno/policies/workloads.yaml", "Set CPU and memory requests and limits appropriate to measured application use. Check scheduling headroom and avoid arbitrary low limits."),
+        ("infra/kyverno-policies/policies/workloads.yaml", "Set CPU and memory requests and limits appropriate to measured application use. Check scheduling headroom and avoid arbitrary low limits."),
     ("platform-pod-standards", "require-runtime-hardening"):
-        ("migration/kyverno/policies/workloads.yaml", "Review the effective security context against the exact CEL rule; test compatible least-privilege settings, capabilities and seccomp before deploying."),
+        ("infra/kyverno-policies/policies/workloads.yaml", "Review the effective security context against the exact CEL rule; test compatible least-privilege settings, capabilities and seccomp before deploying."),
     ("platform-pod-standards", "disallow-host-network"):
-        ("migration/kyverno/policies/workloads.yaml", "Review whether hostNetwork is required. Prefer normal Pod networking when supported; preserve justified host access through a reviewed narrow exception."),
+        ("infra/kyverno-policies/policies/workloads.yaml", "Review whether hostNetwork is required. Prefer normal Pod networking when supported; preserve justified host access through a reviewed narrow exception."),
     ("platform-pod-standards", "require-digest-pinned-images"):
-        ("migration/kyverno/policies/workloads.yaml", "Pin the supported image to a verified immutable digest and use the reviewed dependency update workflow."),
+        ("infra/kyverno-policies/policies/workloads.yaml", "Pin the supported image to a verified immutable digest and use the reviewed dependency update workflow."),
     ("platform-pod-standards", "disallow-latest-tags"):
-        ("migration/kyverno/policies/workloads.yaml", "Replace the mutable latest tag with a reviewed version/digest, or review an explicitly justified narrow exception."),
+        ("infra/kyverno-policies/policies/workloads.yaml", "Replace the mutable latest tag with a reviewed version/digest, or review an explicitly justified narrow exception."),
     ("platform-pod-standards", "require-probes"):
-        ("migration/kyverno/policies/workloads.yaml", "Add application-appropriate health probes as required by the exact rule; test startup and failure behavior."),
+        ("infra/kyverno-policies/policies/workloads.yaml", "Add application-appropriate health probes as required by the exact rule; test startup and failure behavior."),
     ("platform-namespace-standards", "require-psa-and-owner-labels"):
-        ("migration/kyverno/policies/namespace.yaml", "Review namespace ownership and PSA labels against the workload's reviewed security requirements. Do not lower PSA merely to clear the report."),
+        ("infra/kyverno-policies/policies/namespace.yaml", "Review namespace ownership and PSA labels against the workload's reviewed security requirements. Do not lower PSA merely to clear the report."),
     ("kubescape-runtime-boundary", "validation"):
         ("infra/kubescape/runtime/admission.yaml", "Compare the runtime agent specification with its reviewed admission boundary and pinned chart contract. Restore the intended scope or submit a reviewed compatibility change."),
 }

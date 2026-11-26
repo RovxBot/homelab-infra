@@ -154,7 +154,7 @@ jobs:
           while IFS= read -r kustomization; do
             directory="${kustomization%/kustomization.yaml}"
             kustomize build --load-restrictor LoadRestrictionsNone "$directory" > /dev/null
-          done < <(find apps infra clusters -name kustomization.yaml -type f | sort)
+          done < <(find apps infra clusters scripts/ci/kyverno/fixtures -name kustomization.yaml -type f | sort)
 
       - name: Install kubeconform
         shell: bash
@@ -178,7 +178,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install PyYAML==6.0.3
-          TRUST_SCOPE=cli bash migration/kyverno/harness/trust.sh
+          TRUST_SCOPE=cli bash scripts/ci/kyverno/trust.sh
           sudo cp .work/cel/bin/kyverno /usr/local/bin/kyverno
           kyverno version
 

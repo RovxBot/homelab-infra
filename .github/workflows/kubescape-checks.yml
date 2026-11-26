@@ -14,7 +14,10 @@ on:
       - clusters/home/infrastructure/kubescape-kustomization.yaml
       - scripts/ci/kubescape_runtime.py
       - ops/kubescape/runtime-canary-test.yaml
-      - migration/kyverno/policies/workloads.yaml
+      - infra/kyverno-policies/policies/workloads.yaml
+      - infra/kyverno-policies/policies/namespace.yaml
+      - scripts/ci/kyverno/**
+      - migration/kyverno/** # Retain deletion/rename coverage for the old paths.
       - scripts/ci/check_kubescape.py
       - scripts/ci/tests/test_kubescape.py
       - scripts/grype*.py
@@ -56,7 +59,7 @@ jobs:
           curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz -o "$tools_dir/kustomize.tgz"
           tar -xzf "$tools_dir/kustomize.tgz" -C "$tools_dir" kustomize
           python3 -m pip install PyYAML==6.0.3 zstandard==0.25.0
-          TRUST_SCOPE=cli bash migration/kyverno/harness/trust.sh
+          TRUST_SCOPE=cli bash scripts/ci/kyverno/trust.sh
           cp .work/cel/bin/kyverno "$tools_dir/kyverno"
           echo "KYVERNO_EXPECTED_VERSION=$(jq -er .application .work/cel/trust/target.json)" >> "$GITHUB_ENV"
           curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz -o "$tools_dir/kubeconform.tgz"
@@ -119,7 +122,7 @@ jobs:
         run: |
           set -euo pipefail
           kustomize build infra/kubescape > .work/kubescape-preflight/source.yaml
-          kyverno apply migration/kyverno/policies/workloads.yaml migration/kyverno/policies/namespace.yaml \
+          kyverno apply infra/kyverno-policies/policies/workloads.yaml infra/kyverno-policies/policies/namespace.yaml \
             --resource .work/kubescape-preflight/source.yaml --policy-report > .work/kubescape-preflight/recurring-kyverno.yaml
           python3 - <<'PY'
           import yaml

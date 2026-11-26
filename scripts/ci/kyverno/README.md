@@ -1,15 +1,15 @@
-# Kyverno migration with Flux-owned namespace defaults
+# Kyverno qualification contract
 
 The accepted migration uses explicit Flux reconciliation for namespace defaults.
 Kyverno remains responsible for validation, mutation, scoped exceptions and
 reporting. Production consumes the CEL manifests through infra/kyverno-policies.
-The [completed activation history](activation/README.md),
-[exception decisions](activation/exception-review.md) and
-[Task 21 acceptance](evidence/task21/deployment.json) retain the cutover record.
+The [completed activation history](../../../docs/kyverno/activation/README.md),
+[exception decisions](../../../docs/kyverno/activation/exception-review.md) and
+[Task 21 acceptance](../../../docs/kyverno/evidence/task21/deployment.json) retain the cutover record.
 Current namespace operations belong in the
 [Wiki](https://github.com/RovxBot/homelab-infra/wiki/Namespace-Onboarding).
 
-The [reusable namespace base](../../infra/namespace-defaults/README.md) preserves
+The [reusable namespace base](../../../infra/namespace-defaults/README.md) preserves
 all three legacy resource specifications. A complete four-object bundle and a
 separate Flux workload dependency are required. A label alone does not onboard a
 namespace. CI checks completeness/dependencies; native admission restricts
@@ -18,14 +18,14 @@ CI verifies the complete Quantity-map specifications. The empty
 legacy generator retirement was qualified under proven native freeze, repeated
 complete zero inventories, observed orphan settings and explicit policy/queue absence.
 
-The [architectural decision](../../docs/decisions/0003-flux-namespace-defaults.md)
+The [architectural decision](../../../docs/decisions/0003-flux-namespace-defaults.md)
 retains historical generator failures. The abandoned implementation is linked
-from the [historical assessment](../../docs/kyverno/migration-plan.md); its replay
+from the [historical assessment](../../../docs/kyverno/migration-plan.md); its replay
 tooling is retired. No GeneratingPolicy or additional generator write RBAC is
 needed by the selected architecture. The legacy bootstrap policy and
-activation/freeze.yaml remain inputs to isolated qualification.
+fixtures/freeze.yaml remain inputs to isolated qualification.
 
-Run the [manual deployment workflow](../../.github/workflows/kyverno-cel-rehearsal.yml)
+Run the [manual deployment workflow](../../../.github/workflows/kyverno-cel-rehearsal.yml)
 on the exact implementation head. Qualification always runs fresh validation.
 Leave chart blank to read the proposed HelmRelease, or select an exact chart
 explicitly. Leaving scenarios blank runs **all four mandatory jobs**:
@@ -40,7 +40,7 @@ The namespace job exercises complete creation, partial/malformed rejection,
 legacy equality, dependency blocking and workload readiness, drift prevention and
 correction, source/kustomize-controller restart, resource recreation, protected
 pruning, source rollback and consumer-first decommissioning. The integrated job
-adds full legacy/CEL overlap, all six unchanged exceptions, continuous runner
+adds full legacy/CEL overlap, all five current exceptions, continuous runner
 security, Longhorn mutation, actual report inputs and RBAC, separate legacy prune,
 Flux Helm upgrade with the original safety check, storage migration and compatible
 chart/policy rollback while retaining CEL/native enforcement and Flux defaults.
@@ -56,7 +56,7 @@ consumer regression fixtures preserve legacy/CEL identity, overlap/deduplication
 exceptions, persistence, recovery and collection failure semantics. Fresh explicit
 same-finding pass evidence is required to close an incident.
 
-The [version-aware workflow](../../.github/workflows/kyverno-compatibility.yml)
+The [version-aware workflow](../../../.github/workflows/kyverno-compatibility.yml)
 resolves and tests the actual proposed chart/application pair, authenticates exact
 release/source/CLI identities, validates image signatures/provenance and vendor
 Kubernetes support, and never silently substitutes an older version. Each
@@ -72,12 +72,18 @@ acceptance, with no permanent single-release pin.
 For local reproduction, use a disposable Linux Docker host with Python/PyYAML
 6.0.3, run trust.sh successfully, then set KYVERNO_REHEARSAL_LOCAL=1,
 CANDIDATE_TRUST=success and REHEARSAL_SCENARIO to one of the mandatory jobs before
-running harness/run.sh under timeout 1500. The
+running scripts/ci/kyverno/run.sh under timeout 1500. The
 entrypoint refuses existing kind clusters/kubeconfigs. GH_TOKEN may provide read-only GitHub metadata access;
 credentials are not written into evidence. Artifact trust uses Sigstore's official
 certificate/transparency/TUF checks. New hosted runs stay manual and bounded.
 
-Policy regeneration remains harness/build.py followed by
-harness/render-report-identities.py. Migration inventory and policy identity
+Policy regeneration remains scripts/ci/kyverno/build.py followed by
+scripts/ci/kyverno/render-report-identities.py. Migration inventory and policy identity
 checks remain required. Task 21's historical acceptance does not establish fresh
 qualification or security-project acceptance; #2133 and #2139 remain independent.
+
+The [relocation receipt](../../../docs/kyverno/relocation.json) maps every original
+checkout path to its retained location. Historical receipt payloads, implementation
+hashes and immutable archive URLs describe their original runs and remain unchanged.
+The private-snapshot audit helper is retained as `audit_exceptions.py`; it is not
+part of unattended qualification. Keep private snapshots and findings private.

@@ -6,7 +6,7 @@ Status: accepted by the platform owner in Task 20, 22 November 2026. Implementat
 Repeated isolated Kyverno generator restart recovery failed on both releases,
 with fresh generators as well as adopted/upgraded resources. The quota remained
 at injected pods=21 within the unchanged 75-second recovery bound. Preserve
-[Task 17 evidence](../../migration/kyverno/evidence/task17/findings.md); do not
+[Task 17 evidence](../../docs/kyverno/evidence/task17/findings.md); do not
 resume that investigation or treat a namespace event as automatic recovery.
 
 Production inventory remains empty: no opted-in namespaces, matching bootstrap
@@ -36,7 +36,7 @@ Any nonempty/unknown inventory stops the process. Never delete outputs, change
 labels or transfer ownership to manufacture an empty state. Replace the freeze
 only after the permanent GitOps contract and isolated lifecycle are qualified.
 
-The [completed activation history](../../migration/kyverno/activation/README.md) keeps legacy
+The [completed activation history](../../docs/kyverno/activation/README.md) keeps legacy
 validation and exceptions until replacements pass live acceptance; prunes them
 in a separately observed phase before Helm's original legacy safety hook.
 Storage migration and supported chart/policy rollback retain enforcing CEL/native

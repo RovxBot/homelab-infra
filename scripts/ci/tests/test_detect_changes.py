@@ -9,6 +9,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "detect_changes.py"
@@ -51,6 +52,26 @@ class CheckSelectionTests(unittest.TestCase):
                       ('infra/kyverno/x',), ('infra/longhorn/x',), ('clusters/home/x',)]:
             for pattern in detect.script_test_patterns(list(paths), full=False):
                 self.assertTrue(list(tests.glob(pattern)), pattern)
+
+    def test_kyverno_old_and_new_paths_keep_regression_and_manifest_checks(self):
+        for path in ['migration/kyverno/policies/workloads.yaml',
+                     'migration/kyverno/namespace-example/namespace/kustomization.yaml',
+                     'infra/kyverno-policies/policies/workloads.yaml',
+                     'infra/kyverno-policies/exceptions/exceptions.yaml',
+                     'scripts/ci/kyverno/fixtures/namespace-example/namespace/kustomization.yaml',
+                     'scripts/ci/kyverno/fixtures/freeze.yaml']:
+            with self.subTest(path=path):
+                checks = detect.classify_changes([path])
+                for name in ['unit_tests', 'ci_tests', 'manifests']:
+                    self.assertEqual(checks[name], 'true')
+                self.assertIn('test_kyverno*.py', json.loads(checks['script_tests']))
+        for path in ['scripts/ci/kyverno/validation.py', 'scripts/ci/kyverno/run.sh',
+                     'migration/kyverno/harness/validation.py', 'migration/kyverno/harness/run.sh']:
+            checks = detect.classify_changes([path])
+            self.assertEqual(checks['ci_tests'], 'true')
+            self.assertEqual(checks['unit_tests'], 'true')
+        for path in ['scripts/ci/kyverno/run.sh', 'migration/kyverno/harness/run.sh']:
+            self.assertEqual(detect.classify_changes([path])['shell'], 'true')
 
     def test_documentation_does_not_start_expensive_checks(self):
         self.assertEqual(self.selected(["README.md", "docs/runbooks/renovate-operations.md"]), set())
@@ -121,6 +142,42 @@ class CheckSelectionTests(unittest.TestCase):
 
 
 class GitDiffTests(unittest.TestCase):
+    def test_kyverno_rename_and_deletion_select_checks_from_both_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def git(*args):
+                return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
+
+            git('init', '-b', 'main')
+            git('config', 'user.name', 'CI selection test')
+            git('config', 'user.email', 'ci-test@example.invalid')
+            old = 'migration/kyverno/namespace-example/namespace/kustomization.yaml'
+            deleted = 'migration/kyverno/policies/workloads.yaml'
+            new = 'scripts/ci/kyverno/fixtures/namespace-example/namespace/kustomization.yaml'
+            for path in [old, deleted]:
+                (root/path).parent.mkdir(parents=True, exist_ok=True)
+                (root/path).write_text('kind: Kustomization\n')
+            git('add', '.')
+            git('commit', '-m', 'baseline')
+            base = git('rev-parse', 'HEAD')
+            (root/new).parent.mkdir(parents=True)
+            git('mv', old, new)
+            git('rm', deleted)
+            git('commit', '-m', 'relocate fixture and delete old policy')
+            with patch.object(detect.subprocess, 'run', wraps=subprocess.run) as invoke:
+                # changed_paths normally runs in the repository selected by cwd.
+                previous = Path.cwd()
+                try:
+                    os.chdir(root)
+                    paths = detect.changed_paths(base, 'HEAD')
+                finally:
+                    os.chdir(previous)
+                self.assertIn('--no-renames', invoke.call_args.args[0])
+            self.assertEqual(set(paths), {old, deleted, new})
+            for name in ['unit_tests', 'ci_tests', 'manifests']:
+                self.assertEqual(detect.classify_changes(paths)[name], 'true')
+
     def test_pr_diff_ignores_base_only_changes_and_includes_deletions_and_renames(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

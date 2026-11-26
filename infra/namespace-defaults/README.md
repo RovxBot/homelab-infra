@@ -13,7 +13,7 @@ storage. Keep it reconciled for operational checks; use `--live` below to detect
 orphaned ownership or drift. Its NetworkPolicy declaration does not provide
 traffic isolation while production Cilium uses `policyEnforcementMode=never`.
 
-Copy the [isolated example](../../migration/kyverno/namespace-example/flux.yaml)
+Copy the [isolated example](../../scripts/ci/kyverno/fixtures/namespace-example/flux.yaml)
 into the appropriate `clusters/home` entrypoint, change the namespace and paths,
 and add a namespace overlay referencing `infra/namespace-defaults/base` with
 `namespace: <name>`. Kustomize renames the Namespace and namespaces the other

@@ -42,7 +42,7 @@ class Flux:
         self.server = subprocess.Popen(
             [
                 "python3",
-                str(ROOT / "migration/kyverno/harness/git_http.py"),
+                str(ROOT / "scripts/ci/kyverno/git_http.py"),
                 "--port",
                 "18080",
                 "--bind",

@@ -13,8 +13,8 @@ def policies(engine):
         paths += ['apps/gitea-runners/job-security.yaml','apps/gitea-runners/wowdecomp/job-security.yaml']
         paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT/'infra/kyverno/exceptions').glob('*.yaml')) if p.name!='kustomization.yaml']
     else:
-        paths = ['migration/kyverno/policies/'+name+'.yaml' for name in ['workloads','namespace','flux','runners','governance-native','mutation','reporting-rbac']]
-        paths += ['migration/kyverno/exceptions/exceptions.yaml']
+        paths = ['infra/kyverno-policies/policies/'+name+'.yaml' for name in ['workloads','namespace','flux','runners','governance-native','mutation','reporting-rbac']]
+        paths += ['infra/kyverno-policies/exceptions/exceptions.yaml']
     return [d for path in paths for d in load(path)]
 
 

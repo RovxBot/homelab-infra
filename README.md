@@ -45,7 +45,9 @@ Flux owns Kubernetes desired state. Talos configuration, application data and Te
 | [terraform/](terraform/) | Independent OCI edge and Matrix roots |
 | [docs/decisions/](docs/decisions/) | Accepted architecture decision records |
 | [docs/](docs/) | Retained specialised procedures and dated evidence pending verified Wiki coverage |
-| [migration/kyverno/](migration/kyverno/) | Compatibility, qualification and migration contracts; retirement is separately gated |
+| [scripts/ci/kyverno/](scripts/ci/kyverno/) | Active isolated qualification, trust tooling and fixtures |
+| [infra/kyverno-policies/](infra/kyverno-policies/) | Production CEL policies, exceptions and generated policy map |
+| [docs/kyverno/](docs/kyverno/) | Historical migration evidence, activation and exception decisions |
 
 ## Documentation and changes
 

@@ -17,7 +17,7 @@ ROOT=Path(__file__).resolve().parents[3]
 
 
 def module(name):
-    spec=importlib.util.spec_from_file_location(name,ROOT/'migration/kyverno/harness'/f'{name}.py')
+    spec=importlib.util.spec_from_file_location(name,ROOT/'scripts/ci/kyverno'/f'{name}.py')
     obj=importlib.util.module_from_spec(spec);spec.loader.exec_module(obj);return obj
 
 
@@ -52,7 +52,7 @@ class AdmissionConflictTests(unittest.TestCase):
 
 class EmptyStateGateTests(unittest.TestCase):
     def test_unavailable_runner_probe_cannot_qualify_continuity(self):
-        sys.path.insert(0,str(ROOT/'migration/kyverno/harness'))
+        sys.path.insert(0,str(ROOT/'scripts/ci/kyverno'))
         continuity=module('production_sequence')
         with tempfile.TemporaryDirectory() as tmp,patch.object(continuity,'EVIDENCE',Path(tmp)),patch.object(continuity,'run',side_effect=subprocess.TimeoutExpired('probe',120)):
             monitor=continuity.RunnerContinuity()
@@ -162,7 +162,7 @@ class ProposedReleaseTests(unittest.TestCase):
 
 class FreshValidationTests(unittest.TestCase):
     def setUp(self):
-        self.enterContext(patch.object(sys,'path',[str(ROOT/'migration/kyverno/harness'),*sys.path]))
+        self.enterContext(patch.object(sys,'path',[str(ROOT/'scripts/ci/kyverno'),*sys.path]))
         self.validation=module('validation')
         self.equivalence=__import__('equivalence')
         self.reporting=__import__('reporting')
@@ -237,9 +237,9 @@ class FreshWorkflowTests(unittest.TestCase):
         contract=compatibility['jobs']['contracts']
         self.assertEqual(json.loads(contract['strategy']['matrix']['scenario'].split("'",2)[1]),
                          ['namespace-lifecycle','production-sequence','mutation','validation'])
-        execution=next(step for step in contract['steps'] if step.get('run')=='timeout 1500 bash migration/kyverno/harness/run.sh')
+        execution=next(step for step in contract['steps'] if step.get('run')=='timeout 1500 bash scripts/ci/kyverno/run.sh')
         self.assertNotIn('REUSE_VALIDATION',execution['env'])
-        trust=next(step for step in contract['steps'] if step.get('run')=='bash migration/kyverno/harness/trust.sh')
+        trust=next(step for step in contract['steps'] if step.get('run')=='bash scripts/ci/kyverno/trust.sh')
         self.assertEqual(trust['env']['KYVERNO_CANDIDATE_CHART'],'${{ inputs.chart }}')
 
 

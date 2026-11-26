@@ -33,6 +33,9 @@ MANIFEST_CHECK_PATHS = {
     "ops/longhorn/reviewed-backup-retention-job.yaml",
 }
 EDGE_ROOT = "terraform/oci-free-tier/ops/wireguard/"
+# Keep the retired prefix for PR diffs that delete or rename old source files.
+KYVERNO_PATHS = ('infra/kyverno/', 'infra/kyverno-policies/',
+                 'scripts/ci/kyverno/', 'migration/kyverno/')
 
 
 def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
@@ -47,7 +50,7 @@ def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
         ('infra/kubescape/',): ['test_grype*.py', 'test_kubescape*.py', 'test_gatus_alert_config.py'],
         ('infra/longhorn/', 'infra/longhorn-node-disks/', 'ops/longhorn/'):
             ['test_longhorn*.py'],
-        ('infra/kyverno/', 'infra/kyverno-policies/', 'migration/kyverno/'):
+        KYVERNO_PATHS:
             ['test_kyverno*.py', 'test_kubescape_status_guardrail.py'],
     }
     return sorted({pattern for prefixes, patterns in owners.items()
@@ -57,7 +60,7 @@ def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
 def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
     full = full or any(path in FULL_CHECK_PATHS for path in paths)
     patterns = script_test_patterns(paths, full=full)
-    ci_tests = full or any(path.startswith('scripts/ci/') for path in paths)
+    ci_tests = full or any(path.startswith(('scripts/ci/', *KYVERNO_PATHS)) for path in paths)
     gitea_tests = full or any(path.startswith(('ops/gitea/', 'apps/gitea/', 'apps/gitea-runners/')) for path in paths)
     flags = {
         "unit_tests": bool(patterns) or ci_tests or gitea_tests,
@@ -65,13 +68,13 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
         "gitea_tests": gitea_tests,
         "manifests": full or any(
             path.startswith(("apps/", "infra/", "clusters/", "secrets/", "ops/gitea/"))
-            or path.startswith("migration/kyverno/namespace-example/")
+            or path.startswith(("scripts/ci/kyverno/fixtures/", "migration/kyverno/"))
             or path in MANIFEST_CHECK_PATHS
             for path in paths
         ),
         "public_edge": full or f"{EDGE_ROOT}Caddyfile" in paths,
         "shell": full or any(
-            path.endswith(".sh") and path.startswith(("scripts/", "ops/gitea/", EDGE_ROOT))
+            path.endswith(".sh") and path.startswith(("scripts/", "ops/gitea/", "migration/kyverno/", EDGE_ROOT))
             for path in paths
         ),
         "workflows": full or any(

@@ -10,7 +10,7 @@ NAME = "kubescape-assessment-status"
 
 class AssessmentStatusGuardrailTests(unittest.TestCase):
     def test_cel_exception_requires_exact_operation_identity_and_resource(self):
-        data = yaml.safe_load((ROOT / "migration/kyverno/policies/flux.yaml").read_text())
+        data = yaml.safe_load((ROOT / "infra/kyverno-policies/policies/flux.yaml").read_text())
         self.assertEqual(data["metadata"]["name"], "platform-flux-guardrails")
         self.assertEqual(data["spec"]["validationActions"], ["Audit", "Warn"])
         conditions = {c["name"]: c["expression"] for c in data["spec"]["matchConditions"]}
@@ -45,7 +45,7 @@ class AssessmentStatusGuardrailTests(unittest.TestCase):
             for entry in rule["exclude"]["any"]))
 
     def test_generator_is_source_of_truth(self):
-        source = (ROOT / "migration/kyverno/harness/build.py").read_text()
+        source = (ROOT / "scripts/ci/kyverno/build.py").read_text()
         self.assertIn('name="kubescape-assessment-status-writer"', source)
         self.assertIn("request.name == 'kubescape-assessment-status'", source)
         self.assertIn(ACTOR, source)

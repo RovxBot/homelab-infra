@@ -49,13 +49,13 @@ def excepted(inventory, source, rule, doc):
 
 
 def suite(version, engine):
-    index = json.loads((ROOT / "migration/kyverno/policy-map.json").read_text())
+    index = json.loads((ROOT / "infra/kyverno-policies/policy-map.json").read_text())
     draft = []
     for path in ["namespace.yaml", "workloads.yaml", "runners.yaml"]:
-        draft += load("migration/kyverno/policies/" + path)
+        draft += load("infra/kyverno-policies/policies/" + path)
     inventory = json.loads((ROOT / "docs/kyverno/migration-inventory.json").read_text())
     exceptions = (
-        load("migration/kyverno/exceptions/exceptions.yaml")
+        load("infra/kyverno-policies/exceptions/exceptions.yaml")
         if engine == "cel"
         else [load(e["path"])[0] for e in inventory["exceptions"]]
     )
@@ -265,7 +265,7 @@ def whole_runners(version, engine):
             if engine == "legacy"
             else [
                 p
-                for p in load("migration/kyverno/policies/runners.yaml")
+                for p in load("infra/kyverno-policies/policies/runners.yaml")
                 if p["metadata"]["namespace"] == namespace
             ]
         )

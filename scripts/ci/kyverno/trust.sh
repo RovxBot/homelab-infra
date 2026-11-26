@@ -11,7 +11,7 @@ chmod +x .work/cel/bin/cosign
 export XDG_CACHE_HOME="$PWD/.work/cel/trust/cache"
 mkdir -p "$XDG_CACHE_HOME"
 fetch https://tuf-repo-cdn.sigstore.dev/15.root.json .work/cel/trust/official-root.json
-python3 migration/kyverno/harness/resolve.py ${KYVERNO_CANDIDATE_CHART:+--chart "$KYVERNO_CANDIDATE_CHART"}
+python3 scripts/ci/kyverno/resolve.py ${KYVERNO_CANDIDATE_CHART:+--chart "$KYVERNO_CANDIDATE_CHART"}
 version=$(jq -er .application .work/cel/trust/target.json)
 chart=$(jq -er .chart .work/cel/trust/target.json)
 source_commit=$(jq -er .source_commit .work/cel/trust/target.json)
@@ -51,5 +51,5 @@ for image in kyverno kyvernopre background-controller cleanup-controller reports
     --certificate-oidc-issuer "$issuer" "ghcr.io/kyverno/$image@$digest" \
     > ".work/cel/trust/$image.provenance.json" 2> ".work/cel/trust/$image.provenance.log"
 done
-python3 migration/kyverno/harness/trust-summary.py
+python3 scripts/ci/kyverno/trust-summary.py
 printf 'verified\n' > .work/cel/trust/status

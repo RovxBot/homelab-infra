@@ -24,7 +24,7 @@ def inventory(stage):
 
 def empty_retirement(flux):
     legacy = load('infra/kyverno/policies/platform-namespace-bootstrap.yaml')[0]
-    freeze = load('migration/kyverno/activation/freeze.yaml')
+    freeze = load('scripts/ci/kyverno/fixtures/freeze.yaml')
     flux.commit([legacy], 'legacy-generator-active'); ready(legacy)
     flux.commit([legacy, *freeze], 'freeze-before-empty-retirement')
     apply(namespace('freeze-update-probe'))
@@ -83,7 +83,7 @@ def empty_retirement(flux):
 
 
 def bundle():
-    return list(yaml.safe_load_all(k('kustomize','--load-restrictor=LoadRestrictionsNone',str(ROOT/'migration/kyverno/namespace-example/namespace')).stdout))
+    return list(yaml.safe_load_all(k('kustomize','--load-restrictor=LoadRestrictionsNone',str(ROOT/'scripts/ci/kyverno/fixtures/namespace-example/namespace')).stdout))
 
 
 def snapshots():
@@ -124,7 +124,7 @@ def safeguards():
 
 
 def write_bundle(flux, decommission=False, protected=True, empty=False, malformed=False):
-    target = flux.repo/'migration/kyverno/namespace-example/namespace'
+    target = flux.repo/'scripts/ci/kyverno/fixtures/namespace-example/namespace'
     target.mkdir(parents=True, exist_ok=True)
     docs = bundle()
     for obj in docs:
@@ -141,7 +141,7 @@ def write_bundle(flux, decommission=False, protected=True, empty=False, malforme
         base = flux.repo/'infra/namespace-defaults/base'
         base.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(ROOT/'infra/namespace-defaults/base', base, dirs_exist_ok=True)
-        shutil.copy2(ROOT/'migration/kyverno/namespace-example/namespace/kustomization.yaml', target/'kustomization.yaml')
+        shutil.copy2(ROOT/'scripts/ci/kyverno/fixtures/namespace-example/namespace/kustomization.yaml', target/'kustomization.yaml')
     else:
         (target/'resources.yaml').write_text(yaml.safe_dump_all(docs))
         (target/'kustomization.yaml').write_text(yaml.safe_dump(dict(apiVersion='kustomize.config.k8s.io/v1beta1',kind='Kustomization',resources=[] if empty else ['resources.yaml'])))
@@ -150,11 +150,11 @@ def write_bundle(flux, decommission=False, protected=True, empty=False, malforme
 def run(flux, during=None):
     guards = empty_retirement(flux)
     safeguards()
-    nsks, appks = load('migration/kyverno/namespace-example/flux.yaml')
+    nsks, appks = load('scripts/ci/kyverno/fixtures/namespace-example/flux.yaml')
     for ks in [nsks, appks]:
         ks['spec']['sourceRef']['name'] = 'rehearsal'
-    workload = flux.repo/'migration/kyverno/namespace-example/workloads'
-    shutil.copytree(ROOT/'migration/kyverno/namespace-example/workloads', workload)
+    workload = flux.repo/'scripts/ci/kyverno/fixtures/namespace-example/workloads'
+    shutil.copytree(ROOT/'scripts/ci/kyverno/fixtures/namespace-example/workloads', workload)
     write_bundle(flux, malformed=True)
     flux.publish('malformed-bundle-blocks-workloads')
     flux.reconcile(nsks, 'malformed-bundle', expect_ready=False)

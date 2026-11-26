@@ -15,7 +15,7 @@ isolated generator restart recovery failed on both releases, including fresh and
 adopted/upgraded resources. A same-name source test did not prove provenance,
 watch reconstruction, cleanup safety or continuous protection. No CEL generator
 or generator-specific write RBAC was selected. The
-[Task 17 findings](../../migration/kyverno/evidence/task17/findings.md) retain the
+[Task 17 findings](../../docs/kyverno/evidence/task17/findings.md) retain the
 failure evidence; the [migration inventory](migration-inventory.json) remains a
 machine-consumed coverage contract.
 
@@ -29,16 +29,16 @@ original sources retained at the accepted audit baseline:
 - [original build.py](https://github.com/RovxBot/homelab-infra/blob/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/harness/build.py)
 
 The old overlay commands and activation replay instructions are historical only.
-See the [completed activation history](../../migration/kyverno/activation/README.md)
+See the [completed activation history](../../docs/kyverno/activation/README.md)
 for immutable patches/helpers, retained rollback constraints and cutover receipts.
-[Exception decisions](../../migration/kyverno/activation/exception-review.md)
-remain unchanged. [Task 21 acceptance](../../migration/kyverno/evidence/task21/deployment.json)
+[Exception decisions](../../docs/kyverno/activation/exception-review.md)
+remain unchanged. [Task 21 acceptance](../../docs/kyverno/evidence/task21/deployment.json)
 records the successful upgrade and four mandatory scenarios; it does not settle
 #2133 or imply acceptance of the independent security project (#2139).
 
 Current namespace operations belong in the
 [Wiki](https://github.com/RovxBot/homelab-infra/wiki/Namespace-Onboarding). The
-[active qualification contract](../../migration/kyverno/README.md) retains legacy/CEL
+[active qualification contract](../../scripts/ci/kyverno/README.md) retains legacy/CEL
 validation, mutation, exceptions, Flux lifecycle/traffic/rollback and all four
 mandatory scenarios. The historical validation hashes remain untouched; changes
 to implementation inputs such as build.py require fresh qualification on the

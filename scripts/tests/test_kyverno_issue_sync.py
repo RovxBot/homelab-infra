@@ -125,7 +125,7 @@ class ReportMigrationTests(unittest.TestCase):
 
     def test_committed_live_reports_keep_the_original_policy_rule_pairs(self):
         import json
-        rows=[json.loads(line) for line in (ROOT/'migration/kyverno/evidence/admission-results.jsonl').read_text().splitlines()]
+        rows=[json.loads(line) for line in (ROOT/'docs/kyverno/evidence/admission-results.jsonl').read_text().splitlines()]
         for row in rows:
             if row['name'] in ['background-report','flux-audit-report']:
                 for finding in row['results']:

@@ -400,7 +400,7 @@ def check_admission(args, work, resources):
     namespace = yaml.safe_load((ROOT / "infra/kubescape/namespace.yaml").read_text())
     admission_resources = work / "admission-resources.yaml"
     admission_resources.write_text(yaml.safe_dump_all([namespace, *resources]))
-    policy_root = ROOT / ("migration/kyverno/policies" if cel else "infra/kyverno/policies")
+    policy_root = ROOT / ("infra/kyverno-policies/policies" if cel else "infra/kyverno/policies")
     policies = [policy_root / name for name in (["workloads.yaml", "namespace.yaml"] if cel else ["platform-pod-standards.yaml", "platform-namespace-standards.yaml"])]
     policies.append(ROOT / "infra/kubescape/runtime/admission.yaml")
     evaluated = subprocess.run([

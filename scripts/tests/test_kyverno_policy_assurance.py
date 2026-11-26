@@ -13,10 +13,10 @@ exec(compile(DOCUMENTS[0]["data"]["assurance.py"], "assurance.py", "exec"), ASSU
 TODAY = date(2026, 11, 24)
 BASE = ASSURANCE["BASE"]
 POLICY_FILES = [
-    "migration/kyverno/policies/workloads.yaml",
-    "migration/kyverno/policies/namespace.yaml",
-    "migration/kyverno/policies/flux.yaml",
-    "migration/kyverno/policies/runners.yaml",
+    "infra/kyverno-policies/policies/workloads.yaml",
+    "infra/kyverno-policies/policies/namespace.yaml",
+    "infra/kyverno-policies/policies/flux.yaml",
+    "infra/kyverno-policies/policies/runners.yaml",
     "infra/kubescape/runtime/admission.yaml",
 ]
 
@@ -33,7 +33,7 @@ class PolicyAssuranceTests(unittest.TestCase):
                 item["status"] = {"conditionStatus":{"ready":True,"conditions":[{"status":"True"}]}}
                 self.objects[BASE+kind.lower().replace("policy","policies")].append(item)
         self.objects[BASE+"policyexceptions"] = list(yaml.safe_load_all(
-            (ROOT/"migration/kyverno/exceptions/exceptions.yaml").read_text()))
+            (ROOT/"infra/kyverno-policies/exceptions/exceptions.yaml").read_text()))
         for item in self.objects[BASE+"policyexceptions"]:
             item["metadata"]["annotations"]["kyverno.cooked.beer/expires-at"]="2027-01-01"
 
