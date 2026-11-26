@@ -141,13 +141,39 @@ class RetainedProjectionTests(unittest.TestCase):
                 saved=records[R.row_key(current)]
                 if corrupt:
                     saved["privateCve"]["otherHighCriticalMatches"]=1
-                self.assertEqual(R.recover_private_projection(history,inventory,records,config),int(not corrupt))
+                diagnostics = {}
+                self.assertEqual(R.recover_private_projection(history,inventory,records,config,diagnostics),int(not corrupt))
+                if corrupt:
+                    self.assertEqual(diagnostics, {"outcomes":{"archive_prior_verdict_unqualified":1}})
+                else:
+                    self.assertEqual(diagnostics, {"outcomes":{"verified_recovered":1},
+                                                  "maximumVerifiedDistinct":R.PREVIOUS_PRIVATE_CVE_LIMIT+1})
                 self.assertEqual(saved["createdAt"],record["createdAt"])
                 self.assertEqual(saved["privateCve"]["state"],"overflow" if corrupt else "complete")
                 if not corrupt:
                     self.assertEqual(len(saved["privateCve"]["findings"]), R.PREVIOUS_PRIVATE_CVE_LIMIT + 1)
                     self.assertEqual(saved["privateCve"], R.private_cve_findings(matches))
                     self.assertEqual(R.recover_private_projection(history,inventory,records,config),0)
+            # An authentic current-limit overflow remains unknown, but its
+            # exact distinct count is available in aggregate diagnostics.
+            matches.extend({"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}}
+                           for i in range(len(matches),R.MAX_PRIVATE_CVES+1))
+            checked = R.check_report(report,sbom,current,EXPECTED,R.db.stamp(NOW))
+            overflow = dict(record, **checked, privateCve=R.private_cve_findings(matches))
+            archive = run/("reports-"+job+".json.gz")
+            with gzip.open(archive,"wt") as stream:
+                json.dump({"vulnerability":report,"sbom":sbom},stream)
+            records = {R.row_key(current):copy.deepcopy(overflow)}
+            diagnostics = {}
+            self.assertEqual(R.recover_private_projection(history,inventory,records,config,diagnostics),0)
+            self.assertEqual(diagnostics, {"outcomes":{"verified_still_overflow":1},
+                                          "maximumVerifiedDistinct":R.MAX_PRIVATE_CVES+1})
+            self.assertEqual(records[R.row_key(current)],overflow)
+            self.assertNotIn("CVE-2026-",json.dumps(diagnostics))
+            archive.unlink()
+            diagnostics = {}
+            self.assertEqual(R.recover_private_projection(history,inventory,records,config,diagnostics),0)
+            self.assertEqual(diagnostics, {"outcomes":{"archive_missing":1}})
 
     def test_retained_reader_rejects_oversize_and_symlink(self):
         with tempfile.TemporaryDirectory() as tmp:

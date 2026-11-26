@@ -276,3 +276,14 @@ This is a bounded qualification attempt, not evidence that the remaining
 actual advisory set fits; no ID truncation or increase in recovery-proof cap.
 Stirling PDF's separate image size rejection requires measured registry
 manifest evidence before scanner capacity changes.
+
+### Retained overflow diagnostics
+
+The post-230-limit refresh still observed one overflow. Refresh logs now include
+`overflowRecovery` with aggregate fixed reason codes and the maximum verified
+number of distinct High/Critical CVE IDs, only after retained report, original
+identity, current DB, summary and successful terminal evidence are qualified.
+An unavailable archive, incompatible prior verdict or genuine above-bound
+finding set must remain unknown. No CVE IDs, workload identities or arbitrary
+exception content are included; diagnostics are not sent to public issue sync.
+No changes to scan or projection limits, schedules, storage or recovery gates.

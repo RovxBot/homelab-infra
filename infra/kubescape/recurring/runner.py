@@ -803,9 +803,20 @@ def read_retained(path):
     return json.loads(body)
 
 
-def recover_private_projection(history, inventory, records, config):
-    """Reuse only already-qualified, exact current retained reports; no new scan."""
+def recover_private_projection(history, inventory, records, config, diagnostics=None):
+    """Reuse only already-qualified, exact current retained reports; no new scan.
+
+    Optional diagnostics contain aggregate fixed reason codes and the maximum
+    distinct advisory count only after exact archive qualification.
+    """
     recovered = 0
+    def observe(reason, distinct=None):
+        if diagnostics is not None:
+            outcomes = diagnostics.setdefault("outcomes", {})
+            outcomes[reason] = outcomes.get(reason, 0) + 1
+            if distinct is not None:
+                diagnostics["maximumVerifiedDistinct"] = max(
+                    diagnostics.get("maximumVerifiedDistinct", 0), distinct)
     for row in inventory["rows"]:
         if (row["assessmentState"] != "healthy" or target_key(row) not in PRIVATE_CVE_TARGETS):
             continue
@@ -819,21 +830,30 @@ def recover_private_projection(history, inventory, records, config):
             continue
         job = record.get("jobID", "")
         if not isinstance(job, str) or not re.fullmatch(r"recurring-[a-f0-9]{32}", job):
+            if overflow:
+                observe("archive_job_unavailable")
             continue
+        stage = "archive_lookup"
         try:
             paths = list(history.glob("vulnerability-*/reports-" + job + ".json.gz"))
-            db.require(len(paths) == 1, "archive_ambiguous")
+            if len(paths) != 1:
+                if overflow:
+                    observe("archive_missing" if not paths else "archive_ambiguous")
+                continue
             path = paths[0]
+            stage = "archive_identity"
             db.require(record["workloadUID"] == row["workloadUID"]
                        and record["imageDigest"] == row["runningDigest"]
                        and record["container"] == row["container"]
                        and record["database"]["checksum"] == config["databaseChecksum"],
                        "archive_identity_mismatch")
+            stage = "archive_report"
             pair = read_retained(path)
             report, sbom = pair["vulnerability"], pair["sbom"]
             checked = check_report(report, sbom, row, {"metadata": record["database"]}, record["createdAt"])
             for key in ("createdAt","database","severities","fixesAvailable","manifestDigest","configDigest"):
                 db.require(checked[key] == record[key], "archive_record_mismatch")
+            stage = "archive_summary"
             summary = read_retained(path.parent / ("summary-" + job + ".json.gz"))
             annotations = summary["metadata"]["annotations"]
             db.require(annotations["kubescape.io/image-id"] == row["runningDigest"]
@@ -842,6 +862,7 @@ def recover_private_projection(history, inventory, records, config):
                            workload_wlid(row)
                        and summary["spec"]["vulnerabilitiesRef"]["all"]["name"] == report["metadata"]["name"],
                        "archive_summary_mismatch")
+            stage = "archive_terminal"
             terminal_path = path.parent / ("terminal-" + job + ".json")
             db.require(terminal_path.is_file() and not terminal_path.is_symlink()
                        and terminal_path.stat().st_size <= 65536, "archive_terminal_missing")
@@ -851,22 +872,35 @@ def recover_private_projection(history, inventory, records, config):
             matches = report["spec"]["payload"]["matches"]
             findings = private_cve_findings(matches)
             if overflow:
-                # Reproduce the old lossless boundary decision before replacing
-                # it. Never promote an overflow above the new bound or trust an
-                # archive that would not have produced the original verdict.
-                if findings["state"] != "complete":
-                    continue
-                db.require(any(previous == private_cve_findings(matches, limit=limit)
-                               for limit in (LEGACY_PRIVATE_CVE_LIMIT, PREVIOUS_PRIVATE_CVE_LIMIT)),
+                # Qualify the original lossless verdict before reporting any
+                # counts or considering a new projection.
+                stage = "archive_prior_verdict"
+                db.require(previous == private_cve_findings(matches, limit=MAX_PRIVATE_CVES)
+                           or any(previous == private_cve_findings(matches, limit=limit)
+                                  for limit in (LEGACY_PRIVATE_CVE_LIMIT, PREVIOUS_PRIVATE_CVE_LIMIT)),
                            "archive_projection_mismatch")
+                distinct = len({m["vulnerability"]["id"] for m in matches
+                                if m["vulnerability"].get("severity") in ("High", "Critical")
+                                and isinstance(m["vulnerability"].get("id"), str)
+                                and CVE_ID.fullmatch(m["vulnerability"]["id"])})
+                if findings["state"] != "complete":
+                    observe("verified_still_overflow", distinct)
+                    continue
+                observe("verified_recovered", distinct)
             else:
                 db.require(previous is None or previous == findings, "archive_projection_mismatch")
             record["privateCve"] = findings
             record["privateCveDetails"] = private_cve_details(matches)
             record["privateRecoveryProof"] = private_recovery_proof(report, row, record)
             recovered += 1
-        except (db.Rejected, OSError, ValueError, TypeError, KeyError, EOFError):
+        except (db.Rejected, OSError, ValueError, TypeError, KeyError, EOFError) as error:
             # Never promote missing, malformed, oversized or inconsistent retained evidence.
+            # Do not copy arbitrary exception text, filenames, IDs or workload names.
+            if overflow:
+                if isinstance(error, db.Rejected) and error.reason in ("archive_budget", "archive_unavailable"):
+                    observe(error.reason)
+                else:
+                    observe(stage + "_unqualified")
             continue
     return recovered
 
@@ -940,7 +974,8 @@ def refresh_inventory(api, config, history):
         source = history / "records.json"
         records = json.loads(source.read_text()) if source.exists() else {}
         inventory = coverage(workload_rows(api), records, config)
-        recovered = recover_private_projection(history, inventory, records, config)
+        recovery_diagnostics = {"outcomes": {}, "maximumVerifiedDistinct": 0}
+        recovered = recover_private_projection(history, inventory, records, config, recovery_diagnostics)
         if recovered:
             atomic(source, records)
         path, status = coverage_status(api, inventory, records, config)
@@ -951,7 +986,8 @@ def refresh_inventory(api, config, history):
         print(json.dumps({"mode": "refresh", "state": "observed",
                           "coverage": cohort_health(inventory, config),
                           "privateCveReasons": json.loads(status["data"]["coverage.privateCveReasons"]),
-                          "recoveredProjections": recovered}), flush=True)
+                          "recoveredProjections": recovered,
+                          "overflowRecovery": recovery_diagnostics}), flush=True)
         return 0
 
 
