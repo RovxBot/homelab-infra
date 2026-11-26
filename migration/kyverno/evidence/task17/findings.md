@@ -1,5 +1,31 @@
 # Task 17 findings
 
+**Historical receipt — 21 November 2026.** The findings and decisions below
+record the failed generator qualification at that time. They are not current
+production acceptance evidence. The later accepted Flux-owned design is recorded
+in [ADR 0003](../../../../docs/decisions/0003-flux-namespace-defaults.md).
+
+The 109 raw captures (5,522,522 bytes) have been retired from the checkout under
+cleanup [#2293](https://github.com/RovxBot/homelab-infra/issues/2293), following the
+[accepted dependency audit](https://github.com/RovxBot/homelab-infra/issues/2292#issuecomment-7182975729).
+The seven direct Task 17 receipts remain here. [files.json](files.json) preserves
+the original run/implementation references and all 115 original file hashes.
+Its `historical_files_sha256` keys resolve through `archive.file_url_template`
+to exact files at immutable commit
+[`4468df762841f1341d1e1061f25f0e0b29da67e0`](https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17).
+Those hashes describe that snapshot, including the original version of this
+receipt; they do not validate today's checkout or authorize evidence reuse.
+
+| Retired captures at immutable source | Files | Bytes |
+| --- | ---: | ---: |
+| [adopted](https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17/adopted) | 26 | 1,361,963 |
+| [empty-upgraded](https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17/empty-upgraded) | 24 | 970,312 |
+| [fresh-target](https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17/fresh-target) | 24 | 919,632 |
+| [mutation](https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17/mutation) | 5 | 219,263 |
+| [upgraded](https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/task17/upgraded) | 30 | 2,051,352 |
+
+## Recorded findings and decisions
+
 **Decision: stop before production activation.** The preferred empty-state
 mechanics work, but fresh CEL generator restart recovery fails on both releases.
 This is a general synchronization reliability blocker, not an adoption-only
@@ -8,8 +34,9 @@ migration requirement. No timeout increase or production workaround is qualified
 The main isolated run is
 [44882022959](https://github.com/RovxBot/homelab-infra/actions/runs/44882022959),
 tested implementation `8dc63d5b12ebeb06a045cec61cda90a37887fe8f`.
-`files.json` indexes retained actual snapshots, watches, logs, traffic samples,
-admission objects and teardown records. Full run artifacts also contain trust
+The historical index in [files.json](files.json) identifies archived snapshots,
+watches, logs, traffic samples, admission objects and teardown records at the
+immutable source above. Full run artifacts also contain trust
 verification and remaining controller logs. Production raw inventories remain
 private; only counts, timestamps and hashes are committed.
 
