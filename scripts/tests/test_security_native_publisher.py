@@ -2,10 +2,14 @@
 import copy
 from datetime import datetime, timezone
 import importlib.util
+import hashlib
+import io
+import json
 import pathlib
 import sqlite3
 import sys
 import unittest
+import zipfile
 from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -349,6 +353,74 @@ class CVEPublisherTests(unittest.TestCase):
             candidate.live_candidates([pr(1), pr(1)], base, fetch, lambda *_: True, reader)
         with self.assertRaises(ValueError):
             candidate.live_candidates([pr(i) for i in range(1,52)], base, fetch, lambda *_: True, reader)
+
+    def test_private_remediation_snapshot_exact_digest_and_artifact_boundary(self):
+        now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        base, head = "a"*40, "b"*40
+        workload = "memos/Deployment/memos"
+        old = "neosmemo/memos:v1@sha256:" + "c"*64
+        new = "neosmemo/memos:v2@sha256:" + "d"*64
+        candidate = {"workload":workload, "container":"memos", "path":pub.CVE_SOURCES[workload][0],
+                     "dependency":"docker.io/neosmemo/memos", "before":old, "after":new,
+                     "state":"candidate_not_assessed", "pr":123, "base":base, "head":head}
+        snapshot = {"schema":1, "repository":pub.REMEDIATION_REPO, "base":base, "state":"observed",
+                    "openPrCount":1, "skipped":{}, "candidates":[candidate],
+                    "generatedAt":"2026-11-24T06:00:00Z"}
+        def encoded(value, name="candidates.json"):
+            stream = io.BytesIO()
+            with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr(name, json.dumps(value))
+            data = stream.getvalue()
+            return data, "sha256:" + hashlib.sha256(data).hexdigest()
+        raw, digest = encoded(snapshot)
+        self.assertEqual(pub.decode_remediation_artifact(raw, digest), snapshot)
+        with self.assertRaises(ValueError):
+            pub.decode_remediation_artifact(raw, "sha256:" + "f"*64)
+        with self.assertRaises(ValueError):
+            pub.decode_remediation_artifact(*encoded(snapshot, "../candidates.json"))
+        def request(opener, url, token, **kw):
+            self.assertEqual(token, "read-only")
+            self.assertEqual(kw, {"method":"GET", "payload":None, "phase":"github_api"})
+            self.assertTrue(url.startswith(pub.REMEDIATION_API + "/actions/"))
+            if "/workflows/" in url:
+                return {"workflow_runs":[{"id":1,"head_sha":base,"head_branch":"main",
+                        "head_repository":{"full_name":pub.REMEDIATION_REPO},"event":"schedule",
+                        "conclusion":"success","created_at":"2026-11-24T05:59:00Z"}]}
+            return {"total_count":1,"artifacts":[{"name":pub.REMEDIATION_ARTIFACT,"id":2,
+                    "expired":False,"size_in_bytes":len(raw),"digest":digest}]}
+        def download(url, token):
+            self.assertEqual(url, pub.REMEDIATION_API + "/actions/artifacts/2/zip")
+            self.assertEqual(token, "read-only")
+            return raw
+        validated = pub.fetch_remediation_candidates("read-only", now, request, download)
+        self.assertEqual(validated, [candidate])
+        projection = self.rich_fixture()
+        entry = next(e for e in projection["entries"] if e["workload"] == workload)
+        entry["containers"][0]["image"] = "docker.io/neosmemo/memos@sha256:" + "c"*64
+        ready = pub.validate_cve(projection, now)
+        entry = next(e for e in ready if e["workload"] == workload)
+        revision = pub.cve_revision(entry)
+        self.assertEqual(pub.correlate_remediation(ready, validated), 1)
+        self.assertNotEqual(revision, pub.cve_revision(entry))
+        body = pub.render_cve(entry)[1]
+        self.assertIn("https://github.com/RovxBot/homelab-infra/pull/123", body)
+        self.assertIn("not assessed", body)
+        self.assertIn(new, body)
+        for bad_image in ("other/memos@sha256:"+"c"*64, new):
+            other = copy.deepcopy(entry)
+            other.pop("remediationCandidates")
+            other["containers"][0]["image"] = bad_image
+            self.assertEqual(pub.correlate_remediation([other], validated), 0)
+        for field, value in (("path","private"),("dependency","other"),("pr",True),("after",old),
+                             ("head",base),("state","fixed")):
+            bad = copy.deepcopy(snapshot)
+            bad["candidates"][0][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                pub.validate_remediation_snapshot(bad, base, now)
+        bad = copy.deepcopy(snapshot)
+        bad["generatedAt"] = "2026-11-24T03:00:00Z"
+        with self.assertRaises(ValueError):
+            pub.validate_remediation_snapshot(bad, base, now)
 
     def test_private_projection_scope_matches_reviewed_scan_config(self):
         import json
@@ -947,7 +1019,21 @@ class PrivateDestinationTests(unittest.TestCase):
         self.assertIn("/state/gitea-cve-publisher.sqlite",source)
         self.assertNotIn('"/state/publisher.sqlite"',source)
         self.assertNotIn('"/state/cve-publisher.sqlite"',source)
-        self.assertNotIn("api.github.com",source)
+        # GitHub is now an explicitly scoped read-only candidate source, not
+        # an issue destination. Keep the original private writer boundary.
+        reader=next(e for e in env if e["name"]=="REMEDIATION_GITHUB_READ_TOKEN")
+        self.assertEqual(reader["valueFrom"]["secretKeyRef"],
+                         {"name":"security-remediation-github-read","key":"token","optional":True})
+        self.assertNotEqual(reader["valueFrom"]["secretKeyRef"]["name"],
+                            credential["valueFrom"]["secretKeyRef"]["name"])
+        self.assertEqual(pub.REMEDIATION_API, "https://api.github.com/repos/RovxBot/homelab-infra")
+        self.assertEqual(source.count("api.github.com"),1)
+        client=pub.PrivateGitea("test-token",requester=self.request)
+        with self.assertRaises(ValueError):
+            client.call(pub.REMEDIATION_API+"/issues","POST",{"title":"x","body":"x"})
+        with self.assertRaises(ValueError):
+            client.call(pub.REMEDIATION_API+"/actions/runs")
+        self.assertTrue(all(url.startswith(pub.GITEA+"/") for url, _, _ in self.calls))
         old=yaml.safe_load((ROOT/"infra/kyverno/automation/github-issue-sync-cronjob.yaml").read_text())
         self.assertIs(old["spec"]["suspend"],True)
         oldenv=old["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]["env"]

@@ -119,6 +119,13 @@ spec:
                   value: "1"
                 - name: ENABLE_CVE_PUBLISHER
                   value: "true"
+                # Dedicated GitHub Actions read-only credential; never reuse the private writer.
+                - name: REMEDIATION_GITHUB_READ_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: security-remediation-github-read
+                      key: token
+                      optional: true
                 - name: GITEA_TOKEN
                   valueFrom:
                     secretKeyRef:
