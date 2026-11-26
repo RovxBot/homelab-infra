@@ -1,7 +1,9 @@
 # Workstation and Codex
 
-Keep `origin` pointing to GitHub during normal operation. Add a separate remote;
-production pull mirrors reject pushes until explicitly promoted during failover.
+`github-dr/wowdecomp` is the writable primary in Gitea; use its Gitea remote for
+active development. GitHub remains primary for the cluster's Flux infrastructure
+repository. The following adds a Gitea remote to an existing product checkout;
+do not resume GitHub imports into the writable primary.
 
 ```bash
 git remote add gitea ssh://git@192.168.1.190:30222/github-dr/wowdecomp.git
@@ -26,7 +28,7 @@ The initial authenticated ED25519 host-key fingerprint was
 branch push were verified from the Arch workstation using a temporary test key.
 Re-verify identity after an intentional host-key rotation or restore.
 
-After the promotion runbook, normal branch development is:
+Normal branch development in the existing writable primary is:
 
 ```bash
 git clone ssh://git@192.168.1.190:30222/github-dr/wowdecomp.git
@@ -37,8 +39,12 @@ code .
 git push -u origin recovery/my-change
 ```
 
-Open a native pull request in Gitea. To try this before an incident, use a
-disposable `ci/dr-test-*` repository; leave the production mirror read-only.
+Open a native pull request in Gitea. For recovery experiments, use a disposable
+scratch repository and preserve all production source roles and refs. The
+retained [mirror-only failover exercise](github-failover.md#safe-exercise)
+requires an explicitly selected, verified protected read-only mirror;
+`wowdecomp` is ineligible as the writable primary. If no eligible source exists,
+do not run that exercise. Do not change mirror status or re-enable imports.
 For recovery administration, forward the HTTP Service to localhost rather
 than sending a password over LAN HTTP:
 
