@@ -65,7 +65,6 @@ jobs:
           curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz -o "$tools_dir/kubeconform.tgz"
           tar -xzf "$tools_dir/kubeconform.tgz" -C "$tools_dir" kubeconform
           echo "$tools_dir" >> "$GITHUB_PATH"
-          python3 -m pip install --quiet pyyaml
 
       - name: Test suspended and active preflight guards
         run: |
