@@ -105,3 +105,13 @@ security CI must not rebuild, republish or rescan a retired component. Historica
 source and regression fixtures remain in Git only; no cluster workload, PVC or
 new image is created by them. Existing registry artifacts are not deleted by
 this change. No other image scan permissions or provenance checks are relaxed.
+
+## Container-specific remediation mapping
+
+Remediation candidate discovery and validation now require an explicitly reviewed
+repository for each container within the exact workload. Multiple containers may
+use distinct repositories; a sidecar cannot inherit its main container's image
+identity. The currently enrolled assessment scope and artifact schema remain
+unchanged. Before adding the sidecar/cache cohort, review each new dependency,
+requalify projection size and health thresholds, and require the initial cohort's
+live acceptance. No private findings enter GitHub discovery artifacts.

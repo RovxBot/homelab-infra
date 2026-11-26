@@ -27,7 +27,8 @@ image_identity = P.candidate_image_identity
 def declared_image(read, workload, container):
     path, names = P.CVE_SOURCES[workload]
     ns, kind, name = workload.split("/")
-    if not path or container not in names or workload not in P.CVE_DEPENDENCIES:
+    dependency = P.reviewed_dependency(workload, container)
+    if not path or container not in names or dependency is None:
         return None
     # Helm image values require separate pinned-chart rendering. Do not
     # pretend a chart version or tag change proves a replacement digest.
@@ -59,7 +60,7 @@ def declared_image(read, workload, container):
     if len(images) != 1:
         return None
     identity = image_identity(images[0])
-    if identity is None or identity[0] != canonical_repository(P.CVE_DEPENDENCIES[workload]):
+    if identity is None or identity[0] != canonical_repository(dependency):
         return None
     return images[0]
 

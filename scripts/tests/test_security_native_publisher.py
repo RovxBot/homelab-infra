@@ -314,6 +314,51 @@ class CVEPublisherTests(unittest.TestCase):
         self.assertEqual(candidate.image_identity("registry.example:5000/app:v1@sha256:"+"a"*64),
                          ("registry.example:5000/app","sha256:"+"a"*64))
 
+    def test_remediation_dependencies_are_container_specific(self):
+        spec = importlib.util.spec_from_file_location(
+            "multi_container_remediation", ROOT/"scripts/security_remediation_candidates.py")
+        candidate = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(candidate)
+        workload = "test/Deployment/app"
+        path = "apps/test/deployment.yaml"
+        before = {
+            "main": "example/main:v1@sha256:"+"a"*64,
+            "sidecar": "example/sidecar:v1@sha256:"+"b"*64,
+        }
+        after = {name: image.rsplit("@",1)[0]+"@sha256:"+digest*64
+                 for (name,image),digest in zip(before.items(),("c","d"))}
+        def reader(images):
+            return lambda source: json.dumps({
+                "apiVersion":"apps/v1","kind":"Deployment",
+                "metadata":{"name":"app","namespace":"test"},
+                "spec":{"template":{"spec":{"containers":[
+                    {"name":name,"image":image} for name,image in images.items()]}}}
+            }) if source == path else None
+        sources = {workload:(path,("main","sidecar"))}
+        deps = {workload:{"main":"example/main","sidecar":"example/sidecar"}}
+        with patch.object(candidate.P,"CVE_SOURCES",sources), patch.object(candidate.P,"CVE_DEPENDENCIES",deps):
+            result = candidate.correlate(reader(before),reader(after))
+            self.assertEqual(result["unsupported"],[])
+            self.assertEqual({x["container"]:x["dependency"] for x in result["candidates"]},
+                             {"main":"docker.io/example/main","sidecar":"docker.io/example/sidecar"})
+            swapped = dict(after, sidecar=after["main"])
+            self.assertIsNone(candidate.declared_image(reader(swapped),workload,"sidecar"))
+            self.assertIsNone(candidate.P.reviewed_dependency(workload,"unreviewed"))
+        now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
+        snapshot = {"schema":1,"repository":pub.REMEDIATION_REPO,"base":"a"*40,
+                    "state":"observed","openPrCount":1,"skipped":{},
+                    "candidates":[dict(x,pr=123,base="a"*40,head="b"*40) for x in result["candidates"]],
+                    "generatedAt":"2026-11-24T06:00:00Z"}
+        with patch.object(pub,"CVE_SOURCES",sources), patch.object(pub,"CVE_DEPENDENCIES",deps):
+            self.assertEqual(pub.reviewed_dependency(workload,"sidecar"),"example/sidecar")
+            self.assertEqual(pub.dependency_description(workload,("main","sidecar")),
+                             "main: example/main; sidecar: example/sidecar")
+            self.assertEqual(len(pub.validate_remediation_snapshot(snapshot,"a"*40,now)),2)
+            bad = copy.deepcopy(snapshot)
+            bad["candidates"][1]["dependency"] = "docker.io/example/main"
+            with self.assertRaises(ValueError):
+                pub.validate_remediation_snapshot(bad,"a"*40,now)
+
     def test_live_remediation_discovery_fences_untrusted_or_stale_prs(self):
         candidate_spec = importlib.util.spec_from_file_location(
             "remediation_candidates", ROOT/"scripts/security_remediation_candidates.py")
