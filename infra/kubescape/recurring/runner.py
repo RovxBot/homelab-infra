@@ -424,10 +424,11 @@ PRIVATE_CVE_TARGETS = {
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 LEGACY_PRIVATE_CVE_LIMIT = 100
 PREVIOUS_PRIVATE_CVE_LIMIT = 200
-MAX_PRIVATE_CVES = 230
+HISTORICAL_PRIVATE_CVE_LIMITS = (LEGACY_PRIVATE_CVE_LIMIT, PREVIOUS_PRIVATE_CVE_LIMIT, 230)
+MAX_PRIVATE_CVES = 320
 MAX_PRIVATE_DETAIL_MATCHES = 12
 MAX_RECOVERY_CVES = 256
-MAX_PRIVATE_PROJECTION_BYTES = 240 * 1024
+MAX_PRIVATE_PROJECTION_BYTES = 512 * 1024  # Below the ConfigMap API 1 MiB data limit.
 PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\Z")
 PRIVATE_IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,383}@sha256:[a-f0-9]{64}\Z")
 
@@ -877,7 +878,7 @@ def recover_private_projection(history, inventory, records, config, diagnostics=
                 stage = "archive_prior_verdict"
                 db.require(previous == private_cve_findings(matches, limit=MAX_PRIVATE_CVES)
                            or any(previous == private_cve_findings(matches, limit=limit)
-                                  for limit in (LEGACY_PRIVATE_CVE_LIMIT, PREVIOUS_PRIVATE_CVE_LIMIT)),
+                                  for limit in HISTORICAL_PRIVATE_CVE_LIMITS),
                            "archive_projection_mismatch")
                 distinct = len({m["vulnerability"]["id"] for m in matches
                                 if m["vulnerability"].get("severity") in ("High", "Critical")

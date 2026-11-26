@@ -45,7 +45,7 @@ FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "cou
 KEY = re.compile(r"[0-9a-f]{64}\Z")
 RULE = re.compile(r"R[0-9]{4}\Z")
 MAX_BODY = 128 * 1024
-MAX_CVE_BODY = 256 * 1024  # Only the exact private CVE ConfigMap read.
+MAX_CVE_BODY = 528 * 1024  # Only the exact private CVE ConfigMap read; allow metadata overhead.
 IMAGE = "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
 
 
@@ -535,7 +535,7 @@ def validate_cve_details(entry, generated):
     return sorted(result, key=lambda c: c["name"])
 
 
-MAX_PRIVATE_CVES = 230
+MAX_PRIVATE_CVES = 320
 MAX_RECOVERY_CVES = 256
 
 

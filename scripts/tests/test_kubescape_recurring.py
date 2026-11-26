@@ -110,13 +110,17 @@ class RetainedProjectionTests(unittest.TestCase):
         report, sbom = fixture["report"], fixture["sbom"]
         report["metadata"]["name"] = R.client.REPORT
         report["spec"]["metadata"]["report"]["createdAt"] = R.db.stamp(NOW)
+        # Reproduce the independently verified 298-ID overflow cardinality
+        # with synthetic IDs, never actual private findings.
+        distinct = 298
         matches = [{"vulnerability":{"id":f"CVE-2026-{1000+i}","severity":"High"}}
-                   for i in range(R.PREVIOUS_PRIVATE_CVE_LIMIT+1)]
+                   for i in range(distinct)]
         report["spec"]["payload"]["matches"] = matches
         checked = R.check_report(report,sbom,current,EXPECTED,R.db.stamp(NOW))
         job = "recurring-" + "b"*32
-        prior = R.private_cve_findings(matches, limit=R.PREVIOUS_PRIVATE_CVE_LIMIT)
-        self.assertEqual(prior, R.private_cve_findings(matches, limit=R.LEGACY_PRIVATE_CVE_LIMIT))
+        prior = R.private_cve_findings(matches, limit=230)
+        for limit in R.HISTORICAL_PRIVATE_CVE_LIMITS:
+            self.assertEqual(prior, R.private_cve_findings(matches, limit=limit))
         self.assertEqual(prior["state"],"overflow")
         record = dict(checked, jobID=job, workloadUID=current["workloadUID"],
                       imageDigest=current["runningDigest"],container=current["container"],
@@ -147,11 +151,11 @@ class RetainedProjectionTests(unittest.TestCase):
                     self.assertEqual(diagnostics, {"outcomes":{"archive_prior_verdict_unqualified":1}})
                 else:
                     self.assertEqual(diagnostics, {"outcomes":{"verified_recovered":1},
-                                                  "maximumVerifiedDistinct":R.PREVIOUS_PRIVATE_CVE_LIMIT+1})
+                                                  "maximumVerifiedDistinct":distinct})
                 self.assertEqual(saved["createdAt"],record["createdAt"])
                 self.assertEqual(saved["privateCve"]["state"],"overflow" if corrupt else "complete")
                 if not corrupt:
-                    self.assertEqual(len(saved["privateCve"]["findings"]), R.PREVIOUS_PRIVATE_CVE_LIMIT + 1)
+                    self.assertEqual(len(saved["privateCve"]["findings"]), distinct)
                     self.assertEqual(saved["privateCve"], R.private_cve_findings(matches))
                     self.assertEqual(R.recover_private_projection(history,inventory,records,config),0)
             # An authentic current-limit overflow remains unknown, but its
@@ -953,7 +957,7 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         self.assertEqual(len(R.private_cve_findings(matches)["findings"]),17)
         self.assertEqual(R.private_cve_details([]),{"detailState":"complete","matches":[],"omittedMatches":0})
 
-    def test_full_cohort_maximum_advisory_summary_fits_existing_wire_bound(self):
+    def test_full_cohort_maximum_advisory_summary_fits_bounded_wire(self):
         import importlib.util
         spec=importlib.util.spec_from_file_location("bounded_publisher",ROOT/"infra/observability/security-incident-publisher/publisher.py")
         publisher=importlib.util.module_from_spec(spec)
@@ -975,10 +979,16 @@ class PrivateCVEProjectionTests(unittest.TestCase):
         # Leave at least 8 KiB for actual Kubernetes object metadata and
         # serialization overhead; optional detail/proof still falls back.
         self.assertLess(len(wire)+8*1024,R.MAX_PRIVATE_PROJECTION_BYTES)
-        self.assertLess(len(wire),publisher.MAX_CVE_BODY)
+        self.assertLess(len(wire)+8*1024,publisher.MAX_CVE_BODY)
+        self.assertLess(R.MAX_PRIVATE_PROJECTION_BYTES,1024*1024)
+        self.assertGreaterEqual(publisher.MAX_CVE_BODY,R.MAX_PRIVATE_PROJECTION_BYTES+8*1024)
         entries=publisher.validate_cve(projection,NOW)
         self.assertEqual(len(entries),len(R.PRIVATE_CVE_TARGETS))
         self.assertTrue(all(len(e["findings"])==R.MAX_PRIVATE_CVES for e in entries))
+        for entry in entries:
+            _, body = publisher.render_cve(entry)
+            self.assertTrue(all(f["id"] in body for f in entry["findings"]))
+            self.assertLess(len(json.dumps({"body":body}).encode()),publisher.MAX_BODY)
         projection["entries"][0]["findings"].append({"id":"CVE-2026-9999","severity":"High","fixAvailable":False})
         with self.assertRaises(ValueError):
             publisher.validate_cve(projection,NOW)
