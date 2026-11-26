@@ -91,6 +91,55 @@ class ScanContractTests(unittest.TestCase):
         self.assertIn('evidence["image"] == image',workflow)
         self.assertIn('evidence["sourceCommit"]',workflow)
 
+    def serious(self, version="1", severity="High", fix="fixed"):
+        return {"vulnerability":{"namespace":"PRIVATE-NS","id":"PRIVATE-CVE","severity":severity,
+                                 "fix":{"state":fix}},
+                "artifact":{"type":"deb","name":"PRIVATE-PACKAGE","version":version}}
+
+    def test_baseline_review_is_exact_report_only_and_private(self):
+        baseline, candidate = self.report(), self.report()
+        base_proof = S.provenance(baseline,DIGEST,SHA,ASSET,NOW)
+        candidate_proof = dict(base_proof,sourceCommit="d"*40)
+        baseline["matches"] = [self.serious()]
+        candidate["matches"] = [self.serious(),self.serious()]
+        result = S.baseline_review(candidate,baseline,candidate_proof,base_proof)
+        self.assertEqual(result["state"],"no_candidate_only_matches")
+        candidate["matches"].append(self.serious(version="2",severity="Critical"))
+        result = S.baseline_review(candidate,baseline,candidate_proof,base_proof)
+        self.assertEqual(result["state"],"review_required")
+        self.assertEqual(result["policyGate"],"not enforced")
+        self.assertNotIn("PRIVATE",json.dumps(result))
+        candidate["matches"] = [self.serious(version="2",fix="not-fixed")]
+        self.assertEqual(S.baseline_review(candidate,baseline,candidate_proof,base_proof)["state"],"no_candidate_only_matches")
+
+    def test_baseline_rejects_suppression_malformed_and_db_mismatch(self):
+        report = self.report()
+        proof = S.provenance(report,DIGEST,SHA,ASSET,NOW)
+        report["matches"] = [self.serious()]
+        with self.assertRaises(ValueError):
+            S.baseline_review(report,report,proof,dict(proof,databaseBuilt="different"))
+        report["ignoredMatches"] = [{"PRIVATE":"ignored"}]
+        with self.assertRaises(ValueError):
+            S.baseline_review(report,report,proof,proof)
+        report["ignoredMatches"] = []
+        report["matches"][0]["artifact"]["version"] = ""
+        with self.assertRaises(ValueError):
+            S.baseline_review(report,report,proof,proof)
+
+    def test_baseline_fingerprint_detects_database_changes(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as root:
+            path = Path(root)/"vulnerability.db"
+            path.write_bytes(b"one")
+            a = S.database_fingerprint(Path(root))
+            path.write_bytes(b"two")
+            self.assertNotEqual(a,S.database_fingerprint(Path(root)))
+            other = Path(root)/"other"
+            other.mkdir()
+            (other/"vulnerability.db").write_bytes(b"three")
+            with self.assertRaises(ValueError):
+                S.database_fingerprint(Path(root))
+
     def test_exact_binary_checksum_required(self):
         self.assertEqual(S.ASSET_DIGEST,"sha256:e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85")
         payload=b"fixture binary"

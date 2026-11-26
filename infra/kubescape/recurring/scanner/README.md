@@ -47,3 +47,15 @@ provenance, not CVE IDs, counts, package names or raw reports. A scan failure
 is an unknown result and fails the scan job; a successful scan does not mean
 zero vulnerabilities. No promotion, cluster access or vulnerability threshold
 is introduced. Runtime private assessment remains a separate contract.
+
+For explicitly dispatched candidate builds only, the scan job resolves the
+current trusted main deployment pin and matching original build proof as the
+baseline. Both images use the same pinned scanner and freshly downloaded DB
+with auto-update disabled; the database file digest must remain unchanged.
+The private in-process comparison reports only whether candidate-only fixable
+High/Critical exact installed-package matches require review. An altered package
+version with an unchanged advisory still requires review; this is not a claim
+that a CVE itself is newly introduced. Ignored or malformed matches, changed DB
+or missing provenance fail qualification. No raw details or counts are retained.
+No vulnerability threshold is enforced, and no automatic promotion is added.
+Normal PRs reusing a qualified image still perform one scan, not two.

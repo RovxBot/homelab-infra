@@ -146,7 +146,7 @@ jobs:
   scan:
     needs: test-build
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -156,11 +156,34 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Validate digest-scanning contract
         run: python3 -m unittest discover -s scripts/tests -p 'test_security_ci_scan.py' -v
+      - name: Resolve trusted main baseline for an explicit candidate build
+        if: github.event_name == 'workflow_dispatch' && inputs.build_candidate
+        id: baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 --no-tags --no-recurse-submodules https://github.com/RovxBot/homelab-infra.git refs/heads/main
+          python3 -m pip install PyYAML==6.0.3
+          python3 - <<'PY'
+          import json,os,re,subprocess,yaml
+          def read(path):
+              return subprocess.check_output(["git","show","FETCH_HEAD:"+path],text=True)
+          proof=json.loads(read("infra/kubescape/recurring/scanner/build-evidence.json"))
+          pin=yaml.safe_load(read("infra/kubescape/helmrelease.yaml"))["spec"]["values"]["kubevuln"]["image"]
+          assert proof["status"]=="verified" and pin["repository"]=="ghcr.io/rovxbot/kubevuln"
+          match=re.fullmatch(r"ghcr\.io/rovxbot/kubevuln@(sha256:[0-9a-f]{64})",proof["image"])
+          assert match and pin["tag"].rsplit("@",1)[-1]==match.group(1)
+          assert re.fullmatch(r"[0-9a-f]{40}",proof["sourceCommit"])
+          with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+              out.write("digest="+match.group(1)+"\nsource="+proof["sourceCommit"]+"\n")
+          PY
       - name: Scan exact qualified immutable scanner image
         env:
           SCAN_IMAGE_REPOSITORY: ghcr.io/rovxbot/kubevuln@
           SCANNED_DIGEST: ${{ needs.test-build.outputs.digest }}
           SOURCE_SHA: ${{ needs.test-build.outputs.source }}
+          SCAN_BASELINE_DIGEST: ${{ steps.baseline.outputs.digest }}
+          SCAN_BASELINE_SOURCE_SHA: ${{ steps.baseline.outputs.source }}
         run: python3 scripts/ci/scan_image.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()

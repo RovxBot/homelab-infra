@@ -85,6 +85,60 @@ def provenance(report,digest,source_sha,asset_digest,now,image=IMAGE):
             "findingDetails":"not published to public CI","policyGate":"not evaluated"}
 
 
+def serious_fixable(report):
+    """Compare exact installed package identities, not just advisory IDs.
+
+    A changed installed version with a remaining advisory is a candidate-only
+    match for review, not a claim that the CVE itself was newly introduced.
+    Reject suppressed or malformed evidence. Never emit any match identity.
+    """
+    require(report.get("ignoredMatches", []) == [])
+    require(isinstance(report["matches"], list) and len(report["matches"]) <= 100000)
+    result = set()
+    for match in report["matches"]:
+        vuln = match["vulnerability"]
+        severity = vuln["severity"]
+        require(severity in {"Unknown", "Negligible", "Low", "Medium", "High", "Critical"})
+        if severity not in {"High", "Critical"}:
+            continue
+        fix = vuln["fix"]["state"]
+        require(fix in {"fixed", "not-fixed", "wont-fix", "unknown"})
+        if fix != "fixed":
+            continue
+        artifact = match["artifact"]
+        key = (vuln["namespace"], vuln["id"], artifact["type"], artifact["name"], artifact["version"])
+        require(all(isinstance(x, str) and 0 < len(x) <= 512 and not any(ord(c) < 32 for c in x) for x in key))
+        result.add(key)
+    return result
+
+
+def baseline_review(candidate_report, baseline_report, candidate, baseline):
+    require(all(candidate[k] == baseline[k] for k in
+                ("scanner", "scannerVersion", "scannerReleaseAssetDigest", "databaseBuilt", "databaseSchema", "platform")))
+    new = serious_fixable(candidate_report) - serious_fixable(baseline_report)
+    return {"mode": "report-only", "state": "review_required" if new else "no_candidate_only_matches",
+            "baselineImage": baseline["image"], "baselineSourceCommit": baseline["sourceCommit"],
+            "comparison": "exact installed package identity; fixable high/critical; no ignored matches",
+            "findingDetails": "not published", "policyGate": "not enforced"}
+
+
+def database_fingerprint(root):
+    files = list(root.rglob("vulnerability.db"))
+    require(len(files) == 1 and files[0].is_file() and not files[0].is_symlink())
+    require(0 < files[0].stat().st_size <= 4*1024**3)
+    with files[0].open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def scan_report(binary, env, directory, image, digest, name):
+    result = directory / name
+    with result.open("wb") as file:
+        subprocess.run([str(binary),"registry:"+image+digest,"--platform","linux/amd64","-o","json"],
+                       env=env,stdout=file,stderr=subprocess.DEVNULL,timeout=300,check=True)
+    require(0 < result.stat().st_size <= 128*1024**2)
+    return json.loads(result.read_text())
+
+
 def main():
     output=Path(".work/image-scan/provenance.json")
     output.parent.mkdir(parents=True,exist_ok=True)
@@ -95,6 +149,11 @@ def main():
         digest=os.environ["SCANNED_DIGEST"]
         source=os.environ["SOURCE_SHA"]
         require(DIGEST.fullmatch(digest) and SHA.fullmatch(source))
+        baseline_digest = os.environ.get("SCAN_BASELINE_DIGEST", "")
+        baseline_source = os.environ.get("SCAN_BASELINE_SOURCE_SHA", "")
+        require(bool(baseline_digest) == bool(baseline_source))
+        if baseline_digest:
+            require(DIGEST.fullmatch(baseline_digest) and SHA.fullmatch(baseline_source))
         with tempfile.TemporaryDirectory(prefix="image-scan-") as tmp:
             directory=Path(tmp)
             phase="scanner_install"
@@ -106,13 +165,19 @@ def main():
             subprocess.run([str(binary),"db","update"],env=env,stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL,timeout=240,check=True)
             phase="scan"
-            result=directory/"report.json"
-            with result.open("wb") as file:
-                subprocess.run([str(binary),"registry:"+image+digest,"--platform","linux/amd64","-o","json"],
-                               env=env,stdout=file,stderr=subprocess.DEVNULL,timeout=300,check=True)
-            require(result.stat().st_size <= 128*1024**2)
+            fingerprint = database_fingerprint(directory/"db") if baseline_digest else None
+            candidate_report = scan_report(binary,env,directory,image,digest,"report.json")
             phase="provenance"
-            safe=provenance(json.loads(result.read_text()),digest,source,asset,datetime.now(timezone.utc),image=image)
+            safe=provenance(candidate_report,digest,source,asset,datetime.now(timezone.utc),image=image)
+            if baseline_digest:
+                phase="baseline_scan"
+                require(database_fingerprint(directory/"db") == fingerprint)
+                baseline_report = (candidate_report if baseline_digest == digest else
+                                   scan_report(binary,env,directory,image,baseline_digest,"baseline.json"))
+                require(database_fingerprint(directory/"db") == fingerprint)
+                baseline = provenance(baseline_report,baseline_digest,baseline_source,asset,datetime.now(timezone.utc),image=image)
+                phase="baseline_review"
+                safe["baselineReview"] = baseline_review(candidate_report,baseline_report,safe,baseline)
         output.write_text(json.dumps(safe,sort_keys=True,indent=2)+"\n")
         print("Immutable image scan completed; vulnerability details withheld from public CI.")
         return 0
