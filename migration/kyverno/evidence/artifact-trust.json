@@ -1,4 +1,5 @@
 {
+  "evidence_classification": "Historical verification recorded on 2026-11-21; not current release qualification or production acceptance. No new signature verification was performed by this consolidation.",
   "status": "verified",
   "run_url": "https://github.com/RovxBot/homelab-infra/actions/runs/44879145011",
   "release": "v1.20.0",
@@ -64,5 +65,92 @@
     }
   },
   "tested_commit": "9d6cba5a855b494cdf997c16ec55852a5b475a11",
-  "durable_evidence": "trust/: original successful verification outputs, public bundles and official root"
+  "durable_evidence": "Original successful verification outputs, public bundles and official root are at qualification.json archive.file_url_template; exact original paths and SHA-256 hashes are in qualification.json durable_file_hashes.",
+  "verification_output_semantics": {
+    "verification_output_sha256": "SHA-256 of the original trust/{image}.signature.json stdout bytes, not the .signature.log stderr bytes or this receipt.",
+    "provenance_output_sha256": "SHA-256 of the original trust/{image}.provenance.json stdout bytes, not the decoded payload, .provenance.log stderr bytes or this receipt.",
+    "original_outputs": "Resolve {image} from images keys and each path through qualification.json archive.file_url_template. Log, bundle, root and summary hashes are also preserved in that index."
+  },
+  "signature_annotations": {
+    "githubWorkflowName": "releaser",
+    "githubWorkflowRef": "refs/tags/v1.20.0",
+    "githubWorkflowRepository": "kyverno/kyverno",
+    "githubWorkflowSha": "f666af06e9bd310c7e730f1523c0430e90371a89",
+    "githubWorkflowTrigger": "push",
+    "kind": "image",
+    "ref": "f666af06e9bd310c7e730f1523c0430e90371a89",
+    "repo": "kyverno/kyverno",
+    "workflow": "releaser"
+  },
+  "provenance": {
+    "payloadType": "application/vnd.in-toto+json",
+    "statement_type": "https://in-toto.io/Statement/v0.1",
+    "predicateType": "https://slsa.dev/provenance/v0.2",
+    "subject_semantics": "Each image has one subject named ghcr.io/kyverno/{image}, with the sha256 digest recorded in images. The following predicate fields are identical across all seven original statements; complete signed payloads remain at the immutable provenance paths.",
+    "predicate": {
+      "builder": {
+        "id": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0"
+      },
+      "buildType": "https://github.com/slsa-framework/slsa-github-generator/container@v1",
+      "invocation": {
+        "configSource": {
+          "uri": "git+https://github.com/kyverno/kyverno@refs/tags/v1.20.0",
+          "digest": {
+            "sha1": "f666af06e9bd310c7e730f1523c0430e90371a89"
+          },
+          "entryPoint": ".github/workflows/release.yaml"
+        },
+        "parameters": {
+          "vars": {
+            "FROZEN_BRANCHES": "none"
+          }
+        },
+        "environment": {
+          "github_actor": "aerosouund",
+          "github_actor_id": "71333871",
+          "github_base_ref": "",
+          "github_event_name": "push",
+          "github_head_ref": "",
+          "github_ref": "refs/tags/v1.20.0",
+          "github_ref_type": "tag",
+          "github_repository_id": "169108858",
+          "github_repository_owner": "kyverno",
+          "github_repository_owner_id": "68448710",
+          "github_run_attempt": "2",
+          "github_run_id": "43041185732",
+          "github_run_number": "418",
+          "github_sha1": "f666af06e9bd310c7e730f1523c0430e90371a89"
+        }
+      },
+      "metadata": {
+        "buildInvocationID": "43041185732-2",
+        "completeness": {
+          "parameters": true,
+          "environment": false,
+          "materials": false
+        },
+        "reproducible": false
+      },
+      "materials": [
+        {
+          "uri": "git+https://github.com/kyverno/kyverno@refs/tags/v1.20.0",
+          "digest": {
+            "sha1": "f666af06e9bd310c7e730f1523c0430e90371a89"
+          }
+        }
+      ]
+    }
+  },
+  "blob_verification": {
+    "kyverno-3.10.0.tgz": {
+      "bundle": "trust/kyverno-3.10.0.tgz.sigstore.json",
+      "verification_log": "trust/kyverno-3.10.0.tgz.verification.log",
+      "recorded_result": "Verified OK"
+    },
+    "kyverno-cli_v1.20.0_linux_x86_64.tar.gz": {
+      "bundle": "trust/kyverno-cli_v1.20.0_linux_x86_64.tar.gz.sigstore.json",
+      "verification_log": "trust/kyverno-cli_v1.20.0_linux_x86_64.tar.gz.verification.log",
+      "recorded_result": "Verified OK"
+    }
+  }
 }

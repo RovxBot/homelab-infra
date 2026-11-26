@@ -1,4 +1,24 @@
 {
+  "evidence_classification": "Historical isolated qualification as of 2026-11-21, including failed and incomplete gates. Original statuses below describe those runs, not current qualification or deployment readiness.",
+  "archive": {
+    "commit": "4468df762841f1341d1e1061f25f0e0b29da67e0",
+    "directory_url": "https://github.com/RovxBot/homelab-infra/tree/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence",
+    "file_url_template": "https://github.com/RovxBot/homelab-infra/blob/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/{path}",
+    "path_semantics": "Each durable_file_hashes key is an exact path relative to the archived evidence directory. Substitute the key for {path}. Historical filenames in embedded receipts and validation-contract.json results_sha256 refer to original run artifacts; active validation.py reads only that contract files and implementation_files as checkout inputs.",
+    "hash_semantics": "Original SHA-256 hashes of bytes at archive.commit, including the original versions of both retained receipts. These are not current receipt hashes or a validation reuse contract. All 46 preexisting path/hash pairs are unchanged; the original qualification.json hash is added to make the archive index complete.",
+    "retained_receipts": [
+      "artifact-trust.json",
+      "qualification.json"
+    ],
+    "retained_active_inputs": [
+      "admission-decisions.jsonl",
+      "admission-results.jsonl",
+      "validation-contract.json"
+    ],
+    "retirement_semantics": "All indexed paths except retained_receipts and retained_active_inputs are retired from the checkout. The active validation contract is retained but is not part of this historical hash index.",
+    "retired_file_count": 43,
+    "retired_file_bytes": 188014
+  },
   "status": "draft; deployment gates remain open",
   "as_of": "2026-11-21",
   "preflight_commit": "117ad3913928195a5365011d96f18fb241e639d9",
@@ -26,7 +46,7 @@
       "job_minutes": 35,
       "rehearsal_minutes": 25
     },
-    "teardown": "verified: task node deleted; see teardown.txt"
+    "teardown": "verified in original run: kyverno-cel-rehearsal-control-plane deleted; original output: https://github.com/RovxBot/homelab-infra/blob/4468df762841f1341d1e1061f25f0e0b29da67e0/migration/kyverno/evidence/teardown.txt"
   },
   "implementation": {
     "cel_validation_policies": 24,
@@ -168,11 +188,11 @@
     "bootstrap": "Own controller Deployment dry-run permitted with admission controller scaled to zero on both versions",
     "historical_expiries": "Five flagged for platform owner review; no expiry date or exception scope changed; native guard does not silently revoke historical exceptions"
   },
-  "artifact_trust": "verified exact release identity and issuer, chart/CLI blobs, seven image signatures and SLSA provenance with default official TUF/certificate/tlog checks; see artifact-trust.json and trust/",
+  "artifact_trust": "Historically verified exact release identity and issuer, chart/CLI blobs, seven image signatures and SLSA provenance with default official TUF/certificate/tlog checks; see artifact-trust.json and the immutable archive index. No current qualification claim.",
   "generator": {
     "status": "blocked; stopped",
     "source_run": "https://github.com/RovxBot/homelab-infra/actions/runs/44854007495",
-    "evidence": "generator-lifecycle.json",
+    "evidence": "#/generator_lifecycle",
     "handoff": "Controlled legacy-to-CEL handoff on v1.19.2 retained three UIDs and repaired real LimitRange drift",
     "failure": "After v1.20.0 upgrade/background restart and quota drift injection, the three-output invariant did not recover within 75 seconds; root cause not established",
     "rollback": "not run",
@@ -202,7 +222,7 @@
   "durable_evidence": {
     "admission-decisions.jsonl": "596 keyed cases with actual allowed/warning outcomes for all three engines; full raw stderr retained in hosted artifact",
     "admission-results.jsonl": "All 294 original result records, including governance admission stderr and actual report findings",
-    "trust/": "Public signature/provenance/bundle outputs; no private credentials"
+    "artifact-trust.json": "Historical trust receipt; original public signature/provenance/bundle/root outputs resolve through archive.file_url_template and durable_file_hashes."
   },
   "production_changes": false,
   "durable_file_hashes": {
@@ -214,6 +234,7 @@
     "generation-initial.json": "b808a322204d5cbd3726ff962eab46a4dffb95162311d3565f21f5dd6469416c",
     "generator-lifecycle.json": "0e8d6889f8f26d5998b4f009b618b3d72f0eab2aaa8b7589f106410a6056457b",
     "generator-restart-cleanup.log": "84e3946f49afb5cd44bc026fb34eb13467ed699791cf53155126c0c8d64b36d2",
+    "qualification.json": "e99d115c7b584d027880d4e2082a7181bdb6b0f0724ff79488089704f7ac9828",
     "teardown.txt": "17fcffc6c3465b6bec451737a0960b76fa442ea9d8bc153fb54accb0d9372c9f",
     "trust/background-controller.provenance.json": "8813b0e4f4163d88250e28b53331639949dee2f039549813077a13c8f83c00e8",
     "trust/background-controller.provenance.log": "adf015b45353373fd800b1e41cfff3aaba0e4d6f64bf95ee628bcf1b37b80122",
@@ -257,5 +278,133 @@
     "qualification": "task17/qualification.json",
     "findings": "task17/findings.md",
     "status": "failed; production activation blocked on general generator restart recovery"
+  },
+  "generator_lifecycle": {
+    "status": "failed",
+    "run_url": "https://github.com/RovxBot/homelab-infra/actions/runs/44854007495",
+    "tested_commit": "6857330ee791fb0449b1574a3ff958a8de1a5ecf",
+    "legacy_to_cel_handoff": {
+      "status": "verified",
+      "application": "v1.19.2",
+      "controls": [
+        "Namespace admission freeze proved active",
+        "Orphan flag observed before Flux prune",
+        "Legacy policy absent and queue drained",
+        "Background controller restarted before CEL activation",
+        "API-server thaw confirmed by admission probe",
+        "CEL drift repair proved with authentic legacy resources"
+      ],
+      "uids": [
+        "4e1229fb-53e9-4d6d-96ca-0cdb977e2723",
+        "49de4a1d-6f84-4d9f-9fdc-f17e61d2eac3",
+        "5c64a520-58c0-4167-bfe6-370aa618b05f"
+      ],
+      "outputs": [
+        "LimitRange/default-container-limits",
+        "ResourceQuota/namespace-defaults",
+        "NetworkPolicy/default-deny"
+      ],
+      "provenance": "Authentic legacy controller stamps recorded before and after; complete lifecycle authority remains gated"
+    },
+    "continuous_watch": {
+      "status": "verified",
+      "events": 5,
+      "limitation": "API object continuity only; kindnet does not enforce NetworkPolicy traffic"
+    },
+    "upgrade_restart": {
+      "status": "failed",
+      "operation": "v1.20.0 upgrade, background-controller restart, ResourceQuota pods 20 -> 21 drift injection",
+      "observation": "Three-output invariant did not recover within 75 seconds",
+      "root_cause": "not established",
+      "additional_observation": "Controller logged downstream cleanup for nonmatching Namespace triggers; no post-failure output snapshot was captured, so deletion is not asserted"
+    },
+    "rollback": {
+      "status": "not run",
+      "reason": "Stopped at upgrade/restart gate"
+    },
+    "empty_state_cutover": {
+      "status": "not run",
+      "reason": "No safe race-controlled empty-state cutover or rollback was established"
+    },
+    "deployment_gate": "retained",
+    "artifacts": {
+      "generation-initial.json": "b808a322204d5cbd3726ff962eab46a4dffb95162311d3565f21f5dd6469416c",
+      "generation-adopted.json": "2408693393204b3110fae53a8929ffdbd1b1c2344b9d4bdfc8f43eb1536ac719",
+      "watch-generation-existing-limitranges.jsonl": "11de8bdb4ca7f0e244e2392156a2348f9c925b701f7cd307146f3307b8d7f8ee",
+      "watch-generation-existing-resourcequotas.jsonl": "ea5d62044e56e88e113a1c6278a726828e8edd31b9a25e24acd5bea999a5a9b3",
+      "watch-generation-existing-networkpolicies.jsonl": "5adf3893f798672d96ae243e51bbe102c757386f622d7de2db4ff7e12a79e8af"
+    }
+  },
+  "expired_exceptions": {
+    "as_of": "2026-11-21",
+    "exceptions": [
+      {
+        "name": "chart-managed-workloads",
+        "owner": "platform",
+        "expired_on": "2026-08-31",
+        "action": "Owner review required; date and scope unchanged"
+      },
+      {
+        "name": "gpu-operator-workloads",
+        "owner": "platform",
+        "expired_on": "2026-10-31",
+        "action": "Owner review required; date and scope unchanged"
+      },
+      {
+        "name": "mutable-image-tags",
+        "owner": "platform",
+        "expired_on": "2026-08-31",
+        "action": "Owner review required; date and scope unchanged"
+      },
+      {
+        "name": "privileged-namespaces",
+        "owner": "platform",
+        "expired_on": "2026-08-31",
+        "action": "Owner review required; date and scope unchanged"
+      },
+      {
+        "name": "wotlk-latest-tag",
+        "owner": "platform",
+        "expired_on": "2026-08-31",
+        "action": "Owner review required; date and scope unchanged"
+      }
+    ]
+  },
+  "generation_handoff": {
+    "initial": "generation-initial.json",
+    "adopted": "generation-adopted.json",
+    "observation": "The three original UIDs and specs match before and after adoption; original labels, specs and annotations remain available at the immutable paths. This does not qualify restart recovery or complete lifecycle authority.",
+    "outputs": [
+      {
+        "kind": "limitranges",
+        "name": "default-container-limits",
+        "uid": "4e1229fb-53e9-4d6d-96ca-0cdb977e2723",
+        "initial_annotations": {
+          "generate.kyverno.io/provenance": "v1:qZEPKLRWrIdC3Q4pPqZJksnmbsUyqCm71_j0a1ZpLRs"
+        },
+        "adopted_annotations": {}
+      },
+      {
+        "kind": "resourcequotas",
+        "name": "namespace-defaults",
+        "uid": "49de4a1d-6f84-4d9f-9fdc-f17e61d2eac3",
+        "initial_annotations": {},
+        "adopted_annotations": {}
+      },
+      {
+        "kind": "networkpolicies",
+        "name": "default-deny",
+        "uid": "5c64a520-58c0-4167-bfe6-370aa618b05f",
+        "initial_annotations": {
+          "generate.kyverno.io/provenance": "v1:sFaallzV1xMF1Op0dZ8cK-j7WXefqmcWvZwJaZI06rM"
+        },
+        "adopted_annotations": {}
+      }
+    ],
+    "watch_events": {
+      "limitranges": 2,
+      "networkpolicies": 1,
+      "resourcequotas": 2
+    }
   }
 }
