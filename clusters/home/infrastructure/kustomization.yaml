@@ -12,7 +12,7 @@ resources:
   - ../../../infra/backups
   - ../../../infra/observability
   - ../../../infra/priorityclasses
-  - ../../../infra/namespaces/wotlk.yaml
+  - ../../../apps/wotlk/namespace.yaml
   - ../../../infra/namespaces/wireguard.yaml
   - ../../../secrets/longhorn-b2-credentials.enc.yaml
   - ../../../secrets/restic-b2-photos.enc.yaml
