@@ -17,7 +17,7 @@ ARCHIVE = "grype_" + VERSION + "_linux_amd64.tar.gz"
 ASSET_DIGEST = "sha256:e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85"
 DOWNLOAD = "https://github.com/anchore/grype/releases/download/v" + VERSION + "/" + ARCHIVE
 IMAGE = "ghcr.io/rovxbot/security-receiver@"
-ALLOWED_IMAGES = frozenset({IMAGE, "ghcr.io/rovxbot/security-collector@", "ghcr.io/rovxbot/kubernetes-mcp@", "ghcr.io/rovxbot/kubevuln@"})
+ALLOWED_IMAGES = frozenset({IMAGE, "ghcr.io/rovxbot/kubernetes-mcp@", "ghcr.io/rovxbot/kubevuln@"})
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 

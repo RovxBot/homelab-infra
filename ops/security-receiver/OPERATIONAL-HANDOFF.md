@@ -73,13 +73,13 @@ not a claim that every operational acceptance gate has passed.
 | Admission prevention | CEL and PSA active; retain reviewed exceptions and independent assurance |
 | Runtime transport | Genuine canary and restart recorded; eight agents deployed, lossless coverage unverified |
 | Fixture retirement | Verified removed on 26 November; native receiver and eight agents Ready |
-| CVE assessment | Last observed refresh 9/12 healthy, 7/12 complete projections; #2281–#2283 need live qualification |
+| CVE assessment | 26 November 01:07 UTC refresh: 10/12 assessment-healthy, 9/12 complete projections; two failed assessments, one overflow; next scan running at inspection |
 | Private reporting | Native stage successful; CVE stage reports incomplete coverage until qualified cohort complete |
 | Candidate guidance | Implemented, optional token not configured at last observed run |
 | Recovery | Shadow proof/state machines implemented; require controlled live positive/replacement/recurrence acceptance; automatic state transitions disabled |
 | Additional scope | Sidecar/cache draft must be rebased and qualified only after current cohort acceptance |
-| Legacy retirement | #2286 removes all legacy resources from desired state; verify rollout and explicitly delete old prune-protected claim |
-| CI remediation and posture | Broader coverage and risk-based policy dispositions still require explicit review |
+| Legacy retirement | #2286 applied, collector Deployment/Pod absent and old volume detached; explicit deletion of old prune-protected claim pending operator confirmation |
+| CI remediation and posture | Receiver, MCP and custom Kubevuln immutable image scan contracts qualified in CI; broader coverage and risk-based dispositions still require review |
 
 Do not close the overall project or child issues on a merge alone. Record
 verified live evidence, keep specific unresolved acceptance and scope limitations,
@@ -97,3 +97,11 @@ Verify completed remote backups and exact original volume identities after its
 next normal run, using the [existing Longhorn runbook](../../docs/runbooks/longhorn-volume-backups.md).
 No special backup manifest, new schedule or change to retention. No dedicated legacy backup; remove its obsolete claim before the next normal backup where practical. No remote backup or
 restore acceptance is claimed here.
+
+## Retired collector build path
+
+The old image workflow and scan repository allowlist entry are removed. Routine
+security CI must not rebuild, republish or rescan a retired component. Historical
+source and regression fixtures remain in Git only; no cluster workload, PVC or
+new image is created by them. Existing registry artifacts are not deleted by
+this change. No other image scan permissions or provenance checks are relaxed.

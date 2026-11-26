@@ -65,11 +65,16 @@ class ScanContractTests(unittest.TestCase):
             if image!=S.IMAGE:
                 with self.assertRaises(ValueError):
                     S.provenance(report,DIGEST,SHA,ASSET,NOW)
-        for image in ("ghcr.io/other/private@", "https://example.com/image@", "ghcr.io/rovxbot/security-receiver:latest@"):
+        for image in ("ghcr.io/rovxbot/security-collector@", "ghcr.io/other/private@", "https://example.com/image@", "ghcr.io/rovxbot/security-receiver:latest@"):
             report=self.report()
             report["source"]["target"]["userInput"]=image+DIGEST
             with self.assertRaises(ValueError):
                 S.provenance(report,DIGEST,SHA,ASSET,NOW,image=image)
+
+    def test_retired_collector_no_longer_builds_or_scans(self):
+        root = Path(__file__).resolve().parents[2]
+        self.assertFalse((root/".github/workflows/security-collector-image.yml").exists())
+        self.assertNotIn("ghcr.io/rovxbot/security-collector@", S.ALLOWED_IMAGES)
 
     def test_scanner_image_workflow_is_read_only_and_attributed(self):
         root = Path(__file__).resolve().parents[2]
