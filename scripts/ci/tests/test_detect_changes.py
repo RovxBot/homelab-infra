@@ -326,7 +326,7 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
             with self.subTest(path=path):
                 self.assertEqual(json.loads(detect.classify_changes([path])['script_tests']), [])
 
-    def git_selection(self, removed, added, *, base_only=None):
+    def git_selection(self, removed, added, *, modified=(), base_only=None, added_content=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
 
@@ -334,16 +334,16 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
                 return subprocess.check_output(['git', *args], cwd=root, text=True,
                                                stderr=subprocess.DEVNULL).strip()
 
-            def write(path):
+            def write(path, content='# identical content exercises rename detection\n'):
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text('# identical content exercises rename detection\n')
+                target.write_text(content)
 
             git('init', '-b', 'main')
             git('config', 'user.name', 'CI selection test')
             git('config', 'user.email', 'ci-test@example.invalid')
             write('baseline.md')
-            for path in removed:
+            for path in [*removed, *modified]:
                 write(path)
             git('add', '.')
             git('commit', '-m', 'baseline')
@@ -352,7 +352,12 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
             for path in removed:
                 (root / path).unlink()
             for path in added:
-                write(path)
+                if added_content is None:
+                    write(path)
+                else:
+                    write(path, added_content)
+            for path in modified:
+                write(path, '# modified content\n')
             git('add', '-A')
             git('commit', '-m', 'change')
             head = git('rev-parse', 'HEAD')
@@ -369,7 +374,9 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
                 check=True, capture_output=True, text=True,
             )
             payload = json.loads(result.stdout)
-            self.assertEqual(set(payload['changed_paths']), set(removed) | set(added))
+            self.assertEqual(set(payload['changed_paths']), set(removed) | set(added) | set(modified))
+            self.assertEqual(dict(line.split('=', 1) for line in
+                                  (root / 'outputs').read_text().splitlines()), payload['checks'])
             return payload['checks']
 
     def test_every_mapped_addition_and_deletion_selects_complete_owner(self):
@@ -414,15 +421,59 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
 
     def test_renames_with_unknown_script_side_fall_back_in_both_directions(self):
         for known in ('scripts/koito-export-lastfm.py', 'scripts/longhorn-upgrade-engines.py',
+                      'scripts/tests/test_koito_export_lastfm.py',
+                      'scripts/tests/test_longhorn_upgrade_engines.py',
                       'scripts/tests/helpers/longhorn_retention.py'):
             for unknown in ('scripts/retired.py', 'scripts/tests/test_new_owner.py',
                             'scripts/tests/helpers/renamed_retention.py',
                             'scripts/retired.sh', 'scripts/retired',
                             'retired.py', 'archive/retired.py', 'archive/retired.go',
-                            'archive/retired.sh'):
+                            'archive/retired.sh',
+                            'archive/retired', 'archive/retired.txt', 'archive/retired.json',
+                            'archive/retired file', 'archive/retired file.txt',
+                            'archive/retired file.json', 'archive/retired\nfile',
+                            'archive/retired\nfile.txt', 'archive/retired\nfile.json'):
                 for old, new in ((known, unknown), (unknown, known)):
                     with self.subTest(old=old, new=new):
-                        self.assert_ids(self.git_selection([old], [new]), self.all_ids)
+                        checks = self.git_selection([old], [new])
+                        self.assertEqual(json.loads(checks['script_tests']), ['test_*.py'])
+                        self.assert_ids(checks, self.all_ids)
+                        expected = detect.classify_changes([old, new])
+                        for flag in checks.keys() - {'script_tests'}:
+                            self.assertEqual(checks[flag], expected[flag], flag)
+
+    def test_unknown_rename_fallback_does_not_require_similar_content(self):
+        known = 'scripts/tests/helpers/longhorn_retention.py'
+        unknown = 'archive/retired file\nname.json'
+        for old, new in ((known, unknown), (unknown, known)):
+            with self.subTest(old=old, new=new):
+                self.assert_ids(self.git_selection([old], [new],
+                                added_content='# entirely rewritten destination\n' * 100), self.all_ids)
+
+    def test_possible_rename_guard_preserves_ordinary_modifications(self):
+        for known in ('scripts/koito-export-lastfm.py',
+                      'scripts/tests/helpers/longhorn_retention.py'):
+            for other in ('archive/retired', 'archive/retired.txt', 'archive/retired.json',
+                          'apps/koito/lastfm-bridge.yaml', 'apps/koito/lastfm-bridge-config.json',
+                          'infra/longhorn/longhorn-helmrelease.yaml'):
+                for known_status, other_status in (('M', 'M'), ('M', 'A'), ('M', 'D'),
+                                                   ('A', 'M'), ('D', 'M'), ('A', 'A'), ('D', 'D')):
+                    with self.subTest(known=known, other=other,
+                                      statuses=(known_status, other_status)):
+                        statuses = {known: known_status, other: other_status}
+                        checks = self.git_selection(
+                            [p for p, status in statuses.items() if status == 'D'],
+                            [p for p, status in statuses.items() if status == 'A'],
+                            modified=[p for p, status in statuses.items() if status == 'M'])
+                        self.assertEqual(checks, detect.classify_changes([known, other]))
+
+    def test_unrelated_add_delete_pairs_do_not_trigger_rename_guard(self):
+        for modified in ([], ['scripts/koito-export-lastfm.py']):
+            with self.subTest(modified=modified):
+                paths = ['archive/retired\nold.txt', 'archive/retired new.json', *modified]
+                checks = self.git_selection([paths[0]], [paths[1]], modified=modified,
+                                            base_only='scripts/tests/helpers/longhorn_retention.py')
+                self.assertEqual(checks, detect.classify_changes(paths))
 
     def test_base_only_unknown_and_component_changes_do_not_wake_tests(self):
         for base_only in ('scripts/unknown.py', 'scripts/koito-export-lastfm.py',
@@ -500,6 +551,9 @@ class GitDiffTests(unittest.TestCase):
                 finally:
                     os.chdir(previous)
                 self.assertIn('--no-renames', invoke.call_args.args[0])
+                self.assertIn('--name-status', invoke.call_args.args[0])
+                self.assertIn('-z', invoke.call_args.args[0])
+                self.assertIn(f'{base}...HEAD', invoke.call_args.args[0])
             self.assertEqual(set(paths), {old, deleted, new})
             for name in ['unit_tests', 'ci_tests', 'manifests']:
                 self.assertEqual(detect.classify_changes(paths)[name], 'true')
