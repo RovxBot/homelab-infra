@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 from unittest import mock
 
-from test_longhorn_retire_backup_history import FakeClient, VOLUME, fixtures
+from helpers.longhorn_retention import FakeClient, VOLUME, fixtures
 
 spec = importlib.util.spec_from_file_location("retired", Path(__file__).resolve().parents[1] / "longhorn-retire-retired-volumes.py")
 retired = importlib.util.module_from_spec(spec)
