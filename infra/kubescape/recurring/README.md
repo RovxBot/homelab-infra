@@ -235,3 +235,7 @@ from complete producer eligibility. It is not a remote publication receipt or
 recovery proof. No workload identities, findings, package details, raw errors or
 report references are included in these counts. Existing health gates, private
 projection schema, scan limits and recovery gates remain unchanged.
+
+### Bounded larger image qualification
+
+A reviewed target returned `image_too_large` in the 25 November 13:13 UTC vulnerability window at the scanner-only 1 GiB image limit. Increase only `MAXIMAGESIZE` to 1.5 GiB (1610612736 bytes) for the next scheduled qualification. This is a bounded trial, not proof the image fits or can be scanned successfully. The shared chart configuration, 32 MiB SBOM bound, one worker, queue depth one, 3 GiB engine memory and ephemeral-storage limits, 2 GiB observed working-set gate, node-load and storage preflight, request deadlines and retained evidence remain unchanged. Do not increase the limits again without measured image size and resource evidence. Verify rollout, direct fresh workload report, peak sampled working set, engine restarts and terminal status; leave coverage unknown on any failure. If pressure or repeated size rejection persists, use a separately qualified image assessment path rather than silently excluding the target.
