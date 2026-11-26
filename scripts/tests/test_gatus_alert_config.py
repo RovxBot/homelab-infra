@@ -22,9 +22,12 @@ class GatusAlertConfigTests(unittest.TestCase):
         endpoints = {f"alert(gatus): {item['group']}/{item['name']}": item
                      for item in release['spec']['values']['config']['endpoints']}
         self.assertEqual(set(targets), {'alert(gatus): internal/gitea', 'alert(gatus): internal/homepage',
-                                       'alert(gatus): internal/koito', 'alert(gatus): cluster/kubescape-assessments'})
+                                       'alert(gatus): internal/koito', 'alert(gatus): cluster/kubescape-assessments',
+                                       'alert(gatus): internal/gitea-backup', 'alert(gatus): internal/koito-lastfm-bridge',
+                                       'alert(gatus): cluster/security-cve-reporting', 'alert(gatus): cluster/kyverno-policy-assurance'})
         sources = [('apps/homepage/deployment.yaml', 'homepage'), ('apps/koito/deployment.yaml', 'koito'),
-                   ('apps/gitea/database.yaml', 'gitea'), ('infra/pod-report/deployment.yaml', 'homepage')]
+                   ('apps/gitea/database.yaml', 'gitea'), ('infra/pod-report/deployment.yaml', 'homepage'),
+                   ('apps/koito/lastfm-bridge.yaml', 'koito'), ('apps/gitea/mirroring.yaml', 'gitea')]
         workloads = {}
         for path, namespace in sources:
             for obj in yaml.safe_load_all((ROOT / path).read_text()):
@@ -58,8 +61,17 @@ class GatusAlertConfigTests(unittest.TestCase):
         self.assertIn('homepage.homepage.svc', endpoints['alert(gatus): internal/homepage']['url'])
         self.assertIn('koito-web.koito.svc', endpoints['alert(gatus): internal/koito']['url'])
         self.assertIn('pod-report.homepage.svc', endpoints['alert(gatus): cluster/kubescape-assessments']['url'])
+        for title, field in (('alert(gatus): cluster/security-cve-reporting', 'cvePublisher'),
+                             ('alert(gatus): cluster/kyverno-policy-assurance', 'kyvernoAssurance')):
+            self.assertEqual(targets[title]['security_field'], field)
+            self.assertEqual(targets[title]['workloads'], ())
+            self.assertEqual(targets[title]['flux'], ())
+            self.assertTrue(endpoints[title]['url'].endswith('/security-reporting-health.json'))
+            self.assertIn('[BODY].' + field + ' == healthy', endpoints[title]['conditions'])
         for title, path in [('alert(gatus): internal/homepage', 'apps/homepage/service.yaml'),
                             ('alert(gatus): internal/koito', 'apps/koito/service.yaml'),
+                            ('alert(gatus): internal/koito-lastfm-bridge', 'apps/koito/service.yaml'),
+                            ('alert(gatus): internal/gitea-backup', 'apps/gitea/mirroring.yaml'),
                             ('alert(gatus): cluster/kubescape-assessments', 'infra/pod-report/service.yaml')]:
             ns, resource, name, _ = targets[title]['workloads'][0]
             services = list(yaml.safe_load_all((ROOT / path).read_text()))

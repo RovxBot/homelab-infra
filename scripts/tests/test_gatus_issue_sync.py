@@ -23,7 +23,7 @@ class GatusIssueTests(unittest.TestCase):
         exec(compile(source, 'sync.py', 'exec'), self.helper)
         self.helper.update(MAX_RESULT_AGE_SECONDS=900, SUCCESS_THRESHOLD=2, GITHUB_TOKEN='fixture',
                            GATUS_API_URL='gatus-status', CLUSTER_HEALTH_URL='cluster-health',
-                           ASSESSMENT_HEALTH_URL='assessment-health',
+                           ASSESSMENT_HEALTH_URL='assessment-health', SECURITY_REPORTING_HEALTH_URL='security-health',
                            GITHUB_API_ROOT='github', GITHUB_REPOSITORY_API_URL='github/repos/fixture', DRY_RUN=False)
         self.now = datetime.now(timezone.utc)
         self.success = {'success':True, 'timestamp': self.now.isoformat()}
@@ -72,7 +72,7 @@ class GatusIssueTests(unittest.TestCase):
         self.assertTrue(all('state' not in payload for _, _, payload in self.calls), self.calls)
 
     def invoke(self, endpoints=None, health=None, issues=None, observations=None, assessment=None,
-               live_body=None, failed_write=None, expected=0):
+               live_body=None, failed_write=None, expected=0, security_health=None):
         health = self.health if health is None else health
         endpoints = endpoints if endpoints is not None else [{'name':'cluster-health','group':'cluster','results':[self.older,self.success]}]
         issues = issues if issues is not None else [self.issue]
@@ -104,6 +104,12 @@ class GatusIssueTests(unittest.TestCase):
                 self.assertIsNone(headers)
                 if isinstance(assessment, Exception): raise assessment
                 return assessment
+            if url == 'security-health':
+                self.assertIsNone(headers)
+                self.reads.append(url)
+                if isinstance(security_health, Exception):
+                    raise security_health
+                return security_health
             if '/issues?' in url:
                 self.assertIn('creator=fixture', url)
                 self.assertIn('state=open', url)
@@ -323,7 +329,9 @@ class GatusIssueTests(unittest.TestCase):
         issues=[{'title':'alert(gatus): internal/'+name,'url':'github/issues/'+name,'body':'', 'number':i}
                 for i,name in enumerate(('gitea-backup','koito-lastfm-bridge'))]
         self.invoke(endpoints=endpoints,issues=issues)
-        self.assertEqual([url for url,_,_ in self.calls],['github/issues/gitea-backup'])
+        self.assertEqual([url for url,_,payload in self.calls if 'state' in payload],['github/issues/gitea-backup'])
+        self.assertTrue(any(url == 'github/issues/koito-lastfm-bridge' and 'body' in payload
+                            for url,_,payload in self.calls))
 
     def test_newest_failure_blocks_recovery_in_either_storage_order(self):
         values = [{**self.success,'success':False}, self.older, {**self.older,'timestamp':(self.now-timedelta(seconds=120)).isoformat()}]
@@ -492,6 +500,48 @@ class GatusIssueTests(unittest.TestCase):
                 self.assertIn('database: evidence=unknown', body)
             else:
                 self.assertIn('Assessment report: stale/unavailable', body)
+
+    def test_security_health_diagnostics_are_field_allowlisted_and_shared(self):
+        names = ('security-cve-reporting', 'kyverno-policy-assurance')
+        issues = [dict(self.issue, title='alert(gatus): cluster/'+name, url='github/issues/'+name)
+                  for name in names]
+        endpoints = [{'name':name, 'group':'cluster', 'results':[]} for name in names]
+        health = {'observedAt':self.now.isoformat(), 'cvePublisher':'failed',
+                  'kyvernoAssurance':'unknown', 'private':'SECRET', 'nativePublisher':'healthy'}
+        self.invoke(issues=issues,endpoints=endpoints,security_health=health)
+        self.assertEqual(self.reads, ['security-health'])
+        bodies = {url:payload['body'] for url,_,payload in self.calls}
+        self.assertIn('cvePublisher: failed', bodies[issues[0]['url']])
+        self.assertIn('kyvernoAssurance: unknown', bodies[issues[1]['url']])
+        for body in bodies.values():
+            for value in ('SECRET', 'nativePublisher'):
+                self.assertNotIn(value, body)
+        self.assertNotIn('kyvernoAssurance:', bodies[issues[0]['url']])
+        self.assertNotIn('cvePublisher:', bodies[issues[1]['url']])
+        self.assert_no_closure()
+        for invalid in (None, OSError('SECRET'), dict(health, observedAt='2000-01-01T00:00:00Z'),
+                        dict(health, cvePublisher={'private':'SECRET'})):
+            self.calls.clear()
+            self.invoke(issues=issues,endpoints=endpoints,security_health=invalid)
+            self.assert_no_closure()
+            body = next(payload['body'] for url,_,payload in self.calls if url == issues[0]['url'])
+            self.assertIn('unknown', body)
+            self.assertNotIn('SECRET', body)
+
+    def test_backup_and_bridge_diagnostics_have_exact_workload_scope(self):
+        for name, namespace, workload in (('gitea-backup','gitea','gitea-protection'),
+                                          ('koito-lastfm-bridge','koito','koito-lastfm-bridge')):
+            self.calls.clear()
+            self.reads.clear()
+            issue = dict(self.issue,title='alert(gatus): internal/'+name)
+            endpoint = {'name':name,'group':'internal','results':[]}
+            self.invoke(issues=[issue],endpoints=[endpoint],
+                        observations=self.workload_fixture(name=workload,namespace=namespace))
+            body = self.calls[0][2]['body']
+            self.assertIn(f'kubectl -n {namespace} get deployments {workload}',body)
+            self.assertIn('desired=1, available=0',body)
+            self.assertNotIn('SECRET',body)
+            self.assert_no_closure()
 
     def test_kubernetes_read_budget_and_cache(self):
         reader = self.helper['KubernetesReader']()
