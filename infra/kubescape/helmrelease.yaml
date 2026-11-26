@@ -427,8 +427,9 @@ spec:
           value: "1"
         # Viper AutomaticEnv uses the uppercase maxImageSize key; isolate
         # this scanner-only qualification from the chart node-agent config.
+        # Bounded larger-image qualification; retain the 3Gi engine limit.
         - name: MAXIMAGESIZE
-          value: "1073741824"
+          value: "1610612736"
         # Scanner-only 32 MiB SBOM qualification; shared chart config stays pinned.
         - name: MAXSBOMSIZE
           value: "33554432"
