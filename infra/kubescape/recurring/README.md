@@ -320,3 +320,17 @@ node working memory on 30.8Gi allocatable. This does not prove peak disk or
 memory consumption fits. Verify new engine readiness, actual effective cap,
 no evictions/restarts, qualified fresh image report and publisher delivery.
 Stop on any new resource or timeout rejection; do not bypass the gates.
+
+### Sidecar and cache cohort (staged, not live-qualified)
+
+Sixteen regular-container targets across fifteen stable workload issue keys.
+OpenBrew requires both main and OAuth sidecar direct evidence; its init container
+is not enrolled. The three Redis Deployments require independent direct evidence
+even with identical image references. Reviewed source and repository mapping is
+per container. Retain the 320 distinct CVE workload bound and 512/528 KiB exact
+projection/transport bounds; worst-case aggregate serialization regression must
+pass without truncating findings. Optional rich proof may be absent at bounds.
+Four windows/day, four requests/window, 72h freshness and existing resource,
+retention and write budgets remain unchanged. Recovery state mutation stays off.
+Do not merge until the initial 12-target cohort has live acceptance and CI is
+green; after rollout qualify all 16 direct assessments and 15 private entries.

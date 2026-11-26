@@ -52,12 +52,16 @@ def check(resources):
                         "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
                         "wotlk/StatefulSet/wotlk-mariadb/mysql",
                         "kube-system/DaemonSet/kube-proxy/kube-proxy",
-                        "cloudflared/Deployment/cloudflared/cloudflared"}
+                        "cloudflared/Deployment/cloudflared/cloudflared",
+                        "openbrew/Deployment/openbrew/oauth2-proxy",
+                        "invoiceninja/Deployment/invoiceninja-redis/redis",
+                        "immich/Deployment/immich-redis/redis",
+                        "wger/Deployment/wger-redis/redis"}
     assert len(selected) == len(config["targets"]), "duplicate target identity"
     assert 1 <= config["maximumImagesPerRun"] <= 4
     assert config["maximumScanAgeHours"] == 72
     # Four windows/day; retain at least three request slots in a 72h rotation.
-    assert len(selected) <= min(12, 12 * config["maximumImagesPerRun"] - 3)
+    assert len(selected) <= min(16, 12 * config["maximumImagesPerRun"] - 3)
     assert config["scanTimeoutSeconds"] == 360 and config["maximumHistoryBytes"] <= 512 * 1024**2
     assert config["minimumDatabaseFreeBytes"] >= 3 * 1024**3
     assert config["minimumReportFreeBytes"] >= 1024**3

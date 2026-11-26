@@ -420,6 +420,10 @@ PRIVATE_CVE_TARGETS = {
     "wotlk/StatefulSet/wotlk-mariadb/mysql",
     "kube-system/DaemonSet/kube-proxy/kube-proxy",
     "cloudflared/Deployment/cloudflared/cloudflared",
+    "openbrew/Deployment/openbrew/oauth2-proxy",
+    "invoiceninja/Deployment/invoiceninja-redis/redis",
+    "immich/Deployment/immich-redis/redis",
+    "wger/Deployment/wger-redis/redis",
 }
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
 LEGACY_PRIVATE_CVE_LIMIT = 100
