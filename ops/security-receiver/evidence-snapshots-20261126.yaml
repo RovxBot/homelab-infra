@@ -1,0 +1,18 @@
+# One-time operator-approved recovery point; deliberately outside Flux.
+apiVersion: longhorn.io/v1beta2
+kind: Snapshot
+metadata:
+  name: security-collector-retirement-20261126
+  namespace: longhorn-system
+spec:
+  volume: pvc-28c469e0-c283-4576-ad49-1e8dc0c9384b
+  createSnapshot: true
+---
+apiVersion: longhorn.io/v1beta2
+kind: Snapshot
+metadata:
+  name: security-receiver-retirement-20261126
+  namespace: longhorn-system
+spec:
+  volume: pvc-d431a342-8db1-435b-b899-a501908b7873
+  createSnapshot: true
