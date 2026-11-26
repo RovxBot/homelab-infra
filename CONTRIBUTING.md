@@ -12,11 +12,11 @@ Thanks for the interest. This repo is a personal homelab learning project, so ch
 runs for every PR; manifests, workflows, Terraform roots, operational scripts
 and Renovate configuration run their relevant checks. CI workflow or selector
 changes run the complete suite. Full repository audits also run weekly and can
-be started manually. See [CI and policy gates](README.md#ci-and-policy-gates).
+be started manually. See [CI and GitHub Actions](https://github.com/RovxBot/homelab-infra/wiki/CI-and-GitHub-Actions).
 
 Before merging an outdated Renovate PR, use its rebase/retry checkbox or the
 `rebase` label, then wait for fresh CI. Routine patch/digest updates share one
-Monday maintenance PR; see [Renovate operations](docs/runbooks/renovate-operations.md).
+Monday maintenance PR; see [Renovate](https://github.com/RovxBot/homelab-infra/wiki/Renovate).
 
 ## Guidelines
 
