@@ -464,7 +464,7 @@ jobs:
         run: npx --yes --package renovate@44.126.1 -c 'node --test .github/tests/renovate-policy.test.cjs'
 
   kyverno-release-change:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       changed: ${{ steps.release.outputs.changed }}
       chart: ${{ steps.release.outputs.chart }}
