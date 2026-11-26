@@ -388,7 +388,8 @@ PRIVATE_CVE_TARGETS = {
     "cloudflared/Deployment/cloudflared/cloudflared",
 }
 CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]{4,10}\Z")
-MAX_PRIVATE_CVES = 100
+LEGACY_PRIVATE_CVE_LIMIT = 100
+MAX_PRIVATE_CVES = 200
 MAX_PRIVATE_DETAIL_MATCHES = 12
 MAX_RECOVERY_CVES = 256
 MAX_PRIVATE_PROJECTION_BYTES = 240 * 1024
@@ -396,7 +397,7 @@ PACKAGE_FIELD = re.compile(r"[A-Za-z0-9@][A-Za-z0-9._+:/@~=-]{0,127}\Z")
 PRIVATE_IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,383}@sha256:[a-f0-9]{64}\Z")
 
 
-def private_cve_findings(matches):
+def private_cve_findings(matches, *, limit=MAX_PRIVATE_CVES):
     findings, other = {}, 0
     for match in matches:
         vuln = match["vulnerability"]
@@ -412,7 +413,7 @@ def private_cve_findings(matches):
             existing["severity"] = "Critical"
         existing["fixAvailable"] |= vuln.get("fix", {}).get("state") == "fixed"
     # Do not silently truncate a security finding set.
-    if len(findings) > MAX_PRIVATE_CVES:
+    if len(findings) > limit:
         return {"state": "overflow", "findings": [], "otherHighCriticalMatches": other}
     return {"state": "complete", "findings": sorted(findings.values(), key=lambda x: x["id"]),
             "otherHighCriticalMatches": other}
@@ -774,7 +775,12 @@ def recover_private_projection(history, inventory, records, config):
         if (row["assessmentState"] != "healthy" or target_key(row) not in PRIVATE_CVE_TARGETS):
             continue
         record = records.get(row_key(row), {})
-        if record.get("evidenceKind") == "sharedImage" or ("privateCveDetails" in record and "privateRecoveryProof" in record):
+        previous = record.get("privateCve")
+        if previous is None and target_key(row) in LEGACY_PUBLIC_CVE_TARGETS:
+            previous = record.get("publicCve")
+        overflow = isinstance(previous, dict) and previous.get("state") == "overflow"
+        if record.get("evidenceKind") == "sharedImage" or (
+                not overflow and "privateCveDetails" in record and "privateRecoveryProof" in record):
             continue
         job = record.get("jobID", "")
         if not isinstance(job, str) or not re.fullmatch(r"recurring-[a-f0-9]{32}", job):
@@ -809,10 +815,16 @@ def recover_private_projection(history, inventory, records, config):
                        "archive_terminal_invalid")
             matches = report["spec"]["payload"]["matches"]
             findings = private_cve_findings(matches)
-            previous = record.get("privateCve")
-            if previous is None and target_key(row) in LEGACY_PUBLIC_CVE_TARGETS:
-                previous = record.get("publicCve")
-            db.require(previous is None or previous == findings, "archive_projection_mismatch")
+            if overflow:
+                # Reproduce the old lossless boundary decision before replacing
+                # it. Never promote an overflow above the new bound or trust an
+                # archive that would not have produced the original verdict.
+                if findings["state"] != "complete":
+                    continue
+                db.require(previous == private_cve_findings(matches, limit=LEGACY_PRIVATE_CVE_LIMIT),
+                           "archive_projection_mismatch")
+            else:
+                db.require(previous is None or previous == findings, "archive_projection_mismatch")
             record["privateCve"] = findings
             record["privateCveDetails"] = private_cve_details(matches)
             record["privateRecoveryProof"] = private_recovery_proof(report, row, record)
