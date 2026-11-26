@@ -643,7 +643,7 @@ REMEDIATION_ARTIFACT = "security-remediation-candidates"
 MAX_REMEDIATION_BYTES = 512 * 1024
 MAX_REMEDIATION_PRS = 50
 MAX_REMEDIATION_PER_CONTAINER = 5
-CANDIDATE_REF = re.compile(r"[a-z0-9][a-z0-9._:/-]{0,300}(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127})?@sha256:[a-f0-9]{64}\\Z")
+CANDIDATE_REF = re.compile(r"[a-z0-9][a-z0-9._:/-]{0,300}(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127})?@sha256:[a-f0-9]{64}\Z")
 
 
 def canonical_repository(value):
