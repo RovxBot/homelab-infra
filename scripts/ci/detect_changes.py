@@ -40,10 +40,63 @@ EDGE_ROOT = "terraform/oci-free-tier/ops/wireguard/"
 # Keep the retired prefix for PR diffs that delete or rename old source files.
 KYVERNO_PATHS = ('infra/kyverno/', 'infra/kyverno-policies/',
                  'scripts/ci/kyverno/', 'migration/kyverno/')
+# Reviewed sources, tests and helpers only. Prefix-based script ownership would
+# silently narrow new inputs before their reverse consumers have been reviewed.
+# Keep whole suites: Longhorn's engine, retention and snapshot guards have
+# transitive consumers within the family; its retention test helper is shared.
+COMPONENT_SCRIPT_PATHS = {
+    'test_koito*.py': {
+        'scripts/koito-audit-lastfm.py',
+        'scripts/koito-export-lastfm.py',
+        'scripts/koito-prepare-lastfm-import.py',
+        'scripts/tests/test_koito_audit_lastfm.py',
+        'scripts/tests/test_koito_bridge_manifest.py',
+        'scripts/tests/test_koito_export_lastfm.py',
+        'scripts/tests/test_koito_prepare_lastfm_import.py',
+    },
+    'test_longhorn*.py': {
+        'scripts/longhorn-b2-object-lifecycle.py',
+        'scripts/longhorn-prune-snapshots.py',
+        'scripts/longhorn-refresh-share-manager.py',
+        'scripts/longhorn-remove-stale-attachment.py',
+        'scripts/longhorn-repair-empty-disk.py',
+        'scripts/longhorn-resume-idle-snapshot-purge.py',
+        'scripts/longhorn-retire-backup-history.py',
+        'scripts/longhorn-retire-retired-volumes.py',
+        'scripts/longhorn-upgrade-engines.py',
+        'scripts/tests/test_longhorn_b2_object_lifecycle.py',
+        'scripts/tests/test_longhorn_prune_snapshots.py',
+        'scripts/tests/test_longhorn_refresh_share_manager.py',
+        'scripts/tests/test_longhorn_remove_stale_attachment.py',
+        'scripts/tests/test_longhorn_repair_empty_disk.py',
+        'scripts/tests/test_longhorn_resume_idle_snapshot_purge.py',
+        'scripts/tests/test_longhorn_retire_backup_history.py',
+        'scripts/tests/test_longhorn_retire_retired_volumes.py',
+        'scripts/tests/test_longhorn_upgrade_engines.py',
+        'scripts/tests/helpers/longhorn_retention.py',
+    },
+}
 
 
-def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
-    if full or any(path.startswith('scripts/') and path.endswith(('.py', '.json', '.go')) for path in paths):
+def script_test_patterns(paths: list[str], *, full: bool,
+                         statuses: dict[str, str] | None = None) -> list[str]:
+    reviewed_paths = set().union(*COMPONENT_SCRIPT_PATHS.values())
+    reviewed_change = not reviewed_paths.isdisjoint(paths)
+    added = {path for path in paths if (statuses or {}).get(path) == 'A'}
+    deleted = {path for path in paths if (statuses or {}).get(path) == 'D'}
+    # With --no-renames, opposite A/D sides may be a move even when their
+    # content and suffix differ. Conservatively broaden if either side is
+    # reviewed and the other is unfamiliar; M paths cannot be rename sides.
+    unknown_rename = (bool(added & reviewed_paths) and bool(deleted - reviewed_paths)
+                      or bool(deleted & reviewed_paths) and bool(added - reviewed_paths))
+    # Also fail broad for an unfamiliar side alongside a reviewed script,
+    # including scripts moved outside scripts/ or renamed to another suffix.
+    # The no-renames diff supplies both sides; a familiar old path is not proof
+    # of ownership of its new destination (or vice versa).
+    if full or unknown_rename or any(path not in reviewed_paths and (
+        path.startswith('scripts/') and (reviewed_change or path.endswith(('.py', '.json', '.go')))
+        or reviewed_change and path.endswith(('.py', '.go', '.sh'))
+    ) for path in paths):
         return ['test_*.py']
     owners = {
         ('apps/koito/',): ['test_koito*.py'],
@@ -57,13 +110,17 @@ def script_test_patterns(paths: list[str], *, full: bool) -> list[str]:
         KYVERNO_PATHS:
             ['test_kyverno*.py', 'test_kubescape_status_guardrail.py'],
     }
-    return sorted({pattern for prefixes, patterns in owners.items()
-                   if any(path.startswith(prefixes) for path in paths) for pattern in patterns})
+    return sorted(
+        {pattern for pattern, sources in COMPONENT_SCRIPT_PATHS.items() if sources.intersection(paths)}
+        | {pattern for prefixes, patterns in owners.items()
+           if any(path.startswith(prefixes) for path in paths) for pattern in patterns}
+    )
 
 
-def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
+def classify_changes(paths: list[str], *, full: bool = False,
+                     statuses: dict[str, str] | None = None) -> dict[str, str]:
     full = full or any(path in FULL_CHECK_PATHS for path in paths)
-    patterns = script_test_patterns(paths, full=full)
+    patterns = script_test_patterns(paths, full=full, statuses=statuses)
     ci_tests = full or any(path.startswith(('scripts/ci/', *KYVERNO_PATHS)) for path in paths)
     gitea_tests = full or any(path.startswith(('ops/gitea/', 'apps/gitea/', 'apps/gitea-runners/')) for path in paths)
     flags = {
@@ -107,16 +164,22 @@ def classify_changes(paths: list[str], *, full: bool = False) -> dict[str, str]:
     }
 
 
-def changed_paths(base: str, head: str) -> list[str]:
+def changed_statuses(base: str, head: str) -> dict[str, str]:
     # Compare the actual PR commits, not the synthetic merge commit checked out
     # by Actions. Base-only changes must not wake unrelated checks. Disable
     # rename detection so both the removed and added paths select their checks.
     result = subprocess.run(
-        ["git", "diff", "--name-only", "--no-renames", "-z", f"{base}...{head}", "--"],
+        ["git", "diff", "--name-status", "--no-renames", "-z", f"{base}...{head}", "--"],
         check=True,
         capture_output=True,
     )
-    return [os.fsdecode(path) for path in result.stdout.split(b"\0") if path]
+    fields = result.stdout.split(b"\0")[:-1]
+    return {os.fsdecode(fields[i + 1]): os.fsdecode(fields[i])
+            for i in range(0, len(fields), 2)}
+
+
+def changed_paths(base: str, head: str) -> list[str]:
+    return list(changed_statuses(base, head))
 
 
 def main() -> None:
@@ -125,10 +188,12 @@ def main() -> None:
     parser.add_argument("--base", default="")
     parser.add_argument("--head", default="")
     args = parser.parse_args()
+    statuses = {}
     if args.event == "pull_request":
         if not args.base or not args.head:
             parser.error("pull_request requires --base and --head")
-        paths = changed_paths(args.base, args.head)
+        statuses = changed_statuses(args.base, args.head)
+        paths = list(statuses)
         full = False
     elif args.event in {"schedule", "workflow_dispatch"}:
         paths = []
@@ -136,7 +201,7 @@ def main() -> None:
     else:
         parser.error(f"unsupported event: {args.event}")
 
-    outputs = classify_changes(paths, full=full)
+    outputs = classify_changes(paths, full=full, statuses=statuses)
     print(json.dumps({"changed_paths": paths, "checks": outputs}, indent=2))
     with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
         for name, value in outputs.items():
