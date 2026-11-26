@@ -535,7 +535,7 @@ def validate_cve_details(entry, generated):
     return sorted(result, key=lambda c: c["name"])
 
 
-MAX_PRIVATE_CVES = 200
+MAX_PRIVATE_CVES = 230
 MAX_RECOVERY_CVES = 256
 
 

@@ -46,7 +46,7 @@ seven days as fresh, then grace until fourteen days, after which scans are
 blocked. Independently verify loaded database metadata and checksum; a Ready
 engine is not evidence of a fresh database.
 
-The private advisory projection is bounded to 200 distinct High/Critical CVE
+The private advisory projection is bounded to 230 distinct High/Critical CVE
 IDs per workload, 240 KiB producer / 256 KiB consumer read boundary.
 Optional package details and recovery proof have separate bounds. Missing,
 ambiguous, failed, stale or overflowing evidence is unknown, never clean.
