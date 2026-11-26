@@ -1,0 +1,22 @@
+# Apply only after both exact source snapshots are ReadyToUse.
+apiVersion: longhorn.io/v1beta2
+kind: Backup
+metadata:
+  name: security-collector-retirement-20261126
+  namespace: longhorn-system
+spec:
+  backupMode: incremental
+  snapshotName: security-collector-retirement-20261126
+  labels:
+    purpose: security-evidence-retirement
+---
+apiVersion: longhorn.io/v1beta2
+kind: Backup
+metadata:
+  name: security-receiver-retirement-20261126
+  namespace: longhorn-system
+spec:
+  backupMode: incremental
+  snapshotName: security-receiver-retirement-20261126
+  labels:
+    purpose: security-evidence-retirement
