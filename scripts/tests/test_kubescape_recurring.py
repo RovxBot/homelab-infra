@@ -1457,6 +1457,11 @@ class PostureContractTests(unittest.TestCase):
         with mock.patch.object(R, 'POSTURE_PERSISTENCE_SECONDS', 0), self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
             self.qualify()
 
+    def test_fresh_stored_workload_cannot_substitute_for_missing_current_result(self):
+        self.result['results'].pop(0)
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
+            self.qualify()
+
     def test_each_shared_rbac_result_is_required_even_if_namespace_has_other_reports(self):
         self.summaries.pop()
         self.summaries.append(self.summary('kubescape', 'namespace-memos'))

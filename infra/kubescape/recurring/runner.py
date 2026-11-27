@@ -1498,6 +1498,7 @@ class Runner:
 
     def qualify_posture(self, result, started, previous=()):
         scope = posture_scope(result)
+        db.require(set(self.config["postureWorkloads"]) <= scope["expected"], "posture_scope_incomplete")
         # A previously persisted RBAC vector with a still-existing binding
         # cannot silently disappear from both the new result and storage.
         for summary in previous:
