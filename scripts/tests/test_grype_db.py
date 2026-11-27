@@ -7,6 +7,7 @@ import io
 import json
 from pathlib import Path
 import sqlite3
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -236,13 +237,14 @@ class FreshnessTests(unittest.TestCase):
             (lambda e: e["audit"].update(podUID="old-pod"), "cache_audit_pod_mismatch"),
         ]
         for mutation, reason in mutations:
-            evidence, expected = fixture()
-            mutation(evidence)
-            with self.subTest(reason=reason):
-                result = runtime.evaluate(evidence, expected, NOW)
-                self.assertEqual(result["state"], "failed")
-                self.assertEqual(result["reasons"], [reason])
-                self.assertFalse(result["canAssess"])
+            for database_only in (False, True):
+                evidence, expected = fixture()
+                mutation(evidence)
+                with self.subTest(reason=reason, database_only=database_only):
+                    result = runtime.evaluate(evidence, expected, NOW, database_only=database_only)
+                    self.assertEqual(result["state"], "failed")
+                    self.assertEqual(result["reasons"], [reason])
+                    self.assertFalse(result["canAssess"])
 
     def test_old_report_does_not_prove_new_database_assessment(self):
         evidence, expected = fixture()
@@ -274,6 +276,182 @@ class FreshnessTests(unittest.TestCase):
             self.assertIn("@sha256:", container["image"])
             self.assertTrue(container["volumeMounts"][0]["readOnly"])
             self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
+
+
+class QualificationModeTests(unittest.TestCase):
+    def cli_evaluate(self, evidence, expected, database_only=False, now=NOW):
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            db.save_json(work / "input.json", evidence)
+            db.save_json(work / "expected.json", expected)
+            argv = ["kubescape_db.py", "evaluate", "--evidence", str(work / "input.json"),
+                    "--expected", str(work / "expected.json"), "--work-dir", str(work)]
+            if database_only:
+                argv.append("--database-only")
+            with patch.object(sys, "argv", argv), patch.object(db, "utcnow", return_value=now), \
+                 patch("sys.stdout", new_callable=io.StringIO) as output:
+                code = runtime.main()
+            result = json.loads(output.getvalue())
+            self.assertEqual(result, json.loads((work / "freshness.json").read_text()))
+            return code, result
+
+    def test_missing_historical_report_keeps_database_and_assessment_distinct(self):
+        evidence, expected = fixture()
+        for missing in (None, "absent"):
+            if missing is None:
+                evidence["assessment"] = None
+            else:
+                evidence.pop("assessment")
+            with self.subTest(missing=missing):
+                code, result = self.cli_evaluate(evidence, expected)
+                self.assertEqual(code, 3)
+                self.assertEqual(result["reasons"], ["assessment_unavailable"])
+                self.assertTrue(result["canAssess"])
+                self.assertFalse(result["assessmentTrustworthy"])
+                code, result = self.cli_evaluate(evidence, expected, database_only=True)
+                self.assertEqual(code, 0)
+                self.assertEqual(result["qualificationMode"], "database-only")
+                self.assertEqual(result["databaseState"], "fresh")
+                self.assertEqual(result["integrity"], "verified")
+                self.assertFalse(result["assessmentTrustworthy"])
+                self.assertIsNone(result["lastSuccessfulAssessmentTime"])
+
+    def test_database_only_does_not_evaluate_present_or_malformed_reports(self):
+        evidence, expected = fixture()
+        for report in (evidence["assessment"], {"malformed": True}):
+            with self.subTest(report=report):
+                code, result = self.cli_evaluate({**evidence, "assessment": report}, expected, database_only=True)
+                self.assertEqual(code, 0)
+                self.assertFalse(result["assessmentTrustworthy"])
+                self.assertIsNone(result["lastSuccessfulAssessmentTime"])
+
+    def test_database_only_exit_codes_preserve_invalid_and_expired_gates(self):
+        cases = [
+            (lambda e, x: e.pop("audit"), NOW, 3, "missing_or_invalid_evidence"),
+            (lambda e, x: x["publisher"].update(status="unverified"), NOW, 3, "unverified_provenance"),
+            (lambda e, x: e["audit"].update(checkedAt=db.stamp(NOW - timedelta(minutes=16))),
+             NOW, 3, "cache_audit_expired"),
+            (lambda e, x: e["audit"]["checksum"].update(valid=False), NOW, 4, "cache_integrity_failed"),
+            (lambda e, x: e["diagnostics"].update(queueDepth=1), NOW, 4, "engine_not_idle"),
+            (lambda e, x: e["diagnostics"].update(storageEnabled=False), NOW, 4, "engine_not_idle"),
+            (lambda e, x: e["audit"].update(checkedAt=db.stamp(db.timestamp(BUILT) + timedelta(days=15))),
+             db.timestamp(BUILT) + timedelta(days=15), 2, "stale_database"),
+        ]
+        for mutate, now, code, reason in cases:
+            evidence, expected = fixture()
+            evidence["assessment"] = None
+            mutate(evidence, expected)
+            with self.subTest(reason=reason):
+                actual, result = self.cli_evaluate(evidence, expected, database_only=True, now=now)
+                self.assertEqual(actual, code)
+                self.assertEqual(result["reasons"], [reason])
+                self.assertFalse(result["canAssess"])
+
+    def test_database_only_keeps_existing_grace_boundary(self):
+        evidence, expected = fixture()
+        now = db.timestamp(BUILT) + timedelta(hours=db.DATABASE_MAXIMUM_HOURS)
+        evidence["audit"]["checkedAt"] = db.stamp(now)
+        code, result = self.cli_evaluate(evidence, expected, database_only=True, now=now)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["databaseState"], "grace")
+        code, result = self.cli_evaluate(evidence, expected, database_only=True, now=now + timedelta(microseconds=1))
+        self.assertEqual(code, 2)
+        self.assertFalse(result["canAssess"])
+
+    def test_optional_report_lookup_handles_only_not_found(self):
+        with patch.object(runtime, "kubectl", return_value="") as get:
+            self.assertIsNone(runtime.named("vulnerabilitymanifests", runtime.REPORT, optional=True))
+            self.assertIn("--ignore-not-found", get.call_args.args)
+        for response in ("invalid JSON", subprocess.CalledProcessError(1, ["kubectl"])):
+            options = {"side_effect": response} if isinstance(response, Exception) else {"return_value": response}
+            with self.subTest(response=response), patch.object(runtime, "kubectl", **options):
+                with self.assertRaises((ValueError, subprocess.SubprocessError)):
+                    runtime.named("vulnerabilitymanifests", runtime.REPORT, optional=True)
+
+    def test_check_collects_without_historical_report_and_database_only_skips_lookup(self):
+        evidence, expected = fixture()
+        deployment = {"spec": {"template": {"spec": {"containers": [{"image": expected["image"]}]}}}}
+        release = {"spec": {"values": {"grypeOfflineDB": {"image": {"sha": INDEX}}}}}
+        mirror_pod = {"metadata": {}, "status": {"containerStatuses": [{"imageID": evidence["mirrorImageID"]}]}}
+        for database_only in (False, True):
+            with self.subTest(database_only=database_only), tempfile.TemporaryDirectory() as directory:
+                work = Path(directory)
+                db.save_json(work / "expected.json", expected)
+                db.save_json(work / "cache-audit.json", evidence["audit"])
+                argv = ["kubescape_db.py", "check", "--work-dir", str(work), "--expected", str(work / "expected.json")]
+                if database_only:
+                    argv.append("--database-only")
+                def resource(kind, name, **kwargs):
+                    return {"deployment": deployment, "helmrelease": release, "vulnerabilitymanifests": None}[kind]
+                with patch.object(sys, "argv", argv), patch.object(db, "utcnow", return_value=NOW), \
+                     patch.object(runtime, "engine_pod", return_value={"metadata": {"uid": "engine-uid"}}), \
+                     patch.object(runtime, "named", side_effect=resource) as named, \
+                     patch.object(runtime, "kubectl", side_effect=[{"items": [mirror_pod]}, LATEST]), \
+                     patch.object(runtime, "api") as api, patch("sys.stdout", new_callable=io.StringIO) as output:
+                    api.return_value.__enter__.return_value.return_value = evidence["diagnostics"]
+                    self.assertEqual(runtime.main(), 0 if database_only else 3)
+                result = json.loads(output.getvalue())
+                self.assertTrue(result["canAssess"])
+                self.assertFalse(result["assessmentTrustworthy"])
+                self.assertIsNone(json.loads((work / "evidence.json").read_text())["assessment"])
+                lookups = [call for call in named.call_args_list if call.args[0] == "vulnerabilitymanifests"]
+                self.assertEqual(len(lookups), 0 if database_only else 1)
+                if lookups:
+                    self.assertTrue(lookups[0].kwargs["optional"])
+
+    def test_assessment_mode_exit_codes_still_require_current_complete_reports(self):
+        cases = [(lambda r: None, 0),
+                 (lambda r: r["spec"]["metadata"]["tool"].update(databaseVersion="old"), 3),
+                 (lambda r: r["spec"]["metadata"]["report"].update(createdAt="2026-11-18T00:00:00Z"), 2),
+                 (lambda r: r["metadata"]["annotations"].update({"kubescape.io/status": "pending"}), 4),
+                 (lambda r: r["spec"]["payload"].pop("matches"), 4)]
+        for mutate, code in cases:
+            evidence, expected = fixture()
+            mutate(evidence["assessment"])
+            with self.subTest(code=code):
+                actual, result = self.cli_evaluate(evidence, expected)
+                self.assertEqual(actual, code)
+                self.assertEqual(result["assessmentTrustworthy"], code == 0)
+
+    def test_scan_memos_rejects_database_only_before_any_work(self):
+        with patch.object(sys, "argv", ["kubescape_db.py", "scan-memos", "--database-only"]), \
+             patch("sys.stderr", new_callable=io.StringIO), patch.object(runtime, "api") as api:
+            with self.assertRaises(SystemExit) as error:
+                runtime.main()
+            self.assertEqual(error.exception.code, 2)
+            api.assert_not_called()
+
+    def test_scan_memos_cannot_submit_without_archiving_historical_reports(self):
+        evidence, expected = fixture()
+        evidence["assessment"] = None
+        with tempfile.TemporaryDirectory() as directory, patch.object(db, "utcnow", return_value=NOW), \
+             patch.object(runtime, "collect", return_value=evidence), patch.object(runtime, "kubectl", return_value={"items": [
+                 {"status": {"containerStatuses": [{"ready": True, "name": "memos", "imageID": runtime.MEMOS_IMAGE}]}}
+             ]}), patch.object(runtime, "named", side_effect=[{}, subprocess.CalledProcessError(1, ["kubectl"])]) as named:
+            request = unittest.mock.Mock()
+            with self.assertRaises(subprocess.SubprocessError):
+                runtime.scan_memos(request, expected, evidence["audit"], Path(directory))
+            self.assertEqual(named.call_args.args, ("vulnerabilitymanifests", runtime.REPORT))
+            self.assertFalse(named.call_args.kwargs.get("optional", False))
+            request.assert_not_called()
+            self.assertFalse((Path(directory) / "scan-request.json").exists())
+
+    def test_scan_memos_rejects_missing_or_previous_database_result(self):
+        for missing in (True, False):
+            before, expected = fixture()
+            after = copy.deepcopy(before)
+            if missing:
+                after["assessment"] = None
+            else:
+                after["assessment"]["spec"]["metadata"]["tool"]["databaseVersion"] = "old"
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as directory, \
+                 patch.object(db, "utcnow", return_value=NOW), patch.object(runtime, "collect", side_effect=[before, after]), \
+                 patch.object(runtime, "named", return_value={}), patch.object(runtime, "kubectl", return_value={"items": [
+                     {"status": {"containerStatuses": [{"ready": True, "name": "memos", "imageID": runtime.MEMOS_IMAGE}]}}
+                 ]}):
+                request = unittest.mock.Mock(side_effect=[{}, {"state": "succeeded", "phase": "completed"}])
+                with self.assertRaisesRegex(db.Rejected, "assessment_freshness_failed"):
+                    runtime.scan_memos(request, expected, before["audit"], Path(directory))
 
 
 if __name__ == "__main__":
