@@ -3,6 +3,10 @@
 
 check is read-only except for the explicit --audit-cache transient, read-only PVC
 audit Job and a short-lived API token. scan-memos runs exactly one image request.
+check/evaluate --database-only qualifies the database without reading assessment
+reports: exit 0 for fresh/grace with every database gate passed, 2 for expired,
+3 for unknown evidence, 4 for failed gates. Assessment mode retains the same codes
+and requires a trustworthy report for exit 0. scan-memos cannot use database-only.
 """
 
 from __future__ import annotations
@@ -53,7 +57,10 @@ def kubectl(*args, json_output=True, timeout=45):
     return json.loads(result) if json_output else result.decode()
 
 
-def named(kind, name, namespace="kubescape"):
+def named(kind, name, namespace="kubescape", *, optional=False):
+    if optional:
+        raw = kubectl("-n", namespace, "get", kind, name, "-o", "json", "--ignore-not-found", json_output=False)
+        return json.loads(raw) if raw.strip() else None
     return kubectl("-n", namespace, "get", kind, name, "-o", "json")
 
 
@@ -149,12 +156,13 @@ def audit_cache(work):
     return result
 
 
-def evaluate(evidence, expected, now=None):
+def evaluate(evidence, expected, now=None, *, database_only=False):
     now = now or db.utcnow()
     result = {"state": "unknown", "databaseState": "unknown", "canAssess": False,
+              "qualificationMode": "database-only" if database_only else "assessment",
               "assessmentTrustworthy": False, "checkedAt": db.stamp(now), "maximumDatabaseAgeHours": db.DATABASE_MAXIMUM_HOURS,
               "reasons": [], "integrity": "unknown", "lastSuccessfulAssessmentTime": None}
-    report = evidence.get("assessment")
+    report = None if database_only else evidence.get("assessment")
     try:
         if report and report["metadata"].get("annotations", {}).get("kubescape.io/status") == "ready":
             created = report["spec"]["metadata"]["report"]["createdAt"]
@@ -194,6 +202,8 @@ def evaluate(evidence, expected, now=None):
         result["integrity"] = "verified"
         db.require(freshness["state"] != "expired", "stale_database")
         result.update(state="healthy", databaseState=freshness["state"], canAssess=True)
+        if database_only:
+            return result
         if report is None:
             result.update(state="unknown", reasons=["assessment_unavailable"])
             return result
@@ -226,13 +236,13 @@ def evaluate(evidence, expected, now=None):
     return result
 
 
-def collect(request, audit):
+def collect(request, audit, *, database_only=False):
     pod = engine_pod()
     mirror = named("deployment", "grype-offline-db")
     pods = kubectl("-n", "kubescape", "get", "pods", "-l", "app.kubernetes.io/component=grype-offline-db", "-o", "json")["items"]
     live = [p for p in pods if not p["metadata"].get("deletionTimestamp")]
     db.require(len(live) == 1, "mirror_unavailable")
-    report = named("vulnerabilitymanifests", REPORT)
+    report = None if database_only else named("vulnerabilitymanifests", REPORT, optional=True)
     return {"collectedAt": db.stamp(db.utcnow()), "enginePodUID": pod["metadata"]["uid"], "audit": audit,
             "diagnostics": request("/v1/diagnostics"), "assessment": report,
             "mirrorMetadata": kubectl("get", "--raw=/api/v1/namespaces/kubescape/services/grype-offline-db:80/proxy/databases/v6/latest.json"),
@@ -305,7 +315,11 @@ def main():
     parser.add_argument("--expected", type=Path, default=ROOT / "infra/kubescape/grype-database.json")
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--audit-cache", action="store_true")
+    parser.add_argument("--database-only", action="store_true",
+                        help="check/evaluate only: qualify database gates without assessment reports; fresh/grace exits 0")
     args = parser.parse_args()
+    if args.database_only and args.command not in {"check", "evaluate"}:
+        parser.error("--database-only is supported only by check and evaluate")
     args.work_dir.mkdir(parents=True, exist_ok=True)
     try:
         if args.command == "audit-manifest":
@@ -313,21 +327,22 @@ def main():
             return 0
         expected = json.loads(args.expected.read_text())
         if args.command == "evaluate":
-            result = evaluate(json.loads(args.evidence.read_text()), expected)
+            result = evaluate(json.loads(args.evidence.read_text()), expected, database_only=args.database_only)
         else:
             audit = audit_cache(args.work_dir) if args.audit_cache else json.loads((args.work_dir / "cache-audit.json").read_text())
             with api() as request:
                 if args.command == "scan-memos":
                     result = scan_memos(request, expected, audit, args.work_dir)
                 else:
-                    evidence = collect(request, audit)
+                    evidence = collect(request, audit, database_only=args.database_only)
                     db.save_json(args.work_dir / "evidence.json", evidence)
-                    result = evaluate(evidence, expected)
+                    result = evaluate(evidence, expected, database_only=args.database_only)
     except db.Rejected as error:
         result = {"state": "failed", "canAssess": False, "assessmentTrustworthy": False, "reasons": [error.reason]}
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         result = {"state": "unknown", "canAssess": False, "assessmentTrustworthy": False,
                   "reasons": ["evidence_unavailable"], "detail": type(error).__name__}
+    result["qualificationMode"] = "database-only" if args.database_only else "assessment"
     db.save_json(args.work_dir / "freshness.json", result)
     print(json.dumps(result, sort_keys=True))
     return EXIT_CODES[result["state"]]

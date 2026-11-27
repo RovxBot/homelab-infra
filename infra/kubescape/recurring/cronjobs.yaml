@@ -1,4 +1,3 @@
-# Temporary recovery hold for #2135 / posture 6b2a9db3; restore via reviewed PR.
 # Shared PVC lock serializes both modes; chart CronJobs remain suspended.
 apiVersion: batch/v1
 kind: CronJob
@@ -12,7 +11,7 @@ metadata:
 spec:
   schedule: "13 1,10,13,19 * * *"
   timeZone: Etc/UTC
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 2
@@ -142,7 +141,7 @@ metadata:
 spec:
   schedule: 13 20 * * *
   timeZone: Etc/UTC
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 2
@@ -273,7 +272,7 @@ metadata:
 spec:
   schedule: "7,37 * * * *"
   timeZone: Etc/UTC
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 1
