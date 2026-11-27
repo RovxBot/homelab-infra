@@ -39,10 +39,6 @@
       "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
     },
     {
-      "identity": "openbrew/Deployment/openbrew/openbrew",
-      "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
-    },
-    {
       "identity": "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
       "reason": "Reviewed running public-registry Deployment; bounded private assessment only; new cohort acceptance pending"
     },
@@ -94,8 +90,6 @@
     "mop/deployment-skyfire-worldserver",
     "mop/statefulset-skyfire-mariadb",
     "mqtt/deployment-mosquitto",
-    "openbrew/deployment-openbrew",
-    "openbrew/deployment-openbrew-db",
     "security/deployment-vaultwarden",
     "stirling-pdf/deployment-stirling-pdf",
     "wger/deployment-wger",

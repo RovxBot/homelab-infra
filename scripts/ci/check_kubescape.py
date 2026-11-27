@@ -36,7 +36,7 @@ admissionController httpDetection seccompProfileService sandboxSeccomp manageWor
 syncSBOM agentRuntimePosture riskAcceptance remediation autoUpgrading prometheusExporter""".split())
 CERTGEN_NAMES = {"certgen-create", "certgen-patch"}
 APISERVICE = "v1beta1.spdx.softwarecomposition.kubescape.io"
-CANARY_NAMESPACE = "birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mop,mqtt,openbrew,security,stirling-pdf,wger,wireguard,wotlk"
+CANARY_NAMESPACE = "birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mop,mqtt,security,stirling-pdf,wger,wireguard,wotlk"
 CERTGEN_BUDGET = {"requests": {"cpu": "10m", "memory": "32Mi"},
                   "limits": {"cpu": "100m", "memory": "128Mi"}}
 WORKLOADS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}
@@ -335,7 +335,29 @@ def check_scope(changed_paths):
     return [p for p in changed_paths if p.startswith(protected) and p not in allowed]
 
 
-def check_assessment_alert(before, after):
+def retired_namespaces(base_ref, paths):
+    """Qualify deleted app Namespace sources against every remaining Flux owner."""
+    removed = set()
+    for path in paths:
+        if not (path.startswith("apps/") and path.endswith((".yaml", ".yml"))
+                and not (ROOT / path).exists()):
+            continue
+        source = subprocess.check_output(["git", "show", base_ref + ":" + path], cwd=ROOT, text=True)
+        removed.update(d["metadata"]["name"] for d in documents(source) if d.get("kind") == "Namespace")
+    if not removed:
+        return set()
+    from kustomize_inputs import production_entries
+    remaining = set()
+    for owner, docs in production_entries(ROOT):
+        for doc in docs:
+            meta, spec = doc["metadata"], doc.get("spec", {})
+            remaining.add(meta["name"] if doc["kind"] == "Namespace" else
+                          owner["spec"].get("targetNamespace") or spec.get("targetNamespace") or meta.get("namespace"))
+    assert not removed & remaining, "Retired namespace still has a Flux consumer"
+    return removed
+
+
+def check_assessment_alert(before, after, retired=()):
     """Only exact reviewed assessment/collector health endpoints may change."""
     expected = {"name": "kubescape-assessments", "group": "cluster",
                 "url": "http://pod-report.homepage.svc.cluster.local:80/kubescape-health.json",
@@ -366,6 +388,17 @@ def check_assessment_alert(before, after):
         for name, path, condition in (('process', 'readyz', '[BODY].ready == true'),
                                       ('sources', 'healthz', '[BODY].status == healthy'))]
     before, after = json.loads(json.dumps(before)), json.loads(json.dumps(after))
+    # Application retirement permits only removal of old endpoints whose exact
+    # service namespace has no remaining desired resource. All retained
+    # endpoints and every other Gatus setting keep the existing equality gate.
+    from urllib.parse import urlsplit
+    endpoints = before["spec"]["values"]["config"]["endpoints"]
+    retained = after["spec"]["values"]["config"]["endpoints"]
+    for endpoint in endpoints[:]:
+        host = (urlsplit(endpoint.get("url", "")).hostname or "").split(".")
+        if len(host) == 5 and host[2:] == ["svc", "cluster", "local"] and host[1] in retired:
+            assert not any(e["name"] == endpoint["name"] for e in retained), "Retired endpoint still configured"
+            endpoints.remove(endpoint)
     for document in (before, after):
         endpoints = document["spec"]["values"]["config"]["endpoints"]
         for reviewed in allowed:
@@ -515,7 +548,8 @@ def run(args):
             alert_path = "infra/observability/gatus-helmrelease.yaml"
             if alert_path in paths:
                 before = yaml.safe_load(subprocess.check_output(["git", "show", args.base_ref + ":" + alert_path], cwd=ROOT))
-                check_assessment_alert(before, yaml.safe_load((ROOT / alert_path).read_text()))
+                check_assessment_alert(before, yaml.safe_load((ROOT / alert_path).read_text()),
+                                       retired_namespaces(args.base_ref, paths))
     work = args.work_dir.resolve()
     work.mkdir(parents=True, exist_ok=True)
     archive = work / f"kubescape-operator-{VERSION}.tgz"

@@ -177,7 +177,7 @@ test('all critical controllers, identity images and Terraform providers override
       update('gpu-operator', 'infra/gpu-operator/helmrelease.yaml', type, { manager: 'flux', datasource: 'helm' }),
       update('registry.k8s.io/sig-storage/snapshot-controller', 'infra/snapshot-controller/deployment.yaml', type),
       update('vaultwarden/server', 'apps/vaultwarden/deployment.yaml', type),
-      update('quay.io/oauth2-proxy/oauth2-proxy', 'apps/openbrew/deployment.yaml', type),
+      update('quay.io/oauth2-proxy/oauth2-proxy', 'apps/identity-proxy/deployment.yaml', type),
       update('ghcr.io/element-hq/synapse', 'terraform/oci-matrix-free-tier/variables.tf', type, { manager: 'regex' }),
       update('oracle/oci', 'terraform/oci-free-tier/main.tf', type, { manager: 'terraform', datasource: 'terraform-provider' }),
     ]) {

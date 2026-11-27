@@ -557,7 +557,6 @@
         "ghcr.io/rovxbot/azerothcore-wotlk",
         "ghcr.io/rovxbot/skyfire-mop",
         "ghcr.io/rovxbot/grimguzzler-registration",
-        "ghcr.io/rovxbot/openbrew-sqlserver",
         "ghcr.io/rovxbot/kubevuln",
         "quay.io/kubescape/grype-offline-db"
       ],

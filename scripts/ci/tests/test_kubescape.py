@@ -304,6 +304,40 @@ class StagedReleaseTests(unittest.TestCase):
                      "infra/observability/gatus-configmap.yaml", "infra/cilium/helmrelease.yaml"]
         self.assertEqual(CHECK.check_scope(protected + ["infra/kubescape/helmrelease.yaml"]), protected)
 
+    def test_retirement_removes_only_endpoints_in_verified_retired_namespace(self):
+        after = yaml.safe_load((ROOT / "infra/observability/gatus-helmrelease.yaml").read_text())
+        before = copy.deepcopy(after)
+        old = {"name": "retired-app", "url": "http://app.retired.svc.cluster.local:80/ready"}
+        before["spec"]["values"]["config"]["endpoints"].append(old)
+        with self.assertRaises(AssertionError):
+            CHECK.check_assessment_alert(before, after)
+        CHECK.check_assessment_alert(before, after, {"retired"})
+        modified = copy.deepcopy(after)
+        modified["spec"]["values"]["config"]["endpoints"][0]["interval"] = "99m"
+        with self.assertRaises(AssertionError):
+            CHECK.check_assessment_alert(before, modified, {"retired"})
+        with self.assertRaisesRegex(AssertionError, "still configured"):
+            CHECK.check_assessment_alert(before, before, {"retired"})
+
+    def test_retirement_rejects_every_remaining_namespace_consumer(self):
+        owner = {"spec": {}}
+        namespace = {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": "retired"}}
+        path = "apps/retired/namespace.yaml"
+        with mock.patch.object(CHECK.subprocess, "check_output", return_value=yaml.safe_dump(namespace)), \
+                mock.patch("kustomize_inputs.production_entries", return_value=[]) as discover:
+            self.assertEqual(CHECK.retired_namespaces("base", [path]), {"retired"})
+            for obj in (namespace,
+                        {"kind": "Role", "metadata": {"name": "inventory", "namespace": "retired"}},
+                        {"kind": "Deployment", "metadata": {"name": "app", "namespace": "retired"}},
+                        {"kind": "HelmRelease", "metadata": {"name": "app"}, "spec": {"targetNamespace": "retired"}}):
+                discover.return_value = [(owner, [obj])]
+                with self.subTest(kind=obj["kind"]), self.assertRaisesRegex(AssertionError, "Flux consumer"):
+                    CHECK.retired_namespaces("base", [path])
+            discover.return_value = [({"spec": {"targetNamespace": "retired"}},
+                                      [{"kind": "Role", "metadata": {"name": "inventory"}}])]
+            with self.assertRaisesRegex(AssertionError, "Flux consumer"):
+                CHECK.retired_namespaces("base", [path])
+
     def test_recorded_inventory_has_complete_certgen_budgets_and_no_blockers(self):
         inventory = json.loads((ROOT / "infra/kubescape/rendered-inventory.json").read_text())
         self.assertEqual(inventory["admissionBlockers"], [])

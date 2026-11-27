@@ -253,7 +253,7 @@ class CoverageTests(unittest.TestCase):
 
 
     def test_curated_targets_resolve_independently(self):
-        self.assertEqual(len(CONFIG["targets"]), 12)
+        self.assertEqual(len(CONFIG["targets"]), 11)
         home = {**row(), "namespace": "homepage", "workload": "homepage-assets",
                 "container": "nginx", "workloadUID": "homepage-uid"}
         config = {**CONFIG, "targets": CONFIG["targets"][:2]}
@@ -429,7 +429,7 @@ class BatchTests(unittest.TestCase):
                 records[key] = {"createdAt": R.db.stamp(NOW + timedelta(days=day)),
                                 "database": EXPECTED["metadata"]}
         self.assertEqual(seen, {R.row_key(r) for r in rows})
-        self.assertEqual(len(rows), 12)
+        self.assertEqual(len(rows), 11)
         self.assertEqual(R.PRIVATE_CVE_TARGETS, {t['identity'] for t in CONFIG['targets']})
 
     def test_equal_digest_requires_direct_workload_evidence_for_exceptions(self):
@@ -596,7 +596,7 @@ class BatchTests(unittest.TestCase):
         required = CONFIG["postureWorkloads"]
         summaries = [summary(*target.split("/")) for target in required] + [summary("kubescape", "shared")]
         result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
-        self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 49)
+        self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 47)
         for i, target in enumerate(required):
             # Memos retains its earlier explicit prerequisite; all other missing
             # workload summaries fail the expanded scope check.
@@ -880,7 +880,7 @@ class PrivateCVEProjectionTests(unittest.TestCase):
                 "privateCve":{"state":"complete","findings":[], "otherHighCriticalMatches":0}}
         inventory = {"generatedAt":R.db.stamp(NOW),"rows":rows}
         projection = R.private_cve_projection(inventory, records)
-        self.assertEqual(len(projection["entries"]),12)
+        self.assertEqual(len(projection["entries"]),11)
         self.assertTrue(all(e["state"]=="complete" for e in projection["entries"]))
         target = next(r for r in rows if R.target_key(r) not in R.LEGACY_PUBLIC_CVE_TARGETS)
         record = records[R.row_key(target)]

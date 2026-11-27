@@ -19,8 +19,6 @@ ingress:
     service: http://gitea-mcp.gitea.svc.cluster.local:8080
   - hostname: git.cooked.beer
     service: http://gitea-http.gitea.svc.cluster.local:3000
-  - hostname: openbrew.cooked.beer
-    service: http://openbrew.openbrew.svc.cluster.local:80
   - hostname: birds.cooked.beer
     service: http://birdnet-go.birdnet-go.svc.cluster.local:8080
   - hostname: stirling.cooked.beer
