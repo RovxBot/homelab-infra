@@ -91,7 +91,7 @@ metadata:
   name: kubescape-assessment-inventory
 rules:
   - apiGroups: [""]
-    resources: [pods, nodes]
+    resources: [pods, nodes, replicationcontrollers]
     verbs: [get, list]
   - apiGroups: [apps]
     resources: [deployments, statefulsets, daemonsets, replicasets]

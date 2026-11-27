@@ -39,6 +39,11 @@ def check(resources):
     evidence = json.loads((ROOT / "infra/kubescape/recurring/resource-qualification.json").read_text())
     assert config["resourceBudgetQualified"] is True and evidence["status"] == "verified"
     posture = config["postureWorkloads"]
+    lifecycle = config["postureLifecycle"]
+    assert lifecycle["retainedNamespaceDisposition"] == "exclude-if-empty-and-out-of-scope"
+    namespaces = lifecycle["activeNamespaces"]
+    assert namespaces == sorted(set(target.split("/", 1)[0] for target in posture))
+    assert set(namespaces) == set(chart.CANARY_NAMESPACE.split(",")), "posture lifecycle and scanner namespace scope differ"
     assert len(posture) == len(set(posture)) == 47
     assert set(target.split("/", 1)[0] for target in posture) == set(chart.CANARY_NAMESPACE.split(","))
     assert all(re.fullmatch(r"[a-z0-9-]+/(deployment|statefulset)-[a-z0-9-]+", target) for target in posture)
