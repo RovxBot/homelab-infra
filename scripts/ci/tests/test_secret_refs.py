@@ -49,7 +49,7 @@ class SecretReferenceTests(unittest.TestCase):
                              'secretName': 'volume', 'imagePullSecrets': [{'name': 'pull'}],
                              'csi': {'controllerExpandSecretRef': {'name': 'csi', 'namespace': 'storage'}}})
         self.assertEqual(refs.production_refs_from_doc(doc, 'app'),
-                         {('app', 'key'), ('other', 'explicit'), ('app', 'volume'), ('app', 'pull'), ('storage', 'csi')})
+                         {('app', 'key'), ('app', 'explicit'), ('app', 'volume'), ('app', 'pull'), ('app', 'csi')})
         # Legacy bootstrap namespace semantics are intentionally unchanged.
         self.assertIn(('app', 'explicit'), refs.refs_from_doc(doc, 'app'))
 

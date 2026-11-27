@@ -1,5 +1,8 @@
 """Fail-closed root discovery, safe rendering and Flux reachability controls."""
+import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -251,6 +254,167 @@ class RetainedInputSelectionTests(unittest.TestCase):
                     self.assertIn('ops/security-collector/acceptance/base/input.yaml', paths)
                 self.assertEqual(detect.classify_changes(paths)['manifests'], 'true')
                 self.assertEqual(detect.classify_changes(paths)['renovate'], 'false')
+
+
+class RepositoryWideRootSelectionTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)/'repo'
+        self.root.mkdir()
+        self.git('init', '-b', 'main')
+        self.git('config', 'user.name', 'CI selection test')
+        self.git('config', 'user.email', 'ci@example.invalid')
+        self.write('README.md', 'baseline')
+
+    def git(self, *args):
+        return subprocess.check_output(['git', *args], cwd=self.root, text=True, stderr=subprocess.DEVNULL).strip()
+
+    def write(self, path, content='fixture'):
+        target = self.root/path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content + '\n')
+
+    def commit(self):
+        self.git('add', '-A')
+        self.git('commit', '--allow-empty', '-m', 'test change')
+        return self.git('rev-parse', 'HEAD')
+
+    def select(self, base, head):
+        result = subprocess.run(
+            [sys.executable, str(ROOT/'scripts/ci/detect_changes.py'), '--event', 'pull_request',
+             '--base', base, '--head', head], cwd=self.root,
+            env={**os.environ, 'GITHUB_OUTPUT': str(Path(self.temp.name)/'outputs')},
+            capture_output=True, text=True, check=True,
+        )
+        return json.loads(result.stdout)
+
+    def assert_manifest_only(self, payload):
+        self.assertEqual(payload['checks'], {**detect.classify_changes(['docs/unrelated.md']), 'manifests': 'true'})
+
+    def test_root_filename_contract_matches_renderer(self):
+        self.assertEqual(detect.KUSTOMIZE_FILENAMES, inputs.FILENAMES)
+        for filename in sorted(inputs.FILENAMES):
+            self.assert_manifest_only({'checks': detect.classify_changes(['unusual/location/' + filename])})
+
+    def test_root_add_modify_delete_and_rename_for_all_filename_conventions(self):
+        for filename in sorted(inputs.FILENAMES):
+            for operation in ['add', 'modify', 'delete', 'rename']:
+                with self.subTest(filename=filename, operation=operation):
+                    directory = f'ops/new-fixture/{filename}-{operation}'
+                    path = directory + '/' + filename
+                    if operation != 'add':
+                        self.write(path)
+                    base = self.commit()
+                    if operation in ['add', 'modify']:
+                        self.write(path, 'changed')
+                    elif operation == 'delete':
+                        (self.root/path).unlink()
+                    else:
+                        self.git('mv', path, 'retired-root.txt')
+                    head = self.commit()
+                    payload = self.select(base, head)
+                    self.assertIn(path, payload['changed_paths'])
+                    self.assert_manifest_only(payload)
+                    if operation == 'rename':
+                        self.git('rm', 'retired-root.txt')
+
+    def test_later_inputs_under_new_root_select_manifests(self):
+        for filename in sorted(inputs.FILENAMES):
+            with self.subTest(filename=filename):
+                directory = 'unusual/fixtures/' + filename
+                self.write(directory + '/' + filename)
+                self.write(directory + '/input.yaml')
+                self.write(directory + '/nested/data.txt')
+                base = self.commit()
+                self.write(directory + '/input.yaml', 'changed later')
+                self.write(directory + '/nested/data.txt', 'changed generator input')
+                head = self.commit()
+                payload = self.select(base, head)
+                self.assertNotIn(directory + '/' + filename, payload['changed_paths'])
+                self.assert_manifest_only(payload)
+
+    def test_deleted_root_and_inputs_are_selected_from_before_tree(self):
+        self.write('outside/root/Kustomization')
+        self.write('outside/root/input.yaml')
+        base = self.commit()
+        self.git('rm', '-r', 'outside')
+        head = self.commit()
+        self.assert_manifest_only(self.select(base, head))
+
+    def test_later_input_additions_and_deletions_select_manifests(self):
+        for operation in ['add', 'delete']:
+            with self.subTest(operation=operation):
+                directory = 'outside/' + operation
+                self.write(directory + '/Kustomization')
+                path = directory + '/nested/input.yaml'
+                if operation == 'delete':
+                    self.write(path)
+                base = self.commit()
+                if operation == 'delete':
+                    self.git('rm', path)
+                else:
+                    self.write(path)
+                head = self.commit()
+                payload = self.select(base, head)
+                self.assertEqual(payload['changed_paths'], [path])
+                self.assert_manifest_only(payload)
+
+    def test_input_renames_select_both_root_sides(self):
+        for direction in ['out', 'in']:
+            with self.subTest(direction=direction):
+                self.write('outside/root/kustomization.yml')
+                old, new = ('outside/root/input.yaml', 'moved.yaml')
+                if direction == 'in':
+                    old, new = new, old
+                self.write(old)
+                base = self.commit()
+                self.git('mv', old, new)
+                head = self.commit()
+                self.assert_manifest_only(self.select(base, head))
+
+    def test_base_only_root_does_not_select_unrelated_pr_paths(self):
+        self.write('outside/fixture/input.yaml')
+        self.write('outside/fixture-other/input.yaml')
+        self.commit()
+        self.git('checkout', '-b', 'change')
+        self.write('outside/fixture/input.yaml', 'PR input without a PR root')
+        head = self.commit()
+        self.git('checkout', 'main')
+        self.write('outside/fixture/Kustomization')
+        base = self.commit()
+        payload = self.select(base, head)
+        self.assertEqual(payload['changed_paths'], ['outside/fixture/input.yaml'])
+        self.assertEqual(payload['checks']['manifests'], 'false')
+
+    def test_unrelated_and_sibling_paths_do_not_select_root(self):
+        self.write('outside/fixture/Kustomization')
+        self.write('outside/fixture-other/input.yaml')
+        base = self.commit()
+        self.write('README.md', 'PR documentation')
+        self.write('outside/fixture-other/input.yaml', 'sibling input')
+        head = self.commit()
+        self.assertEqual(self.select(base, head)['checks']['manifests'], 'false')
+
+    def test_root_tree_discovery_failure_cannot_emit_skip_outputs(self):
+        base = self.commit()
+        self.write('README.md', 'PR change')
+        head = self.commit()
+        # A real Git executable shim fails only ls-tree, leaving diff/merge-base
+        # operational. The selector must fail before opening GITHUB_OUTPUT.
+        shim = self.root/'bin/git'
+        shim.parent.mkdir()
+        shim.write_text('#!/bin/sh\nif [ "$1" = "ls-tree" ]; then exit 1; fi\nexec "' + shutil.which('git') + '" "$@"\n')
+        shim.chmod(0o755)
+        output = self.root/'failed-outputs'
+        result = subprocess.run(
+            [sys.executable, str(ROOT/'scripts/ci/detect_changes.py'), '--event', 'pull_request',
+             '--base', base, '--head', head], cwd=self.root,
+            env={**os.environ, 'PATH': str(shim.parent) + os.pathsep + os.environ['PATH'], 'GITHUB_OUTPUT': str(output)},
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(output.exists())
 
 
 if __name__ == '__main__':

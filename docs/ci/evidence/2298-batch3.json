@@ -920,5 +920,110 @@
     "scripts/ci/tests/test_secret_refs.py": "ff70d814806f8984c5c79c0613948595f88e7e90b2746578bddc3c685ef9993b",
     ".github/workflows/ci.yml": "d9713244b6a3ea2efecbf24b18c8ad6b30bb5e9e13f8b4d6a1b4c1b6d1ee7cdd",
     ".github/workflows/kubescape-checks.yml": "0bc71e27993035c4c16f185109d5d2f671dc9be3ea687bf9f86d3a983c69eb92"
+  },
+  "reviewCorrections": {
+    "review": "https://github.com/RovxBot/homelab-infra/pull/2329#issuecomment-7206272454",
+    "reviewedHead": "485293fc93bf242f67d7066c1d79c983e290e691",
+    "reviewedHostedBaseline": {
+      "status": "verified in independent review; not rerun by agent",
+      "hostTests": 863,
+      "repoChecks": "https://github.com/RovxBot/homelab-infra/actions/runs/45914958430",
+      "kubescape": "https://github.com/RovxBot/homelab-infra/actions/runs/45914960143"
+    },
+    "corrections": {
+      "secretNamespaces": "Local secretKeyRef/secretRef and inline Pod CSI references use the effective local namespace even when a malformed reference supplies namespace. Only the supported PersistentVolume CSI SecretReference fields honor explicit namespaces.",
+      "legacyBootstrap": "AST-identical allowlist, namespace/fallback main, refs_from_doc, obj_namespace and walk; unchanged from reviewed head",
+      "rootSelection": "Recognized root filenames select manifests anywhere. Changes under root directories in PR merge-base/head trees also select manifests, covering later additions/modifications/deletions/renames; base-only roots and unrelated sibling paths do not broaden selection. No dependency framework or unrelated full-check fallback."
+    },
+    "localChecks": {
+      "ciSuite": {
+        "command": "python3 -m unittest discover -s scripts/ci/tests -v",
+        "result": "OK",
+        "cases": 235,
+        "seconds": 29.707
+      },
+      "allRootRenders": {
+        "status": "verified",
+        "count": 65,
+        "kustomize": "5.5.0",
+        "rootsUnchanged": true
+      },
+      "productionGraph": {
+        "status": "verified",
+        "owners": 28,
+        "dependencyEdges": 20,
+        "ownerResourceEntries": 569,
+        "distinctResourceIdentities": 568,
+        "secretReferences": 76,
+        "ownerHashesUnchanged": true
+      },
+      "selection": {
+        "status": "verified",
+        "unchangedReviewedPathComparisons": 853,
+        "scheduledAndManualFullSelection": "verified through CLI; no dispatch",
+        "discoveryFailure": "nonzero without GITHUB_OUTPUT"
+      },
+      "pythonSyntax": "verified",
+      "gitDiffCheck": "verified",
+      "unchangedScriptAndGiteaSuites": "not rerun locally; all 605 script and 38 Gitea IDs discovered and retained; hosted baseline passed all 863 at reviewed head"
+    },
+    "hostTestInventory": {
+      "ci": {
+        "baseline": 220,
+        "after": 235,
+        "removed": [],
+        "added": [
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_base_only_root_does_not_select_unrelated_pr_paths",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_deleted_root_and_inputs_are_selected_from_before_tree",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_input_renames_select_both_root_sides",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_later_input_additions_and_deletions_select_manifests",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_later_inputs_under_new_root_select_manifests",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_root_add_modify_delete_and_rename_for_all_filename_conventions",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_root_filename_contract_matches_renderer",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_root_tree_discovery_failure_cannot_emit_skip_outputs",
+          "test_kustomize_inputs.RepositoryWideRootSelectionTests.test_unrelated_and_sibling_paths_do_not_select_root",
+          "test_production_graph.CombinedGraphTests.test_deployment_env_and_envfrom_invalid_namespaces_cannot_resolve_remote_secrets",
+          "test_production_graph.CombinedGraphTests.test_deployment_env_and_envfrom_missing_local_secret_fail",
+          "test_production_graph.CombinedGraphTests.test_deployment_env_and_envfrom_valid_local_references_pass",
+          "test_production_graph.CombinedGraphTests.test_inline_pod_csi_reference_cannot_resolve_remote_secret",
+          "test_production_graph.CombinedGraphTests.test_invalid_local_namespace_field_is_ignored_by_resolution",
+          "test_production_graph.CombinedGraphTests.test_persistent_volume_csi_secret_references_keep_explicit_namespace"
+        ],
+        "baselineSha256": "92eee50a3165908d6c63891e7fd289dfbeced4c4c20fa1deb534b721b6b0651c",
+        "afterSha256": "e7db3eae1e0d1a4bdfa7cbd1ff30550ea7deba70a1df634fc6a677a71aaa77d4"
+      },
+      "scripts": {
+        "baseline": 605,
+        "after": 605,
+        "removed": [],
+        "added": [],
+        "baselineSha256": "e9b0f23cd2938f4b915232c2a4c2a20259e5bab38247ddd63e28130dac604494",
+        "afterSha256": "e9b0f23cd2938f4b915232c2a4c2a20259e5bab38247ddd63e28130dac604494"
+      },
+      "gitea": {
+        "baseline": 38,
+        "after": 38,
+        "removed": [],
+        "added": [],
+        "baselineSha256": "c38a16a5c2b41b9ca2db3061c54a9126bd1a09e6164169082c88f9d5cc8a5432",
+        "afterSha256": "c38a16a5c2b41b9ca2db3061c54a9126bd1a09e6164169082c88f9d5cc8a5432"
+      }
+    },
+    "baselineHostIdsRetained": 863,
+    "currentHostIds": 878,
+    "checkedCorrectionSourceSha256": {
+      "scripts/ci/check_secret_refs.py": "c9e89688a5dccb3933047da457797142378d3a796535fc619dda61ae1f1b3664",
+      "scripts/ci/detect_changes.py": "1e9a0833599777a39b87c4dd4d7a98a2d03bfa79699ba26705e5e9dcc550e747",
+      "scripts/ci/tests/test_kustomize_inputs.py": "ba1fa4fd7bb293f48033af837af06f7919dc52f596e012ba048b2d0d77f20bf9",
+      "scripts/ci/tests/test_production_graph.py": "a265da12c7a52ac1be69434ccd0b674a4b00e9f5a71596dc3c04e020652ffb1a",
+      "scripts/ci/tests/test_secret_refs.py": "d096f1f44b75f7911b22617d5d367726af0a2a7ff1a6c358a8aca90f0057c48d"
+    },
+    "limits": {
+      "hostedCIAtCorrectedHead": "pending; no polling",
+      "independentAcceptance": "pending",
+      "productionChanges": "none",
+      "productionValidation": "not run; no live mutation",
+      "workflowFiles": "unchanged; required names and specialized qualification preserved"
+    }
   }
 }

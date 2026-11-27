@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Collection
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,9 @@ import subprocess
 
 
 TERRAFORM_STACKS = ("oci-free-tier", "oci-matrix-free-tier")
+# Kept equal to kustomize_inputs.FILENAMES by a regression test. Selection runs
+# before PyYAML installation, so it cannot import the rendering helper.
+KUSTOMIZE_FILENAMES = {"kustomization.yaml", "kustomization.yml", "Kustomization"}
 FULL_CHECK_PATHS = {
     "scripts/ci/kustomize_inputs.py",
     "scripts/ci/check_production_graph.py",
@@ -123,7 +127,8 @@ def script_test_patterns(paths: list[str], *, full: bool,
 
 
 def classify_changes(paths: list[str], *, full: bool = False,
-                     statuses: dict[str, str] | None = None) -> dict[str, str]:
+                     statuses: dict[str, str] | None = None,
+                     kustomize_roots: Collection[str] = ()) -> dict[str, str]:
     full = full or any(path in FULL_CHECK_PATHS for path in paths)
     patterns = script_test_patterns(paths, full=full, statuses=statuses)
     ci_tests = full or any(path.startswith(('scripts/ci/', *KYVERNO_PATHS)) for path in paths)
@@ -136,6 +141,8 @@ def classify_changes(paths: list[str], *, full: bool = False,
             path.startswith(("apps/", "infra/", "clusters/", "secrets/", "ops/gitea/", "ops/security-collector/acceptance/"))
             or path.startswith(("scripts/ci/kyverno/fixtures/", "migration/kyverno/"))
             or path in MANIFEST_CHECK_PATHS
+            or Path(path).name in KUSTOMIZE_FILENAMES
+            or any(Path(root) in Path(path).parents for root in kustomize_roots)
             for path in paths
         ),
         "public_edge": full or f"{EDGE_ROOT}Caddyfile" in paths,
@@ -187,6 +194,31 @@ def changed_paths(base: str, head: str) -> list[str]:
     return list(changed_statuses(base, head))
 
 
+def pr_kustomize_roots(base: str, head: str) -> set[str]:
+    """Ancestor directories in the PR's before/after trees, not the checkout.
+
+    Retain removed roots for deletions/renames and ignore roots added only on
+    the target branch. Any changed input under these roots selects manifests;
+    no dependency parsing or full-check fallback for unrelated paths.
+    """
+    merge_base = subprocess.run(
+        ["git", "merge-base", base, head], check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if not merge_base:
+        raise ValueError("Missing PR merge-base for Kustomize root selection")
+    roots = set()
+    for revision in (merge_base, head):
+        result = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", "-z", revision, "--"],
+            check=True, capture_output=True,
+        )
+        for raw in result.stdout.split(b"\0"):
+            path = Path(os.fsdecode(raw))
+            if path.name in KUSTOMIZE_FILENAMES:
+                roots.add(path.parent.as_posix())
+    return roots
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--event", required=True)
@@ -194,10 +226,12 @@ def main() -> None:
     parser.add_argument("--head", default="")
     args = parser.parse_args()
     statuses = {}
+    roots = set()
     if args.event == "pull_request":
         if not args.base or not args.head:
             parser.error("pull_request requires --base and --head")
         statuses = changed_statuses(args.base, args.head)
+        roots = pr_kustomize_roots(args.base, args.head)
         paths = list(statuses)
         full = False
     elif args.event in {"schedule", "workflow_dispatch"}:
@@ -206,7 +240,7 @@ def main() -> None:
     else:
         parser.error(f"unsupported event: {args.event}")
 
-    outputs = classify_changes(paths, full=full, statuses=statuses)
+    outputs = classify_changes(paths, full=full, statuses=statuses, kustomize_roots=roots)
     print(json.dumps({"changed_paths": paths, "checks": outputs}, indent=2))
     with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
         for name, value in outputs.items():

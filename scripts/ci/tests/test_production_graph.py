@@ -48,6 +48,62 @@ class CombinedGraphTests(unittest.TestCase):
         self.assertEqual(receipt['distinctResourceIdentities'], 3)
         self.assertEqual(receipt['secretReferenceCount'], 1)
 
+    @staticmethod
+    def deployment_reference(shape, explicit_namespace=None):
+        ref = {'name': 'credentials'}
+        if explicit_namespace is not None:
+            ref['namespace'] = explicit_namespace
+        container = {'name': 'app', 'image': 'example.invalid/app:fixture'}
+        if shape == 'env':
+            container['env'] = [{'name': 'PASSWORD', 'valueFrom': {'secretKeyRef': {**ref, 'key': 'password'}}}]
+        else:
+            container['envFrom'] = [{'secretRef': ref}]
+        return resource('Deployment', 'app', 'app', 'apps/v1', spec={
+            'selector': {'matchLabels': {'app': 'fixture'}},
+            'template': {'metadata': {'labels': {'app': 'fixture'}}, 'spec': {'containers': [container]}},
+        })
+
+    def test_deployment_env_and_envfrom_invalid_namespaces_cannot_resolve_remote_secrets(self):
+        for shape in ['env', 'envFrom']:
+            with self.subTest(shape=shape):
+                doc = self.deployment_reference(shape, explicit_namespace='other')
+                errors = self.errors([owner('workload', [doc]), owner('remote', [resource(name='credentials', namespace='other')])])
+                self.assertIn('Unresolved Secret app/credentials', str(errors))
+
+    def test_deployment_env_and_envfrom_missing_local_secret_fail(self):
+        for shape in ['env', 'envFrom']:
+            for secrets in [[], [resource(name='credentials', namespace='other')]]:
+                with self.subTest(shape=shape, secrets=bool(secrets)):
+                    errors = self.errors([owner('workload', [self.deployment_reference(shape)]), owner('secrets', secrets)])
+                    self.assertIn('Unresolved Secret app/credentials', str(errors))
+
+    def test_deployment_env_and_envfrom_valid_local_references_pass(self):
+        for shape in ['env', 'envFrom']:
+            with self.subTest(shape=shape):
+                self.assertEqual(self.errors([owner('workload', [self.deployment_reference(shape)]),
+                                              owner('secrets', [resource(name='credentials')])]), [])
+
+    def test_invalid_local_namespace_field_is_ignored_by_resolution(self):
+        for shape in ['env', 'envFrom']:
+            with self.subTest(shape=shape):
+                self.assertEqual(self.errors([owner('workload', [self.deployment_reference(shape, 'other')]),
+                                              owner('secrets', [resource(name='credentials')])]), [])
+
+    def test_inline_pod_csi_reference_cannot_resolve_remote_secret(self):
+        doc = resource('Pod', 'inline-csi', 'app', spec={'volumes': [{'name': 'inline', 'csi': {
+            'driver': 'example.invalid/csi', 'nodePublishSecretRef': {'name': 'credentials', 'namespace': 'other'}}}]})
+        self.assertTrue(self.errors([owner('workload', [doc]), owner('remote', [resource(name='credentials', namespace='other')])]))
+        self.assertEqual(self.errors([owner('workload', [doc]), owner('local', [resource(name='credentials')])]), [])
+
+    def test_persistent_volume_csi_secret_references_keep_explicit_namespace(self):
+        for field in ['nodeStageSecretRef', 'nodePublishSecretRef', 'controllerPublishSecretRef',
+                      'controllerExpandSecretRef', 'nodeExpandSecretRef']:
+            with self.subTest(field=field):
+                doc = resource('PersistentVolume', 'csi', None, spec={'csi': {
+                    field: {'name': 'credentials', 'namespace': 'storage'}}})
+                self.assertEqual(self.errors([owner('volume', [doc]), owner('secrets', [resource(name='credentials', namespace='storage')])]), [])
+                self.assertTrue(self.errors([owner('volume', [doc]), owner('secrets', [resource(name='credentials', namespace='app')])]))
+
     def test_missing_secret_reference_identifies_owner_without_payload(self):
         doc = consumer()
         doc['spec']['sentinel'] = 'PAYLOAD-MUST-NOT-APPEAR'

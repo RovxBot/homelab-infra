@@ -52,7 +52,7 @@ def refs_from_doc(doc: Dict, default_ns: Optional[str]) -> Set[Tuple[Optional[st
 
 
 def production_refs_from_doc(doc: Dict, namespace: Optional[str]) -> Set[Tuple[Optional[str], str]]:
-    """Known Secret reference shapes; explicit reference namespaces take priority.
+    """Known Secret reference shapes with API-specific namespace resolution.
 
     Ordinary local references use the resource's effective namespace. This does
     not discover additional chart-specific fields or controller-generated Secrets.
@@ -61,19 +61,24 @@ def production_refs_from_doc(doc: Dict, namespace: Optional[str]) -> Set[Tuple[O
     refs = set()
     if doc.get("kind") == "Secret" and doc.get("apiVersion") == "v1":
         return refs
+    spec = doc.get("spec") or {}
+    # Only a PersistentVolume's CSI SecretReference supports a namespace.
+    # Pod env/envFrom and inline CSI use namespace-local references, even if
+    # malformed source includes an unsupported namespace field.
+    pv_csi = spec.get("csi") if doc.get("apiVersion") == "v1" and doc.get("kind") == "PersistentVolume" else None
     for node in walk(doc):
         for field in ("secretKeyRef", "secretRef", "nodeStageSecretRef", "nodePublishSecretRef",
                       "controllerPublishSecretRef", "controllerExpandSecretRef", "nodeExpandSecretRef"):
             ref = node.get(field)
             if isinstance(ref, dict) and isinstance(ref.get("name"), str) and ref["name"]:
-                refs.add((ref.get("namespace", namespace), ref["name"]))
+                cross_namespace = node is pv_csi and field not in {"secretKeyRef", "secretRef"}
+                refs.add((ref.get("namespace", namespace) if cross_namespace else namespace, ref["name"]))
         name = node.get("secretName")
         if isinstance(name, str) and name:
             refs.add((namespace, name))
         for ref in node.get("imagePullSecrets", []) or []:
             if isinstance(ref, dict) and isinstance(ref.get("name"), str) and ref["name"]:
                 refs.add((namespace, ref["name"]))
-    spec = doc.get("spec") or {}
     if doc.get("apiVersion", "").startswith("helm.toolkit.fluxcd.io/") and doc.get("kind") == "HelmRelease":
         for ref in spec.get("valuesFrom", []):
             if ref.get("kind", "Secret") == "Secret":
