@@ -83,7 +83,7 @@ class FakeGitHub:
 class PublisherTests(unittest.TestCase):
     def test_private_runtime_cohort_accepts_only_reviewed_identities(self):
         for workload in ('koito/Deployment/koito', 'koito/Deployment/koito-lastfm-bridge',
-                         'monitoring/Deployment/gatus', 'openbrew/Deployment/openbrew', 'openbrew/Deployment/openbrew-db', 'stirling-pdf/Deployment/stirling-pdf',
+                         'monitoring/Deployment/gatus', 'stirling-pdf/Deployment/stirling-pdf',
                          'cloudflared/Deployment/cloudflared', 'mqtt/Deployment/mosquitto', 'security/Deployment/vaultwarden',
                          'wotlk/StatefulSet/wotlk-mariadb', 'mop/StatefulSet/skyfire-mariadb', 'kube-system/DaemonSet/kube-proxy'):
             self.assertEqual(pub.validate(envelope(dict(incident(),workload=workload)))[0]['workload'],workload)
@@ -502,8 +502,8 @@ class CVEPublisherTests(unittest.TestCase):
         import json
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
         self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
-        self.assertEqual(len(pub.CVE_ALLOWED),12)
-        self.assertEqual(len(pub.ALLOWED),15)
+        self.assertEqual(len(pub.CVE_ALLOWED),11)
+        self.assertEqual(len(pub.ALLOWED),13)
         from security_receiver.store import PRIVATE_WORKLOADS
         self.assertEqual(pub.ALLOWED, set(PRIVATE_WORKLOADS.values()))
         self.assertNotIn("kubescape-public-cve",SOURCE.read_text())
@@ -517,7 +517,7 @@ class CVEPublisherTests(unittest.TestCase):
     def test_freshness_privacy_and_exact_fields(self):
         projection = self.fixture()
         now = datetime(2026,11,24,6,1,tzinfo=timezone.utc)
-        self.assertEqual(len(pub.validate_cve(projection,now)),12)
+        self.assertEqual(len(pub.validate_cve(projection,now)),11)
         for change in ({"workload":"gitea/Deployment/private"},
                        {"findings":[{"id":"CVE-2026-4738","severity":"High","fixAvailable":True,"package":"secret"}]},
                        {"assessedAt":"2026-11-20T05:00:00Z"}):
@@ -673,7 +673,7 @@ class CVEPublisherTests(unittest.TestCase):
 
     def test_projection_observation_expires_before_assessment(self):
         projection=self.fixture()
-        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),12)
+        self.assertEqual(len(pub.validate_cve(projection,datetime(2026,11,24,7,5,tzinfo=timezone.utc))),11)
         with self.assertRaises(ValueError):
             pub.validate_cve(projection,datetime(2026,11,24,7,6,tzinfo=timezone.utc))
 
@@ -964,12 +964,12 @@ class CVEPublisherTests(unittest.TestCase):
                     create_limit=min(9,len(pub.CVE_ALLOWED)))
             outcomes=pub.sync_cve_entries(writer(100000),entries)
             self.assertEqual(outcomes.count("created"),9)
-            self.assertEqual(outcomes.count("deferred"),3)
-            self.assertEqual(pub.sync_cve_entries(writer(103601),entries).count("deferred"),3)
+            self.assertEqual(outcomes.count("deferred"),2)
+            self.assertEqual(pub.sync_cve_entries(writer(103601),entries).count("deferred"),2)
             outcomes=pub.sync_cve_entries(writer(186401),entries)
-            self.assertEqual(outcomes.count("created"),3)
+            self.assertEqual(outcomes.count("created"),2)
             self.assertEqual(outcomes.count("unchanged"),9)
-            self.assertEqual(github.create_calls,12)
+            self.assertEqual(github.create_calls,11)
 
     def test_cve_batch_propagates_ambiguous_write_failure(self):
         entries = pub.validate_cve(self.fixture(), datetime(2026,11,24,6,1,tzinfo=timezone.utc))

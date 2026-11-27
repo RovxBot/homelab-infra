@@ -5,7 +5,6 @@
     "kubescape-runtime-test",
     "koito",
     "monitoring",
-    "openbrew",
     "stirling-pdf",
     "cloudflared",
     "mqtt",

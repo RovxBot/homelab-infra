@@ -6,7 +6,7 @@ from security_native_exporter_preflight import EXPORTER
 
 IMAGE = 'quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60'
 NODES = ["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"]
-NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test', 'koito', 'monitoring', 'openbrew', 'stirling-pdf', 'cloudflared', 'mqtt', 'security']
+NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test', 'koito', 'monitoring', 'stirling-pdf', 'cloudflared', 'mqtt', 'security']
 AGENT_NAMESPACES = NAMESPACES + ['wotlk', 'mop']
 RULES = ['R0001', 'R0004', 'R0007', 'R1000', 'R1002']
 CAPS = ['SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'SYSLOG', 'SYS_RESOURCE', 'IPC_LOCK', 'NET_RAW']
@@ -80,7 +80,7 @@ def check_config(resources):
     maps = {r['metadata']['name']: r['data'] for r in resources if r['kind'] == 'ConfigMap'}
     cfg = json.loads(maps['node-agent']['config.json'])
     assert cfg['runtimeDetectionEnabled'] is True and cfg['applicationProfileServiceEnabled'] is True
-    assert cfg['includeNamespaces'] == 'birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mop,mqtt,openbrew,security,stirling-pdf,wger,wireguard,wotlk'  # Runtime env override remains independent.
+    assert cfg['includeNamespaces'] == 'birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mop,mqtt,security,stirling-pdf,wger,wireguard,wotlk'  # Runtime env override remains independent.
     assert cfg['exporters'] == {
         'stdoutExporter': True, 'alertManagerExporterUrls': [],
         'syslogExporterURL': '', 'httpExporterConfig': EXPORTER
@@ -185,7 +185,7 @@ def check_boundary(kyverno, work, resources, root):
     # Retain the previous exact scope for a controlled rollback.
     next_scope = deepcopy(pod)
     next_scope['metadata']['name'] = 'agent-rollback-scope-positive'
-    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test,koito,monitoring,openbrew,stirling-pdf,cloudflared,mqtt,security'
+    next(e for e in next_scope['spec']['containers'][0]['env'] if e['name'] == 'INCLUDENAMESPACES')['value'] = 'homepage,memos,kubescape-runtime-test,koito,monitoring,stirling-pdf,cloudflared,mqtt,security'
     fixtures = [agent, pod, *allowed_node_pods, trusted_ca, next_scope]
     bound_ds = deepcopy(agent)
     bound_ds['metadata']['name'] = 'node-agent'

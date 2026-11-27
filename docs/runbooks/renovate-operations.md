@@ -114,8 +114,8 @@ and generated Flux bootstrap components remain excluded and digest checked.
 Promote Gitea toolchain/backup digests together through the Linux-toolchain
 build, smoke tests and artifact review; update runner configuration, admission
 policy, backup jobs and restore tools together. The wowdecomp toolchain and
-Kubernetes MCP are also immutable pipeline outputs. MoP, WotLK, registration
-and OpenBrew database outputs remain under their respective image workflows.
+Kubernetes MCP are also immutable pipeline outputs. MoP, WotLK and registration
+outputs remain under their respective image workflows.
 Renovate tracks upstream Dockerfile bases but does not retarget these outputs.
 Never add floating `latest` tags to silence a lookup failure.
 

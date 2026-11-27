@@ -39,7 +39,7 @@ def check(resources):
     evidence = json.loads((ROOT / "infra/kubescape/recurring/resource-qualification.json").read_text())
     assert config["resourceBudgetQualified"] is True and evidence["status"] == "verified"
     posture = config["postureWorkloads"]
-    assert len(posture) == len(set(posture)) == 49
+    assert len(posture) == len(set(posture)) == 47
     assert set(target.split("/", 1)[0] for target in posture) == set(chart.CANARY_NAMESPACE.split(","))
     assert all(re.fullmatch(r"[a-z0-9-]+/(deployment|statefulset)-[a-z0-9-]+", target) for target in posture)
     assert sum("/statefulset-" in target for target in posture) == 2
@@ -48,7 +48,7 @@ def check(resources):
     assert selected <= {"memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx",
                         "homepage/Deployment/homepage/homepage", "koito/Deployment/koito/koito",
                         "koito/Deployment/koito-lastfm-bridge/multi-scrobbler", "gitea/Deployment/gitea-mcp/mcp",
-                        "monitoring/Deployment/gatus/gatus", "openbrew/Deployment/openbrew/openbrew",
+                        "monitoring/Deployment/gatus/gatus",
                         "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
                         "wotlk/StatefulSet/wotlk-mariadb/mysql",
                         "kube-system/DaemonSet/kube-proxy/kube-proxy",

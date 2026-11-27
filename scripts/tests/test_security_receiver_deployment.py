@@ -56,8 +56,8 @@ class ReceiverStageTests(unittest.TestCase):
         items=documents(RECEIVER/"workload.yaml")
         obj={x["kind"]:x for x in items}
         deploy=obj["Deployment"]
-        # This must be a single Pod-template rotation, not a PVC/Service
-        # mutation or an image/rbac change.
+        # Receiver source/image changes must preserve persistent state, Service
+        # identity and the existing Pod privilege boundary.
         self.assertEqual(deploy["spec"]["replicas"],1)
         self.assertEqual(deploy["spec"]["strategy"],{"type":"Recreate"})
         self.assertEqual(deploy["spec"]["template"]["metadata"]["annotations"],
@@ -75,7 +75,7 @@ class ReceiverStageTests(unittest.TestCase):
         self.assertFalse(container["securityContext"]["allowPrivilegeEscalation"])
         self.assertEqual(container["securityContext"]["capabilities"]["drop"],["ALL"])
         self.assertEqual(container["image"],
-            "ghcr.io/rovxbot/security-receiver@sha256:b15b9fdcbd9675dfec4c9a053d6289c9df435b6ffe9ea9b9efd0974b69590eec")
+            "ghcr.io/rovxbot/security-receiver@sha256:1e3e1ccdf9757b3935db1fb67c054e289405a3c0764a004cb8c0f4e9b5c0f12a")
         self.assertEqual(obj["Service"]["spec"]["type"],"ClusterIP")
         self.assertTrue(all(p["httpGet"]["scheme"]=="HTTPS"
                             for p in (container["startupProbe"],container["readinessProbe"],
@@ -156,8 +156,8 @@ class ReceiverStageTests(unittest.TestCase):
             {"apiGroups":["apps"],"resources":["replicasets"],"verbs":["get"]},
             {"apiGroups":["apps"],"resources":["deployments"],"resourceNames":["koito","koito-lastfm-bridge"],"verbs":["get"]}])
         bindings=[x for x in items if x["kind"].endswith("Binding")]
-        self.assertEqual(len(bindings),16)
-        for namespace, names in {"monitoring":["gatus"],"openbrew":["openbrew","openbrew-db"],"stirling-pdf":["stirling-pdf"],"cloudflared":["cloudflared"],"mqtt":["mosquitto"],"security":["vaultwarden"]}.items():
+        self.assertEqual(len(bindings),15)
+        for namespace, names in {"monitoring":["gatus"],"stirling-pdf":["stirling-pdf"],"cloudflared":["cloudflared"],"mqtt":["mosquitto"],"security":["vaultwarden"]}.items():
             role=next(x for x in roles if x['metadata'].get('namespace')==namespace and x['metadata']['name']=='security-receiver-inventory')
             self.assertEqual(role['rules'], [
                 {'apiGroups':[''],'resources':['pods'],'verbs':['get']},
@@ -178,7 +178,7 @@ class ReceiverStageTests(unittest.TestCase):
     def test_exact_eight_agent_nodes_and_no_unsafe_surface(self):
         config=json.loads((RECEIVER/"config.json").read_text())
         self.assertEqual(config["nodes"],["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"])
-        self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test","koito","monitoring","openbrew","stirling-pdf","cloudflared","mqtt","security","wotlk","mop","kube-system"])
+        self.assertEqual(config["namespaces"],["homepage","memos","kubescape-runtime-test","koito","monitoring","stirling-pdf","cloudflared","mqtt","security","wotlk","mop","kube-system"])
         self.assertEqual(config["state_dir"],"/state")
         self.assertEqual(config["tls_cert"],"/tls/tls.crt")
         self.assertEqual(config["tls_key"],"/tls/tls.key")

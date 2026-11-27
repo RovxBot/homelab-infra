@@ -415,7 +415,6 @@ PRIVATE_CVE_TARGETS = {
     "koito/Deployment/koito/koito",
     "memos/Deployment/memos/memos",
     "monitoring/Deployment/gatus/gatus",
-    "openbrew/Deployment/openbrew/openbrew",
     "stirling-pdf/Deployment/stirling-pdf/stirling-pdf",
     "wotlk/StatefulSet/wotlk-mariadb/mysql",
     "kube-system/DaemonSet/kube-proxy/kube-proxy",
