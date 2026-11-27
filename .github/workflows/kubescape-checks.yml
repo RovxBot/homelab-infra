@@ -4,6 +4,13 @@ on:
   pull_request:
     paths:
       - infra/kubescape/**
+      - ops/security-collector/acceptance/**
+      - scripts/ci/kustomize_inputs.py
+      - scripts/ci/check_production_graph.py
+      - scripts/ci/check_secret_refs.py
+      - scripts/ci/tests/test_kustomize_inputs.py
+      - scripts/ci/tests/test_production_graph.py
+      - scripts/ci/tests/test_secret_refs.py
       - secrets/security-receiver-*.enc.yaml
       - ops/security-receiver/*.sh
       - scripts/tests/test_security_receiver_deployment.py

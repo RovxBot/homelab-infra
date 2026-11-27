@@ -132,15 +132,6 @@ jobs:
           kustomize build --load-restrictor LoadRestrictionsNone clusters/home > .work/rendered.yaml
           test -s .work/rendered.yaml
 
-      - name: Render every Kustomize source root
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r kustomization; do
-            directory="${kustomization%/kustomization.yaml}"
-            kustomize build --load-restrictor LoadRestrictionsNone "$directory" > /dev/null
-          done < <(find apps infra clusters scripts/ci/kyverno/fixtures -name kustomization.yaml -type f | sort)
-
       - name: Install kubeconform
         shell: bash
         run: |
@@ -151,10 +142,14 @@ jobs:
           sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           kubeconform -v
 
+      - name: Install manifest validator dependencies
+        run: python3 -m pip install PyYAML==6.0.3
+
+      - name: Render all retained roots and validate combined production references and ownership
+        run: python3 scripts/ci/check_production_graph.py
+
       - name: Validate complete namespace bundles and workload dependencies
-        run: |
-          python3 -m pip install PyYAML==6.0.3
-          python3 scripts/ci/check_namespace_defaults.py
+        run: python3 scripts/ci/check_namespace_defaults.py
 
       - name: Install Kyverno CLI
         env:
@@ -211,7 +206,10 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kyverno-gate-artifacts
-          path: .work/kyverno-gate
+          # Resource YAML and CLI output can contain rendered Secret payloads.
+          path: |
+            .work/kyverno-gate/summary.json
+            .work/kyverno-gate/render-paths.txt
 
   public-edge:
     needs: changes

@@ -14,6 +14,7 @@ from typing import Any
 
 import yaml
 from policy_identity import canonical_identity
+from kustomize_inputs import resource_documents
 
 
 IGNORED_FLUX_RENDER_PATHS = {
@@ -111,14 +112,9 @@ def render_kustomization(repo_root: Path, relative_path: str) -> list[dict[str, 
     command = kustomize_base_command() + [relative_path]
     result = run_command(command, cwd=repo_root)
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to render {relative_path}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-        )
-    documents: list[dict[str, Any]] = []
-    for document in yaml.safe_load_all(result.stdout):
-        if isinstance(document, dict):
-            documents.append(document)
-    return documents
+        # Renderers may echo Secret payloads on either stream on failure.
+        raise RuntimeError(f"Failed to render {relative_path} (renderer output suppressed)")
+    return resource_documents(result.stdout, relative_path)
 
 
 def find_flux_render_paths(cluster_root: Path) -> list[str]:
