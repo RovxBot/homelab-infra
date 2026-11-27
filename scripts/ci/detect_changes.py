@@ -12,6 +12,11 @@ import subprocess
 
 TERRAFORM_STACKS = ("oci-free-tier", "oci-matrix-free-tier")
 FULL_CHECK_PATHS = {
+    "scripts/ci/kustomize_inputs.py",
+    "scripts/ci/check_production_graph.py",
+    "scripts/ci/tests/test_kustomize_inputs.py",
+    "scripts/ci/tests/test_production_graph.py",
+    "scripts/ci/tests/test_secret_refs.py",
     ".github/workflows/ci.yml",
     "scripts/ci/detect_changes.py",
     "scripts/ci/tests/test_detect_changes.py",
@@ -128,7 +133,7 @@ def classify_changes(paths: list[str], *, full: bool = False,
         "ci_tests": ci_tests,
         "gitea_tests": gitea_tests,
         "manifests": full or any(
-            path.startswith(("apps/", "infra/", "clusters/", "secrets/", "ops/gitea/"))
+            path.startswith(("apps/", "infra/", "clusters/", "secrets/", "ops/gitea/", "ops/security-collector/acceptance/"))
             or path.startswith(("scripts/ci/kyverno/fixtures/", "migration/kyverno/"))
             or path in MANIFEST_CHECK_PATHS
             for path in paths

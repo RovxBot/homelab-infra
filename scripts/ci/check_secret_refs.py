@@ -30,6 +30,8 @@ def obj_namespace(doc: Dict) -> Optional[str]:
 
 def refs_from_doc(doc: Dict, default_ns: Optional[str]) -> Set[Tuple[Optional[str], str]]:
     refs: Set[Tuple[Optional[str], str]] = set()
+    if doc.get("kind") == "Secret" and doc.get("apiVersion") == "v1":
+        return refs  # Secret data is opaque, never a reference or diagnostic.
     for node in walk(doc):
         secret_key_ref = node.get("secretKeyRef")
         if isinstance(secret_key_ref, dict):
@@ -49,12 +51,51 @@ def refs_from_doc(doc: Dict, default_ns: Optional[str]) -> Set[Tuple[Optional[st
     return refs
 
 
+def production_refs_from_doc(doc: Dict, namespace: Optional[str]) -> Set[Tuple[Optional[str], str]]:
+    """Known Secret reference shapes; explicit reference namespaces take priority.
+
+    Ordinary local references use the resource's effective namespace. This does
+    not discover additional chart-specific fields or controller-generated Secrets.
+    The legacy bootstrap scanner and its fallback remain separate below.
+    """
+    refs = set()
+    if doc.get("kind") == "Secret" and doc.get("apiVersion") == "v1":
+        return refs
+    for node in walk(doc):
+        for field in ("secretKeyRef", "secretRef", "nodeStageSecretRef", "nodePublishSecretRef",
+                      "controllerPublishSecretRef", "controllerExpandSecretRef", "nodeExpandSecretRef"):
+            ref = node.get(field)
+            if isinstance(ref, dict) and isinstance(ref.get("name"), str) and ref["name"]:
+                refs.add((ref.get("namespace", namespace), ref["name"]))
+        name = node.get("secretName")
+        if isinstance(name, str) and name:
+            refs.add((namespace, name))
+        for ref in node.get("imagePullSecrets", []) or []:
+            if isinstance(ref, dict) and isinstance(ref.get("name"), str) and ref["name"]:
+                refs.add((namespace, ref["name"]))
+    spec = doc.get("spec") or {}
+    if doc.get("apiVersion", "").startswith("helm.toolkit.fluxcd.io/") and doc.get("kind") == "HelmRelease":
+        for ref in spec.get("valuesFrom", []):
+            if ref.get("kind", "Secret") == "Secret":
+                refs.add((namespace, ref["name"]))
+    if doc.get("apiVersion", "").startswith("kustomize.toolkit.fluxcd.io/") and doc.get("kind") == "Kustomization":
+        for ref in spec.get("postBuild", {}).get("substituteFrom", []):
+            if ref.get("kind") == "Secret":
+                refs.add((namespace, ref["name"]))
+    return refs
+
+
 def main(path: str) -> int:
     declared: Set[Tuple[Optional[str], str]] = set()
     refs: Set[Tuple[Optional[str], str]] = set()
 
-    with open(path, "r", encoding="utf-8") as f:
-        docs = list(yaml.safe_load_all(f))
+    from kustomize_inputs import resource_documents
+    try:
+        with open(path, encoding="utf-8") as handle:
+            docs = resource_documents(handle.read(), "bootstrap render")
+    except (OSError, ValueError):
+        print("Invalid or missing bootstrap render (payload suppressed).")
+        return 1
 
     for doc in docs:
         if not isinstance(doc, dict):
@@ -75,7 +116,8 @@ def main(path: str) -> int:
             continue
         if (namespace, name) in declared:
             continue
-        # Fallback for cluster-scoped docs that reference namespaced secrets.
+        # Legacy bootstrap-only fallback: an unnamespaced declaration matches
+        # any reference namespace. Combined production validation never uses it.
         if (None, name) in declared:
             continue
         missing.append((namespace, name))

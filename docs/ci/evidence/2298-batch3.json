@@ -1,0 +1,924 @@
+{
+  "issue": "https://github.com/RovxBot/homelab-infra/issues/2298",
+  "batch": 3,
+  "date": "2026-11-27",
+  "baselineCommit": "2347f78fac89d749a55a4a36465ffdfb17918eea",
+  "acceptanceGuidance": "https://github.com/RovxBot/homelab-infra/issues/2298#issuecomment-7205987769",
+  "status": {
+    "localValidation": "verified",
+    "hostedCI": "not run by agent; ordinary PR checks pending",
+    "independentReview": "pending",
+    "merge": "not performed",
+    "productionValidation": "not run; no live mutations"
+  },
+  "baselineReceipts": {
+    "roots": 65,
+    "fluxKustomizations": 28,
+    "dependencyEdges": 20,
+    "ownerResourceEntries": 569,
+    "distinctResourceIdentities": 568,
+    "hostTestIds": 818,
+    "workflows": 19
+  },
+  "countsArePermanentQuotas": false,
+  "productionGraph": {
+    "owners": [
+      {
+        "namespace": "flux-system",
+        "name": "apps-arr",
+        "path": "./clusters/home/apps/arr",
+        "resources": 15,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-birdnet-go",
+        "path": "./apps/birdnet-go",
+        "resources": 10,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          },
+          {
+            "name": "infrastructure-mosquitto"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-gitea",
+        "path": "./apps/gitea",
+        "resources": 34,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-gitea-runners",
+        "path": "./apps/gitea-runners",
+        "resources": 17,
+        "dependsOn": [
+          {
+            "name": "apps-gitea"
+          },
+          {
+            "name": "kyverno-policies"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-grimguzzler-registration",
+        "path": "./clusters/home/apps/grimguzzler-registration",
+        "resources": 4,
+        "dependsOn": [
+          {
+            "name": "apps-wotlk"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-home-assistant",
+        "path": "./apps/home-assistant",
+        "resources": 6,
+        "dependsOn": [
+          {
+            "name": "kyverno-policies"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-homepage",
+        "path": "./apps/homepage",
+        "resources": 11,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-invoiceninja",
+        "path": "./apps/invoiceninja",
+        "resources": 13,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-koito",
+        "path": "./apps/koito",
+        "resources": 11,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-media",
+        "path": "./clusters/home/apps/media",
+        "resources": 36,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-memos",
+        "path": "./apps/memos",
+        "resources": 5,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-mop",
+        "path": "./apps/mop",
+        "resources": 16,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-openbrew",
+        "path": "./apps/openbrew",
+        "resources": 12,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-stirling-pdf",
+        "path": "./apps/stirling-pdf",
+        "resources": 7,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-wger",
+        "path": "./apps/wger",
+        "resources": 28,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "apps-wotlk",
+        "path": "./apps/wotlk",
+        "resources": 29,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "cilium",
+        "path": "./infra/cilium",
+        "resources": 2,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "flux-system",
+        "path": "./clusters/home",
+        "resources": 61,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "gpu-operator",
+        "path": "./infra/gpu-operator",
+        "resources": 4,
+        "dependsOn": [
+          {
+            "name": "kyverno-policies"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "infrastructure",
+        "path": "./clusters/home/infrastructure",
+        "resources": 107,
+        "dependsOn": []
+      },
+      {
+        "namespace": "flux-system",
+        "name": "infrastructure-mosquitto",
+        "path": "./infra/mosquitto",
+        "resources": 7,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "kubernetes-mcp",
+        "path": "./infra/kubernetes-mcp",
+        "resources": 8,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "kubescape",
+        "path": "./infra/kubescape",
+        "resources": 59,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          },
+          {
+            "name": "kyverno-policies"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "kubescape-runtime-bindings",
+        "path": "./infra/kubescape/runtime-bindings",
+        "resources": 2,
+        "dependsOn": [
+          {
+            "name": "kubescape"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "kyverno-policies",
+        "path": "./infra/kyverno-policies",
+        "resources": 52,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "longhorn-node-disks",
+        "path": "./infra/longhorn-node-disks",
+        "resources": 8,
+        "dependsOn": [
+          {
+            "name": "infrastructure"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "namespace-policy-check",
+        "path": "./infra/namespace-defaults/policy-check/namespace",
+        "resources": 4,
+        "dependsOn": [
+          {
+            "name": "kyverno-policies"
+          }
+        ]
+      },
+      {
+        "namespace": "flux-system",
+        "name": "namespace-policy-check-consumer",
+        "path": "./infra/namespace-defaults/policy-check/consumer",
+        "resources": 1,
+        "dependsOn": [
+          {
+            "name": "namespace-policy-check"
+          }
+        ]
+      }
+    ],
+    "ownerCount": 28,
+    "dependencyEdges": 20,
+    "ownerResourceEntries": 569,
+    "distinctResourceIdentities": 568,
+    "duplicateIdentities": [
+      {
+        "identity": [
+          "",
+          "Namespace",
+          "",
+          "wotlk"
+        ],
+        "owners": [
+          [
+            "flux-system",
+            "apps-wotlk"
+          ],
+          [
+            "flux-system",
+            "infrastructure"
+          ]
+        ]
+      }
+    ],
+    "secretReferenceCount": 76,
+    "allowlistedReferences": [
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-arr"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-birdnet-go"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-gitea"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-gitea-runners"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-grimguzzler-registration"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-home-assistant"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-homepage"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-invoiceninja"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-koito"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-media"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-memos"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-mop"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-openbrew"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-stirling-pdf"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-wger"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "apps-wotlk"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "flux-system"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "infrastructure"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "infrastructure-mosquitto"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "kubernetes-mcp"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "kubescape"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "flux-system"
+        ],
+        "resource": [
+          "kustomize.toolkit.fluxcd.io",
+          "Kustomization",
+          "flux-system",
+          "longhorn-node-disks"
+        ],
+        "namespace": "flux-system",
+        "name": "sops-age"
+      },
+      {
+        "owner": [
+          "flux-system",
+          "infrastructure"
+        ],
+        "resource": [
+          "apps",
+          "Deployment",
+          "wireguard",
+          "wireguard-client"
+        ],
+        "namespace": "wireguard",
+        "name": "wireguard-client-conf"
+      }
+    ],
+    "rootCount": 65,
+    "roots": [
+      "apps/birdnet-go",
+      "apps/gitea",
+      "apps/gitea-runners",
+      "apps/gitea-runners/wowdecomp",
+      "apps/grimguzzler-registration",
+      "apps/home-assistant",
+      "apps/homepage",
+      "apps/immich",
+      "apps/invoiceninja",
+      "apps/jellyfin",
+      "apps/jellyseerr",
+      "apps/koito",
+      "apps/memos",
+      "apps/mop",
+      "apps/openbrew",
+      "apps/prowlarr",
+      "apps/radarr",
+      "apps/sabnzbd",
+      "apps/shared",
+      "apps/sonarr",
+      "apps/stirling-pdf",
+      "apps/vaultwarden",
+      "apps/wger",
+      "apps/wotlk",
+      "clusters/home",
+      "clusters/home/apps/arr",
+      "clusters/home/apps/grimguzzler-registration",
+      "clusters/home/apps/media",
+      "clusters/home/flux-system",
+      "clusters/home/infrastructure",
+      "infra/access",
+      "infra/backups",
+      "infra/cilium",
+      "infra/cloudflared",
+      "infra/gpu-operator",
+      "infra/kubernetes-mcp",
+      "infra/kubernetes-mcp/validation",
+      "infra/kubescape",
+      "infra/kubescape/collector",
+      "infra/kubescape/receiver",
+      "infra/kubescape/runtime-bindings",
+      "infra/kyverno",
+      "infra/kyverno-policies",
+      "infra/kyverno/automation",
+      "infra/kyverno/exceptions",
+      "infra/kyverno/policies",
+      "infra/longhorn",
+      "infra/longhorn-node-disks",
+      "infra/metrics-server",
+      "infra/mosquitto",
+      "infra/namespace-defaults/base",
+      "infra/namespace-defaults/policy-check/consumer",
+      "infra/namespace-defaults/policy-check/namespace",
+      "infra/observability",
+      "infra/observability/security-incident-publisher",
+      "infra/pod-report",
+      "infra/priorityclasses",
+      "infra/snapshot-controller",
+      "infra/wireguard",
+      "ops/security-collector/acceptance",
+      "ops/security-collector/acceptance/base",
+      "ops/security-collector/acceptance/trigger",
+      "scripts/ci/kyverno/fixtures/namespace-example/namespace",
+      "scripts/ci/kyverno/fixtures/namespace-example/workloads",
+      "secrets"
+    ],
+    "perOwnerEquivalenceToBaseline": "verified",
+    "ownerDocumentSha256": {
+      "apps-arr": "e2e1b6b7c01423ca89de005b73c1ba11bcdd3313cf6bda98719bb4b4f8c80225",
+      "apps-birdnet-go": "5668a1dbf308c6b6848cb13eac6395d3c169c3703f51361ff0947033f0d74b1d",
+      "apps-gitea": "ea7b9fc8061e9396da1c003c4ff2ae71ecd86b6a9e4dfdc37e9ee4b29fc8875c",
+      "apps-gitea-runners": "6cbfe6bb8b4750700823e9e1870d41a129eb1044c97c7b344e973d32e3d623e8",
+      "apps-grimguzzler-registration": "c3d65fb8c45f73ab0c1af06d50936ec58083f8f288a4621c572a5b2681723e71",
+      "apps-home-assistant": "c557eda2ede1628f9fe3c38afeabea6bb5bfc2e87a299bdbb884f3d0eecc7267",
+      "apps-homepage": "16d7b34ec3e380302763b187f7e612ca3d995cfb31413a0d1ad25df2813fabed",
+      "apps-invoiceninja": "2596dc430739d1df5c4c76d9062717a961e9b255ab1fe8613588bf3264b7a0b9",
+      "apps-koito": "db3467680b344556464ecec9d3c78ef1dade980dd5e847c0224b0d7d1e448189",
+      "apps-media": "ef02bc03a74a939dc60cd8326debf61119c94db37c729f0fd28448d765902161",
+      "apps-memos": "75d3f2bcd8d4e7de8a12e61bf4ce2596edff97548456f1b32ca67765e2b7098c",
+      "apps-mop": "19ae8eed83e2bd1b2a7eac807cd897d2b3f63512d343def2c4f117a8b00d487a",
+      "apps-openbrew": "830e9dcd705232c4987b73cde329f6ee1872391520839f7eebf36a6d30b744f6",
+      "apps-stirling-pdf": "57f4555c6cbe5c3f60c6cbd2edf0b0e0d27f4f6223c7ab36f7b660598d3c237b",
+      "apps-wger": "d8bc13920802c2e051199785bd2b796a4ab5d43386d2a606e550b228dfe9ac19",
+      "apps-wotlk": "f7934c57781bd556d46084f1d12cb27a1aa0f2f7d67e726bdf69273f17a253eb",
+      "cilium": "a79ad91560d7d8735b3bab719bd665818af5d8e639dfd2279185f651e553282b",
+      "flux-system": "68e86c207d0c26a1b0f2bf311885d55f6a9e37479ddfcdc98609ab71b4c8e7ae",
+      "gpu-operator": "79d94fd68b29d9c4b5bb8d547fe57368a5f090f2f04befa8a98df306309fc590",
+      "infrastructure": "0ab37fda0b455df3652428573753a663f2ea06197d6b147f815eaee3f207cb77",
+      "infrastructure-mosquitto": "8fb68e3a42852643f08b3473051c798ac14db16cbaed65784a328077020c29e0",
+      "kubernetes-mcp": "8224be12aaca98361e99abb6f94a5388a251ed72e53eb1288d1c9db337e925af",
+      "kubescape": "909b7cd84c3ed0f53ef89f4dfa085e9d1e90231b274a0b3eb69b60b2627ea07f",
+      "kubescape-runtime-bindings": "ead1f03dae28f81af5d17731cdeee6b22f2b605ddb515ad7b8511d0fef739f7f",
+      "kyverno-policies": "089f05be72380fe22cbece1dd35ed8dacc931e639e04fd4b23c1c745b560a0fe",
+      "longhorn-node-disks": "23fba35fda01cd1f553d76cec6fd915763e07cedc1a8f6af9305cba38c3a46f4",
+      "namespace-policy-check": "3f7e84007a7bdb99b5620f40650c4333091e92c855e5be497f08984808d1d3ff",
+      "namespace-policy-check-consumer": "5bdb279bad0f697496cf569ebb888e852403293f79ecb4663270b4296b2aab92"
+    }
+  },
+  "testInventory": {
+    "ci": {
+      "baseline": 175,
+      "after": 220,
+      "removed": [],
+      "added": [
+        "test_kustomize_inputs.ProductionDiscoveryTests.test_bootstrap_and_recursive_owners_retained_acceptance_is_isolated",
+        "test_kustomize_inputs.ProductionDiscoveryTests.test_conflicting_declarations_invalid_path_and_unsupported_transforms_fail",
+        "test_kustomize_inputs.ProductionDiscoveryTests.test_missing_dependencies_and_unknown_flux_api_fail",
+        "test_kustomize_inputs.ProductionDiscoveryTests.test_missing_roots_and_missing_production_discovery_fail",
+        "test_kustomize_inputs.ProductionDiscoveryTests.test_one_in_memory_render_per_owner_path_is_equivalent_to_supplied_map",
+        "test_kustomize_inputs.RenderDocumentTests.test_empty_invalid_nonresource_and_duplicate_key_outputs_fail",
+        "test_kustomize_inputs.RenderDocumentTests.test_failed_renderer_suppresses_both_streams",
+        "test_kustomize_inputs.RenderDocumentTests.test_successful_renderer_with_invalid_output_still_fails",
+        "test_kustomize_inputs.RenderDocumentTests.test_valid_documents_and_empty_separators_are_supported",
+        "test_kustomize_inputs.RenderDocumentTests.test_workflow_uploads_only_payload_free_kyverno_receipts",
+        "test_kustomize_inputs.RetainedInputSelectionTests.test_acceptance_add_delete_rename_and_base_only_diffs",
+        "test_kustomize_inputs.RetainedInputSelectionTests.test_acceptance_changed_only_on_base_does_not_select_manifests",
+        "test_kustomize_inputs.RetainedInputSelectionTests.test_new_helpers_and_tests_force_full_selection_and_wake_kubescape",
+        "test_kustomize_inputs.RetainedInputSelectionTests.test_retained_acceptance_paths_select_manifests_and_kubescape",
+        "test_kustomize_inputs.RootDiscoveryTests.test_discovers_all_filename_conventions_and_retained_roots",
+        "test_kustomize_inputs.RootDiscoveryTests.test_empty_discovery_failed_git_and_ambiguous_filenames_fail",
+        "test_kustomize_inputs.RootDiscoveryTests.test_every_discovered_root_is_rendered_without_output_files",
+        "test_kustomize_inputs.RootDiscoveryTests.test_external_symlink_root_is_not_rendered",
+        "test_kustomize_inputs.RootDiscoveryTests.test_missing_required_root_and_missing_tracked_input_fail",
+        "test_kustomize_inputs.RootDiscoveryTests.test_missing_resource_input_is_a_real_render_failure",
+        "test_kustomize_inputs.RootDiscoveryTests.test_supported_filenames_render_and_invalid_source_fails",
+        "test_production_graph.CombinedGraphTests.test_api_versions_share_identity_and_effective_namespace_is_normalized",
+        "test_production_graph.CombinedGraphTests.test_bootstrap_exceptions_remain_explicit",
+        "test_production_graph.CombinedGraphTests.test_cluster_scope_is_not_inferred_from_metadata_or_kind_alone",
+        "test_production_graph.CombinedGraphTests.test_collection_failure_is_nonzero_and_payload_is_suppressed",
+        "test_production_graph.CombinedGraphTests.test_duplicate_occurrence_fails_even_when_identical",
+        "test_production_graph.CombinedGraphTests.test_duplicate_owner_entry_is_rejected",
+        "test_production_graph.CombinedGraphTests.test_effective_namespace_uses_flux_target_then_metadata_then_default",
+        "test_production_graph.CombinedGraphTests.test_explicit_cross_namespace_reference_and_cluster_scoped_csi_reference",
+        "test_production_graph.CombinedGraphTests.test_missing_secret_reference_identifies_owner_without_payload",
+        "test_production_graph.CombinedGraphTests.test_receipt_never_serializes_desired_documents",
+        "test_production_graph.CombinedGraphTests.test_rendered_crd_scope_is_used_and_unknown_scope_fails_closed",
+        "test_production_graph.CombinedGraphTests.test_same_name_secret_in_other_namespace_cannot_resolve",
+        "test_production_graph.CombinedGraphTests.test_unexpected_multiple_ownership_and_conflicting_documents",
+        "test_production_graph.CombinedGraphTests.test_unnamespaced_secret_is_default_not_global_fallback",
+        "test_production_graph.CombinedGraphTests.test_valid_cross_owner_reference",
+        "test_production_graph.CombinedGraphTests.test_wotlk_conflict_and_repeated_occurrence_fail",
+        "test_production_graph.CombinedGraphTests.test_wotlk_documents_must_match_even_for_cluster_namespace_aliases",
+        "test_production_graph.CombinedGraphTests.test_wotlk_requires_exact_owners_even_if_documents_match",
+        "test_secret_refs.SecretReferenceTests.test_bootstrap_allowlist_is_unchanged",
+        "test_secret_refs.SecretReferenceTests.test_helm_values_and_flux_substitution_references",
+        "test_secret_refs.SecretReferenceTests.test_legacy_bootstrap_fallback_is_retained_explicitly",
+        "test_secret_refs.SecretReferenceTests.test_missing_invalid_and_empty_bootstrap_inputs_fail_without_payload",
+        "test_secret_refs.SecretReferenceTests.test_production_reference_shapes_preserve_namespace_and_name",
+        "test_secret_refs.SecretReferenceTests.test_secret_payloads_are_opaque_to_both_scanners"
+      ],
+      "baselineSha256": "4f2d635ca8f991630b224a97f455fd81f3cc3644c069bc31492d547326dd8a7b",
+      "afterSha256": "92eee50a3165908d6c63891e7fd289dfbeced4c4c20fa1deb534b721b6b0651c"
+    },
+    "scripts": {
+      "baseline": 605,
+      "after": 605,
+      "removed": [],
+      "added": [],
+      "baselineSha256": "e9b0f23cd2938f4b915232c2a4c2a20259e5bab38247ddd63e28130dac604494",
+      "afterSha256": "e9b0f23cd2938f4b915232c2a4c2a20259e5bab38247ddd63e28130dac604494"
+    },
+    "gitea": {
+      "baseline": 38,
+      "after": 38,
+      "removed": [],
+      "added": [],
+      "baselineSha256": "c38a16a5c2b41b9ca2db3061c54a9126bd1a09e6164169082c88f9d5cc8a5432",
+      "afterSha256": "c38a16a5c2b41b9ca2db3061c54a9126bd1a09e6164169082c88f9d5cc8a5432"
+    }
+  },
+  "selection": {
+    "unchangedOrExpectedRoutingComparisons": 847,
+    "expectedManifestSelectionAdditions": [
+      "ops/security-collector/acceptance/base/inventory.yaml",
+      "ops/security-collector/acceptance/base/kustomization.yaml",
+      "ops/security-collector/acceptance/base/workload.yaml",
+      "ops/security-collector/acceptance/kustomization.yaml",
+      "ops/security-collector/acceptance/trigger/kustomization.yaml",
+      "ops/security-collector/acceptance/trigger/trigger.yaml"
+    ],
+    "fullScheduledAndManualSelectionEquivalent": true,
+    "bootstrapCheck": "passed",
+    "bootstrapRenderExported": false
+  },
+  "checks": {
+    "ciUnitSuite": {
+      "command": "python3 -m unittest discover -s scripts/ci/tests -v",
+      "status": "verified",
+      "cases": 220,
+      "result": "OK"
+    },
+    "unchangedScriptAndGiteaSuites": {
+      "status": "not run",
+      "reason": "unchanged implementation; all 605 script and 38 Gitea IDs discovered and preserved"
+    },
+    "namespaceContracts": {
+      "command": "python3 scripts/ci/check_namespace_defaults.py",
+      "status": "verified",
+      "productionOwners": 28,
+      "isolatedExample": "verified"
+    },
+    "bootstrapSecretReferences": {
+      "status": "verified",
+      "legacyAllowlist": [
+        "flux-system",
+        "sops-age",
+        "wireguard-client-conf"
+      ],
+      "namespaceFallback": "bootstrap only: an unnamespaced declaration matches any reference namespace",
+      "baselineFallbackUses": 0,
+      "productionFallback": "disabled; omitted namespace resolves to default"
+    },
+    "allRootRenders": {
+      "command": "python3 scripts/ci/check_production_graph.py",
+      "status": "verified",
+      "roots": 65,
+      "kustomizeVersion": "5.5.0",
+      "loadRestrictor": "LoadRestrictionsNone"
+    },
+    "actionlint": {
+      "version": "1.7.8",
+      "status": "verified",
+      "files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/kubescape-checks.yml"
+      ]
+    },
+    "yamllint": {
+      "status": "verified",
+      "files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/kubescape-checks.yml"
+      ]
+    },
+    "zizmor": {
+      "mode": "offline",
+      "status": "verified",
+      "result": "No findings; 1 ignored, 16 suppressed by existing annotations"
+    },
+    "pythonSyntax": "verified",
+    "gitDiffCheck": "verified"
+  },
+  "scopeContractSources": {
+    "renderedCRDs": "Flux source/helm/kustomize CRDs; conflicting scope declarations fail",
+    "longhorn": "https://raw.githubusercontent.com/longhorn/longhorn/v1.13.0/chart/templates/crds.yaml",
+    "kyverno": "https://github.com/kyverno/kyverno/tree/f666af06e9bd310c7e730f1523c0430e90371a89/config/crds/policies.kyverno.io",
+    "kubescape": {
+      "chart": "kubescape-operator",
+      "version": "1.42.0",
+      "path": "charts/kubescape-alert-crd/crds/runtime-rule-binding.crd.yaml",
+      "scope": "Cluster"
+    },
+    "unknownScope": "fails closed; never inferred from metadata.namespace"
+  },
+  "limitations": [
+    "Source manifests only: Helm chart expansion and controller-generated resources are not the combined Flux source graph.",
+    "Known Secret reference fields are inspected; arbitrary chart-specific keys and Secret payloads are opaque.",
+    "Independent namespace/Kyverno and specialized security gates retain separate renders.",
+    "No hosted CI polling, manual dispatch, build, dependency upgrade, decryption, manifest change or live mutation."
+  ],
+  "checkedSourceSha256": {
+    "scripts/ci/check_secret_refs.py": "5d5f21739163b1065dd1c8f606a709d4a7487020d2c28d52a3daae866c896b60",
+    "scripts/ci/check_namespace_defaults.py": "21a00a1a5374bbd0055dfe80219447c36bc3abfed2a9bdfc62f02a27e0f9a8e3",
+    "scripts/ci/detect_changes.py": "f08e89c24bc9d967e78d24c182b0bac63e4ae81ef4f6bff5266a749fbeff3f73",
+    "scripts/ci/kyverno_gate.py": "90101b7759797dbd7a0c4d6703e5b18cfe721a45b81dc87be8af5271b243c2e5",
+    "scripts/ci/kustomize_inputs.py": "d4da88f703e0028c46d8e101eb996be0d0ead7e05b68420e3d4a129c024fe3c1",
+    "scripts/ci/check_production_graph.py": "4938cbaca2994a9c03f0828cc536158cee373d307436ab85d358a200d700ccb3",
+    "scripts/ci/tests/test_kustomize_inputs.py": "3c05235b83809d4e033bed6a5c1b754921b41d8d0df59ad6ec955b7d0ab52ab0",
+    "scripts/ci/tests/test_production_graph.py": "9098be28c47d903d3ef812cbe6676a436ca58b40fb553bac5520dd007be5b7a5",
+    "scripts/ci/tests/test_secret_refs.py": "ff70d814806f8984c5c79c0613948595f88e7e90b2746578bddc3c685ef9993b",
+    ".github/workflows/ci.yml": "d9713244b6a3ea2efecbf24b18c8ad6b30bb5e9e13f8b4d6a1b4c1b6d1ee7cdd",
+    ".github/workflows/kubescape-checks.yml": "0bc71e27993035c4c16f185109d5d2f671dc9be3ea687bf9f86d3a983c69eb92"
+  }
+}

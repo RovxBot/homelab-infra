@@ -107,30 +107,8 @@ def check_graph(entries, root=ROOT):
 
 
 def production_entries(root):
-    # Follow the same rendered Flux roots as the policy baseline; inspect all
-    # resources, including duplicate identities from distinct reconciliations.
-    sys.path.insert(0, str(root/'scripts/ci'))
-    from kyverno_gate import find_flux_render_paths, render_kustomization
-    declarations = render_kustomization(root, 'clusters/home')
-    all_docs = declarations[:]
-    paths = find_flux_render_paths(root/'clusters/home')
-    rendered = {p: render_kustomization(root, p) for p in paths}
-    for docs in rendered.values():
-        all_docs += docs
-    entries = []
-    seen = {}
-    for ks in all_docs:
-        if ks.get('apiVersion') != 'kustomize.toolkit.fluxcd.io/v1' or ks.get('kind') != 'Kustomization':
-            continue
-        key = (ks['metadata'].get('namespace'), ks['metadata']['name'])
-        if key in seen:
-            if seen[key] != ks:
-                raise ValueError(f'Conflicting Flux Kustomization definitions: {key}')
-            continue
-        seen[key] = ks
-        path = ks['spec']['path'].removeprefix('./')
-        entries.append((ks, rendered.get(path) if path in rendered else render_kustomization(root, path)))
-    return entries
+    from kustomize_inputs import production_entries as discover_production
+    return discover_production(root)
 
 
 def check_live(objects, root=ROOT):
