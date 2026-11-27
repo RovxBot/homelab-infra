@@ -41,6 +41,107 @@ LABELS = {"homelab.cooked.beer/owner": "sam", "kubescape.io/ignore": "true"}
 IDLE_WAIT_SECONDS = 120
 IDLE_POLL_SECONDS = 5
 INVENTORY_MAX_AGE_MINUTES = 65
+POSTURE_PERSISTENCE_SECONDS = 60
+
+
+def posture_slug(value):
+    """k8s-interface v0.0.221 names.StringToSlug, used by scanner v4.0.20."""
+    name = re.sub(r"[^a-zA-Z0-9.-]", "-", value).lower().strip("-")[:253].strip("-.")
+    db.require(bool(name), "posture_identity_invalid")
+    if len(name) >= 243:
+        digest = hashlib.sha256(value.encode()).hexdigest()
+        name = name[:243] + "-" + digest[:4] + "-" + digest[-4:]
+    return name
+
+
+def posture_scope(result):
+    """Mirror the pinned scanner's persistence identities, including RBAC vectors.
+
+    Only resources with results are persisted. RBAC subjects are synthetic
+    <subject, role, binding> vectors, stored in the scanner namespace.
+    """
+    coverage = result.get("scanCoverage") or {}
+    db.require(isinstance(coverage, dict), "posture_collection_incomplete")
+    # Omitted API objects cannot establish completeness. Unsupported/manual
+    # controls retain their separate notEvaluated/Action Required overlay.
+    db.require(not any(coverage.get(k) for k in ("failedGVRPulls", "partialGVRPulls", "policyDegradations",
+                                                "skippedManifests", "vacuousFrameworks")), "posture_collection_incomplete")
+    resources, results = result.get("resources"), result.get("results")
+    db.require(isinstance(resources, list) and isinstance(results, list) and results,
+               "posture_resource_inventory_missing")
+    objects = {r["resourceID"]: r["object"] for r in resources}
+    db.require(len(objects) == len(resources), "posture_identity_ambiguous")
+    expected, shared = set(), set()
+    for value in results:
+        obj = objects.get(value.get("resourceID"))
+        db.require(isinstance(obj, dict), "posture_identity_missing")
+        meta = obj.get("metadata", obj)
+        kind, name = obj.get("kind"), meta.get("name")
+        db.require(isinstance(kind, str) and isinstance(name, str) and name, "posture_identity_invalid")
+        related = obj.get("relatedObjects", [])
+        identity = kind + "-" + name
+        namespace = meta.get("namespace") or NS
+        if related:
+            roles = [o for o in related if o.get("kind") in {"Role", "ClusterRole"}]
+            bindings = [o for o in related if o.get("kind") in {"RoleBinding", "ClusterRoleBinding"}]
+            db.require(len(related) == 2 and len(roles) == len(bindings) == 1, "posture_rbac_incomplete")
+            identity += "-" + roles[0]["kind"] + "-" + roles[0]["name"]
+            identity += "-" + bindings[0]["kind"] + "-" + bindings[0]["name"]
+            namespace = NS
+        key = namespace + "/" + posture_slug(identity)
+        db.require(key not in expected, "posture_identity_ambiguous")
+        expected.add(key)
+        if related:
+            shared.add(key)
+    db.require(bool(shared), "posture_shared_rbac_missing")
+    return {"expected": expected, "shared": shared}
+
+
+# An explicit mapping prevents a wrong/unknown kind or API discovery failure
+# from being mistaken for a deleted object. No Secret access is added.
+POSTURE_SOURCES = {
+    "configmap": (CORE, "configmaps", True),
+    "namespace": (CORE, "namespaces", False),
+    "serviceaccount": (CORE, "serviceaccounts", True),
+    "pod": (CORE, "pods", True),
+    "deployment": (APPS, "deployments", True),
+    "statefulset": (APPS, "statefulsets", True),
+    "daemonset": (APPS, "daemonsets", True),
+    "replicaset": (APPS, "replicasets", True),
+    "job": (BATCH, "jobs", True),
+    "cronjob": (BATCH, "cronjobs", True),
+    "networkpolicy": ("/apis/networking.k8s.io/v1", "networkpolicies", True),
+    "rolebinding": ("/apis/rbac.authorization.k8s.io/v1", "rolebindings", True),
+    "clusterrolebinding": ("/apis/rbac.authorization.k8s.io/v1", "clusterrolebindings", False),
+}
+
+
+def retired_posture_summary(api, summary):
+    """Return absence evidence; a live, unknown or unreadable source stays gated."""
+    meta = summary["metadata"]
+    wlid = meta.get("annotations", {}).get("kubescape.io/wlid", "")
+    match = re.fullmatch(r"wlid://cluster-[^/]+/namespace-([^/]*)/([a-z]+)-([^/]+)", wlid)
+    db.require(match is not None and match[2] in POSTURE_SOURCES, "posture_retirement_unverified")
+    namespace, kind, name = match.groups()
+    base, resource, namespaced = POSTURE_SOURCES[kind]
+    db.require(bool(namespace) == namespaced, "posture_identity_invalid")
+    labels = meta.get("labels", {})
+    rbac = labels.get("kubescape.io/rbac-resource") == "true"
+    if rbac:
+        db.require(kind in {"rolebinding", "clusterrolebinding"} and meta["namespace"] == NS,
+                   "posture_identity_invalid")
+    else:
+        db.require(meta["namespace"] == (namespace or NS)
+                   and meta["name"] == posture_slug(kind + "-" + name)
+                   and labels.get("kubescape.io/workload-kind", "").lower() == kind,
+                   "posture_identity_invalid")
+    # An exact named 404 is the only absence proof. Optional ignores only 404;
+    # authorization errors, unavailable APIs and unknown kinds fail closed.
+    source = api.get(base, resource, name, namespace=namespace or None, optional=True)
+    if source is not None:
+        return None
+    return {"summary": meta["namespace"] + "/" + meta["name"], "source": wlid,
+            "state": "verified_absent"}
 
 
 class APIError(Exception):
@@ -78,6 +179,7 @@ class API:
 
     def items(self, base, resource, namespace=None):
         response = self.get(base, resource, namespace=namespace)
+        db.require(not response.get("metadata", {}).get("continue"), "inventory_list_incomplete")
         for item in response["items"]:
             item.setdefault("kind", response["kind"].removesuffix("List"))
         return response["items"]
@@ -122,6 +224,13 @@ def component_pod(api, component):
             and not p["metadata"].get("deletionTimestamp")]
     db.require(len(pods) == 1 and ready(pods[0]), component + "_unavailable")
     return pods[0]
+
+
+def posture_process(pod):
+    # A container can restart without changing its Pod UID.
+    statuses = pod.get("status", {}).get("containerStatuses", [])
+    db.require(bool(statuses), "posture_scanner_process_unknown")
+    return {c["name"]: {"containerID": c["containerID"], "restartCount": c["restartCount"]} for c in statuses}
 
 
 def deployment_current(workload, container):
@@ -706,7 +815,7 @@ def check_report(report, sbom, row, expected, started, previous=None):
             "lastAttempt": {"state": "healthy", "checkedAt": db.stamp(db.utcnow())}}
 
 
-def check_posture(result, summaries, started, required_workloads=()):
+def check_posture(result, summaries, started, required_workloads=(), *, scope=None, retired=()):
     # Full scanner response is authoritative for Action Required / Not Evaluated.
     db.require(isinstance(result, dict) and result.get("summaryDetails"), "posture_result_incomplete")
     frameworks = result["summaryDetails"].get("frameworks", [])
@@ -741,14 +850,25 @@ def check_posture(result, summaries, started, required_workloads=()):
             incomplete_coverage.append(identifier)
     db.require(statuses["Passed"] + statuses["Failed"] > 0, "posture_not_evaluated")
     db.require(bool(summaries), "posture_reports_missing")
-    for summary in summaries:
+    required = set(required_workloads)
+    expected = scope["expected"] if scope is not None else set()
+    observed = {s["metadata"].get("namespace", "") + "/" + s["metadata"]["name"] for s in summaries}
+    db.require(len(observed) == len(summaries), "posture_identity_ambiguous")
+    retired = {r["summary"] for r in retired}
+    db.require(not retired & (required | expected), "posture_retirement_conflict")
+    current = [s for s in summaries if s["metadata"].get("namespace", "") + "/" + s["metadata"]["name"] not in retired]
+    for summary in current:
         db.require(db.timestamp(summary["metadata"]["annotations"]["kubescape.io/report-created-at"]) >= db.timestamp(started), "posture_report_stale")
         db.require(bool(summary["spec"].get("controls")), "posture_controls_empty")
     db.require(any(s["metadata"].get("namespace") == "memos" and s["metadata"]["name"] == "deployment-memos" for s in summaries), "posture_memos_missing")
-    db.require(any(s["metadata"].get("namespace") == NS for s in summaries), "posture_shared_rbac_missing")
-    observed = {s["metadata"].get("namespace", "") + "/" + s["metadata"]["name"] for s in summaries}
-    db.require(set(required_workloads) <= observed, "posture_scope_incomplete")
-    return {"framework": "nsa", "controls": dict(statuses), "storedSummaries": len(summaries),
+    if scope is not None:
+        db.require(bool(scope["shared"]) and scope["shared"] <= observed, "posture_shared_rbac_missing")
+    else:
+        db.require(any(s["metadata"].get("namespace") == NS for s in current), "posture_shared_rbac_missing")
+    db.require(required | expected <= observed, "posture_scope_incomplete")
+    return {"framework": "nsa", "controls": dict(statuses), "storedSummaries": len(current),
+            "retiredSummaries": len(retired), "expectedSummaries": len(expected),
+            "sharedRBACSummaries": len(scope["shared"]) if scope is not None else None,
             "requiredWorkloadCount": len(required_workloads),
             "coverage": {"notEvaluatedControls": len(not_evaluated), "notEvaluatedControlIDs": not_evaluated,
                          "incompleteCoverageControls": len(incomplete_coverage),
@@ -1356,20 +1476,92 @@ class Runner:
         finally:
             os.close(fd)
 
+    def finish_posture(self, intent, state, reason=None):
+        # Preserve the original intent bytes and a durable qualification receipt
+        # before releasing the fence. Any interruption/IO failure retains it.
+        path = self.history / "inflight.json"
+        db.require(not path.is_symlink(), "posture_intent_changed")
+        raw = path.read_bytes()
+        db.require(json.loads(raw) == intent, "posture_intent_changed")
+        receipt = {"schemaVersion": 1, "intent": intent, "scanOutcome": "completed",
+                   "qualificationState": state, "reason": reason, "finishedAt": db.stamp(db.utcnow()),
+                   "terminalSHA256": hashlib.sha256((self.work / "scanner-result.json.gz").read_bytes()).hexdigest()}
+        atomic(self.work / "posture-qualification.json", receipt)
+        os.link(path, self.work / "posture-intent.json", follow_symlinks=False)
+        fd = os.open(self.work, os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        db.require(path.read_bytes() == raw, "posture_intent_changed")
+        self.clear_fence()
+
+    def qualify_posture(self, result, started, previous=()):
+        scope = posture_scope(result)
+        # A previously persisted RBAC vector with a still-existing binding
+        # cannot silently disappear from both the new result and storage.
+        for summary in previous:
+            if summary["metadata"].get("labels", {}).get("kubescape.io/rbac-resource") == "true":
+                if retired_posture_summary(self.api, summary) is None:
+                    key = summary["metadata"]["namespace"] + "/" + summary["metadata"]["name"]
+                    scope["expected"].add(key)
+                    scope["shared"].add(key)
+        deadline = min(time.monotonic() + POSTURE_PERSISTENCE_SECONDS, self.deadline - 60)
+        attempt = 0
+        while True:
+            attempt += 1
+            summaries = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"])
+                         for s in self.api.items(STORAGE, "workloadconfigurationscansummaries")]
+            self.save("persisted-posture-" + str(attempt), summaries)
+            retired = []
+            try:
+                for summary in summaries:
+                    key = summary["metadata"]["namespace"] + "/" + summary["metadata"]["name"]
+                    if key in scope["expected"] or key in self.config["postureWorkloads"]:
+                        continue
+                    if db.timestamp(summary["metadata"]["annotations"]["kubescape.io/report-created-at"]) >= db.timestamp(started):
+                        continue
+                    proof = retired_posture_summary(self.api, summary)
+                    if proof:
+                        retired.append(proof)
+                self.save("posture-retirement-" + str(attempt), {"checkedAt": db.stamp(db.utcnow()), "absent": retired})
+                assessed = check_posture(result, summaries, started, self.config["postureWorkloads"], scope=scope, retired=retired)
+                again = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"]) for s in summaries]
+                db.require(again == summaries, "posture_reread_mismatch")
+                # Reconfirm absence after the independent summary rereads.
+                for summary in summaries:
+                    key = summary["metadata"]["namespace"] + "/" + summary["metadata"]["name"]
+                    if key in {r["summary"] for r in retired}:
+                        db.require(retired_posture_summary(self.api, summary) is not None, "posture_retirement_changed")
+                return assessed
+            except db.Rejected as error:
+                self.save("posture-qualification-attempt-" + str(attempt), {"reason": error.reason, "checkedAt": db.stamp(db.utcnow())})
+                if error.reason not in {"posture_report_stale", "posture_reports_missing", "posture_scope_incomplete",
+                                        "posture_memos_missing", "posture_shared_rbac_missing", "posture_controls_empty",
+                                        "posture_reread_mismatch"} or time.monotonic() + 3 >= deadline:
+                    raise
+                self.observe()
+                time.sleep(3)  # Persistence polling only; never another POST.
+
     def posture(self, audit):
         self.gate(audit)  # Also prevents DB hydration / scan overlap.
         scanner = component_pod(self.api, "kubescape")
-        old = self.api.items(STORAGE, "workloadconfigurationscansummaries")
-        self.save("previous-posture", [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"]) for s in old])
+        process = posture_process(scanner)
+        old = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"])
+               for s in self.api.items(STORAGE, "workloadconfigurationscansummaries")]
+        self.save("previous-posture", old)
         started = db.stamp(db.utcnow())
         atomic(self.history / "inflight.json", {"mode": "posture", "scannerPodUID": scanner["metadata"]["uid"], "submittedAt": started})
         response = service("kubescape", "/v1/scan?keep=true", {"targetType": "framework", "targetNames": ["nsa"], "hostScanner": False, "keepLocal": True})
         scan_id = response.get("id") or response.get("ID")
         db.require(bool(scan_id), "posture_id_missing")
-        atomic(self.history / "inflight.json", {"mode": "posture", "scanID": scan_id, "scannerPodUID": scanner["metadata"]["uid"], "submittedAt": started})
+        intent = {"mode": "posture", "scanID": scan_id, "scannerPodUID": scanner["metadata"]["uid"], "submittedAt": started}
+        atomic(self.history / "inflight.json", intent)
         deadline = time.monotonic() + self.config["scanTimeoutSeconds"]
         while time.monotonic() < deadline:
-            db.require(component_pod(self.api, "kubescape")["metadata"]["uid"] == scanner["metadata"]["uid"], "posture_scanner_restarted")
+            current = component_pod(self.api, "kubescape")
+            db.require(current["metadata"]["uid"] == scanner["metadata"]["uid"] and posture_process(current) == process,
+                       "posture_scanner_restarted")
             self.observe()
             response = service("kubescape", "/v1/results?id=" + scan_id + "&keep=true")
             if str(response.get("type", "")).lower() not in {"busy", ""}:
@@ -1378,19 +1570,29 @@ class Runner:
         else:
             raise db.Rejected("posture_timeout")
         self.save("scanner-result", response)
-        result = response.get("response")
-        if isinstance(result, str):
-            result = json.loads(result)
-        summaries = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"])
-                     for s in self.api.items(STORAGE, "workloadconfigurationscansummaries")]
-        assessed = check_posture(result, summaries, started, self.config["postureWorkloads"])
-        self.save("persisted-posture", summaries)
-        again = [self.api.get(STORAGE, "workloadconfigurationscansummaries", s["metadata"]["name"], s["metadata"]["namespace"]) for s in summaries]
-        db.require(again == summaries, "posture_reread_mismatch")
-        self.gate(audit)
+        # Neither notBusy, an arbitrary non-busy type, nor a wrong/missing ID
+        # proves completion. Check identity again after retrieving the result.
+        db.require(response.get("type") == "v1results" and response.get("id") == scan_id, "posture_terminal_unverified")
+        current = component_pod(self.api, "kubescape")
+        db.require(current["metadata"]["uid"] == intent["scannerPodUID"] and posture_process(current) == process,
+                   "posture_scanner_restarted")
+        db.require(service("kubescape", "/v1/status?id=" + scan_id).get("type") == "notBusy", "posture_terminal_unverified")
+        atomic(self.work / "posture-terminal.json", {"intent": intent, "scannerProcess": process,
+               "type": response["type"], "observedAt": db.stamp(db.utcnow())})
+        try:
+            result = response.get("response")
+            if isinstance(result, str):
+                result = json.loads(result)
+            db.require(isinstance(result, dict), "posture_result_incomplete")
+            assessed = self.qualify_posture(result, started, old)
+            self.gate(audit)
+        except Exception as error:
+            self.finish_posture(intent, "failed" if isinstance(error, db.Rejected) else "unknown",
+                                getattr(error, "reason", "evidence_unavailable"))
+            raise
+        self.finish_posture(intent, "qualified")
         self.result["assessments"].append({**assessed, "scanID": scan_id, "createdAt": db.stamp(db.utcnow())})
         self.result["lastSuccessfulAssessmentAt"] = self.result["assessments"][-1]["createdAt"]
-        self.clear_fence()
 
     def attempt(self, row, state, reasons):
         self.records.setdefault(row_key(row), {})["lastAttempt"] = {
@@ -1497,7 +1699,7 @@ class Runner:
                 if not self.catchup:
                     atomic(completed, {"runID": self.run_id})
             except db.Rejected as error:
-                self.result.update(state="stale" if error.reason == "stale_database" else "unknown" if error.reason == "uncertain_previous_request" else "failed", reasons=[error.reason])
+                self.result.update(state="unknown" if (self.history / "inflight.json").exists() else "stale" if error.reason == "stale_database" else "unknown" if error.reason == "uncertain_previous_request" else "failed", reasons=[error.reason])
             except Exception as error:
                 self.result.update(state="unknown", reasons=["evidence_unavailable"], errorType=type(error).__name__)
             self.publish()

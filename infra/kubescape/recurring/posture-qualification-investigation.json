@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "status": "investigated_candidate_not_deployed",
+  "observedDate": "2026-11-27",
+  "baseCommit": "c94c6b09d229b9500fe8a934536d1eaa76274cb0",
+  "scanID": "0a454406-e77a-4570-86a1-b692cae5c84a",
+  "evidence": "https://github.com/RovxBot/homelab-infra/issues/2135#issuecomment-7210703394",
+  "scanner": {
+    "image": "quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060",
+    "sourceCommit": "ec65d3184f6bab7d1ad6e5db9d970d452316d253",
+    "sources": [
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/README.md",
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/handlerequests/v1/requestshandler.go",
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/handlerequests/v1/requestshandlerutils.go",
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/storage/apiserver.go",
+      "https://github.com/kubescape/k8s-interface/blob/v0.0.221/names/slugs.go"
+    ],
+    "contract": [
+      "Exact-ID v1results is a completed result; notBusy alone also occurs for unknown IDs and does not prove completion",
+      "keep=true preserves cached results; operator summary persistence is separate and errors can be logged while valid JSON remains retrievable",
+      "Resource result identities determine expected summaries; RBAC vectors include subject, role and binding and persist in kubescape",
+      "Summary report-created-at uses the report generation time; retained historical summaries are not a scan inventory"
+    ]
+  },
+  "namedSourceLookups": [
+    {
+      "namespace": "monitoring",
+      "kind": "ConfigMap",
+      "name": "security-incident-publisher-code-c86t48h47c",
+      "result": "absent"
+    },
+    {
+      "namespace": "monitoring",
+      "kind": "ConfigMap",
+      "name": "security-incident-publisher-code-f292d956c5",
+      "result": "absent"
+    },
+    {
+      "namespace": "cloudflared",
+      "kind": "ConfigMap",
+      "name": "cloudflared-config-97dk46h6h7",
+      "result": "absent"
+    },
+    {
+      "namespace": "homepage",
+      "kind": "ConfigMap",
+      "name": "homepage-app-config-chkh9tk59f",
+      "result": "absent"
+    },
+    {
+      "namespace": "",
+      "kind": "Namespace",
+      "name": "openbrew",
+      "result": "present"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ConfigMap",
+      "name": "kube-root-ca.crt",
+      "result": "present"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ServiceAccount",
+      "name": "default",
+      "result": "present"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ConfigMap",
+      "name": "openbrew-config-9c7g7bbtd6",
+      "result": "absent"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ConfigMap",
+      "name": "openbrew-sso-5dd6mbt4bg",
+      "result": "absent"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "NetworkPolicy",
+      "name": "openbrew-database",
+      "result": "absent"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "NetworkPolicy",
+      "name": "openbrew-ingress",
+      "result": "absent"
+    }
+  ],
+  "clusterMutation": "none",
+  "retainedRequestRecovery": "not_run",
+  "remainingGate": "Three stale source objects still exist; do not claim posture qualification until explicit retirement or fresh evidence resolves them"
+}

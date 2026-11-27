@@ -285,5 +285,196 @@ class FixtureBoundariesTests(unittest.TestCase):
         self.assertEqual({v["name"] for v in pod["volumes"]}, {"history", "scratch"})
 
 
+TSPEC = importlib.util.spec_from_file_location('terminal_posture_recovery', ROOT / 'ops/kubescape/recover-terminal-posture.py')
+T = importlib.util.module_from_spec(TSPEC)
+TSPEC.loader.exec_module(T)
+
+
+class TerminalRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = self.enterContext(tempfile.TemporaryDirectory())
+        self.root = Path(self.temp)
+        (self.root / 'assessment.lock').touch()
+        self.intent = {'mode': 'posture', 'scanID': T.SCAN_ID, 'scannerPodUID': R.CURRENT_UID,
+                       'submittedAt': '2026-11-27T05:14:25.123456Z'}
+        self.raw = json.dumps(self.intent).encode()
+        (self.root / 'inflight.json').write_bytes(self.raw)
+        self.failure = {'mode': 'posture', 'runID': 'posture-20261127051420-abcdef', 'state': 'failed',
+                        'reasons': ['posture_report_stale'], 'assessments': [],
+                        'startedAt': '2026-11-27T05:14:20Z', 'finishedAt': '2026-11-27T05:17:31Z'}
+        failed_raw = json.dumps(self.failure).encode()
+        (self.root / 'latest-posture.json').write_bytes(failed_raw)
+        self.work = self.root / self.failure['runID']
+        self.work.mkdir()
+        import gzip
+        (self.work / 'result.json.gz').write_bytes(gzip.compress(failed_raw))
+        self.response = {'id': T.SCAN_ID, 'type': 'v1results', 'response': {'summaryDetails': {'retained': True}}}
+        terminal_raw = gzip.compress(json.dumps(self.response).encode())
+        (self.work / 'scanner-result.json.gz').write_bytes(terminal_raw)
+        (self.root / 'posture-existing.done').write_bytes(b'original marker')
+        (self.root / 'records.json').write_bytes(b'{"historical":true}')
+        self.receipts = {'privateExportSHA256': 'b' * 64, 'intentSHA256': T.sha(self.raw),
+                         'terminalSHA256': T.sha(terminal_raw), 'failureSHA256': T.sha(failed_raw)}
+        self.verify = mock.Mock(return_value=self.response)
+
+    def snapshot(self):
+        return {p.relative_to(self.root).as_posix(): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+
+    def recover(self, apply=True):
+        return T.recover(self.root, self.verify, self.receipts, apply=apply)
+
+    def test_preview_is_read_only_and_acknowledge_preserves_failed_history_and_markers(self):
+        before = self.snapshot()
+        self.assertEqual(self.recover(False)['action'], 'preview')
+        self.assertEqual(before, self.snapshot())
+        receipt = self.recover()
+        self.assertEqual(receipt['scanOutcome'], 'completed')
+        self.assertEqual(receipt['qualificationState'], 'failed')
+        self.assertEqual(receipt['reason'], 'posture_report_stale')
+        after = self.snapshot()
+        self.assertEqual(after.pop(receipt['preservedFence']), before.pop('inflight.json'))
+        saved = json.loads(after.pop(receipt['preservedFence'].replace('.json', '.receipt.json')))
+        self.assertEqual(saved, receipt)
+        self.assertEqual(after, before)
+        self.assertEqual(self.verify.call_count, 4)
+
+    def test_each_missing_or_wrong_receipt_fails_without_mutation(self):
+        before = self.snapshot()
+        for key in self.receipts:
+            receipts = dict(self.receipts)
+            for wrong in ('REQUIRED', 'a' * 64):
+                if key == 'privateExportSHA256' and wrong != 'REQUIRED':
+                    continue  # Export was verified privately; only its receipt is mounted.
+                receipts[key] = wrong
+                with self.subTest(key=key, wrong=wrong), self.assertRaises(T.Rejected):
+                    T.recover(self.root, self.verify, receipts, apply=True)
+                self.assertEqual(self.snapshot(), before)
+
+    def test_other_request_wrong_terminal_and_changed_live_evidence_remain_fenced(self):
+        before = self.snapshot()
+        for response in ({'type': 'notBusy'}, {'id': 'other', 'type': 'v1results'},
+                         {'id': T.SCAN_ID, 'type': 'busy'}):
+            self.verify.return_value = response
+            with self.assertRaisesRegex(T.Rejected, 'terminal_reread_mismatch'):
+                self.recover()
+            self.assertEqual(self.snapshot(), before)
+        self.verify.side_effect = T.Rejected('original_scanner_unavailable')
+        with self.assertRaises(T.Rejected):
+            self.recover()
+        self.assertEqual(self.snapshot(), before)
+
+    def test_wrong_failed_run_and_missing_terminal_keep_fence(self):
+        (self.root / 'latest-posture.json').write_text(json.dumps({**self.failure, 'state': 'unknown'}))
+        self.receipts['failureSHA256'] = T.sha((self.root / 'latest-posture.json').read_bytes())
+        with self.assertRaisesRegex(T.Rejected, 'failure_mismatch'):
+            self.recover()
+        (self.root / 'latest-posture.json').write_text(json.dumps(self.failure))
+        self.receipts['failureSHA256'] = T.sha((self.root / 'latest-posture.json').read_bytes())
+        (self.work / 'scanner-result.json.gz').unlink()
+        with self.assertRaises(FileNotFoundError):
+            self.recover()
+        self.assertTrue((self.root / 'inflight.json').exists())
+
+    def test_lock_contention_symlink_and_fsync_failure_keep_fence(self):
+        before = self.snapshot()
+        with (self.root / 'assessment.lock').open('r+') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaises(BlockingIOError):
+                self.recover()
+        self.assertEqual(self.snapshot(), before)
+        terminal = self.work / 'scanner-result.json.gz'
+        terminal.rename(self.work / 'saved.gz')
+        terminal.symlink_to(self.work / 'saved.gz')
+        with self.assertRaisesRegex(T.Rejected, 'symlink_evidence'):
+            self.recover()
+        terminal.unlink()
+        (self.work / 'saved.gz').rename(terminal)
+        with mock.patch.object(T, 'fsync_directory', side_effect=OSError('disk')), self.assertRaises(OSError):
+            self.recover()
+        self.assertEqual((self.root / 'inflight.json').read_bytes(), self.raw)
+        self.assertEqual(next(p for p in self.root.glob('recovered-posture-*.json') if not p.name.endswith('.receipt.json')).read_bytes(), self.raw)
+
+    def test_export_roundtrip_contains_exact_receipts_without_extraction(self):
+        exporter = T.export_module()
+        exporter.EXPECTED = self.intent
+        output = io.BytesIO()
+        exporter.export(self.root, output)
+        archive = self.root.parent / (self.root.name + '.tar.gz')
+        self.addCleanup(archive.unlink, missing_ok=True)
+        archive.write_bytes(output.getvalue())
+        receipt = exporter.verify(archive)
+        self.assertEqual(receipt['exportedInflightSHA256'], self.receipts['intentSHA256'])
+        self.assertEqual(receipt['completionMarkers'], 1)
+
+
+class TerminalClusterGatesTests(unittest.TestCase):
+    def setUp(self):
+        self.intent = {'scannerPodUID': R.CURRENT_UID}
+        self.scanner = {'metadata': {'uid': R.CURRENT_UID, 'labels': {'app.kubernetes.io/component': 'kubescape'}},
+                        'spec': {'containers': [{'name': 'scanner', 'image': T.SCANNER}]},
+                        'status': {'phase': 'Running', 'conditions': [{'type': 'Ready', 'status': 'True'}],
+                                   'containerStatuses': [{'name': 'scanner', 'ready': True, 'restartCount': 0,
+                                      'state': {'running': {}}, 'imageID': T.SCANNER}]}}
+        self.own = {'metadata': {'uid': 'own-pod', 'ownerReferences': [{'kind': 'Job', 'uid': 'own-job'}]}}
+        self.values = {
+            'cronjobs': [{'metadata': {'name': 'kubescape-assessment-' + m}, 'spec': {'suspend': True}}
+                         for m in ('posture', 'vulnerability', 'refresh')],
+            'jobs': [{'metadata': {'name': T.JOB, 'uid': 'own-job'}}], 'pods': [self.scanner, self.own]}
+        self.api = mock.Mock()
+        self.api.items.side_effect = lambda b, r, ns: self.values[r]
+        self.response = {'id': T.SCAN_ID, 'type': 'v1results', 'response': {}}
+        self.service = lambda c, p: {'queueDepth': 0} if c == 'kubevuln' else self.response if p.startswith('/v1/results') else {'type': 'notBusy'}
+
+    def verify(self):
+        return T.verify_cluster(self.api, self.service, self.intent, 'own-pod')
+
+    def test_original_ready_scanner_and_named_terminal_result_required(self):
+        self.assertEqual(self.verify(), self.response)
+        self.scanner['status']['containerStatuses'][0]['restartCount'] = 1
+        with self.assertRaisesRegex(T.Rejected, 'scanner_process_changed'):
+            self.verify()
+        self.scanner['status']['containerStatuses'][0]['restartCount'] = 0
+        self.scanner['metadata']['uid'] = 'replacement'
+        with self.assertRaisesRegex(T.Rejected, 'original_scanner_unavailable'):
+            self.verify()
+
+    def test_active_schedules_jobs_and_busy_scanner_refuse_recovery(self):
+        self.values['cronjobs'][0]['spec']['suspend'] = False
+        with self.assertRaisesRegex(T.Rejected, 'schedules_not_quiescent'):
+            self.verify()
+        self.values['cronjobs'][0]['spec']['suspend'] = True
+        self.values['jobs'].append({'metadata': {'name': 'other', 'uid': 'other-job'}, 'status': {}})
+        with self.assertRaisesRegex(T.Rejected, 'conflicting_job'):
+            self.verify()
+        self.values['jobs'].pop()
+        self.service = lambda *args: {'type': 'busy'}
+        with self.assertRaisesRegex(T.Rejected, 'scanner_busy_or_unknown'):
+            self.verify()
+
+
+class TerminalFixtureTests(unittest.TestCase):
+    def test_manual_render_mounts_exact_source_and_keeps_restricted_contract(self):
+        spec = importlib.util.spec_from_file_location('terminal_render', ROOT / 'ops/kubescape/terminal-recovery/render.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        code, job = module.render()
+        self.assertEqual(code['data']['runner.py'], (ROOT / 'infra/kubescape/recurring/runner.py').read_text())
+        self.assertEqual(code['data']['recover-terminal-posture.py'], (ROOT / 'ops/kubescape/recover-terminal-posture.py').read_text())
+        self.assertTrue(code['immutable'])
+        self.assertEqual(job['metadata']['name'], T.JOB)
+        self.assertEqual(job['spec']['activeDeadlineSeconds'], 600)
+        self.assertEqual(job['spec']['backoffLimit'], 0)
+        pod = job['spec']['template']['spec']
+        self.assertEqual(next(v for v in pod['volumes'] if v['name'] == 'code')['configMap']['name'], code['metadata']['name'])
+        self.assertNotIn('terminal-recovery', (ROOT / 'infra/kubescape/kustomization.yaml').read_text())
+        import sys
+        sys.path.insert(0, str(ROOT / 'scripts/ci'))
+        import check_kubescape as chart
+        probe = {'apiVersion': 'apps/v1', 'kind': 'Deployment', 'metadata': {'name': 'kubescape'},
+                 'spec': {'template': job['spec']['template']}}
+        self.assertEqual(chart.findings([probe]), [])
+        self.assertEqual(pod['containers'][0]['image'], POD['containers'][0]['image'])
+
+
 if __name__ == "__main__":
     unittest.main()
