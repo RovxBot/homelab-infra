@@ -1,0 +1,79 @@
+# Private export holder only; deliberately outside Flux. No API token.
+# Stream history through operator exec, never through Pod logs.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: assessment-export-posture-6b2a9db3
+  namespace: kubescape
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+        kubescape.io/ignore: 'true'
+        app.kubernetes.io/name: kubescape-assessment-recovery-export
+    spec:
+      serviceAccountName: kubescape-assessment
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 10
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: kubevuln
+            topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: export
+        image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+        command:
+        - python3
+        - -B
+        - -c
+        - |
+          import time
+          from pathlib import Path
+          # Operator signals completion only after private archive verification.
+          deadline = time.monotonic() + 570
+          while not Path('/tmp/export-verified').exists():
+              if time.monotonic() >= deadline:
+                  raise SystemExit(1)
+              time.sleep(1)
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop: [ALL]
+        resources:
+          requests: {cpu: 50m, memory: 128Mi, ephemeral-storage: 16Mi}
+          limits: {cpu: 300m, memory: 256Mi, ephemeral-storage: 32Mi}
+        volumeMounts:
+        - name: history
+          mountPath: /history
+          subPath: assessments
+          readOnly: true
+        - name: scratch
+          mountPath: /tmp
+      volumes:
+      - name: history
+        persistentVolumeClaim:
+          claimName: kubescape-kubevuln
+          readOnly: true
+      - name: scratch
+        emptyDir:
+          sizeLimit: 1Mi

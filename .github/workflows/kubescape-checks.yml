@@ -21,6 +21,7 @@ on:
       - clusters/home/infrastructure/kubescape-kustomization.yaml
       - scripts/ci/kubescape_runtime.py
       - ops/kubescape/runtime-canary-test.yaml
+      - ops/kubescape/*posture*6b2a9db3*
       - infra/kyverno-policies/policies/workloads.yaml
       - infra/kyverno-policies/policies/namespace.yaml
       - scripts/ci/kyverno/**
@@ -34,6 +35,7 @@ on:
       - scripts/ci/image_reference.py
       - scripts/tests/test_image_reference.py
       - scripts/tests/test_kubescape_recurring.py
+      - scripts/tests/test_kubescape_posture_recovery.py
       - scripts/tests/test_grype*.py
       - .github/workflows/grype-database-refresh.yml
       - .github/workflows/kubescape-checks.yml
@@ -79,6 +81,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_security_receiver_deployment.py -v
           python3 -m unittest discover -s scripts/tests -p 'test_grype*.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_kubescape_recurring.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_kubescape_posture_recovery.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_kubescape_health.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_cluster_health.py' -v
           python3 scripts/ci/check_kubescape_recurring.py
