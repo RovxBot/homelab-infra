@@ -1,0 +1,239 @@
+# Manual recovery fixture only; deliberately outside Flux composition.
+# Review/export first. REQUIRED receipts fail closed until privately rendered.
+# This acknowledges a lost process, never a successful assessment.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: assessment-acknowledge-posture-6b2a9db3
+  namespace: kubescape
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+        kubescape.io/ignore: 'true'
+        app.kubernetes.io/name: kubescape-assessment
+    spec:
+      serviceAccountName: kubescape-assessment
+      automountServiceAccountToken: true
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: kubevuln
+            topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: acknowledge
+        image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+        env:
+        - name: PRIVATE_EXPORT_SHA256
+          value: REQUIRED
+        - name: EXPORTED_INFLIGHT_SHA256
+          value: REQUIRED
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        command:
+        - python3
+        - -B
+        - -c
+        - |
+          import fcntl, hashlib, json, os, re, ssl, stat, sys, urllib.request, uuid
+          from pathlib import Path
+
+          EXPECTED = {
+              'mode': 'posture',
+              'scanID': '6b2a9db3-1b9b-4fba-ad3b-285b444e5fc1',
+              'scannerPodUID': '42044c36-e416-4d97-bff7-cf15f83110cd',
+              'submittedAt': '2026-11-26T20:13:52.336641Z',
+          }
+          CURRENT_UID = '947d796d-5fd4-4f90-af69-5e35cb3f8399'
+          JOB = 'assessment-acknowledge-posture-6b2a9db3'
+          NS = '/api/v1/namespaces/kubescape/'
+          BATCH = '/apis/batch/v1/namespaces/kubescape/'
+          SCHEDULES = {'kubescape-assessment-' + mode
+                       for mode in ('posture', 'vulnerability', 'refresh')}
+
+          class Rejected(Exception):
+              pass
+
+          def require(ok, code):
+              if not ok:
+                  raise Rejected(code)
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+
+          def get(url, token, context=None):
+              handlers = [NoRedirect()]
+              if context is not None:
+                  handlers.append(urllib.request.HTTPSHandler(context=context))
+              opener = urllib.request.build_opener(*handlers)
+              request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + token})
+              with opener.open(request, timeout=8) as response:
+                  raw = response.read(4 * 1024**2 + 1)
+              require(len(raw) <= 4 * 1024**2, 'response_too_large')
+              return json.loads(raw)
+
+          def items(api, path):
+              response = api(path)
+              require(not response.get('metadata', {}).get('continue'), 'list_incomplete')
+              return response['items']
+
+          def terminal(job):
+              return any(c.get('type') in ('Complete', 'Failed') and c.get('status') == 'True'
+                         for c in job.get('status', {}).get('conditions', []))
+
+          def verify_cluster(api, service, own_uid):
+              schedules = {j['metadata']['name']: j for j in items(api, BATCH + 'cronjobs')}
+              require(SCHEDULES <= schedules.keys(), 'schedules_missing')
+              require(all(j['spec'].get('suspend') is True and not j.get('status', {}).get('active')
+                          for j in schedules.values()), 'schedules_not_quiescent')
+              jobs = items(api, BATCH + 'jobs')
+              own_job = next(j for j in jobs if j['metadata']['name'] == JOB)
+              require(not own_job['metadata'].get('deletionTimestamp'), 'maintenance_terminating')
+              require(all(j['metadata']['uid'] == own_job['metadata']['uid'] or terminal(j)
+                          for j in jobs), 'conflicting_job')
+              pods = items(api, NS + 'pods')
+              own = next(p for p in pods if p['metadata']['uid'] == own_uid)
+              require(any(o.get('uid') == own_job['metadata']['uid'] and o.get('kind') == 'Job'
+                          for o in own['metadata'].get('ownerReferences', [])), 'maintenance_identity')
+              require(all(p['metadata']['uid'] == own_uid
+                          or p.get('status', {}).get('phase') in ('Succeeded', 'Failed')
+                          or not any(o.get('kind') == 'Job'
+                                     for o in p['metadata'].get('ownerReferences', []))
+                          for p in pods), 'conflicting_job_pod')
+              require(all(p['metadata']['uid'] != EXPECTED['scannerPodUID'] for p in pods),
+                      'old_scanner_present')
+              scanners = [p for p in pods if p['metadata'].get('labels', {}).get(
+                          'app.kubernetes.io/component') == 'kubescape']
+              require(len(scanners) == 1, 'scanner_ambiguous')
+              scanner = scanners[0]
+              require(scanner['metadata']['uid'] == CURRENT_UID
+                      and not scanner['metadata'].get('deletionTimestamp')
+                      and scanner.get('status', {}).get('phase') == 'Running'
+                      and any(c.get('type') == 'Ready' and c.get('status') == 'True'
+                              for c in scanner.get('status', {}).get('conditions', [])), 'scanner_not_ready')
+              release = api('/apis/helm.toolkit.fluxcd.io/v2/namespaces/kubescape/helmreleases/kubescape')
+              image = release['spec']['values']['kubescape']['image']
+              require(image['repository'] == 'quay.io/kubescape/kubescape'
+                      and re.fullmatch(r'v4\.0\.20@sha256:[a-f0-9]{64}', image['tag']), 'scanner_pin')
+              container = next(c for c in scanner['spec']['containers']
+                               if c['image'] == image['repository'] + ':' + image['tag'])
+              status = next(c for c in scanner['status']['containerStatuses']
+                            if c['name'] == container['name'])
+              require(status.get('ready') is True
+                      and status.get('state', {}).get('running') is not None
+                      and status['imageID'].split('@')[-1] == image['tag'].split('@')[-1],
+                      'scanner_runtime_image')
+              require(service('kubescape', '/v1/status').get('type') == 'notBusy', 'scanner_busy_or_unknown')
+              require(service('kubescape', '/v1/status?id=' + EXPECTED['scanID']).get('type') == 'notBusy',
+                      'old_request_busy_or_unknown')
+              require(service('kubevuln', '/v1/diagnostics').get('queueDepth') == 0, 'engine_queue_not_empty')
+              # notBusy on a replacement means no active work, never terminal success.
+              return scanner['metadata']['uid']
+
+          def fsync_directory(root):
+              fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+              try:
+                  os.fsync(fd)
+              finally:
+                  os.close(fd)
+
+          def acknowledge(root, verify, export_sha, intent_sha):
+              require(all(re.fullmatch(r'[a-f0-9]{64}', v) for v in (export_sha, intent_sha)),
+                      'private_export_receipt_required')
+              require(root.is_dir() and not root.is_symlink(), 'history_directory')
+              # Existing lock inode only: never create a second lock or replace it.
+              fd = os.open(root / 'assessment.lock', os.O_RDWR | os.O_NOFOLLOW)
+              with os.fdopen(fd, 'r+') as lock:
+                  require(stat.S_ISREG(os.fstat(lock.fileno()).st_mode), 'lock_not_regular')
+                  fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                  source = root / 'inflight.json'
+                  fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+                  with os.fdopen(fd, 'rb') as intent:
+                      info = os.fstat(intent.fileno())
+                      require(stat.S_ISREG(info.st_mode) and info.st_size <= 65536, 'intent_not_regular')
+                      raw = intent.read(65537)
+                      require(len(raw) <= 65536 and json.loads(raw) == EXPECTED, 'intent_mismatch')
+                      require(hashlib.sha256(raw).hexdigest() == intent_sha, 'export_intent_mismatch')
+                      verify()
+                      # Recheck identity immediately before the only history mutation.
+                      require(source.stat(follow_symlinks=False).st_ino == info.st_ino
+                              and source.read_bytes() == raw, 'intent_changed')
+                      destination = root / ('recovered-posture-' + EXPECTED['scanID'] + '-' + uuid.uuid4().hex + '.json')
+                      os.fsync(intent.fileno())
+                      # link is atomic and refuses overwrite. Persist the archive before
+                      # removing the original name; a failed fsync leaves the fence intact.
+                      os.link(source, destination, follow_symlinks=False)
+                      fsync_directory(root)
+                      source.unlink()
+                      fsync_directory(root)
+              return {'state': 'verified', 'action': 'abandoned_process_acknowledged',
+                      'scanOutcome': 'unknown', 'scanID': EXPECTED['scanID'],
+                      'oldScannerAbsent': True, 'currentScannerPodUID': CURRENT_UID,
+                      'privateExportSHA256': export_sha, 'preservedFence': destination.name}
+
+          def main():
+              token = Path('/var/run/secrets/kubernetes.io/serviceaccount/token').read_text().strip()
+              scanner_token = Path('/var/run/assessment-api/token').read_text().strip()
+              context = ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
+              api = lambda path: get('https://kubernetes.default.svc' + path, token, context)
+              service = lambda component, path: get('http://' + component + ':8080' + path, scanner_token)
+              verify = lambda: verify_cluster(api, service, os.environ['POD_UID'])
+              print(json.dumps(acknowledge(Path('/history'), verify,
+                    os.environ['PRIVATE_EXPORT_SHA256'], os.environ['EXPORTED_INFLIGHT_SHA256'])))
+
+          if __name__ == '__main__':
+              try:
+                  main()
+              except Exception as error:
+                  # Do not expose API response bodies, raw history or credentials.
+                  print(json.dumps({'state': 'failed', 'scanOutcome': 'unknown',
+                        'reason': str(error) if isinstance(error, Rejected) else type(error).__name__}))
+                  sys.exit(1)
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop: [ALL]
+        resources:
+          requests: {cpu: 50m, memory: 128Mi, ephemeral-storage: 64Mi}
+          limits: {cpu: 300m, memory: 256Mi, ephemeral-storage: 128Mi}
+        volumeMounts:
+        - name: history
+          mountPath: /history
+          subPath: assessments
+        - name: api-token
+          mountPath: /var/run/assessment-api
+          readOnly: true
+      volumes:
+      - name: history
+        persistentVolumeClaim:
+          claimName: kubescape-kubevuln
+      - name: api-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+              audience: kubescape.io
+              expirationSeconds: 600
