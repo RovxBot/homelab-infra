@@ -1,0 +1,98 @@
+# Manual maintenance holder; outside Flux. Execute only after reviewed quiescence.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: assessment-recover-terminal-posture-0a454406
+  namespace: kubescape
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        homelab.cooked.beer/owner: sam
+        kubescape.io/ignore: 'true'
+        app.kubernetes.io/name: kubescape-assessment
+    spec:
+      serviceAccountName: kubescape-assessment
+      automountServiceAccountToken: true
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: kubevuln
+            topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: recovery
+        image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
+        env:
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        command:
+        - python3
+        - -B
+        - -c
+        - "import time; from pathlib import Path; deadline=time.monotonic()+570\n\
+          while not Path('/tmp/recovery-finished').exists():\n if time.monotonic()>=deadline:\
+          \ raise SystemExit(1)\n time.sleep(1)\n"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+            ephemeral-storage: 64Mi
+          limits:
+            cpu: 300m
+            memory: 256Mi
+            ephemeral-storage: 128Mi
+        volumeMounts:
+        - name: history
+          mountPath: /history
+          subPath: assessments
+        - name: api-token
+          mountPath: /var/run/assessment-api
+          readOnly: true
+        - name: code
+          mountPath: /code
+          readOnly: true
+        - name: scratch
+          mountPath: /tmp
+      volumes:
+      - name: history
+        persistentVolumeClaim:
+          claimName: kubescape-kubevuln
+      - name: api-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+              audience: kubescape.io
+              expirationSeconds: 600
+      - name: code
+        configMap:
+          name: kubescape-terminal-recovery-code
+      - name: scratch
+        emptyDir:
+          sizeLimit: 4Mi

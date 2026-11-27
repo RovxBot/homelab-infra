@@ -91,7 +91,7 @@ metadata:
   name: kubescape-assessment-inventory
 rules:
   - apiGroups: [""]
-    resources: [pods, nodes]
+    resources: [pods, nodes, replicationcontrollers]
     verbs: [get, list]
   - apiGroups: [apps]
     resources: [deployments, statefulsets, daemonsets, replicasets]
@@ -99,6 +99,16 @@ rules:
   - apiGroups: [batch]
     resources: [jobs, cronjobs]
     verbs: [get, list]
+  # Named absence checks qualify historical posture summaries; no mutation.
+  - apiGroups: [""]
+    resources: [configmaps, serviceaccounts, namespaces]
+    verbs: [get]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [rolebindings, clusterrolebindings]
+    verbs: [get]
   - apiGroups: [metrics.k8s.io]
     resources: [pods, nodes]
     verbs: [get, list]

@@ -573,16 +573,24 @@ class BatchTests(unittest.TestCase):
                     "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}}, "spec": {"controls": {"x": {}}}}
         summaries = [summary(namespace, name) for namespace, name in
                      (target.split("/") for target in CONFIG["postureWorkloads"])]
-        summaries.append(summary("kubescape", "shared"))
+        summaries.append(summary("kubescape", "serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader"))
         result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
+        objects = [{"apiVersion": "apps/v1", "kind": "Deployment" if name.startswith("deployment-") else "StatefulSet",
+                    "metadata": {"namespace": namespace, "name": name.split("-", 1)[1]}}
+                   for namespace, name in (t.split("/") for t in CONFIG["postureWorkloads"])]
+        objects.append({"kind": "ServiceAccount", "name": "reader", "namespace": "memos", "relatedObjects": [
+            {"kind": "ClusterRole", "name": "reader"}, {"kind": "ClusterRoleBinding", "name": "reader"}]})
+        result.update(resources=[{"resourceID": str(i), "object": obj} for i, obj in enumerate(objects)],
+                      results=[{"resourceID": str(i)} for i in range(len(objects))],
+                      metadata={"scanMetadata": {"includeNamespaces": CONFIG["postureLifecycle"]["activeNamespaces"]}})
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
             api = mock.Mock()
-            api.items.return_value = summaries
+            api.items.side_effect = lambda base, kind, namespace=None: summaries if kind == "workloadconfigurationscansummaries" else []
             api.get.side_effect = lambda base, kind, name, namespace: next(s for s in summaries if s["metadata"]["name"] == name)
             runner = R.Runner(api, self.config(), EXPECTED, Path(path), "posture")
             with mock.patch.object(R, "workload_rows", side_effect=AssertionError("target coupling")), \
-                    mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "scanner"}}), \
-                    mock.patch.object(R, "service", side_effect=[{"id": "posture"}, {"type": "success", "response": result}]), \
+                    mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "scanner"}, "status": {"containerStatuses": [{"name": "scanner", "containerID": "container", "restartCount": 0}]}}), \
+                    mock.patch.object(R, "service", side_effect=[{"id": "posture"}, {"id": "posture", "type": "v1results", "response": result}, {"type": "notBusy"}]), \
                     mock.patch.object(runner, "gate"), mock.patch.object(runner, "observe"):
                 runner.posture({})
             self.assertEqual(runner.result["lastSuccessfulAssessmentAt"], R.db.stamp(NOW))
@@ -1385,6 +1393,385 @@ class IdleResourceTests(unittest.TestCase):
         storage.assert_called_once()
         self.assertEqual(self.elapsed, 5)
         self.assertTrue(all(call.args[1] != "/v1/scanImage" for call in self.service.call_args_list))
+
+
+class PostureContractTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = self.enterContext(tempfile.TemporaryDirectory())
+        self.api = mock.Mock()
+        self.config = {**CANARY_CONFIG, 'postureWorkloads': ['memos/deployment-memos'],
+                       'postureLifecycle': {'activeNamespaces': ['memos'], 'retainedNamespaceDisposition': 'exclude-if-empty-and-out-of-scope'}}
+        self.runner = R.Runner(self.api, self.config, EXPECTED, Path(self.temp), 'posture')
+        self.result = {'summaryDetails': {'frameworks': [{'controls': [{'status': 'passed'}]}]},
+                       'resources': [
+                           {'resourceID': 'workload', 'object': {'kind': 'Deployment', 'metadata': {'name': 'memos', 'namespace': 'memos'}}},
+                           {'resourceID': 'rbac', 'object': {'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos',
+                               'relatedObjects': [{'kind': 'ClusterRole', 'name': 'reader'},
+                                                  {'kind': 'ClusterRoleBinding', 'name': 'reader'}]}}],
+                       'results': [{'resourceID': 'workload'}, {'resourceID': 'rbac'}],
+                       'metadata': {'scanMetadata': {'includeNamespaces': ['memos']}}}
+        self.shared = 'serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader'
+        self.summaries = [self.summary('memos', 'deployment-memos'), self.summary('kubescape', self.shared)]
+        self.workloads = []
+        self.api.items.side_effect = lambda base, kind, namespace=None: copy.deepcopy(self.summaries if kind == 'workloadconfigurationscansummaries' else [o for o in self.workloads if o['kind'].lower() + 's' == kind])
+        self.api.get.side_effect = self.get
+        self.started = R.db.stamp(NOW)
+        self.scanner = {'metadata': {'uid': 'scanner'}, 'status': {'containerStatuses': [{'name': 'scanner', 'containerID': 'container', 'restartCount': 0}]}}
+
+    def summary(self, namespace, name, stale=False, kind=None, source=None):
+        return {'metadata': {'name': name, 'namespace': namespace,
+                            'annotations': {'kubescape.io/report-created-at': R.db.stamp(NOW - timedelta(hours=int(stale))),
+                                            'kubescape.io/wlid': source or ''},
+                            'labels': {'kubescape.io/workload-kind': kind or ''}},
+                'spec': {'controls': {'C-1': {'status': 'passed'}}}}
+
+    def get(self, base, kind, name, namespace=None, optional=False):
+        if kind == 'workloadconfigurationscansummaries':
+            return copy.deepcopy(next(s for s in self.summaries if s['metadata']['name'] == name and s['metadata']['namespace'] == namespace))
+        return None
+
+    def qualify(self):
+        return self.runner.qualify_posture(self.result, self.started)
+
+    def test_verified_retired_summaries_are_retained_with_absence_evidence(self):
+        self.summaries += [self.summary('openbrew', 'configmap-retired', True, 'ConfigMap',
+                                       'wlid://cluster-home/namespace-openbrew/configmap-retired')]
+        before = copy.deepcopy(self.summaries)
+        checked = self.qualify()
+        self.assertEqual(checked['storedSummaries'], 2)
+        self.assertEqual(checked['retiredSummaries'], 1)
+        self.assertEqual(self.summaries, before)
+        proof = json.loads(gzip.decompress((self.runner.work / 'posture-retirement-1.json.gz').read_bytes()))
+        self.assertEqual(proof['excludedSummaries'][0]['state'], 'verified_absent')
+        calls = [c for c in self.api.get.call_args_list if c.args[1] == 'configmaps']
+        self.assertEqual(len(calls), 2)  # Independent absence reread.
+
+    def test_stale_live_namespace_and_configmap_in_current_scope_still_fail(self):
+        for ns, kind, name, wlid in [
+            ('kubescape', 'Namespace', 'namespace-memos', 'wlid://cluster-home/namespace-/namespace-memos'),
+            ('memos', 'ConfigMap', 'configmap-publisher-old', 'wlid://cluster-home/namespace-memos/configmap-publisher-old')]:
+            with self.subTest(kind=kind):
+                self.summaries = self.summaries[:2] + [self.summary(ns, name, True, kind, wlid)]
+                self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else {'metadata': {'name': n}}
+                with mock.patch.object(R, 'POSTURE_PERSISTENCE_SECONDS', 0), self.assertRaisesRegex(R.db.Rejected, 'posture_report_stale'):
+                    self.qualify()
+
+    def test_missing_required_workload_cannot_be_retired(self):
+        self.config['postureWorkloads'] += ['wotlk/statefulset-wotlk-mariadb']
+        self.config['postureLifecycle']['activeNamespaces'].append('wotlk')
+        self.result['metadata']['scanMetadata']['includeNamespaces'].append('wotlk')
+        with mock.patch.object(R, 'POSTURE_PERSISTENCE_SECONDS', 0), self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
+            self.qualify()
+
+    def test_fresh_stored_workload_cannot_substitute_for_missing_current_result(self):
+        self.result['results'].pop(0)
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
+            self.qualify()
+
+    def test_each_shared_rbac_result_is_required_even_if_namespace_has_other_reports(self):
+        self.summaries.pop()
+        self.summaries.append(self.summary('kubescape', 'namespace-memos'))
+        with mock.patch.object(R, 'POSTURE_PERSISTENCE_SECONDS', 0), self.assertRaisesRegex(R.db.Rejected, 'posture_shared_rbac_missing'):
+            self.qualify()
+
+    def test_dropped_previous_live_binding_cannot_disappear_from_result_and_storage(self):
+        previous = self.summary('kubescape', 'serviceaccount-other-clusterrole-other-clusterrolebinding-other', kind='ServiceAccount',
+                                source='wlid://cluster-home/namespace-/clusterrolebinding-other')
+        previous['metadata']['labels'].update({'kubescape.io/rbac-resource': 'true', 'kubescape.io/workload-namespace': 'memos'})
+        self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else {'metadata': {'name': n, 'uid': 'binding'}, 'roleRef': {'kind': 'ClusterRole', 'name': 'other'}, 'subjects': [{'kind': 'ServiceAccount', 'name': 'other', 'namespace': 'memos'}]}
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
+            self.runner.qualify_posture(self.result, self.started, [previous])
+
+    def test_retirement_lookup_errors_unknown_identity_and_reappearance_fail_closed(self):
+        summary = self.summary('memos', 'configmap-old', True, 'ConfigMap', 'wlid://cluster-home/namespace-memos/configmap-old')
+        for error in (R.APIError(403), R.APIError(503)):
+            self.api.get.side_effect = error
+            with self.assertRaises(R.APIError):
+                R.retired_posture_summary(self.api, summary)
+        summary['metadata']['annotations']['kubescape.io/wlid'] = 'wlid://cluster-home/namespace-memos/unknown-old'
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_retirement_unverified'):
+            R.retired_posture_summary(self.api, summary)
+        summary['metadata']['annotations']['kubescape.io/wlid'] = 'wlid://cluster-home/namespace-memos/configmap-old'
+        self.summaries.append(summary)
+        lookups = iter([None, {'metadata': {'name': 'old'}}])
+        self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else next(lookups)
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_retirement_changed'):
+            self.qualify()
+
+    def test_delayed_persistence_polls_without_resubmitting(self):
+        self.summaries[0]['metadata']['annotations']['kubescape.io/report-created-at'] = R.db.stamp(NOW - timedelta(hours=1))
+        def persist(_):
+            self.summaries[0]['metadata']['annotations']['kubescape.io/report-created-at'] = self.started
+        with mock.patch.object(R.time, 'sleep', side_effect=persist) as sleep, mock.patch.object(self.runner, 'observe'), mock.patch.object(R, 'service') as service:
+            checked = self.qualify()
+        self.assertEqual(checked['requiredWorkloadCount'], 1)
+        sleep.assert_called_once()
+        service.assert_not_called()
+        self.assertTrue((self.runner.work / 'persisted-posture-2.json.gz').exists())
+
+    def test_persistence_timeout_preserves_last_rejection(self):
+        self.summaries[0]['metadata']['annotations']['kubescape.io/report-created-at'] = R.db.stamp(NOW - timedelta(hours=1))
+        with mock.patch.object(R, 'POSTURE_PERSISTENCE_SECONDS', 0), self.assertRaisesRegex(R.db.Rejected, 'posture_report_stale'):
+            self.qualify()
+        self.assertTrue((self.runner.work / 'persisted-posture-1.json.gz').exists())
+
+    def test_missing_resource_inventory_incomplete_rbac_and_slug_collisions_fail(self):
+        for field in ('failedGVRPulls', 'partialGVRPulls', 'policyDegradations', 'skippedManifests', 'vacuousFrameworks'):
+            with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope({**self.result, 'scanCoverage': {field: [{'gvr': 'rbac.authorization.k8s.io/v1/rolebindings'}]}})
+        self.assertEqual(R.posture_scope({**self.result, 'scanCoverage': {'notEvaluatedControls': [{'controlID': 'host'}]}}),
+                         R.posture_scope(self.result))
+        for field in ('resources', 'results'):
+            result = copy.deepcopy(self.result)
+            del result[field]
+            with self.assertRaisesRegex(R.db.Rejected, 'posture_resource_inventory_missing'):
+                R.posture_scope(result)
+        result = copy.deepcopy(self.result)
+        result['resources'][1]['object']['relatedObjects'].pop()
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_rbac_incomplete'):
+            R.posture_scope(result)
+        result = copy.deepcopy(self.result)
+        result['resources'].append({'resourceID': 'duplicate', 'object': result['resources'][0]['object']})
+        result['results'].append({'resourceID': 'duplicate'})
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
+            R.posture_scope(result)
+
+    def test_scope_slug_matches_pinned_rbac_names_and_long_name_hashing(self):
+        self.assertEqual(R.posture_slug('Group-system:serviceaccounts-ClusterRole-system:service-account-issuer-discovery-ClusterRoleBinding-system:service-account-issuer-discovery'),
+                         'group-system-serviceaccounts-clusterrole-system-service-account-issuer-discovery-clusterrolebinding-system-service-account-issuer-discovery')
+        value = 'ConfigMap-' + 'a' * 250
+        import hashlib
+        digest = hashlib.sha256(value.encode()).hexdigest()
+        self.assertEqual(R.posture_slug(value), ('configmap-' + 'a' * 250)[:243] + '-' + digest[:4] + '-' + digest[-4:])
+
+    def workload(self, kind, name, namespace='memos', maps=(), **spec):
+        pod = {'containers': [{'name': 'app'}], 'volumes': [{'name': 'v' + str(i), 'configMap': {'name': n}} for i, n in enumerate(maps)]}
+        if kind == 'Pod':
+            body = {**pod, **spec}
+        elif kind == 'CronJob':
+            body = {'jobTemplate': {'spec': {'template': {'spec': pod}}}, **spec}
+        else:
+            body = {'template': {'spec': pod}, **spec}
+        return {'kind': kind, 'metadata': {'name': name, 'namespace': namespace, 'uid': name + '-uid', 'generation': 1},
+                'spec': body, 'status': {}}
+
+    def test_retained_resources_in_empty_removed_scope_are_explicitly_excluded(self):
+        names = [('kubescape', 'namespace-retired-team', 'Namespace', 'wlid://cluster-home/namespace-/namespace-retired-team'),
+                 ('retired-team', 'serviceaccount-bootstrap', 'ServiceAccount', 'wlid://cluster-home/namespace-retired-team/serviceaccount-bootstrap'),
+                 ('retired-team', 'configmap-bootstrap', 'ConfigMap', 'wlid://cluster-home/namespace-retired-team/configmap-bootstrap')]
+        self.summaries += [self.summary(ns, name, True, kind, source) for ns, name, kind, source in names]
+        self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else {'metadata': {'name': n, 'uid': 'retained-' + n, 'resourceVersion': '1'}}
+        checked = self.qualify()
+        self.assertEqual(checked['storedSummaries'], 2)
+        self.assertEqual(len(checked['excludedSummaries']), 3)
+        self.assertEqual({p['state'] for p in checked['excludedSummaries']}, {'retained_out_of_scope'})
+        self.assertTrue(all(p['sourceExists'] for p in checked['excludedSummaries']))
+        self.assertEqual(self.runner.result['postureExclusions']['excludedSummaries'], checked['excludedSummaries'])
+
+    def test_namespace_scope_removal_cannot_hide_current_or_suspended_intent(self):
+        self.summaries.append(self.summary('kubescape', 'namespace-retired-team', True, 'Namespace', 'wlid://cluster-home/namespace-/namespace-retired-team'))
+        self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else {'metadata': {'name': n, 'uid': 'namespace'}}
+        for obj in (self.workload('Deployment', 'app', 'retired-team', replicas=0),
+                    self.workload('CronJob', 'timer', 'retired-team', suspend=True),
+                    self.workload('Pod', 'pending', 'retired-team'),
+                    self.workload('ReplicaSet', 'orphan', 'retired-team', replicas=0)):
+            with self.subTest(kind=obj['kind']):
+                self.workloads = [obj]
+                with mock.patch.object(R, 'POSTURE_PERSISTENCE_SECONDS', 0), self.assertRaisesRegex(R.db.Rejected, 'posture_report_stale'):
+                    self.qualify()
+
+    def test_flux_rotation_history_does_not_keep_absent_configmap_current(self):
+        deployment = self.workload('Deployment', 'app', maps=['config-next'])
+        old = self.workload('ReplicaSet', 'app-old', maps=['config-before'], replicas=0)
+        old['metadata']['ownerReferences'] = [{'kind': 'Deployment', 'name': 'app', 'uid': 'app-uid', 'controller': True}]
+        job = self.workload('Job', 'finished', maps=['config-before'])
+        job['status'] = {'conditions': [{'type': 'Complete', 'status': 'True'}]}
+        self.workloads = [deployment, old, job]
+        self.summaries.append(self.summary('memos', 'configmap-config-before', True, 'ConfigMap', 'wlid://cluster-home/namespace-memos/configmap-config-before'))
+        checked = self.qualify()
+        proof = checked['excludedSummaries'][0]
+        self.assertEqual(proof['state'], 'verified_absent')
+        self.assertEqual(proof['currentReferences'], [])
+        self.assertEqual(proof['historicalReferences'], ['memos/Job/finished', 'memos/ReplicaSet/app-old'])
+        self.assertEqual(len(R.posture_workloads(self.api)['current']), 1)
+        # A still-running old Pod pins its actual mounted configuration even
+        # after its owning ReplicaSet has been scaled to zero.
+        self.workloads.append(self.workload('Pod', 'surviving-old-pod', maps=['config-before']))
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_retired_resource_referenced'):
+            self.qualify()
+
+    def test_all_standard_pod_configmap_references_protect_dangling_objects(self):
+        variants = [
+            {'volumes': [{'name': 'p', 'projected': {'sources': [{'configMap': {'name': 'gone'}}]}}]},
+            {'containers': [{'name': 'app', 'env': [{'name': 'E', 'valueFrom': {'configMapKeyRef': {'name': 'gone', 'key': 'k', 'optional': True}}}]}]},
+            {'initContainers': [{'name': 'init', 'envFrom': [{'configMapRef': {'name': 'gone'}}]}]},
+            {'ephemeralContainers': [{'name': 'debug', 'envFrom': [{'configMapRef': {'name': 'gone'}}]}]}]
+        self.summaries.append(self.summary('memos', 'configmap-gone', True, 'ConfigMap', 'wlid://cluster-home/namespace-memos/configmap-gone'))
+        for spec in variants:
+            with self.subTest(spec=spec):
+                self.workloads = [self.workload('Pod', 'app', **spec)]
+                with self.assertRaisesRegex(R.db.Rejected, 'posture_retired_resource_referenced'):
+                    self.qualify()
+        for kind, extra in [('Deployment', {'replicas': 0}), ('CronJob', {'suspend': True})]:
+            with self.subTest(kind=kind):
+                self.workloads = [self.workload(kind, 'future-intent', maps=['gone'], **extra)]
+                with self.assertRaisesRegex(R.db.Rejected, 'posture_retired_resource_referenced'):
+                    self.qualify()
+
+    def test_namespace_reactivation_and_inventory_failure_fail_closed(self):
+        self.summaries.append(self.summary('old-team', 'configmap-gone', True, 'ConfigMap', 'wlid://cluster-home/namespace-old-team/configmap-gone'))
+        first = R.posture_workloads(self.api)
+        second = {'current': [{'namespace': 'old-team', 'kind': 'Deployment', 'name': 'new', 'uid': 'new',
+                               'generation': 1, 'configMaps': [], 'serviceAccount': 'default', 'owners': []}], 'historical': []}
+        with mock.patch.object(R, 'posture_workloads', side_effect=[first, second]), mock.patch.object(R.time, 'sleep') as sleep:
+            with self.assertRaisesRegex(R.db.Rejected, 'posture_lifecycle_changed'):
+                self.qualify()
+            sleep.assert_not_called()  # Do not validate an immutable report against a later lifecycle.
+        with mock.patch.object(R, 'posture_workloads', side_effect=R.APIError(503)), self.assertRaises(R.APIError):
+            self.qualify()
+
+    def test_returned_scope_must_match_explicit_reviewed_namespace_contract(self):
+        original = copy.deepcopy(self.result['metadata'])
+        for metadata in ({}, {'scanMetadata': {'includeNamespaces': ['different']}},
+                         {'scanMetadata': {'includeNamespaces': ['memos'], 'excludedNamespaces': ['memos']}},
+                         {'scanMetadata': {'includeNamespaces': ['memos'], 'scanningTarget': 1}}):
+            self.result['metadata'] = metadata
+            with self.assertRaisesRegex(R.db.Rejected, 'posture_scan_scope_mismatch'):
+                self.qualify()
+        self.result['metadata'] = original
+        self.config['postureLifecycle']['activeNamespaces'] = []
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_lifecycle_contract_invalid'):
+            self.qualify()
+
+    def test_superseded_binding_vector_is_historical_but_current_vector_is_required(self):
+        previous = self.summary('kubescape', self.shared, True, 'ServiceAccount', 'wlid://cluster-home/namespace-/clusterrolebinding-reader')
+        previous['metadata']['labels'].update({'kubescape.io/rbac-resource': 'true', 'kubescape.io/workload-namespace': 'memos'})
+        self.result['resources'][1]['object']['relatedObjects'][0]['name'] = 'reader-next'
+        next_name = 'serviceaccount-reader-clusterrole-reader-next-clusterrolebinding-reader'
+        self.summaries[1]['metadata']['name'] = next_name
+        self.summaries.append(previous)
+        self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else {'metadata': {'name': n, 'uid': 'binding', 'resourceVersion': '2'}, 'roleRef': {'kind': 'ClusterRole', 'name': 'reader-next'}, 'subjects': [{'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos'}]}
+        checked = self.runner.qualify_posture(self.result, self.started, [previous])
+        self.assertEqual(checked['excludedSummaries'][0]['state'], 'verified_superseded_binding')
+        self.assertEqual(checked['excludedSummaries'][0]['currentBindingSummaries'], ['kubescape/' + next_name])
+        self.result['resources'][1]['object']['relatedObjects'][0]['name'] = 'wrong-report-role'
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
+            self.runner.qualify_posture(self.result, self.started, [previous])
+
+    def test_current_binding_mutation_during_qualification_stays_unqualified(self):
+        previous = self.summary('kubescape', self.shared, kind='ServiceAccount', source='wlid://cluster-home/namespace-/clusterrolebinding-reader')
+        previous['metadata']['labels'].update({'kubescape.io/rbac-resource': 'true', 'kubescape.io/workload-namespace': 'memos'})
+        versions = iter(['1', '2'])
+        def get(base, kind, name, namespace=None, optional=False):
+            if kind == 'workloadconfigurationscansummaries':
+                return self.get(base, kind, name, namespace, optional)
+            return {'metadata': {'name': name, 'uid': 'binding', 'resourceVersion': next(versions)},
+                    'roleRef': {'kind': 'ClusterRole', 'name': 'reader'},
+                    'subjects': [{'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos'}]}
+        self.api.get.side_effect = get
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_lifecycle_changed'):
+            self.runner.qualify_posture(self.result, self.started, [previous])
+        self.assertEqual(self.runner.result['postureExclusions']['verification'], 'pending')
+
+    def test_all_eleven_observed_summaries_have_explicit_general_dispositions(self):
+        evidence = json.loads((ROOT / 'infra/kubescape/recurring/posture-qualification-investigation.json').read_text())
+        states = {}
+        for value in evidence['namedSourceLookups']:
+            ns, kind, name = value['namespace'], value['kind'], value['name']
+            summary_ns = ns or 'kubescape'
+            self.summaries.append(self.summary(summary_ns, R.posture_slug(kind + '-' + name), True, kind,
+                                              'wlid://cluster-home/namespace-' + ns + '/' + kind.lower() + '-' + name))
+            states[kind.lower() + 's', ns, name] = value['result']
+        def get(base, kind, name, namespace=None, optional=False):
+            if kind == 'workloadconfigurationscansummaries':
+                return self.get(base, kind, name, namespace, optional)
+            if states.get((kind, namespace or '', name)) == 'present':
+                return {'metadata': {'name': name, 'uid': 'retained-' + name}}
+            return None
+        self.api.get.side_effect = get
+        checked = self.qualify()
+        counts = __import__('collections').Counter(p['state'] for p in checked['excludedSummaries'])
+        self.assertEqual(counts, {'verified_absent': 8, 'retained_out_of_scope': 3})
+        self.assertEqual(checked['retiredSummaries'], 8)
+        self.assertEqual(checked['retainedOutOfScopeSummaries'], 3)
+        self.assertEqual(checked['excludedSummaryCount'], 11)
+        self.assertEqual(checked['storedSummaries'], 2)
+
+    def posture(self, responses=None, qualification=None, scanner=None):
+        responses = responses or [{'id': 'scan'}, {'id': 'scan', 'type': 'v1results', 'response': self.result}, {'type': 'notBusy'}]
+        with mock.patch.object(R.db, 'utcnow', return_value=NOW), \
+                mock.patch.object(R, 'component_pod', side_effect=scanner or [self.scanner] * 3), \
+                mock.patch.object(R, 'service', side_effect=responses), \
+                mock.patch.object(self.runner, 'gate'), mock.patch.object(self.runner, 'observe'), \
+                mock.patch.object(self.runner, 'qualify_posture', side_effect=qualification, return_value={'controls': {}}):
+            self.runner.posture({})
+
+    def test_completed_request_failed_qualification_archives_receipt_and_unblocks(self):
+        marker = Path(self.temp) / 'posture-historical.done'
+        marker.write_bytes(b'unchanged')
+        for reason in ('posture_report_stale', 'posture_scope_incomplete'):
+            with self.subTest(reason=reason):
+                # New immutable run directory for each real request.
+                self.runner = R.Runner(self.api, self.config, EXPECTED, Path(self.temp), 'posture')
+                with self.assertRaisesRegex(R.db.Rejected, reason):
+                    self.posture(qualification=R.db.Rejected(reason))
+                self.assertFalse((Path(self.temp) / 'inflight.json').exists())
+                receipt = json.loads((self.runner.work / 'posture-qualification.json').read_text())
+                self.assertEqual(receipt['scanOutcome'], 'completed')
+                self.assertEqual(receipt['qualificationState'], 'failed')
+                self.assertEqual(receipt['reason'], reason)
+                original = json.loads((self.runner.work / 'posture-intent.json').read_text())
+                self.assertEqual(original, receipt['intent'])
+                self.assertEqual(self.runner.result['assessments'], [])
+                with mock.patch.object(R, 'service') as service:
+                    self.runner.fence()
+                service.assert_not_called()
+        self.assertEqual(marker.read_bytes(), b'unchanged')
+        self.assertEqual(list(Path(self.temp).glob('*.done')), [marker])
+
+    def test_ambiguous_terminal_interrupted_restart_and_timeout_keep_fence(self):
+        cases = [([{'id': 'scan'}, {'id': 'other', 'type': 'v1results'}], None, None),
+                 ([{'id': 'scan'}, {'id': 'scan', 'type': 'notBusy'}], None, None),
+                 ([{'id': 'scan'}, {'id': 'scan', 'type': 'error'}], None, None),
+                 ([{'id': 'scan'}, {'id': 'scan', 'type': 'v1results'}], None,
+                  [self.scanner, self.scanner, {'metadata': {'uid': 'replacement'}}]),
+                 (None, None, [self.scanner, self.scanner, {**self.scanner, 'status': {'containerStatuses': [{'name': 'scanner', 'containerID': 'new', 'restartCount': 1}]}}]),
+                 (None, KeyboardInterrupt(), None)]
+        for responses, error, scanner in cases:
+            with self.subTest(responses=responses), self.assertRaises((R.db.Rejected, KeyboardInterrupt)):
+                self.posture(responses, error, scanner)
+            self.assertTrue((Path(self.temp) / 'inflight.json').exists())
+            self.assertFalse((self.runner.work / 'posture-qualification.json').exists())
+            (Path(self.temp) / 'inflight.json').unlink()
+        self.config['scanTimeoutSeconds'] = 0
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_timeout'):
+            self.posture()
+        self.assertTrue((Path(self.temp) / 'inflight.json').exists())
+
+    def test_lost_post_response_keeps_pre_submission_intent(self):
+        with self.assertRaises(R.APIError):
+            self.posture([R.APIError(503)])
+        intent = json.loads((Path(self.temp) / 'inflight.json').read_text())
+        self.assertNotIn('scanID', intent)
+        with mock.patch.object(R, 'service') as service, self.assertRaisesRegex(R.db.Rejected, 'uncertain_previous_request'):
+            self.runner.fence()
+        service.assert_not_called()
+
+    def test_receipt_write_failure_keeps_fence(self):
+        real_atomic = R.atomic
+        def atomic(path, value):
+            if path.name == 'posture-qualification.json':
+                raise OSError('disk')
+            return real_atomic(path, value)
+        with mock.patch.object(R, 'atomic', side_effect=atomic), self.assertRaises(OSError):
+            self.posture(qualification=R.db.Rejected('posture_report_stale'))
+        self.assertTrue((Path(self.temp) / 'inflight.json').exists())
+
+    def test_concurrent_runner_never_submits(self):
+        with R.locked(Path(self.temp)), mock.patch.object(R, 'service') as service:
+            with self.assertRaisesRegex(R.db.Rejected, 'duplicate_execution'):
+                self.runner.run()
+        service.assert_not_called()
 
 
 if __name__ == "__main__":

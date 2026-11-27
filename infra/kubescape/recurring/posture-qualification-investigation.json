@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "status": "investigated_candidate_not_deployed",
+  "observedDate": "2026-11-27",
+  "baseCommit": "c94c6b09d229b9500fe8a934536d1eaa76274cb0",
+  "scanID": "0a454406-e77a-4570-86a1-b692cae5c84a",
+  "evidence": "https://github.com/RovxBot/homelab-infra/issues/2135#issuecomment-7210703394",
+  "scanner": {
+    "image": "quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060",
+    "sourceCommit": "ec65d3184f6bab7d1ad6e5db9d970d452316d253",
+    "sources": [
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/README.md",
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/handlerequests/v1/requestshandler.go",
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/handlerequests/v1/requestshandlerutils.go",
+      "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/storage/apiserver.go",
+      "https://github.com/kubescape/k8s-interface/blob/v0.0.221/names/slugs.go"
+    ],
+    "contract": [
+      "Exact-ID v1results is a completed result; notBusy alone also occurs for unknown IDs and does not prove completion",
+      "keep=true preserves cached results; operator summary persistence is separate and errors can be logged while valid JSON remains retrievable",
+      "Resource result identities determine expected summaries; RBAC vectors include subject, role and binding and persist in kubescape",
+      "Summary report-created-at uses the report generation time; retained historical summaries are not a scan inventory"
+    ]
+  },
+  "namedSourceLookups": [
+    {
+      "namespace": "monitoring",
+      "kind": "ConfigMap",
+      "name": "security-incident-publisher-code-c86t48h47c",
+      "result": "absent"
+    },
+    {
+      "namespace": "monitoring",
+      "kind": "ConfigMap",
+      "name": "security-incident-publisher-code-f292d956c5",
+      "result": "absent"
+    },
+    {
+      "namespace": "cloudflared",
+      "kind": "ConfigMap",
+      "name": "cloudflared-config-97dk46h6h7",
+      "result": "absent"
+    },
+    {
+      "namespace": "homepage",
+      "kind": "ConfigMap",
+      "name": "homepage-app-config-chkh9tk59f",
+      "result": "absent"
+    },
+    {
+      "namespace": "",
+      "kind": "Namespace",
+      "name": "openbrew",
+      "result": "present"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ConfigMap",
+      "name": "kube-root-ca.crt",
+      "result": "present"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ServiceAccount",
+      "name": "default",
+      "result": "present"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ConfigMap",
+      "name": "openbrew-config-9c7g7bbtd6",
+      "result": "absent"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "ConfigMap",
+      "name": "openbrew-sso-5dd6mbt4bg",
+      "result": "absent"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "NetworkPolicy",
+      "name": "openbrew-database",
+      "result": "absent"
+    },
+    {
+      "namespace": "openbrew",
+      "kind": "NetworkPolicy",
+      "name": "openbrew-ingress",
+      "result": "absent"
+    }
+  ],
+  "clusterMutation": "none",
+  "retainedRequestRecovery": "not_run",
+  "remainingGate": "Three stale source objects still exist; do not claim posture qualification until explicit retirement or fresh evidence resolves them",
+  "lifecycleFollowup": {
+    "observedDate": "2026-11-28",
+    "status": "verified_read_only_classification_not_scan_qualification",
+    "evidence": "https://github.com/RovxBot/homelab-infra/issues/2135#issuecomment-7210720599",
+    "activeNamespaces": [
+      "birdnet-go",
+      "cloudflared",
+      "gitea",
+      "gitea-runners",
+      "home-assistant",
+      "homepage",
+      "immich",
+      "invoiceninja",
+      "koito",
+      "media",
+      "memos",
+      "monitoring",
+      "mop",
+      "mqtt",
+      "security",
+      "stirling-pdf",
+      "wger",
+      "wireguard",
+      "wotlk"
+    ],
+    "workloadSnapshotSHA256": "70fb0b7f27cd90afd4e1fced1ec53c18541dc17ba58f0ac5daf3e39e9e28e278",
+    "classificationCounts": {
+      "verified_absent": 8,
+      "retained_out_of_scope": 3
+    },
+    "excludedSummaries": [
+      {
+        "summary": "monitoring/configmap-security-incident-publisher-code-c86t48h47c",
+        "source": "wlid://cluster-home/namespace-monitoring/configmap-security-incident-publisher-code-c86t48h47c",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "kubescape/namespace-openbrew",
+        "source": "wlid://cluster-home/namespace-/namespace-openbrew",
+        "state": "retained_out_of_scope",
+        "sourceExists": true,
+        "sourceUID": "2cff56d3-6b55-4a48-83f4-122e92f088f4",
+        "sourceResourceVersion": "176037215",
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "cloudflared/configmap-cloudflared-config-97dk46h6h7",
+        "source": "wlid://cluster-home/namespace-cloudflared/configmap-cloudflared-config-97dk46h6h7",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [
+          "cloudflared/ReplicaSet/cloudflared-6b88bb84bf",
+          "cloudflared/ReplicaSet/cloudflared-6bdbc5dd8b"
+        ],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "homepage/configmap-homepage-app-config-chkh9tk59f",
+        "source": "wlid://cluster-home/namespace-homepage/configmap-homepage-app-config-chkh9tk59f",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [
+          "homepage/ReplicaSet/homepage-594b8b98b7",
+          "homepage/ReplicaSet/homepage-7b4d99c6c9"
+        ],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "monitoring/configmap-security-incident-publisher-code-f292d956c5",
+        "source": "wlid://cluster-home/namespace-monitoring/configmap-security-incident-publisher-code-f292d956c5",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "openbrew/configmap-kube-root-ca.crt",
+        "source": "wlid://cluster-home/namespace-openbrew/configmap-kube-root-ca.crt",
+        "state": "retained_out_of_scope",
+        "sourceExists": true,
+        "sourceUID": "c7551d1c-071a-4ba0-aa43-9600633ad03a",
+        "sourceResourceVersion": "176037218",
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "openbrew/configmap-openbrew-config-9c7g7bbtd6",
+        "source": "wlid://cluster-home/namespace-openbrew/configmap-openbrew-config-9c7g7bbtd6",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "openbrew/configmap-openbrew-sso-5dd6mbt4bg",
+        "source": "wlid://cluster-home/namespace-openbrew/configmap-openbrew-sso-5dd6mbt4bg",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "openbrew/serviceaccount-default",
+        "source": "wlid://cluster-home/namespace-openbrew/serviceaccount-default",
+        "state": "retained_out_of_scope",
+        "sourceExists": true,
+        "sourceUID": "37945ee2-806a-4322-9c8d-bff0a8f5e5aa",
+        "sourceResourceVersion": "176037219",
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "openbrew/networkpolicy-openbrew-database",
+        "source": "wlid://cluster-home/namespace-openbrew/networkpolicy-openbrew-database",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      },
+      {
+        "summary": "openbrew/networkpolicy-openbrew-ingress",
+        "source": "wlid://cluster-home/namespace-openbrew/networkpolicy-openbrew-ingress",
+        "state": "verified_absent",
+        "sourceExists": false,
+        "sourceUID": null,
+        "sourceResourceVersion": null,
+        "currentReferences": [],
+        "historicalReferences": [],
+        "currentBindingSummaries": []
+      }
+    ],
+    "currentConfigurationOwners": [
+      {
+        "workload": "monitoring/CronJob/security-incident-publisher",
+        "configMap": "monitoring/security-incident-publisher-code-45745h4dbh",
+        "fluxOwner": "flux-system/infrastructure"
+      },
+      {
+        "workload": "cloudflared/Deployment/cloudflared",
+        "configMap": "cloudflared/cloudflared-config-m6hb54427t",
+        "fluxOwner": "flux-system/infrastructure"
+      },
+      {
+        "workload": "homepage/Deployment/homepage",
+        "configMap": "homepage/homepage-app-config-2kd98gth5d",
+        "fluxOwner": "flux-system/apps-homepage"
+      }
+    ],
+    "interpretation": "Eight exact sources are absent and unreferenced by current workload intent. Three still-existing bootstrap sources are retained outside the reviewed active scope, with no current workload intent in their namespace. Historical zero-replica revisions remain evidence, not current references.",
+    "productionQualification": "not_run",
+    "clusterMutation": "none",
+    "supersedesInitialRetainedResourceGate": true,
+    "ownershipLimit": "Deleted ConfigMap ownership cannot be read from absent objects. Current replacement ConfigMaps and workload templates have matching Flux ownership; surviving historical ReplicaSets identify their Deployment owners. Classification requires absence and no current references, independent of generated naming or inferred former ownership.",
+    "remainingGate": "Independent review, merge/rollout and guarded retained-request recovery; the lifecycle classifications alone are not successful production posture evidence."
+  }
+}

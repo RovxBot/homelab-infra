@@ -21,7 +21,8 @@ on:
       - clusters/home/infrastructure/kubescape-kustomization.yaml
       - scripts/ci/kubescape_runtime.py
       - ops/kubescape/runtime-canary-test.yaml
-      - ops/kubescape/*posture*6b2a9db3*
+      - ops/kubescape/*posture*
+      - ops/kubescape/terminal-recovery/**
       - infra/kyverno-policies/policies/workloads.yaml
       - infra/kyverno-policies/policies/namespace.yaml
       - scripts/ci/kyverno/**

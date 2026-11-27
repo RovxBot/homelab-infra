@@ -104,5 +104,29 @@
     "wotlk/deployment-wotlk-authserver",
     "wotlk/deployment-wotlk-worldserver",
     "wotlk/statefulset-wotlk-mariadb"
-  ]
+  ],
+  "postureLifecycle": {
+    "activeNamespaces": [
+      "birdnet-go",
+      "cloudflared",
+      "gitea",
+      "gitea-runners",
+      "home-assistant",
+      "homepage",
+      "immich",
+      "invoiceninja",
+      "koito",
+      "media",
+      "memos",
+      "monitoring",
+      "mop",
+      "mqtt",
+      "security",
+      "stirling-pdf",
+      "wger",
+      "wireguard",
+      "wotlk"
+    ],
+    "retainedNamespaceDisposition": "exclude-if-empty-and-out-of-scope"
+  }
 }
