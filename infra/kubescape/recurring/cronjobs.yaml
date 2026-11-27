@@ -1,6 +1,4 @@
 # Shared PVC lock serializes both modes; chart CronJobs remain suspended.
-# Temporary GitOps hold for PR #2334: preserve retained request/history during
-# reviewed terminal recovery. Resume through GitOps after independent acceptance.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -13,7 +11,7 @@ metadata:
 spec:
   schedule: "13 1,10,13,19 * * *"
   timeZone: Etc/UTC
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 2
@@ -143,7 +141,7 @@ metadata:
 spec:
   schedule: 13 20 * * *
   timeZone: Etc/UTC
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 2
@@ -274,7 +272,7 @@ metadata:
 spec:
   schedule: "7,37 * * * *"
   timeZone: Etc/UTC
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   successfulJobsHistoryLimit: 1
