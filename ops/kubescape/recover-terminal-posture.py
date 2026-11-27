@@ -20,6 +20,7 @@ import sys
 import uuid
 
 SCAN_ID = '0a454406-e77a-4570-86a1-b692cae5c84a'
+RUN_ID = 'posture-20261127051425-031172'
 SCANNER = 'quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060'
 JOB = 'assessment-recover-terminal-posture-0a454406'
 NS = '/api/v1'
@@ -56,15 +57,38 @@ def unzip(raw):
     return value
 
 
-def read_intent(root):
-    raw = read_regular(root / 'inflight.json', 65536)
+def timestamp(value):
+    parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    require(parsed.utcoffset() is not None, 'evidence_time_invalid')
+    return parsed
+
+
+def parse_intent(raw):
     intent = json.loads(raw)
     require(set(intent) == {'mode', 'scanID', 'scannerPodUID', 'submittedAt'}
             and intent['mode'] == 'posture' and intent['scanID'] == SCAN_ID
             and str(uuid.UUID(intent['scannerPodUID'])) == intent['scannerPodUID'], 'intent_mismatch')
-    require(datetime.fromisoformat(intent['submittedAt'].replace('Z', '+00:00')).utcoffset() is not None,
-            'intent_time_invalid')
-    return raw, intent
+    timestamp(intent['submittedAt'])
+    return intent
+
+
+def read_intent(root):
+    raw = read_regular(root / 'inflight.json', 65536)
+    return raw, parse_intent(raw)
+
+
+def original_evidence(intent, failed_raw, terminal_raw):
+    """Qualify only the exact retained run, independent of mutable latest status."""
+    failed = json.loads(unzip(failed_raw))
+    require(failed.get('mode') == 'posture' and failed.get('runID') == RUN_ID
+            and failed.get('state') == 'failed' and failed.get('reasons') == ['posture_report_stale']
+            and failed.get('assessments') == [], 'failure_mismatch')
+    require(timestamp(failed['startedAt']) <= timestamp(intent['submittedAt']) <=
+            timestamp(failed['finishedAt']), 'failure_time_mismatch')
+    response = json.loads(unzip(terminal_raw))
+    require(response.get('id') == SCAN_ID and response.get('type') == 'v1results'
+            and isinstance(response.get('response'), (dict, str)), 'terminal_unverified')
+    return response
 
 
 def terminal_job(job):
@@ -75,6 +99,7 @@ def terminal_job(job):
 def verify_cluster(api, service, intent, own_uid):
     schedules = {j['metadata']['name']: j for j in api.items(BATCH, 'cronjobs', 'kubescape')}
     required = {'kubescape-assessment-' + m for m in ('posture', 'vulnerability', 'refresh')}
+    required |= {'kubescape-scheduler', 'kubevuln-scheduler'}
     require(required <= schedules.keys(), 'schedules_missing')
     require(all(j['spec'].get('suspend') is True and not j.get('status', {}).get('active')
                 for j in schedules.values()), 'schedules_not_quiescent')
@@ -130,32 +155,20 @@ def recover(root, verify, receipts, apply=False):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         raw, intent = read_intent(root)
         require(sha(raw) == receipts['intentSHA256'], 'intent_hash_mismatch')
-        failed_raw = read_regular(root / 'latest-posture.json')
+        run = root / RUN_ID
+        failed_raw = read_regular(run / 'result.json.gz')
         require(sha(failed_raw) == receipts['failureSHA256'], 'failure_hash_mismatch')
-        failed = json.loads(failed_raw)
-        require(failed.get('mode') == 'posture' and failed.get('state') == 'failed'
-                and failed.get('reasons') == ['posture_report_stale'] and failed.get('assessments') == []
-                and re.fullmatch(r'posture-[0-9]{14}-[a-f0-9]{6}', failed.get('runID', '')), 'failure_mismatch')
-        require(datetime.fromisoformat(failed['startedAt'].replace('Z', '+00:00')) <=
-                datetime.fromisoformat(intent['submittedAt'].replace('Z', '+00:00')) <=
-                datetime.fromisoformat(failed['finishedAt'].replace('Z', '+00:00')), 'failure_time_mismatch')
-        run = root / failed['runID']
-        # The per-run result must agree too: a different latest failure is not proof.
-        retained_failure = unzip(read_regular(run / 'result.json.gz'))
-        require(json.loads(retained_failure) == failed, 'retained_failure_mismatch')
         terminal_raw = read_regular(run / 'scanner-result.json.gz')
         require(sha(terminal_raw) == receipts['terminalSHA256'], 'terminal_hash_mismatch')
-        response = json.loads(unzip(terminal_raw))
-        require(response.get('id') == SCAN_ID and response.get('type') == 'v1results'
-                and isinstance(response.get('response'), (dict, str)), 'terminal_unverified')
+        response = original_evidence(intent, failed_raw, terminal_raw)
         # Two independent live reads, on the original unchanged scanner process.
         require(verify(intent) == response and verify(intent) == response, 'terminal_reread_mismatch')
-        require(read_intent(root)[0] == raw and read_regular(root / 'latest-posture.json') == failed_raw
+        require(read_intent(root)[0] == raw and read_regular(run / 'result.json.gz') == failed_raw
                 and read_regular(run / 'scanner-result.json.gz') == terminal_raw, 'evidence_changed')
         receipt = {'schemaVersion': 1, 'scanID': SCAN_ID, 'intent': intent,
                    'scanOutcome': 'completed', 'qualificationState': 'failed', 'reason': 'posture_report_stale',
                    'action': 'terminal_request_acknowledged' if apply else 'preview',
-                   'originalRunID': failed['runID'], **receipts}
+                   'originalRunID': RUN_ID, **receipts}
         if not apply:
             return receipt
         # Exclusive creation + directory fsync before unlinking preserves the
@@ -180,6 +193,30 @@ def export_module():
     return module
 
 
+def archive_file(archive, name, limit=64 * 1024**2):
+    member = archive.getmember('assessments/' + name)
+    require(member.isfile() and member.size <= limit, 'invalid_evidence_file')
+    return archive.extractfile(member).read(limit + 1)
+
+
+def verify_export(path):
+    # The shared verifier checks all members, bounds and the complete gzip stream.
+    # Read only exact original evidence without extracting any archive members.
+    import tarfile
+    with tarfile.open(path, 'r:gz') as archive:
+        intent = parse_intent(archive_file(archive, 'inflight.json', 65536))
+    exporter = export_module()
+    exporter.EXPECTED = intent
+    checked = exporter.verify(path)
+    with tarfile.open(path, 'r:gz') as archive:
+        failed_raw = archive_file(archive, RUN_ID + '/result.json.gz')
+        terminal_raw = archive_file(archive, RUN_ID + '/scanner-result.json.gz')
+    original_evidence(intent, failed_raw, terminal_raw)
+    return {'privateExportSHA256': checked['privateExportSHA256'],
+            'intentSHA256': checked['exportedInflightSHA256'],
+            'terminalSHA256': sha(terminal_raw), 'failureSHA256': sha(failed_raw)}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('action', choices=('export', 'verify-export', 'preview', 'acknowledge'))
@@ -194,25 +231,7 @@ def main():
         exporter.export(args.history, sys.stdout.buffer)
         return
     if args.action == 'verify-export':
-        # Export verifier checks the entire gzip stream, member bounds and types.
-        # Obtain only the exact fence from the private tar, without extraction.
-        import tarfile
-        with tarfile.open(args.archive, 'r:gz') as archive:
-            raw = archive.extractfile('assessments/inflight.json').read(65537)
-        intent = json.loads(raw)
-        require(intent['mode'] == 'posture' and intent['scanID'] == SCAN_ID, 'export_intent_mismatch')
-        exporter = export_module()
-        exporter.EXPECTED = intent
-        checked = exporter.verify(args.archive)
-        with tarfile.open(args.archive, 'r:gz') as archive:
-            failure_raw = archive.extractfile('assessments/latest-posture.json').read(64 * 1024**2 + 1)
-            failure = json.loads(failure_raw)
-            require(re.fullmatch(r'posture-[0-9]{14}-[a-f0-9]{6}', failure.get('runID', '')), 'failure_mismatch')
-            terminal_raw = archive.extractfile('assessments/' + failure['runID'] + '/scanner-result.json.gz').read(64 * 1024**2 + 1)
-        require(len(failure_raw) <= 64 * 1024**2 and len(terminal_raw) <= 64 * 1024**2, 'evidence_too_large')
-        print(json.dumps({'privateExportSHA256': checked['privateExportSHA256'],
-                          'intentSHA256': checked['exportedInflightSHA256'],
-                          'terminalSHA256': sha(terminal_raw), 'failureSHA256': sha(failure_raw)}, sort_keys=True))
+        print(json.dumps(verify_export(args.archive), sort_keys=True))
         return
     sys.path.insert(0, '/code')
     bundle = json.loads(Path('/code/client-bundle.json').read_text())
