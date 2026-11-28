@@ -49,6 +49,13 @@ POSTURE_PERSISTENCE_SECONDS = 60
 # cloud gaps. Requalify this contract when the scanner/policy shape changes.
 POSTURE_COVERAGE_CONTRACT = "kubescape-4.0.20-nsa-talos-bare-metal-v1"
 POSTURE_IMAGE = "quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060"
+# Verified against the image's offline nsa.json and the retained response;
+# hashes and extraction provenance are in posture-coverage-policy.json.
+POSTURE_NSA_CONTROLS = frozenset((
+    "C-0002", "C-0005", "C-0012", "C-0013", "C-0016", "C-0017", "C-0030", "C-0034", "C-0035",
+    "C-0038", "C-0041", "C-0044", "C-0046", "C-0054", "C-0055", "C-0057", "C-0058", "C-0059",
+    "C-0066", "C-0067", "C-0068", "C-0069", "C-0070", "C-0270", "C-0271", "C-0292",
+))
 POSTURE_CLOUD_CONTROLS = ("C-0066", "C-0067", "C-0068")
 POSTURE_HOST_CONTROLS = ("C-0069", "C-0070")
 POSTURE_HOST_GVR = "hostdata.kubescape.cloud/v1beta0/KubeletInfo"
@@ -134,9 +141,8 @@ def posture_coverage(result):
     db.require(isinstance(frameworks, list) and len(frameworks) == 1 and isinstance(frameworks[0], dict)
                and frameworks[0].get("name") == "NSA", reason)
     controls = frameworks[0].get("controls")
-    db.require(isinstance(controls, dict) and len(controls) == 26, reason)
+    db.require(isinstance(controls, dict) and controls.keys() == POSTURE_NSA_CONTROLS, reason)
     unsupported = POSTURE_CLOUD_CONTROLS + POSTURE_HOST_CONTROLS
-    db.require(set(unsupported) <= controls.keys(), reason)
     for identifier, control in controls.items():
         db.require(isinstance(control, dict) and control.get("controlID") == identifier, reason)
         info = control.get("statusInfo")
@@ -1731,10 +1737,10 @@ class Runner:
 
     def qualify_posture(self, result, started, previous=()):
         posture_environment(self.api)
-        self.result["postureCoverage"] = posture_coverage(result)
-        self.save("posture-coverage", self.result["postureCoverage"])
         namespaces = posture_namespaces(self.config)
         scope = posture_scope(result, namespaces)
+        self.result["postureCoverage"] = scope["coverage"]
+        self.save("posture-coverage", scope["coverage"])
         db.require(set(self.config["postureWorkloads"]) <= scope["expected"], "posture_scope_incomplete")
         # A previously persisted RBAC vector with a still-existing binding
         # cannot silently disappear from both the new result and storage.

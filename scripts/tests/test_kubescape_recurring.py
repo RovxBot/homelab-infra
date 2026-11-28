@@ -1661,6 +1661,36 @@ class PostureContractTests(unittest.TestCase):
             with self.subTest(identifier=identifier), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
                 R.posture_scope(result)
 
+    def test_exact_control_ids_match_verified_offline_policy_and_retained_response(self):
+        policy = json.loads((ROOT / 'infra/kubescape/recurring/posture-coverage-policy.json').read_text())
+        self.assertEqual(policy['image'], R.POSTURE_IMAGE)
+        self.assertEqual(policy['contract'], R.POSTURE_COVERAGE_CONTRACT)
+        self.assertEqual(len(policy['controlIDs']), 26)
+        self.assertEqual(set(policy['controlIDs']), R.POSTURE_NSA_CONTROLS)
+        self.assertEqual(set(EXTERNAL_POSTURE['summaryDetails']['frameworks'][0]['controls']), R.POSTURE_NSA_CONTROLS)
+
+    def test_substituted_missing_and_unexpected_control_ids_rejected(self):
+        for identifier in sorted(R.POSTURE_NSA_CONTROLS):
+            for mutation in ('substituted', 'missing', 'unexpected'):
+                result = copy.deepcopy(self.result)
+                controls = result['summaryDetails']['frameworks'][0]['controls']
+                if mutation != 'unexpected':
+                    controls.pop(identifier)
+                if mutation != 'missing':
+                    controls['C-9999'] = {'controlID': 'C-9999', 'status': 'passed', 'statusInfo': {'status': 'passed'}}
+                with self.subTest(identifier=identifier, mutation=mutation), \
+                        self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                    R.posture_scope(result)
+
+    def test_qualifier_computes_coverage_once_and_scope_remains_fail_closed(self):
+        with mock.patch.object(R, 'posture_coverage', wraps=R.posture_coverage) as coverage:
+            self.qualify()
+        coverage.assert_called_once_with(self.result)
+        result = copy.deepcopy(self.result)
+        result['summaryDetails']['frameworks'][0]['controls'].pop('C-0002')
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+            R.posture_scope(result)
+
     def test_scope_slug_matches_pinned_rbac_names_and_long_name_hashing(self):
         self.assertEqual(R.posture_slug('Group-system:serviceaccounts-ClusterRole-system:service-account-issuer-discovery-ClusterRoleBinding-system:service-account-issuer-discovery'),
                          'group-system-serviceaccounts-clusterrole-system-service-account-issuer-discovery-clusterrolebinding-system-service-account-issuer-discovery')
