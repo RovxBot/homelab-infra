@@ -10,7 +10,6 @@
     "mqtt",
     "security",
     "wotlk",
-    "mop",
     "kube-system"
   ],
   "nodes": [

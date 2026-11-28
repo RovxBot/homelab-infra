@@ -44,10 +44,10 @@ def check(resources):
     namespaces = lifecycle["activeNamespaces"]
     assert namespaces == sorted(set(target.split("/", 1)[0] for target in posture))
     assert set(namespaces) == set(chart.CANARY_NAMESPACE.split(",")), "posture lifecycle and scanner namespace scope differ"
-    assert len(posture) == len(set(posture)) == 47
+    assert len(posture) == len(set(posture)) == 44
     assert set(target.split("/", 1)[0] for target in posture) == set(chart.CANARY_NAMESPACE.split(","))
     assert all(re.fullmatch(r"[a-z0-9-]+/(deployment|statefulset)-[a-z0-9-]+", target) for target in posture)
-    assert sum("/statefulset-" in target for target in posture) == 2
+    assert sum("/statefulset-" in target for target in posture) == 1
     selected = {t["identity"] for t in config["targets"]}
     assert "memos/Deployment/memos/memos" in selected
     assert selected <= {"memos/Deployment/memos/memos", "homepage/Deployment/homepage-assets/nginx",

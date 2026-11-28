@@ -604,7 +604,7 @@ class BatchTests(unittest.TestCase):
         required = CONFIG["postureWorkloads"]
         summaries = [summary(*target.split("/")) for target in required] + [summary("kubescape", "shared")]
         result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
-        self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 47)
+        self.assertEqual(R.check_posture(result, summaries, R.db.stamp(NOW), required)["requiredWorkloadCount"], 44)
         for i, target in enumerate(required):
             # Memos retains its earlier explicit prerequisite; all other missing
             # workload summaries fail the expanded scope check.

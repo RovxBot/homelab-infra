@@ -85,7 +85,7 @@ class PublisherTests(unittest.TestCase):
         for workload in ('koito/Deployment/koito', 'koito/Deployment/koito-lastfm-bridge',
                          'monitoring/Deployment/gatus', 'stirling-pdf/Deployment/stirling-pdf',
                          'cloudflared/Deployment/cloudflared', 'mqtt/Deployment/mosquitto', 'security/Deployment/vaultwarden',
-                         'wotlk/StatefulSet/wotlk-mariadb', 'mop/StatefulSet/skyfire-mariadb', 'kube-system/DaemonSet/kube-proxy'):
+                         'wotlk/StatefulSet/wotlk-mariadb', 'kube-system/DaemonSet/kube-proxy'):
             self.assertEqual(pub.validate(envelope(dict(incident(),workload=workload)))[0]['workload'],workload)
         self.assertTrue(pub.RECEIVER.endswith('/v1/private-incidents'))
 
@@ -503,7 +503,7 @@ class CVEPublisherTests(unittest.TestCase):
         config=json.loads((ROOT/"infra/kubescape/recurring/config.json").read_text())
         self.assertEqual(pub.CVE_ALLOWED,{t["identity"].rsplit("/",1)[0] for t in config["targets"]})
         self.assertEqual(len(pub.CVE_ALLOWED),11)
-        self.assertEqual(len(pub.ALLOWED),13)
+        self.assertEqual(len(pub.ALLOWED),12)
         from security_receiver.store import PRIVATE_WORKLOADS
         self.assertEqual(pub.ALLOWED, set(PRIVATE_WORKLOADS.values()))
         self.assertNotIn("kubescape-public-cve",SOURCE.read_text())

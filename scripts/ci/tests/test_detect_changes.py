@@ -127,7 +127,7 @@ class CheckSelectionTests(unittest.TestCase):
 
     def test_combined_batch_selects_all_relevant_checks(self):
         self.assertEqual(
-            self.selected(["apps/immich/deployment.yaml", ".github/workflows/skyfire-mop-images.yml"]),
+            self.selected(["apps/immich/deployment.yaml", ".github/workflows/azerothcore-wotlk-images.yml"]),
             {"manifests", "workflows"},
         )
 

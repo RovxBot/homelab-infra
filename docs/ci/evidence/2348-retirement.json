@@ -1,0 +1,711 @@
+{
+  "schema": 1,
+  "issues": [
+    2348,
+    2299
+  ],
+  "coordinationIssues": [
+    2340,
+    2341
+  ],
+  "baseline": "51d5da36550347fadfc230da6d06263a0be48c0e",
+  "status": "PR preparation only; independent review, hosted checks, merge/rollout and external disposal pending",
+  "authorization": {
+    "date": "2026-11-28 Australia/Adelaide",
+    "disposition": "Permanent retirement of both applications. No retained application data, backups or recovery capability required.",
+    "supersedes": "OpenBrew security/incident acceptance dependency; no authorization for unreviewed live deletion",
+    "securityException": "User explicitly approved removal only of retired MoP/OpenBrew identities and matching coverage contracts, preserving remaining workload coverage and all eight nodes."
+  },
+  "sourceChanges": [
+    {"status":"D","path":".github/workflows/skyfire-mop-images.yml"},
+    {"status":"M","path":"WOTLK.md"},
+    {"status":"D","path":"apps/mop/README.md"},
+    {"status":"D","path":"apps/mop/authserver-deployment.yaml"},
+    {"status":"D","path":"apps/mop/authserver-service.yaml"},
+    {"status":"D","path":"apps/mop/client-db2-extract-cronjob.yaml"},
+    {"status":"D","path":"apps/mop/client-extract-cronjob.yaml"},
+    {"status":"D","path":"apps/mop/client-files-pv.yaml"},
+    {"status":"D","path":"apps/mop/config/authserver.conf"},
+    {"status":"D","path":"apps/mop/config/worldserver.conf"},
+    {"status":"D","path":"apps/mop/data-pvc-rwx.yaml"},
+    {"status":"D","path":"apps/mop/kustomization.yaml"},
+    {"status":"D","path":"apps/mop/mariadb-init-configmap.yaml"},
+    {"status":"D","path":"apps/mop/mariadb-pvc.yaml"},
+    {"status":"D","path":"apps/mop/mariadb-service.yaml"},
+    {"status":"D","path":"apps/mop/mariadb-statefulset.yaml"},
+    {"status":"D","path":"apps/mop/namespace.yaml"},
+    {"status":"D","path":"apps/mop/worldserver-deployment.yaml"},
+    {"status":"D","path":"apps/mop/worldserver-service.yaml"},
+    {"status":"D","path":"clusters/home/apps/mop-kustomization.yaml"},
+    {"status":"M","path":"clusters/home/kustomization.yaml"},
+    {"status":"M","path":"infra/kubescape/helmrelease.yaml"},
+    {"status":"M","path":"infra/kubescape/receiver/config.json"},
+    {"status":"M","path":"infra/kubescape/receiver/rbac.yaml"},
+    {"status":"M","path":"infra/kubescape/receiver/workload.yaml"},
+    {"status":"M","path":"infra/kubescape/recurring/config.json"},
+    {"status":"M","path":"infra/kubescape/runtime-bindings/mariadb.yaml"},
+    {"status":"M","path":"infra/kubescape/runtime/admission.yaml"},
+    {"status":"M","path":"infra/observability/security-incident-publisher/publisher.py"},
+    {"status":"D","path":"ops/mop-images/Dockerfile"},
+    {"status":"D","path":"ops/mop-images/database.env"},
+    {"status":"D","path":"ops/mop-images/skyfire.ref"},
+    {"status":"D","path":"ops/mop-images/skyfire.repo"},
+    {"status":"M","path":"renovate.json"},
+    {"status":"M","path":"scripts/ci/check_kubescape.py"},
+    {"status":"M","path":"scripts/ci/check_kubescape_recurring.py"},
+    {"status":"M","path":"scripts/ci/kubescape_runtime.py"},
+    {"status":"M","path":"scripts/ci/security_native_exporter_preflight.py"},
+    {"status":"M","path":"scripts/ci/tests/test_detect_changes.py"},
+    {"status":"M","path":"scripts/security_receiver/store.py"},
+    {"status":"M","path":"scripts/security_receiver/trust.py"},
+    {"status":"M","path":"scripts/tests/test_kubescape_recurring.py"},
+    {"status":"M","path":"scripts/tests/test_security_native_publisher.py"},
+    {"status":"M","path":"scripts/tests/test_security_receiver_deployment.py"},
+    {"status":"M","path":"scripts/tests/test_security_receiver_publisher.py"},
+    {"status":"M","path":"scripts/tests/test_security_receiver_service.py"},
+    {"status":"D","path":"secrets/mop-mariadb-auth.enc.yaml"}
+  ],
+  "logicalRemovalInventory": [
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "ConfigMap",
+        "mop",
+        "skyfire-config-kkcb6dcm66"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "ConfigMap",
+        "mop",
+        "skyfire-mariadb-init"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "Namespace",
+        "",
+        "mop"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "PersistentVolume",
+        "",
+        "nfs-wow-mop-client-mop"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "PersistentVolumeClaim",
+        "mop",
+        "skyfire-client-files"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "PersistentVolumeClaim",
+        "mop",
+        "skyfire-data-rwx"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "PersistentVolumeClaim",
+        "mop",
+        "skyfire-mariadb-data"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "Secret",
+        "mop",
+        "mop-mariadb-auth"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "Service",
+        "mop",
+        "skyfire-authserver"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "Service",
+        "mop",
+        "skyfire-mariadb"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "",
+        "Service",
+        "mop",
+        "skyfire-worldserver"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "apps",
+        "Deployment",
+        "mop",
+        "skyfire-authserver"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "apps",
+        "Deployment",
+        "mop",
+        "skyfire-worldserver"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "apps",
+        "StatefulSet",
+        "mop",
+        "skyfire-mariadb"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "batch",
+        "CronJob",
+        "mop",
+        "skyfire-client-db2-extract"
+      ]
+    },
+    {
+      "owner": "apps-mop",
+      "identity": [
+        "batch",
+        "CronJob",
+        "mop",
+        "skyfire-client-extract"
+      ]
+    },
+    {
+      "owner": "flux-system",
+      "identity": [
+        "kustomize.toolkit.fluxcd.io",
+        "Kustomization",
+        "flux-system",
+        "apps-mop"
+      ]
+    },
+    {
+      "owner": "kubescape",
+      "identity": [
+        "rbac.authorization.k8s.io",
+        "Role",
+        "mop",
+        "security-receiver-inventory"
+      ]
+    },
+    {
+      "owner": "kubescape",
+      "identity": [
+        "rbac.authorization.k8s.io",
+        "RoleBinding",
+        "mop",
+        "security-receiver-inventory"
+      ]
+    },
+    {
+      "owner": "kubescape-runtime-bindings",
+      "identity": [
+        "kubescape.io",
+        "RuntimeRuleAlertBinding",
+        "",
+        "runtime-skyfire-mariadb"
+      ]
+    }
+  ],
+  "liveEvidence": "2348-live-inventory.json",
+  "renderEvidence": "2348-render-diff.json",
+  "renderReproduction": "PATH=<kustomize-5.5.0>:$PATH python3 docs/ci/evidence/2348-render-diff.py BASELINE_CHECKOUT CANDIDATE_CHECKOUT OUTPUT_JSON",
+  "storage": {
+    "longhornLogicalGiB": 115,
+    "nominalThreeReplicaGiB": 345,
+    "longhornActualSizeSumGiB": 11.905975341796875,
+    "threeReplicaPhysicalEstimateGiB": 35.717926025390625,
+    "physicalEstimateCaveat": "Derived from Longhorn actualSize at snapshot; sparse files, filesystem/replica metadata and concurrent changes affect physical disk reclamation. Not measured free disk.",
+    "nfsClaimAdvertisedGiB": 100,
+    "nfsActualBytes": "unavailable; advertised capacity is not usage",
+    "nativeSnapshotCount": 27,
+    "nativeBackupCount": 22,
+    "backupVolumeCount": 4,
+    "nativeBackupOwnership": "22 completed backups verified by existing canonical URL/label/owner checks",
+    "b2ReclaimedBytes": "unavailable; versions/locks/deduplication not enumerated"
+  },
+  "compute": {
+    "prospectiveReservationRecovery": {
+      "cpuCores": 2.5,
+      "memoryGiB": 7.5,
+      "byNode": {
+        "metal8": {
+          "cpuCores": 2.25,
+          "memoryGiB": 4.5
+        },
+        "metal4": {
+          "cpuCores": 0.25,
+          "memoryGiB": 3
+        }
+      }
+    },
+    "removedLimits": {
+      "cpuCores": 7,
+      "memoryGiB": 13
+    },
+    "openbrewCurrentPods": 0,
+    "openbrewAdditionalReservationSaving": 0,
+    "extractorCronJobs": "Both suspended; no running extraction Jobs observed; no ongoing request saving counted",
+    "shareManager": "One dedicated Longhorn RWX share manager; resources empty, no configured reservation counted",
+    "notClaimed": [
+      "realized usage or disk recovery",
+      "N-1 scheduler fit",
+      "capacity approval for replacement services"
+    ]
+  },
+  "securityCoverage": {
+    "postureBefore": 47,
+    "postureAfter": 44,
+    "postureOnlyRemovals": [
+      "mop/deployment-skyfire-authserver",
+      "mop/deployment-skyfire-worldserver",
+      "mop/statefulset-skyfire-mariadb"
+    ],
+    "activePostureNamespacesAfter": 18,
+    "cveTargetsBeforeAndAfter": 11,
+    "runtimePublisherBefore": 13,
+    "runtimePublisherAfter": 12,
+    "runtimeOnlyRemoval": "mop/StatefulSet/skyfire-mariadb",
+    "runtimeNodes": [
+      "metal0",
+      "metal2",
+      "metal3",
+      "metal4",
+      "metal5",
+      "metal6",
+      "metal7",
+      "metal8"
+    ],
+    "remainingStaticChecks": "verified",
+    "liveAcceptance": "not run; pre-existing production coverage qualification remains unresolved, not converted to success"
+  },
+  "receiverImage": {
+    "base": "docker.io/library/python@sha256:a943ed02f4e22d024d2b4fc5083619497dfb9bc1c64c193861f3bc6d3074f5b1",
+    "digest": "sha256:5ca6be935f42c5253913eb199b9cda8cb073f729a49f7e7ecdcee6f0868f340e",
+    "files": {
+      "scripts/security_receiver/native.py": "80959139a4c457fabdfbc070ad970f413e131e26ed57952ee90c20da905edd25",
+      "scripts/security_receiver/service.py": "899f97fbc9e5e71c021dcb19827a1229f4d28bc97470b51d217085b34381f044",
+      "scripts/security_receiver/store.py": "8a88395a40d8c2709cf5fb3ebb2045276ee61edd303be0a7d5f8e5e028003053",
+      "scripts/security_receiver/trust.py": "a4b057f24fb2e081079c5638335bca427a7d84219a5b17b1d91f8537fca155c1"
+    },
+    "platform": "linux/amd64",
+    "source_layer_sha256": "989f034db66710d7b658b98275be9bc6e52523b37420febad6c4f924b439b162",
+    "reason": "Required narrow removal of retired direct-controller trust/projection identities baked into the receiver",
+    "localStatus": "verified build and tarball validation",
+    "hostedPublicationScanAnonymousRetrieval": "not run; required pre-merge gate",
+    "runtimeDockerSmoke": "not run locally; hosted receiver workflow required",
+    "baseUnchanged": true
+  },
+  "protectedSourceHashes": [
+    {"path":".github/workflows/azerothcore-wotlk-images.yml","sha256":"665b190833f7a402f84c0c5c10cd7f70a8e304a88836de0f3cdbde95e96ff2aa"},
+    {"path":"apps/wotlk/Assets/Logo.jpg","sha256":"f044d07286849ed5d71d264f6a834a969851e2af2cd12a897fe6dba5755c669c"},
+    {"path":"apps/wotlk/Assets/Logo.png","sha256":"bb4576432bb2b9da892b6d8bbf6bc1a75297a8089b8679696452d6339d7c7811"},
+    {"path":"apps/wotlk/CLUSTERING.md","sha256":"6d00241f4e2a1a73d26c65298ee794655c7ce7b124f6d962097d7139b6f6f9d8"},
+    {"path":"apps/wotlk/PROGRESSION.md","sha256":"e3458c0ff4647b9641b522f24d0085b1f0eeb93c667905a6b2c4ff648655cfdd"},
+    {"path":"apps/wotlk/SOLO_COLLECTIONS.md","sha256":"5ddeb6014331726bda01fe3192f5285b4e0ac87fda6b2aff0ce2326814310c69"},
+    {"path":"apps/wotlk/acore-source-configmap.yaml","sha256":"809423b064b0ce5141f703fee16aa05ab0680efb1c7cc3273134c658fb6dce12"},
+    {"path":"apps/wotlk/ahbot-cleanup-cronjob.yaml","sha256":"c257cbe95e0b4a516118d949f7e09e93719b20df44d2b805d662f7d8c5f747b0"},
+    {"path":"apps/wotlk/authserver-config.yaml","sha256":"1977b0e5ccbfd0fd5f94f757a891472a35fd3d26f4c39a1ffccb76446d76f81a"},
+    {"path":"apps/wotlk/authserver-deployment.yaml","sha256":"b4d1bae21a6891294a63907acdc892f19b40bbeb7f9f176e5193b651a9bf8b7c"},
+    {"path":"apps/wotlk/client-extract-cronjob.yaml","sha256":"b9dcf4f6712c289fe48eb0342f62314a403070a0ca5a2f2ef0121b73fc3b5d86"},
+    {"path":"apps/wotlk/client-extract-mmaps-cronjob.yaml","sha256":"9fbebc973de28a82263630000f9246bb912b70336a0478efdbda0b60c4e6d82b"},
+    {"path":"apps/wotlk/client-files-pv.yaml","sha256":"0cc945ab02dec0b8621c0c5d25f0616cd000569a8cba70442a2370a7ac4b7d7f"},
+    {"path":"apps/wotlk/config/MultiBotBridge.conf","sha256":"ac31bc42fc13d2d062cec21cb5b3a75b2c9a7e075f0674c5023864b16c3522d9"},
+    {"path":"apps/wotlk/config/mod-playerbot-autonomy.conf","sha256":"30cef1fe7387b2c30648b8e7f0e172a2ffa0949faab9fe6bfe765602b383af68"},
+    {"path":"apps/wotlk/config/mod-weekend-bonus.conf","sha256":"2c5d9c81196641fdef8c767f6a5f6f34fb9bb8d7772dfd105481382b80f6d3ce"},
+    {"path":"apps/wotlk/config/mod_ahbot.conf","sha256":"36c1c2dcde1896dcfcc267f6745c3cbd0692fe77024fa91b85b8d5accdd971fa"},
+    {"path":"apps/wotlk/config/mod_customnpcs.conf","sha256":"46fa8276a46f32e1299cff17ecd7ed3c9d7d77295571b1ae477a81df0a66b34d"},
+    {"path":"apps/wotlk/config/mod_dungeon-clear.conf","sha256":"325e7c98a0af9f0de66829eafb8110bf2a802df3e6858539af286fe2b8eb2855"},
+    {"path":"apps/wotlk/config/mod_grimtokendailies.conf","sha256":"24c12b0e7b2587c70a081eefd2139350d7fd10fe10da0f1e518712c559f74c9f"},
+    {"path":"apps/wotlk/config/mod_guildfunds.conf","sha256":"8675801ae18457637d1f370d38e6a4c9c82a99463675f6e110026882d211cda9"},
+    {"path":"apps/wotlk/config/modules.txt","sha256":"88a55967cb881d85ba777ade2783ee43ea18cd4e25df24e018c5463d01aa8924"},
+    {"path":"apps/wotlk/config/playerbots.conf","sha256":"c46eef4e9f5a6b039981c6b66fe29b16902b0913769778475e73465f837cebfa"},
+    {"path":"apps/wotlk/config/progression_system.conf","sha256":"d35db4378c1d403b04af865fa34aba708f70b5330ba99f3de3a124f76d2409f5"},
+    {"path":"apps/wotlk/config/solocollections-source.env","sha256":"c28571926ea423cd38ef8f28753c953ee64eb102dbb6a2fb5eb0903f15cd0921"},
+    {"path":"apps/wotlk/config/transmog.conf","sha256":"f66f256e8ccd2d3ce1f2a8156ac99cbe53eb02fb334a57fa2a722339494d8065"},
+    {"path":"apps/wotlk/config/worldserver.conf","sha256":"f42bb7a11408873b3913011896e43d8c72a11ab4e497dd4136c9a6b3bfebb1c7"},
+    {"path":"apps/wotlk/data-pvc-rwx.yaml","sha256":"0ef2277b808ff330e5b8a5fada05b3d2d9bc56cab1aa4dc70401319cf0bdc034"},
+    {"path":"apps/wotlk/db-bootstrap-cronjob.yaml","sha256":"28d4b707e9249f26636eae4ed169218f87667bbcc15f908a2d60e40c82694b19"},
+    {"path":"apps/wotlk/fixes/README.md","sha256":"7c062b96fd7655db2bc64b1ca81847e7396a9fd97d88cba0c8723406238ef819"},
+    {"path":"apps/wotlk/fixes/notes/cooking-reagents.md","sha256":"d06915b09d0b91ed0ebb58238466a487e2612d7f999d50d7ccad6498a3a80785"},
+    {"path":"apps/wotlk/fixes/scripts/sync_cooking_reagents.py","sha256":"b9330c35b9d901163d1ebd1d6ce2203b982551dd0340c1becb459ede872150ae"},
+    {"path":"apps/wotlk/fixes/sql/level-boost-token.sql","sha256":"f57477a6c47951ce9cc36364510be5efef8be51e7f67e3b8feb238533a0a8422"},
+    {"path":"apps/wotlk/fixes/sql/transmog-org.sql","sha256":"e4445735057349ec2a406de38718f25549c94020ccc25b84230ef23bf92afc71"},
+    {"path":"apps/wotlk/fixes/sql/transmog-sw.sql","sha256":"ecc8b287a2b205db0a3c2b540325a01b763095a85387e576d5798496c063c9ec"},
+    {"path":"apps/wotlk/kustomization.yaml","sha256":"4dd18c53d8334915cddbb17e58763dce3bf50d26483f68518d841c78482268a0"},
+    {"path":"apps/wotlk/mariadb-config-configmap.yaml","sha256":"f33a161d94f40b5ae1a134194c4e20956d7a84e5367407db9fa8ea841663e847"},
+    {"path":"apps/wotlk/mariadb-headless-service.yaml","sha256":"ccbe3cffb32b6041220e897dec0551784fec685de7f9979836ac44cdfce8746a"},
+    {"path":"apps/wotlk/mariadb-pvc.yaml","sha256":"e2a8d6cfef797b1606f93c494945cd70a1647c3475d930b5de84a6c19631c4d2"},
+    {"path":"apps/wotlk/mariadb-service.yaml","sha256":"295b64267c31cc8f3beae6c3fe9b0e069f4b378c537c5e780a7e2ae6627712cc"},
+    {"path":"apps/wotlk/mariadb-statefulset.yaml","sha256":"b42d3f2dc5d7c936658813c602019828385908f05892758077bb494ae9795c3e"},
+    {"path":"apps/wotlk/mmaps-config-configmap.yaml","sha256":"5a0074690f6d4fe67934baa7bf7063dce3ae22bbf80d8c7c22f9b5a4090e7177"},
+    {"path":"apps/wotlk/namespace.yaml","sha256":"622465ec007e2127e950f458517106922d821831b92b8e609ffaca2643da0246"},
+    {"path":"apps/wotlk/patches/mod-solo-collections-cxx17.patch","sha256":"340b35ce9ab628e547d831a0e4619acab9dd0c32889634ac33344135191f9d01"},
+    {"path":"apps/wotlk/patches/raid-logging-all-expansions.patch","sha256":"635b16c8812445eb8b76542edda93d65b92928fe850a3df8626614d265117dde"},
+    {"path":"apps/wotlk/realm-upsert-cronjob.yaml","sha256":"9180f7fb4c62b911e3eb0221dce4e172c6a812ef4caa426bc9d98de1350abdcf"},
+    {"path":"apps/wotlk/restart-cronjob.yaml","sha256":"0849bc862dfa6623a26ebdd1014922c92e0dad5b2e07ea54bb846ab27b584010"},
+    {"path":"apps/wotlk/restart-rbac.yaml","sha256":"3b646715ed20845211c98c56bb6de282a22822aa834fe4b53b7335e7fdf9d708"},
+    {"path":"apps/wotlk/scripts/verify_solocollections_catalog.py","sha256":"784288bbbbdc852af227237d74d9191cb4622e9bd1d99172cd376581d3f64e97"},
+    {"path":"apps/wotlk/worldserver-deployment.yaml","sha256":"057702fc974769ffdf602153f38a468704022e75a728750ac8c5c93167880044"},
+    {"path":"apps/wotlk/worldserver-soap-networkpolicy.yaml","sha256":"f07f99519168f5851add28fee1cbbb46f319a3e10a2438fc5f956d0714c021ef"},
+    {"path":"apps/wotlk/worldserver-soap-service.yaml","sha256":"1e2af2e81f4ca07f51d8dbc2e75dfb717b3e3efe11dbac4b6ae6248bcd526907"},
+    {"path":"infra/cilium/helmrelease.yaml","sha256":"56283d5899b7e04dfa80e333329e3870f93c023f855b18a822fdb641c6fa5694"},
+    {"path":"infra/cilium/kustomization.yaml","sha256":"a9ff4181a990b52fa92d784eb349fcbc37ff1568973466f0218464cd03aff660"},
+    {"path":"infra/cilium/ocirepository.yaml","sha256":"ddf1db074b66a407dda610f047556b2616918ea4b3dfb914a7619bcdb4f8a455"},
+    {"path":"infra/kyverno-policies/exceptions/exceptions.yaml","sha256":"d780f419940cac1c9c40b88b4cc624cad9c3ef321608d0cf54705277ebbd5877"},
+    {"path":"infra/kyverno-policies/kustomization.yaml","sha256":"d7ca09681f25d9e338782eccadeb2317713d454c035449b904af5fcb3968e38d"},
+    {"path":"infra/kyverno-policies/policies/flux.yaml","sha256":"d6ab1f680747a6962b4a43c0183de8955902a3971e0d2622aa7f1fc9ed4f5873"},
+    {"path":"infra/kyverno-policies/policies/governance-native.yaml","sha256":"1dd7dd746e8775ac068e68695f8b4ba7a5ae103470240cf88bb4c3ad32eb5f4d"},
+    {"path":"infra/kyverno-policies/policies/mutation.yaml","sha256":"65291e88e12981a2c571a732ca02f1a62d77544ac07741062c15005a01ad815f"},
+    {"path":"infra/kyverno-policies/policies/namespace.yaml","sha256":"85a6eabaa58c7d19900c1a23e12d814ae3ba748a7bfc44253093e2bf603089f8"},
+    {"path":"infra/kyverno-policies/policies/reporting-rbac.yaml","sha256":"840ab4f128f42e977ed2a308a9a5fb656fc93839891e116ddbc11c7979c2b2fa"},
+    {"path":"infra/kyverno-policies/policies/runners.yaml","sha256":"75ca3bfe094279b0da8e027755f808bc75e290c4a888753c9c415aa0e5cf1222"},
+    {"path":"infra/kyverno-policies/policies/workloads.yaml","sha256":"211ad4d4b59fa5a27545a01da98f040cd1b05e3844e0860037a5efeaa7f1fb5b"},
+    {"path":"infra/kyverno-policies/policy-map.json","sha256":"70aadc53b8519708b5b29495047efffd1b03cdfee5b3b45394eb992747d2556f"},
+    {"path":"infra/kyverno/automation/github-issue-sync-configmap.yaml","sha256":"a3da5290273c4ff593193f466bf7cbab58848a01d39ec545f8b903d192635d1c"},
+    {"path":"infra/kyverno/automation/github-issue-sync-cronjob.yaml","sha256":"f58b1f0d86ed15895bc053a41495617b6de530460cfc3eebbfd204b98426ce7b"},
+    {"path":"infra/kyverno/automation/github-issue-sync-rbac.yaml","sha256":"2ab82d1b75c18fc022751979c29eeb5a532f46473c79fcb951c1bb3098f76b96"},
+    {"path":"infra/kyverno/automation/kustomization.yaml","sha256":"a4e1e1c017154e007f9904edf9f62a84a5277b2662d741ce663d3ac2d34053eb"},
+    {"path":"infra/kyverno/automation/policy-assurance.yaml","sha256":"ccb9126fd00452df97d64118fdb00d07c7f55f1444e76e894c80534fe683707d"},
+    {"path":"infra/kyverno/exceptions/chart-managed-workloads.yaml","sha256":"a18e1e223924266586783285e9e0d64c036ae5beff3e7a46429f55e5b079b4b6"},
+    {"path":"infra/kyverno/exceptions/gpu-operator-workloads.yaml","sha256":"263732f0025520d8574350671bbaa4f920a567c312a73a98208e865990ad90bd"},
+    {"path":"infra/kyverno/exceptions/home-assistant.yaml","sha256":"a417ae190215fd31e22dd2b017edd7f951d4516456004710dc517bb7fb0d1edc"},
+    {"path":"infra/kyverno/exceptions/kustomization.yaml","sha256":"1f265c087d0b59f43e8caaa4f9a9e579276d78c4c12ffede2ed65ff91ee88d11"},
+    {"path":"infra/kyverno/exceptions/mutable-image-tags.yaml","sha256":"ab741c040fa438738e76a1cfd5dac447252b22f1abcdc81861d6d7e010bed9f9"},
+    {"path":"infra/kyverno/exceptions/privileged-namespaces.yaml","sha256":"5a5baf09691d0c7082bedc86f5a51176f76d878c03c5d75b59e9924f86fb7ef2"},
+    {"path":"infra/kyverno/helmrelease.yaml","sha256":"37a00614b12e19ad4e2fa3066f26c7735bde2a66f9b384f6d4bdf1080d22f282"},
+    {"path":"infra/kyverno/helmrepository.yaml","sha256":"3785a74972ea4ef394b8d8bc641cf58805a22faebf79a20e269c801c76ad57fc"},
+    {"path":"infra/kyverno/kustomization.yaml","sha256":"c9eb9240ea4ba4eb01090c2b9255aa4bd9822a148496fc096f0703e54ef1db9b"},
+    {"path":"infra/kyverno/namespace.yaml","sha256":"474456a06cd7ec58ce8659ce263aca124fb9991b5a60bfc9caf5283b02aa64fc"},
+    {"path":"infra/kyverno/policies/kustomization.yaml","sha256":"f06949d4d453527342d713a0fe594aa0d9bcb73eb8aeb56e224b3ebe555e4122"},
+    {"path":"infra/kyverno/policies/longhorn-csi-registrar-lifecycle.yaml","sha256":"4988996b47ac5aea8924ee937c364f38710221b9745a9e5b738031bf4793bbda"},
+    {"path":"infra/kyverno/policies/platform-flux-guardrails.yaml","sha256":"506b8063f55850ba81e06455b3fcbd8a3a7c981acbd4d7bd75f31e5ee506cdd7"},
+    {"path":"infra/kyverno/policies/platform-namespace-bootstrap.yaml","sha256":"eae699423f5c26bbd67aa5aa3fccef2ed3c6ec7b981b7b0870f9666883fb3890"},
+    {"path":"infra/kyverno/policies/platform-namespace-standards.yaml","sha256":"6428b00bfba710b7e8e6669cbd539e3d27e9de7d8763dcf5a87998a81e758202"},
+    {"path":"infra/kyverno/policies/platform-pod-standards.yaml","sha256":"d6e8ecaca7d5e00b52868e911bf050280d26f08245d9a080034a362620c7f19f"},
+    {"path":"infra/kyverno/policies/policy-exception-accountability.yaml","sha256":"2e5421d978ea6b43aca40d66f47a85add571b73d87d282a66ac1a8669437dc2b"},
+    {"path":"infra/kyverno/runner-namespaces.yaml","sha256":"6a7f1b5df69c82a5b2cc5862c9dce8e1629504f0825111780811302da6a260f4"},
+    {"path":"infra/zabbix/evidence/2026-11-28-foundation.json","sha256":"ec59b892d323f94ef2d8ab6204eb3b224c62339fbe154c4e5cdb8d2a3639b61a"},
+    {"path":"infra/zabbix/evidence/2026-11-28-frontend-loopback.json","sha256":"f6ce2664423f07417ed7fd988017ef727d77680b58d46f22cac5fd5a7499ed09"},
+    {"path":"infra/zabbix/frontend.yaml","sha256":"098cf14d2fca471dc674f04b24680e40bc4ce08caf978c5e927b19e454050d71"},
+    {"path":"infra/zabbix/kustomization.yaml","sha256":"e4094b1a9ff7163abc5654d57f74b21df0d5e7256eead18c03ccf2d301b95dcb"},
+    {"path":"infra/zabbix/namespace.yaml","sha256":"19bf8ee2b48e2f9000c54ae3939b38448b412ac4f653a058b93910923d3b7ad1"},
+    {"path":"infra/zabbix/nginx.conf","sha256":"d26b3fde2d874001c55f6703b6778b260a20bd3ceac64998b81b6170804305e7"},
+    {"path":"infra/zabbix/nginx_ssl.conf","sha256":"76be20bba7fd2cb2dff66d97313e7270af87b1bf04532954bff4c7b671ca3e5c"},
+    {"path":"infra/zabbix/postgres-init.sql","sha256":"bf11a6ae526707139911faf4b46a7646324dbd404bbea8e48d314b26989fd276"},
+    {"path":"infra/zabbix/postgres.yaml","sha256":"b10d0083c404c162afe2522642d9f494a956f55400de897ed0a3cd27b3024a02"},
+    {"path":"infra/zabbix/server.yaml","sha256":"a4e091807aaa79a7e688b4f732ad32809fa7021e754a55f4f3b8b0654bed25ae"},
+    {"path":"infra/zabbix/storage.yaml","sha256":"ecb02e5739806197d6c7ebb28b6d55a95c9e6c52f2a91c6024211824e9a856b1"},
+    {"path":"terraform/oci-free-tier/.terraform.lock.hcl","sha256":"596d4a1571df15f24474281b79adb1e57509179ed7677e7bf468bcd35c3e93f5"},
+    {"path":"terraform/oci-free-tier/README.md","sha256":"1b0aa4a37d15e027f483945c2d946c62c06e633c49d09719299d85d94fe12589"},
+    {"path":"terraform/oci-free-tier/main.tf","sha256":"043cc4be66b153ab1c8d04fad9d055e3910333f35102f82674ec47bcb163a30e"},
+    {"path":"terraform/oci-free-tier/materialize_terraform_secret_vars.py","sha256":"a1b395298603360928e6c7551813f90c070298fae99a44f1f7a6da4357358a37"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/Caddyfile","sha256":"576c14503d49c693cd99e0c6616791d6bd94f59344f87d45620fb602c99e6235"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/README.md","sha256":"25226a42845fcc608caeef6dfd2cff50532562af5c5781a1c071b7f239cf36af"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/fail2ban-sshd.local","sha256":"a1bc33fcb51ee0a4bd544c4d5011252e29d0a2c1ff121303a07c83298f9f2e93"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/install-admin-wireguard-peer.sh","sha256":"d76ae760c34a5817d9f108d49ce8889c718ae822e372a159c04aaded10e251d2"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/restrict-ssh-to-wireguard.sh","sha256":"689672e0c5473e83623ed1d03d7ede6f1ef51e1b9b45e3e0176f045da9b085a4"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/sshd-hardening.conf","sha256":"6a6cdcb1131c0954d0a580e538c8124e74d266803e173344df2928dc398f57f4"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/vps-public-edge.sh","sha256":"3843ea26fe50be3d18f3d839d3aabce8666c21ad5ed19ad0af9d0715e53caed1"},
+    {"path":"terraform/oci-free-tier/ops/wireguard/vps-wotlk-forwarding.sh","sha256":"bf99a37c4fb637b1440a65fc38e1804ca8d537d139e0354f840d82d857ed3191"},
+    {"path":"terraform/oci-free-tier/outputs.tf","sha256":"f8411197d3ac35cb4f0f02123c14b55fd6796078816b96675173d2c7f360dafa"},
+    {"path":"terraform/oci-free-tier/provider.tf","sha256":"7a3add17498d7f1d1d060856121c670cc84c0f880554e70077f7c42a80fbd059"},
+    {"path":"terraform/oci-free-tier/templates/matrix-cloud-init.yaml.tftpl","sha256":"5d0cafae3b99b9fba59349341a00cca9c4ebdacb0d48e763593884b957f7e3b2"},
+    {"path":"terraform/oci-free-tier/templates/wireguard-cloud-init.yaml.tftpl","sha256":"92c87791f63f0f97c42ae06384f3d8b62d4855cdbb0f66d09d8fa9d4192e4553"},
+    {"path":"terraform/oci-free-tier/terraform.tfvars.example","sha256":"8ecf255ccdc3a5bfb39c5bc8369fcc1b545bf735323317675c562fbe443c1273"},
+    {"path":"terraform/oci-free-tier/variables.tf","sha256":"a826bb8a833c1eb1aecb23fb9735e7302e42f0db15c466f8acfd8300a4d23184"},
+    {"path":"terraform/oci-free-tier/versions.tf","sha256":"2770ed2cd06c13b733daf98912f4a36b614dad73c0b0cb05c47ee4dd4cef87ee"},
+    {"path":"terraform/oci-free-tier/wireguard-peer-config.enc.yaml","sha256":"d82121efe0e65eb9d6894c5407d231af4ae99bfe9f38e1e022ce54a42ab13bd9"},
+    {"path":"terraform/oci-matrix-free-tier/.terraform.lock.hcl","sha256":"596d4a1571df15f24474281b79adb1e57509179ed7677e7bf468bcd35c3e93f5"},
+    {"path":"terraform/oci-matrix-free-tier/README.md","sha256":"4ad92886a481dfa17342cb8a6722f8acfcffb2caa18dd69a0fd7e190f98dbf88"},
+    {"path":"terraform/oci-matrix-free-tier/main.tf","sha256":"4c077734e8529e5fa9c7a0911ef7f7eb152c9e9401a0894a9c2bcb85ffd5f10e"},
+    {"path":"terraform/oci-matrix-free-tier/outputs.tf","sha256":"24473afc02783820630358b9fdc1d69e0b9826858221ea968be311ded27749bf"},
+    {"path":"terraform/oci-matrix-free-tier/provider.tf","sha256":"7a3add17498d7f1d1d060856121c670cc84c0f880554e70077f7c42a80fbd059"},
+    {"path":"terraform/oci-matrix-free-tier/templates/matrix-cloud-init.yaml.tftpl","sha256":"b6349da99a165c638b66584d615c6cd80a8b647edca732108538567f8e3bc8a9"},
+    {"path":"terraform/oci-matrix-free-tier/terraform.tfvars.example","sha256":"f2573a2144a6fa80ab580683c7af488e86529c10009064afba23eda0e1877fb8"},
+    {"path":"terraform/oci-matrix-free-tier/variables.tf","sha256":"7fbf75d49b6f1901b3c8dcf5ed9c024bd3a56725a2dd7cb9a166cf5a6aae0ca3"},
+    {"path":"terraform/oci-matrix-free-tier/versions.tf","sha256":"2770ed2cd06c13b733daf98912f4a36b614dad73c0b0cb05c47ee4dd4cef87ee"}
+  ],
+  "externalTargets": {
+    "nfs": {
+      "server": "192.168.1.154",
+      "path": "/volume1/Plex Media/Games/MOP-5.4.8",
+      "pv": "nfs-wow-mop-client-mop",
+      "reclaim": "Retain",
+      "clusterPVMatches": 1,
+      "nasManualConsumerSnapshotCopyInventory": "unavailable; requires NAS owner verification"
+    },
+    "registry": {
+      "dedicatedRepositoryPackages": [
+        "ghcr.io/rovxbot/skyfire-mop",
+        "ghcr.io/rovxbot/openbrew-sqlserver"
+      ],
+      "outsideConsumersAndVersionIds": "unavailable; GitHub packages API 403 missing read:packages; no deletion attempted"
+    },
+    "cloudflare": {
+      "openbrewHostname": "openbrew.cooked.beer",
+      "authoritativeRecordAndAccessIds": "unavailable; owner must verify exclusive targets",
+      "tunnelRoute": "already removed in PR #2330",
+      "mopRepositoryHttpOrDnsRoutes": "none found; native LAN listeners metal8 TCP 3724/8085; external launcher/router/DNS inventory unavailable"
+    },
+    "identity": {
+      "openbrewDedicatedApp": "OpenBrew OIDC",
+      "callback": "https://openbrew.cooked.beer/oauth2/callback",
+      "objectIds": "privately retained in earlier #2299 inventory; refresh outside public Git",
+      "mopSopsSecret": "mop/mop-mariadb-auth; encrypted source removed; Flux prunes live Secret",
+      "openbrewSopsSecret": "already removed by #2330; no live Secret observed",
+      "sharedCredentials": "preserved; dedicated external copies need owner verification/revocation"
+    },
+    "monitoring": "OpenBrew route/Homepage/Gatus entries already removed in #2330. No MoP entry found in active route/dashboard/Gatus config. Only exact MoP private publisher identity removed; historical private evidence stays private.",
+    "historicalReferences": "Existing immutable CI receipts, Kyverno relocation inventory, Longhorn acceptance runbook and posture investigation remain historical evidence. Homepage .b64 match is encoded image data, not an application reference."
+  },
+  "manualKubernetesDeleteTargets": [
+    {"kind":"PersistentVolumeClaim","namespace":"openbrew","name":"openbrew-database","expectedUid":"202a55fb-d47d-40a4-959e-271591f1dda8","apiPath":"/api/v1/namespaces/openbrew/persistentvolumeclaims/openbrew-database","phase":"after-rollout-review; one claim at a time"},
+    {"kind":"PersistentVolumeClaim","namespace":"openbrew","name":"openbrew-media","expectedUid":"0abe9a7a-207a-428b-98a5-953bc6e23d05","apiPath":"/api/v1/namespaces/openbrew/persistentvolumeclaims/openbrew-media","phase":"after-rollout-review; one claim at a time"},
+    {"kind":"Namespace","name":"openbrew","expectedUid":"2cff56d3-6b55-4a48-83f4-122e92f088f4","apiPath":"/api/v1/namespaces/openbrew","phase":"after both claims and native volume children are gone"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-000c5bbf28924aaa","expectedUid":"e7053fda-3270-4995-8fc0-2f5d5813827d","volume":"pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-000c5bbf28924aaa","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-0ae9839d4c414584","expectedUid":"d23261fd-f16d-4f49-9fa1-65a9281d6c58","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-0ae9839d4c414584","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-0b4d11d267de4abc","expectedUid":"0aabe202-07c8-4fd8-9052-14bd3207f522","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-0b4d11d267de4abc","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-1592a990f33347ff","expectedUid":"cbaa886d-f111-4e29-82b1-bb297b7239ad","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-1592a990f33347ff","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-1613593da23e4be7","expectedUid":"01988cdb-97e4-4ad0-8016-e9a045b7a7be","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-1613593da23e4be7","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-1b9d643929a44576","expectedUid":"d7ac37e8-7ccd-496c-808e-8bfb436dfa88","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-1b9d643929a44576","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-3612767f32d54259","expectedUid":"df2cdb28-ee83-493e-9eef-58ccf71438f2","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-3612767f32d54259","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-4d678d4abf9a4668","expectedUid":"c30dcc26-8aff-46d8-a758-f0dc97fb2603","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-4d678d4abf9a4668","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-52c8472f50184dcc","expectedUid":"cf2668e4-ee65-4a44-b52a-f5a21e854066","volume":"pvc-202a55fb-d47d-40a4-959e-271591f1dda8","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-52c8472f50184dcc","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-59529346c7b54d3a","expectedUid":"f47240d2-95d7-4a26-9840-718dbbe24956","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-59529346c7b54d3a","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-7e34d52b1403400e","expectedUid":"8463b08a-8e9c-4911-83eb-49eef55cffe5","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-7e34d52b1403400e","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-7f657c3f5c7e4eb6","expectedUid":"1d9ef506-5b2e-4703-b0a8-74187bc184c0","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-7f657c3f5c7e4eb6","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-83c67481a4294a1f","expectedUid":"46f4cf5a-0bf0-4c63-842d-c48ef797bd23","volume":"pvc-202a55fb-d47d-40a4-959e-271591f1dda8","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-83c67481a4294a1f","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-8b521802676349e2","expectedUid":"41f7c6cd-bebb-4ba7-af60-aabe7c228103","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-8b521802676349e2","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-99af0c04c7184a7d","expectedUid":"fab88095-fdd5-4eeb-b587-b0db2e5f6935","volume":"pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-99af0c04c7184a7d","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-a90019bb38da4418","expectedUid":"6ccd9945-b9f5-4916-8872-80e60178144e","volume":"pvc-202a55fb-d47d-40a4-959e-271591f1dda8","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-a90019bb38da4418","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-b17e025908d440d3","expectedUid":"3a927312-5eda-412c-9573-f943e925a90d","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-b17e025908d440d3","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-b1d7d8eaf8ad4020","expectedUid":"3d8a9a8a-3e5f-46d8-ab19-86f52f5444dd","volume":"pvc-202a55fb-d47d-40a4-959e-271591f1dda8","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-b1d7d8eaf8ad4020","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-b9ade5f1666547af","expectedUid":"e37711f7-60e4-4bd4-af2f-d21ba809acf0","volume":"pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-b9ade5f1666547af","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-c175cd53e50a48dc","expectedUid":"886d3c8e-0325-411d-9761-c47e622a9f7c","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-c175cd53e50a48dc","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-c8b1dff6e6a84658","expectedUid":"e003b4b8-2a7d-44c8-aadc-0dad24eb60aa","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-c8b1dff6e6a84658","phase":"native reviewed backup disposal"},
+    {"kind":"Backup","namespace":"longhorn-system","name":"system-backup-cb016d160ba74d5a","expectedUid":"70d5cbd6-aed1-4966-af62-7c6456d07f57","volume":"pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backups/system-backup-cb016d160ba74d5a","phase":"native reviewed backup disposal"},
+    {"kind":"BackupVolume","namespace":"longhorn-system","name":"pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05-51c0c260","expectedUid":"946d641f-a380-45b2-8544-4c8c4618ecb3","volume":"pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backupvolumes/pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05-51c0c260","phase":"only after native and remote history is empty; supported Longhorn workflow"},
+    {"kind":"BackupVolume","namespace":"longhorn-system","name":"pvc-202a55fb-d47d-40a4-959e-271591f1dda8-77402ab2","expectedUid":"b71543b8-e79b-4dce-aa33-bb394383d7d6","volume":"pvc-202a55fb-d47d-40a4-959e-271591f1dda8","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backupvolumes/pvc-202a55fb-d47d-40a4-959e-271591f1dda8-77402ab2","phase":"only after native and remote history is empty; supported Longhorn workflow"},
+    {"kind":"BackupVolume","namespace":"longhorn-system","name":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e-01144e53","expectedUid":"31d70785-790c-494e-8df3-2f7aae2de11b","volume":"pvc-82545f5a-ac48-4e26-83f0-70e99d30256e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backupvolumes/pvc-82545f5a-ac48-4e26-83f0-70e99d30256e-01144e53","phase":"only after native and remote history is empty; supported Longhorn workflow"},
+    {"kind":"BackupVolume","namespace":"longhorn-system","name":"pvc-acb570eb-435e-4435-bb89-6222588d551e-2df2327e","expectedUid":"49dc36f6-e165-46af-984b-aa2953a9323e","volume":"pvc-acb570eb-435e-4435-bb89-6222588d551e","apiPath":"/apis/longhorn.io/v1beta2/namespaces/longhorn-system/backupvolumes/pvc-acb570eb-435e-4435-bb89-6222588d551e-2df2327e","phase":"only after native and remote history is empty; supported Longhorn workflow"}
+  ],
+  "deleteOptionsContract": {
+    "apiVersion": "v1",
+    "kind": "DeleteOptions",
+    "preconditions": {
+      "uid": "REVIEWED_EXACT_UID",
+      "resourceVersion": "FRESH_REVIEWED_RESOURCE_VERSION"
+    }
+  },
+  "manualDeleteInvocationTemplate": "kubectl delete --raw EXACT_API_PATH -f REVIEWED_DELETE_OPTIONS_FILE; proposals only, never executed in this task",
+  "executionProcedure": [
+    {
+      "gate": "independent pre-merge review",
+      "owner": "independent reviewer and maintainer",
+      "actions": [
+        "Review exact PR head, all 20 logical removals, expected three generated ConfigMap rotations and nine consumers/contracts.",
+        "Require hosted Repo Checks, Kubescape checks and exact receiver-image publication, scan and anonymous digest retrieval. Do not wait for CI in this implementation task.",
+        "Refresh namespace/PVC/PV/CSI/Longhorn ownership and prune/deletion settings, native attachments/snapshots and all restore/clone consumers. Review immediate MoP data destruction on merge. Unexpected ownership or new consumers stop merge."
+      ]
+    },
+    {
+      "gate": "separately authorized merge and normal Flux convergence",
+      "owner": "maintainer/Flux controllers",
+      "actions": [
+        "Removal of apps-mop with observed prune=true and default MirrorPrune deletes its unprotected namespace and claims. The two Delete-reclaim CSI PVs trigger native Longhorn data/snapshot/replica disposal. This is intentionally irreversible after independent review; no unobserved retention step is assumed.",
+        "Cross-owner MoP receiver RBAC and runtime binding prune independently. Controllers may retry during namespace termination. Verify all surviving Flux owners converge, both retired children are absent and no desired owner can recreate the applications.",
+        "Let normal garbage collection remove MoP Pods/ReplicaSets/ControllerRevisions/EndpointSlices, matching Longhorn children and the dedicated RWX share manager. Verify exact volume and snapshot IDs disappear; never force finalizers, delete replica files or modify shared policies.",
+        "The NFS PV itself is Flux-pruned, but Retain reclaim and an NFS source leave NAS data intact.",
+        "Verify WotLK endpoints, databases, assets and game connectivity, eight Ready runtime agents and remaining security/incident functions. Static local checks are not live acceptance. Do not excuse stale/missing remaining evidence."
+      ]
+    },
+    {
+      "gate": "explicit reviewed manual OpenBrew disposal",
+      "owner": "maintainer; destructive approval required",
+      "actions": [
+        "OpenBrew is absent from desired state and has no active pods; its namespace and both claims retain prune=disabled. Refresh every namespaced API-object inventory, consumer, CSI/Longhorn attachment and restore/clone reference before deleting.",
+        "For each listed claim, review name/UID and fetch fresh resourceVersion; submit DeleteOptions with UID/resourceVersion preconditions to the exact apiPath. Delete one claim at a time, verify normal Delete-reclaim CSI cleanup, then handle the next claim.",
+        "After both PVC/PV/Longhorn volume chains are gone, delete only namespace openbrew with its exact reviewed UID and fresh resourceVersion. Verify no recreation. A conflict, changed identity or stuck finalizer stops cleanup; do not separately race-delete PVs."
+      ]
+    },
+    {
+      "gate": "explicit reviewed native backup and B2 disposal",
+      "owner": "maintainer and B2 administrator; destructive approval required",
+      "actions": [
+        "Refresh Longhorn remote inventory for precisely the four volume handles. Verify every Backup URL, volume/target label, BackupVolume owner UID, completion state and absence of any restore/clone/CSI snapshot-content dependency. Require no in-flight backup/restore; capture an unchanged inventory of unrelated volumes, backups and SystemBackups.",
+        "Delete only the reviewed exact dedicated native Backup records via the supported Longhorn workflow, one at a time with fresh UID/resourceVersion preconditions. Verify remote completion after each. Use supported removal of each now-empty dedicated BackupVolume after its history is gone.",
+        "The existing general retention helper intentionally retains a last point and must not be repurposed for complete disposal. Do not delete the bucket, shared blocks, BackupTarget, SystemBackups or unrelated history.",
+        "Native Backup names beginning system-backup- are volume recovery points, not cluster SystemBackups. Shared archives may describe retired objects; exclude retired identities during future restores, preserving unrelated archive data.",
+        "Privately enumerate exact B2 volume prefixes, every object-version/file ID, hide marker, lock, unfinished upload, replication and external copy. These external inventories are unavailable here. Use native cleanup first; any residual direct object-version disposal requires its own exact reviewed ownership list. Do not infer success from disappearance of a CR."
+      ]
+    },
+    {
+      "gate": "external owners verify exclusive targets before disposal",
+      "owner": "NAS, registry, identity, DNS owners; destructive approval required",
+      "actions": [
+        "Prove NAS/manual-client exclusivity for the one exact MoP client path, including symlinks, NAS snapshots and copies. Cluster PV exclusivity is not sufficient. Delete only that reviewed directory and proven dedicated copies, record bytes freed; preserve parent exports and WotLK assets.",
+        "Verify exact registry package/version IDs and external consumers for skyfire-mop and openbrew-sqlserver, then dispose only their versions and dedicated workflow artifacts/caches. Preserve WotLK, registration, upstream images and shared caches.",
+        "Verify authoritative Cloudflare DNS/Access IDs for openbrew.cooked.beer; delete only those dedicated identities, keeping tunnel/zone/other routes. Audit outside MoP launcher/router/DNS configuration against metal8 TCP 3724/8085; no repository MoP Tunnel/DNS entry exists. Preserve all WotLK routing.",
+        "Reverify private OpenBrew OIDC app/SP IDs, callback, grants and consumers. Revoke only dedicated app credentials and remove its dedicated SP/registration and private stored credential copies. Keep shared age, Entra, B2, registry and tunnel credentials.",
+        "Review only matching retired alerts/incidents privately; retirement is not recovery. Do not delete shared receiver/publisher evidence, expose private findings or close unrelated incidents.",
+        "After observed rollout and separately reviewed cleanup, publish the proposed Wiki diff with actual disposition and measured recovery. Do not publish this task's proposal."
+      ]
+    }
+  ],
+  "validation": {
+    "completeComposition": {
+      "status": "verified",
+      "roots": 64,
+      "owners": 27,
+      "ownerResourceEntries": 547,
+      "logicalRemovals": 20,
+      "configMapRotations": 3,
+      "changedConsumersContracts": 9,
+      "unchangedOwnerDocuments": 535,
+      "unresolvedReferences": 0
+    },
+    "ciUnitTests": {
+      "status": "verified",
+      "discovered": 237,
+      "skipped": 1
+    },
+    "receiverTests": {
+      "status": "verified",
+      "tests": 34
+    },
+    "recurringTests": {
+      "status": "verified",
+      "tests": 95
+    },
+    "nativePublisherTests": {
+      "status": "verified",
+      "tests": 47
+    },
+    "exporterTests": {
+      "status": "verified",
+      "tests": 6
+    },
+    "assessmentHealthTests": {
+      "status": "verified",
+      "tests": 9
+    },
+    "kubescapePinnedRenderAndAdmission": {
+      "status": "verified",
+      "renderedResources": 72,
+      "CELPasses": 62,
+      "failures": 0,
+      "allEightNodes": true,
+      "command": "check_kubescape.py --active-review --base-ref origin/main --expected-kyverno-version 1.20.0"
+    },
+    "namespaceDefaultsAndRecurringValidator": {
+      "status": "verified"
+    },
+    "kyvernoBaseline": {
+      "status": "verified",
+      "currentFailures": 0,
+      "baselineEntries": 0
+    },
+    "schema": {
+      "status": "verified",
+      "valid": 441,
+      "invalid": 0,
+      "errors": 0,
+      "missingCRDSchemasSkipped": 106,
+      "method": "All production documents; SOPS metadata removed only in memory, no decryption. Raw encrypted manifests fail Secret schema on sops metadata as expected."
+    },
+    "renovate": {
+      "status": "verified",
+      "strictConfig": true,
+      "realPolicyTests": 24
+    },
+    "actionlint": {
+      "status": "verified",
+      "version": "1.7.8"
+    },
+    "ciSelection": {
+      "unit_tests": "true",
+      "ci_tests": "true",
+      "gitea_tests": "true",
+      "manifests": "true",
+      "public_edge": "true",
+      "shell": "true",
+      "workflows": "true",
+      "renovate": "true",
+      "script_tests": "[\"test_*.py\"]",
+      "terraform_matrix": "{\"stack\":[\"oci-free-tier\",\"oci-matrix-free-tier\"]}",
+      "terraform": "true"
+    },
+    "hostedCIAndSelectedBroadSuites": {
+      "status": "not run",
+      "reason": "User prohibited waiting for hosted CI; relevant local suites passed. Updating test_detect_changes.py intentionally triggers the existing conservative full Repo Checks selection; no selector weakened."
+    }
+  },
+  "wiki": {
+    "status": "proposed only; unpublished",
+    "base": "ef7fc62eecf66e4bef68c5273a4125dce426a287",
+    "patch": "2348-wiki.patch",
+    "applyProposal": "In a clean checkout at the recorded Wiki base: git apply --check --unidiff-zero 2348-wiki.patch; git apply --unidiff-zero 2348-wiki.patch. Do not commit/push before rollout/disposal evidence and owner review.",
+    "pages": [
+      "Application-Catalog",
+      "Backup-and-Recovery",
+      "CI-and-GitHub-Actions",
+      "Cloudflare-Tunnel",
+      "Kubescape",
+      "Renovate",
+      "SkyFire-MoP",
+      "_Sidebar"
+    ]
+  },
+  "failurePath": "Before merge, stop and amend/review. After data disposal begins, stop on changed identity, missing evidence or stuck controller; diagnose/forward-fix without forcing finalizers or assuming a data rollback.",
+  "explicitlyNotPerformed": [
+    "merge",
+    "manual deployment or Flux reconcile",
+    "live mutation or data deletion",
+    "registry/B2/NAS/DNS/Entra deletion",
+    "Secret value export or decryption",
+    "game-server or scanner image build",
+    "Wiki publication",
+    "hosted CI waiting"
+  ]
+}

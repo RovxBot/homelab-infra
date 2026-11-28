@@ -38,7 +38,6 @@ PRIVATE_WORKLOADS = {
     "home/mqtt/Deployment/mosquitto/mosquitto": "mqtt/Deployment/mosquitto",
     "home/security/Deployment/vaultwarden/vaultwarden": "security/Deployment/vaultwarden",
     "home/wotlk/StatefulSet/wotlk-mariadb/mysql": "wotlk/StatefulSet/wotlk-mariadb",
-    "home/mop/StatefulSet/skyfire-mariadb/mysql": "mop/StatefulSet/skyfire-mariadb",
     "home/kube-system/DaemonSet/kube-proxy/kube-proxy": "kube-system/DaemonSet/kube-proxy",
 }
 
