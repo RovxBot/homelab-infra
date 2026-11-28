@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import re
+import runpy
 import subprocess
 import sys
 
@@ -71,6 +72,10 @@ def check(resources):
     for name, source in bundle.items():
         assert source == (ROOT / "scripts" / name).read_text(), "supported client bundle differs"
     release = yaml.safe_load((ROOT / "infra/kubescape/helmrelease.yaml").read_text())
+    contract = runpy.run_path(str(ROOT / "infra/kubescape/recurring/runner.py"))
+    scanner_image = release["spec"]["values"]["kubescape"]["image"]
+    assert scanner_image["repository"] + ":" + scanner_image["tag"] == contract["POSTURE_IMAGE"], \
+        "scanner change requires posture external-input contract requalification"
     engine_image = release["spec"]["values"]["kubevuln"]["image"]
     if engine_image["repository"] != "quay.io/kubescape/kubevuln":
         import hashlib

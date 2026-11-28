@@ -20,6 +20,8 @@ CONFIG = json.loads((ROOT / "infra/kubescape/recurring/config.json").read_text()
 # The pre-expansion single-Memos scenarios remain independent of the live cohort.
 CANARY_CONFIG = {**CONFIG, "targets": CONFIG["targets"][:1]}
 EXPECTED = json.loads((ROOT / "infra/kubescape/grype-database.json").read_text())
+# Observed external-input fields only; all other control outcomes are synthetic.
+EXTERNAL_POSTURE = json.loads((ROOT / "scripts/tests/fixtures/kubescape-posture-external-inputs.json").read_text())
 NOW = datetime(2026, 11, 22, 5, tzinfo=timezone.utc)
 
 
@@ -574,21 +576,22 @@ class BatchTests(unittest.TestCase):
         summaries = [summary(namespace, name) for namespace, name in
                      (target.split("/") for target in CONFIG["postureWorkloads"])]
         summaries.append(summary("kubescape", "serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader"))
-        result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
+        result = copy.deepcopy(EXTERNAL_POSTURE)
         objects = [{"apiVersion": "apps/v1", "kind": "Deployment" if name.startswith("deployment-") else "StatefulSet",
                     "metadata": {"namespace": namespace, "name": name.split("-", 1)[1]}}
                    for namespace, name in (t.split("/") for t in CONFIG["postureWorkloads"])]
         objects.append({"kind": "ServiceAccount", "name": "reader", "namespace": "memos", "relatedObjects": [
             {"kind": "ClusterRole", "name": "reader"}, {"kind": "ClusterRoleBinding", "name": "reader"}]})
         result.update(resources=[{"resourceID": str(i), "object": obj} for i, obj in enumerate(objects)],
-                      results=[{"resourceID": str(i)} for i in range(len(objects))],
-                      metadata={"scanMetadata": {"includeNamespaces": CONFIG["postureLifecycle"]["activeNamespaces"]}})
+                      results=[{"resourceID": str(i)} for i in range(len(objects))])
+        result['metadata']['scanMetadata']['includeNamespaces'] = CONFIG["postureLifecycle"]["activeNamespaces"]
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
             api = mock.Mock()
             api.items.side_effect = lambda base, kind, namespace=None: summaries if kind == "workloadconfigurationscansummaries" else []
             api.get.side_effect = lambda base, kind, name, namespace: next(s for s in summaries if s["metadata"]["name"] == name)
             runner = R.Runner(api, self.config(), EXPECTED, Path(path), "posture")
             with mock.patch.object(R, "workload_rows", side_effect=AssertionError("target coupling")), \
+                    mock.patch.object(R, "posture_environment"), \
                     mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "scanner"}, "status": {"containerStatuses": [{"name": "scanner", "containerID": "container", "restartCount": 0}]}}), \
                     mock.patch.object(R, "service", side_effect=[{"id": "posture"}, {"id": "posture", "type": "v1results", "response": result}, {"type": "notBusy"}]), \
                     mock.patch.object(runner, "gate"), mock.patch.object(runner, "observe"):
@@ -1395,6 +1398,46 @@ class IdleResourceTests(unittest.TestCase):
         self.assertTrue(all(call.args[1] != "/v1/scanImage" for call in self.service.call_args_list))
 
 
+class PostureEnvironmentTests(unittest.TestCase):
+    def setUp(self):
+        self.api = mock.Mock()
+        self.pod = {'metadata': {'uid': 'scanner'}, 'status': {'phase': 'Running',
+                    'conditions': [{'type': 'Ready', 'status': 'True'}]},
+                    'spec': {'containers': [{'image': R.POSTURE_IMAGE, 'env': [
+                        {'name': 'KS_ENABLE_HOST_SCANNER', 'value': 'false'},
+                        {'name': 'KS_OFFLINE', 'value': 'true'}, {'name': 'KS_CONTEXT', 'value': 'home'}]}]}}
+        repository, tag = R.POSTURE_IMAGE.rsplit(':v', 1)
+        self.release = {'spec': {'values': {'kubescape': {'image': {'repository': repository, 'tag': 'v' + tag}},
+                         'capabilities': {'nodeScan': 'disable', 'kubescapeOffline': 'enable'},
+                         'credentials': {'cloudSecret': ''}}}}
+        self.nodes = [{'status': {'nodeInfo': {'osImage': 'Talos (v1.13.3)'}}}]
+        self.api.get.return_value = self.release
+        self.api.items.side_effect = lambda base, kind, namespace=None: self.nodes
+
+    def test_pinned_talos_environment_is_applicable(self):
+        with mock.patch.object(R, 'component_pod', return_value=self.pod):
+            R.posture_environment(self.api)
+        self.api.get.assert_called_once_with('/apis/helm.toolkit.fluxcd.io/v2', 'helmreleases', 'kubescape')
+        self.assertEqual(self.api.items.call_args.args, (R.CORE, 'nodes'))
+
+    def test_changed_pin_host_cloud_or_node_environment_rejected(self):
+        mutations = [lambda: self.pod['spec']['containers'][0].update(image='quay.io/kubescape/kubescape:v4.0.21'),
+                     lambda: self.pod['spec']['containers'][0]['env'][0].update(value='true'),
+                     lambda: self.pod['spec']['containers'][0]['env'][1].update(value='false'),
+                     lambda: self.release['spec']['values']['credentials'].update(cloudSecret='configured'),
+                     lambda: self.release['spec']['values']['capabilities'].update(nodeScan='enable'),
+                     lambda: self.release['spec']['values']['kubescape']['image'].update(tag='v4.0.21'),
+                     lambda: self.nodes[0].update(spec={'providerID': 'aws://region/node'}),
+                     lambda: self.nodes[0]['status']['nodeInfo'].update(osImage='Ubuntu'),
+                     lambda: self.nodes.clear()]
+        for index, mutate in enumerate(mutations):
+            self.setUp()
+            mutate()
+            with self.subTest(case=index), mock.patch.object(R, 'component_pod', return_value=self.pod), \
+                    self.assertRaisesRegex(R.db.Rejected, 'posture_coverage_contract_mismatch'):
+                R.posture_environment(self.api)
+
+
 class PostureContractTests(unittest.TestCase):
     def setUp(self):
         self.temp = self.enterContext(tempfile.TemporaryDirectory())
@@ -1402,14 +1445,17 @@ class PostureContractTests(unittest.TestCase):
         self.config = {**CANARY_CONFIG, 'postureWorkloads': ['memos/deployment-memos'],
                        'postureLifecycle': {'activeNamespaces': ['memos'], 'retainedNamespaceDisposition': 'exclude-if-empty-and-out-of-scope'}}
         self.runner = R.Runner(self.api, self.config, EXPECTED, Path(self.temp), 'posture')
-        self.result = {'summaryDetails': {'frameworks': [{'controls': [{'status': 'passed'}]}]},
+        # Environment applicability has separate tests; lifecycle scenarios use
+        # the real coverage classifier and the observed external-input shape.
+        self.environment = self.enterContext(mock.patch.object(R, 'posture_environment'))
+        self.result = {**copy.deepcopy(EXTERNAL_POSTURE),
                        'resources': [
                            {'resourceID': 'workload', 'object': {'kind': 'Deployment', 'metadata': {'name': 'memos', 'namespace': 'memos'}}},
                            {'resourceID': 'rbac', 'object': {'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos',
                                'relatedObjects': [{'kind': 'ClusterRole', 'name': 'reader'},
                                                   {'kind': 'ClusterRoleBinding', 'name': 'reader'}]}}],
-                       'results': [{'resourceID': 'workload'}, {'resourceID': 'rbac'}],
-                       'metadata': {'scanMetadata': {'includeNamespaces': ['memos']}}}
+                       'results': [{'resourceID': 'workload'}, {'resourceID': 'rbac'}]}
+        self.result['metadata']['scanMetadata']['includeNamespaces'] = ['memos']
         self.shared = 'serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader'
         self.summaries = [self.summary('memos', 'deployment-memos'), self.summary('kubescape', self.shared)]
         self.workloads = []
@@ -1519,8 +1565,8 @@ class PostureContractTests(unittest.TestCase):
         for field in ('failedGVRPulls', 'partialGVRPulls', 'policyDegradations', 'skippedManifests', 'vacuousFrameworks'):
             with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
                 R.posture_scope({**self.result, 'scanCoverage': {field: [{'gvr': 'rbac.authorization.k8s.io/v1/rolebindings'}]}})
-        self.assertEqual(R.posture_scope({**self.result, 'scanCoverage': {'notEvaluatedControls': [{'controlID': 'host'}]}}),
-                         R.posture_scope(self.result))
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+            R.posture_scope({**self.result, 'scanCoverage': {'notEvaluatedControls': [{'controlID': 'host'}]}})
         for field in ('resources', 'results'):
             result = copy.deepcopy(self.result)
             del result[field]
@@ -1536,25 +1582,84 @@ class PostureContractTests(unittest.TestCase):
         with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
             R.posture_scope(result)
 
-    def test_pinned_unsupported_host_and_cloud_gaps_do_not_bypass_collection_gate(self):
-        # v4.0.20 records intentionally unavailable external inputs in the same
-        # failedGVRPulls field as collection failures. Keep failing closed until
-        # a separately reviewed coverage contract distinguishes these cases.
-        failures=[{'gvr': provider+'/ClusterDescribe', 'controls': ['C-0066','C-0067','C-0068'],
-                   'error': 'failed to get cloud provider, cluster: home'}
-                  for provider in ('container.googleapis.com/v1','eks.amazonaws.com/v1','management.azure.com/v1')]
-        failures.append({'gvr': 'hostdata.kubescape.cloud/v1beta0/KubeletInfo',
-                         'controls': ['C-0069','C-0070'],
-                         'error': 'This control is scanned exclusively by the Kubescape operator, not the Kubescape CLI. Install the Kubescape operator:\n     https://kubescape.io/docs/install-operator/.'})
-        coverage={'failedGVRPulls': failures, 'silentFailedGVRCount': 3,
-                  'notEvaluatedControls': [{'controlID': c, 'missingGVRs': [failures[-1]['gvr']]}
-                                           for c in ('C-0069','C-0070')],
-                  'totalControls': 26, 'evaluatedControls': 24, 'coverageScore': 83.30769, 'degraded': True}
-        for pulls in (failures, *([f] for f in failures),
-                      [{'gvr': 'rbac.authorization.k8s.io/v1/rolebindings', 'error': 'forbidden'}]):
-            with self.subTest(gvrs=[f['gvr'] for f in pulls]), \
-                    self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
-                R.posture_scope({**self.result, 'scanCoverage': {**coverage, 'failedGVRPulls': pulls}})
+    def test_observed_external_inputs_are_explicitly_unsupported_never_passed(self):
+        original = copy.deepcopy(self.result)
+        # Native order is not significant.
+        self.result['scanCoverage']['failedGVRPulls'].reverse()
+        self.result['scanCoverage']['unexaminedKinds'] = [{'groupVersionResource': 'example.io/v1/widgets', 'kind': 'Widget'}]
+        checked = self.qualify()
+        self.environment.assert_called_once_with(self.api)
+        self.assertEqual(checked['controls'], {'Passed': 21, 'Action Required': 5})
+        self.assertEqual(checked['coverage']['unsupportedControlIDs'], ['C-0066', 'C-0067', 'C-0068', 'C-0069', 'C-0070'])
+        self.assertEqual(checked['coverage']['notEvaluatedControlIDs'], ['C-0069', 'C-0070'])
+        self.assertEqual(len(checked['coverage']['unsupportedInputs']), 4)
+        self.assertEqual(checked['coverage']['unexaminedKinds'], self.result['scanCoverage']['unexaminedKinds'])
+        self.assertTrue(checked['coverage']['scannerDegraded'])
+        self.assertEqual(checked['coverage']['scannerCoverageScore'], 83.30769)
+        self.assertEqual(self.result['summaryDetails'], original['summaryDetails'])
+        saved = json.loads(gzip.decompress((self.runner.work / 'posture-coverage.json.gz').read_bytes()))
+        self.assertEqual(saved['unsupportedControls'], 5)
+        self.assertEqual(self.runner.result['postureCoverage'], saved)
+
+    def test_external_contract_rejects_unexpected_mixed_and_malformed_coverage(self):
+        mutations = [
+            lambda c: c['failedGVRPulls'].append({'gvr': '/v1/pods', 'controls': ['C-0002'], 'error': 'forbidden'}),
+            lambda c: c['failedGVRPulls'][0].update(gvr='rbac.authorization.k8s.io/v1/rolebindings'),
+            lambda c: c['failedGVRPulls'][0].update(error='forbidden'),
+            lambda c: c['failedGVRPulls'][0].update(error='cloud-describe-unavailable'),
+            lambda c: c['failedGVRPulls'][0].update(controls=['C-0066']),
+            lambda c: c['failedGVRPulls'][0].update(controls=['C-0066', 'C-0067', 'C-0068', 'C-0068']),
+            lambda c: c['failedGVRPulls'][0].update(controls='C-0066'),
+            lambda c: c['failedGVRPulls'][0].update(extra='unknown'),
+            lambda c: c['failedGVRPulls'].pop(),
+            lambda c: c['failedGVRPulls'].__setitem__(0, c['failedGVRPulls'][1]),
+            lambda c: c.update(failedGVRPulls=None),
+            lambda c: c['notEvaluatedControls'][0].update(reason='control timed out'),
+            lambda c: c['notEvaluatedControls'][0].update(missingGVRs=['/v1/pods']),
+            lambda c: c['notEvaluatedControls'].append({'controlID': 'C-0002', 'reason': 'control timed out'}),
+            lambda c: c.update(notEvaluatedControls=[]),
+            lambda c: c.update(totalControls=25),
+            lambda c: c.update(evaluatedControls=26),
+            lambda c: c.update(silentFailedGVRCount=4),
+            lambda c: c.update(silentFailedGVRCount=True),
+            lambda c: c.update(degraded=False),
+            lambda c: c.update(coverageScore=100),
+            lambda c: c.update(coverageScore=float('nan')),
+            lambda c: c.update(coverageScore='83.30769'),
+            lambda c: c.update(newDegradation=True),
+            lambda c: c.update(unexaminedKinds=[{}]),
+            lambda c: c.update(unexaminedKinds=[{'groupVersionResource': 'bad', 'kind': 'Widget'}]),
+        ]
+        for field in ('partialGVRPulls', 'policyDegradations', 'skippedManifests', 'vacuousFrameworks'):
+            mutations += [lambda c, f=field: c.update({f: ['unexpected']}),
+                          lambda c, f=field: c.update({f: {}})]
+        for index, mutate in enumerate(mutations):
+            result = copy.deepcopy(self.result)
+            mutate(result['scanCoverage'])
+            with self.subTest(case=index), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope(result)
+        for coverage in (None, [], '', False, {}):
+            with self.subTest(coverage=coverage), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope({**self.result, 'scanCoverage': coverage})
+
+    def test_external_contract_rejects_version_config_and_control_drift(self):
+        for field, value in (('kubescapeVersion', '4.0.21'), ('hostScanner', True), ('targetNames', ['cis']),
+                             ('targetType', 'Control')):
+            result = copy.deepcopy(self.result)
+            result['metadata']['scanMetadata'][field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_coverage_contract_mismatch'):
+                R.posture_scope(result)
+        result = copy.deepcopy(self.result)
+        result['metadata']['targetMetadata']['clusterContextMetadata']['cloudProvider'] = 'eks'
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_coverage_contract_mismatch'):
+            R.posture_scope(result)
+        for identifier in ('C-0066', 'C-0069', 'C-0002'):
+            result = copy.deepcopy(self.result)
+            control = result['summaryDetails']['frameworks'][0]['controls'][identifier]
+            control['statusInfo'] = {'status': 'passed'} if identifier != 'C-0002' else {
+                'status': 'failed', 'subStatus': 'incompleteCoverage'}
+            with self.subTest(identifier=identifier), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope(result)
 
     def test_scope_slug_matches_pinned_rbac_names_and_long_name_hashing(self):
         self.assertEqual(R.posture_slug('Group-system:serviceaccounts-ClusterRole-system:service-account-issuer-discovery-ClusterRoleBinding-system:service-account-issuer-discovery'),
@@ -1655,7 +1760,8 @@ class PostureContractTests(unittest.TestCase):
         for metadata in ({}, {'scanMetadata': {'includeNamespaces': ['different']}},
                          {'scanMetadata': {'includeNamespaces': ['memos'], 'excludedNamespaces': ['memos']}},
                          {'scanMetadata': {'includeNamespaces': ['memos'], 'scanningTarget': 1}}):
-            self.result['metadata'] = metadata
+            self.result['metadata'] = {**copy.deepcopy(EXTERNAL_POSTURE['metadata']),
+                                      'scanMetadata': {**EXTERNAL_POSTURE['metadata']['scanMetadata'], **metadata.get('scanMetadata', {})}}
             with self.assertRaisesRegex(R.db.Rejected, 'posture_scan_scope_mismatch'):
                 self.qualify()
         self.result['metadata'] = original
@@ -1729,7 +1835,7 @@ class PostureContractTests(unittest.TestCase):
     def test_completed_request_failed_qualification_archives_receipt_and_unblocks(self):
         marker = Path(self.temp) / 'posture-historical.done'
         marker.write_bytes(b'unchanged')
-        for reason in ('posture_report_stale', 'posture_scope_incomplete'):
+        for reason in ('posture_report_stale', 'posture_scope_incomplete', 'posture_collection_incomplete', 'posture_coverage_contract_mismatch'):
             with self.subTest(reason=reason):
                 # New immutable run directory for each real request.
                 self.runner = R.Runner(self.api, self.config, EXPECTED, Path(self.temp), 'posture')

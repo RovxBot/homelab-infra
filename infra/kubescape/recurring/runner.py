@@ -15,6 +15,7 @@ import fcntl
 import gzip
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -42,6 +43,116 @@ IDLE_WAIT_SECONDS = 120
 IDLE_POLL_SECONDS = 5
 INVENTORY_MAX_AGE_MINUTES = 65
 POSTURE_PERSISTENCE_SECONDS = 60
+# Coverage contract: Kubescape ec65d318 (v4.0.20), NSA on Talos bare metal.
+# core/pkg/resourcehandler/k8sresources.go and core/cautils/scancoverage.go
+# record unavailable external inputs as failed pulls, including three silent
+# cloud gaps. Requalify this contract when the scanner/policy shape changes.
+POSTURE_COVERAGE_CONTRACT = "kubescape-4.0.20-nsa-talos-bare-metal-v1"
+POSTURE_IMAGE = "quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060"
+POSTURE_CLOUD_CONTROLS = ("C-0066", "C-0067", "C-0068")
+POSTURE_HOST_CONTROLS = ("C-0069", "C-0070")
+POSTURE_HOST_GVR = "hostdata.kubescape.cloud/v1beta0/KubeletInfo"
+POSTURE_CLOUD_ERROR = "failed to get cloud provider, cluster: home"
+POSTURE_HOST_ERROR = ("This control is scanned exclusively by the Kubescape operator, not the Kubescape CLI. Install the Kubescape operator:\n"
+                      "     https://kubescape.io/docs/install-operator/.")
+POSTURE_EXTERNAL_INPUTS = {
+    **{provider + "/v1/ClusterDescribe": (POSTURE_CLOUD_CONTROLS, POSTURE_CLOUD_ERROR)
+       for provider in ("container.googleapis.com", "eks.amazonaws.com", "management.azure.com")},
+    POSTURE_HOST_GVR: (POSTURE_HOST_CONTROLS, POSTURE_HOST_ERROR),
+}
+
+
+def posture_environment(api):
+    """Verify applicability using existing read permissions; never enable collectors."""
+    pod = component_pod(api, "kubescape")
+    containers = pod["spec"]["containers"]
+    db.require(len(containers) == 1 and containers[0]["image"] == POSTURE_IMAGE,
+               "posture_coverage_contract_mismatch")
+    env = {e["name"]: e.get("value") for e in containers[0].get("env", [])}
+    db.require(all(env.get(k) == v for k, v in {"KS_ENABLE_HOST_SCANNER": "false", "KS_OFFLINE": "true",
+                                               "KS_CONTEXT": "home"}.items()), "posture_coverage_contract_mismatch")
+    values = api.get("/apis/helm.toolkit.fluxcd.io/v2", "helmreleases", "kubescape")["spec"]["values"]
+    image = values["kubescape"]["image"]
+    db.require(image["repository"] + ":" + image["tag"] == POSTURE_IMAGE
+               and values["capabilities"]["nodeScan"] == "disable"
+               and values["capabilities"]["kubescapeOffline"] == "enable"
+               and values["credentials"]["cloudSecret"] == "", "posture_coverage_contract_mismatch")
+    nodes = api.items(CORE, "nodes")
+    # k8s-interface v0.0.221 detects cloud providers from spec.providerID.
+    db.require(bool(nodes) and all(not n.get("spec", {}).get("providerID")
+               and n.get("status", {}).get("nodeInfo", {}).get("osImage", "").startswith("Talos (")
+               for n in nodes), "posture_coverage_contract_mismatch")
+
+
+def posture_coverage(result):
+    """Accept only the explained pinned response; preserve its degraded score."""
+    reason = "posture_collection_incomplete"
+    metadata = result.get("metadata", {}).get("scanMetadata", {})
+    context = result.get("metadata", {}).get("targetMetadata", {}).get("clusterContextMetadata", {})
+    db.require(metadata.get("kubescapeVersion") == "4.0.20" and metadata.get("targetType") == "Framework"
+               and metadata.get("targetNames") == ["nsa"] and metadata.get("hostScanner", False) is False
+               and context.get("contextName") == "home" and not context.get("cloudProvider"),
+               "posture_coverage_contract_mismatch")
+    coverage = result.get("scanCoverage")
+    fields = {"failedGVRPulls", "notEvaluatedControls", "partialGVRPulls", "policyDegradations", "skippedManifests",
+              "vacuousFrameworks", "coverageScore", "evaluatedControls", "totalControls", "degraded",
+              "silentFailedGVRCount", "unexaminedKinds"}
+    db.require(isinstance(coverage, dict) and not coverage.keys() - fields, reason)
+    for field in ("partialGVRPulls", "policyDegradations", "skippedManifests", "vacuousFrameworks"):
+        value = coverage.get(field, [])
+        db.require(isinstance(value, list) and not value, reason)
+    pulls = coverage.get("failedGVRPulls")
+    db.require(isinstance(pulls, list) and len(pulls) == len(POSTURE_EXTERNAL_INPUTS), reason)
+    seen = set()
+    for pull in pulls:
+        db.require(isinstance(pull, dict) and set(pull) == {"gvr", "controls", "error"}, reason)
+        gvr, controls = pull["gvr"], pull["controls"]
+        db.require(isinstance(gvr, str) and gvr in POSTURE_EXTERNAL_INPUTS and gvr not in seen, reason)
+        expected, error = POSTURE_EXTERNAL_INPUTS[gvr]
+        db.require(isinstance(controls, list) and all(isinstance(c, str) for c in controls)
+                   and sorted(controls) == list(expected) and pull["error"] == error, reason)
+        seen.add(gvr)
+    missing = coverage.get("notEvaluatedControls")
+    db.require(isinstance(missing, list) and len(missing) == 2 and all(isinstance(c, dict) for c in missing)
+               and sorted(missing, key=lambda c: str(c.get("controlID"))) == [
+                   {"controlID": c, "missingGVRs": [POSTURE_HOST_GVR]} for c in POSTURE_HOST_CONTROLS], reason)
+    # v4.0.20 computes 24/26*100 - 3*3 in float32. No other penalty is explained.
+    for field, expected in (("totalControls", 26), ("evaluatedControls", 24), ("silentFailedGVRCount", 3)):
+        db.require(type(coverage.get(field)) is int and coverage[field] == expected, reason)
+    score = coverage.get("coverageScore")
+    db.require(type(score) in (int, float) and math.isfinite(score) and math.isclose(score, 83.30769, abs_tol=0.00001)
+               and coverage.get("degraded") is True, reason)
+    unexamined = coverage.get("unexaminedKinds", [])
+    db.require(isinstance(unexamined, list), reason)
+    for kind in unexamined:
+        db.require(isinstance(kind, dict) and set(kind) == {"groupVersionResource", "kind"}
+                   and all(isinstance(v, str) and v for v in kind.values())
+                   and re.fullmatch(r"[a-z0-9.-]*/v[0-9]+(?:(?:alpha|beta)[0-9]+)?/[a-z0-9]+", kind["groupVersionResource"])
+                   and re.fullmatch(r"[A-Z][A-Za-z0-9]*", kind["kind"]), reason)
+    db.require(len({(k["groupVersionResource"], k["kind"]) for k in unexamined}) == len(unexamined), reason)
+    frameworks = result.get("summaryDetails", {}).get("frameworks")
+    db.require(isinstance(frameworks, list) and len(frameworks) == 1 and isinstance(frameworks[0], dict)
+               and frameworks[0].get("name") == "NSA", reason)
+    controls = frameworks[0].get("controls")
+    db.require(isinstance(controls, dict) and len(controls) == 26, reason)
+    unsupported = POSTURE_CLOUD_CONTROLS + POSTURE_HOST_CONTROLS
+    db.require(set(unsupported) <= controls.keys(), reason)
+    for identifier, control in controls.items():
+        db.require(isinstance(control, dict) and control.get("controlID") == identifier, reason)
+        info = control.get("statusInfo")
+        db.require(isinstance(info, dict), reason)
+        if identifier in unsupported:
+            expected = {"status": "skipped", "info": POSTURE_CLOUD_ERROR} if identifier in POSTURE_CLOUD_CONTROLS else {
+                "status": "skipped", "subStatus": "notEvaluated", "info": "missing: " + POSTURE_HOST_GVR}
+            db.require(control.get("status") == "skipped" and info == expected, reason)
+        else:
+            db.require(info.get("status") in {"passed", "failed"}
+                       and info.get("subStatus", "") in {"", "irrelevant", "w/exceptions"}, reason)
+    return {"contract": POSTURE_COVERAGE_CONTRACT, "scannerCoverageScore": score, "scannerDegraded": True,
+            "unsupportedControls": len(unsupported), "unsupportedControlIDs": list(unsupported),
+            "unsupportedInputs": [{"gvr": gvr, "controlIDs": list(ids), "state": "unsupported"}
+                                  for gvr, (ids, _) in sorted(POSTURE_EXTERNAL_INPUTS.items())],
+            "unexaminedKinds": unexamined}
 
 
 def posture_slug(value):
@@ -77,12 +188,7 @@ def posture_scope(result, namespaces=None):
         db.require(isinstance(included, list) and len(included) == len(set(included))
                    and set(included) == set(namespaces) and not metadata.get("excludedNamespaces")
                    and metadata.get("scanningTarget", 0) == 0, "posture_scan_scope_mismatch")
-    coverage = result.get("scanCoverage") or {}
-    db.require(isinstance(coverage, dict), "posture_collection_incomplete")
-    # Omitted API objects cannot establish completeness. Unsupported/manual
-    # controls retain their separate notEvaluated/Action Required overlay.
-    db.require(not any(coverage.get(k) for k in ("failedGVRPulls", "partialGVRPulls", "policyDegradations",
-                                                "skippedManifests", "vacuousFrameworks")), "posture_collection_incomplete")
+    coverage = posture_coverage(result)
     resources, results = result.get("resources"), result.get("results")
     db.require(isinstance(resources, list) and isinstance(results, list) and results,
                "posture_resource_inventory_missing")
@@ -114,7 +220,7 @@ def posture_scope(result, namespaces=None):
         if related:
             shared.add(key)
     db.require(bool(shared), "posture_shared_rbac_missing")
-    return {"expected": expected, "shared": shared, "referencedNamespaces": referenced_namespaces}
+    return {"expected": expected, "shared": shared, "referencedNamespaces": referenced_namespaces, "coverage": coverage}
 
 
 def posture_workloads(api):
@@ -996,7 +1102,8 @@ def check_posture(result, summaries, started, required_workloads=(), *, scope=No
             "expectedSummaries": len(expected),
             "sharedRBACSummaries": len(scope["shared"]) if scope is not None else None,
             "requiredWorkloadCount": len(required_workloads),
-            "coverage": {"notEvaluatedControls": len(not_evaluated), "notEvaluatedControlIDs": not_evaluated,
+            "coverage": {**(scope["coverage"] if scope is not None else {}),
+                         "notEvaluatedControls": len(not_evaluated), "notEvaluatedControlIDs": not_evaluated,
                          "incompleteCoverageControls": len(incomplete_coverage),
                          "incompleteCoverageControlIDs": incomplete_coverage},
             "limitations": ["Host/cloud checks remain unsupported or Action Required; no host collector", "Intentional RBAC exceptions retained; no remediation"]}
@@ -1623,6 +1730,9 @@ class Runner:
         self.clear_fence()
 
     def qualify_posture(self, result, started, previous=()):
+        posture_environment(self.api)
+        self.result["postureCoverage"] = posture_coverage(result)
+        self.save("posture-coverage", self.result["postureCoverage"])
         namespaces = posture_namespaces(self.config)
         scope = posture_scope(result, namespaces)
         db.require(set(self.config["postureWorkloads"]) <= scope["expected"], "posture_scope_incomplete")

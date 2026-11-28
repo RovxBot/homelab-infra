@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate_offline_coverage_replay_blocked_downstream",
+  "investigationPR": "https://github.com/RovxBot/homelab-infra/pull/2338",
+  "observedAt": "2026-11-28T00:45:30.821970Z",
+  "contract": "kubescape-4.0.20-nsa-talos-bare-metal-v1",
+  "scanner": {
+    "version": "4.0.20",
+    "sourceCommit": "ec65d3184f6bab7d1ad6e5db9d970d452316d253",
+    "image": "quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060"
+  },
+  "provenance": {
+    "scannerResultGzipSHA256": "42ae26d5ac25ad947b314dfa950999ea281ee5902a92c9f4576f7de9f1239e99",
+    "runnerSHA256": "9c228a4be895544914f7367b8a294ae99262cf5ca2ca891f78d7482272d25291",
+    "intentAndTerminalHashVerified": true,
+    "rawResponse": "retained privately; no findings or resource identities in this receipt"
+  },
+  "environment": {
+    "result": "applicable",
+    "method": "read-only GET of scanner Pod, HelmRelease and Nodes",
+    "checks": [
+      "exact pinned image",
+      "host scanner disabled",
+      "offline mode",
+      "no cloud credential reference",
+      "Talos Nodes without providerID",
+      "home context"
+    ]
+  },
+  "coverage": {
+    "result": "explained_unsupported_external_inputs",
+    "unsupportedControlIDs": [
+      "C-0066",
+      "C-0067",
+      "C-0068",
+      "C-0069",
+      "C-0070"
+    ],
+    "notEvaluatedControlIDs": [
+      "C-0069",
+      "C-0070"
+    ],
+    "nativeCoverageScore": 83.30769,
+    "nativeDegraded": true
+  },
+  "qualification": {
+    "result": "blocked_before_persistence",
+    "errorClass": "KeyError",
+    "function": "posture_scope",
+    "missingKey": "name",
+    "observedShape": "RBAC relatedObjects Role/RoleBinding use metadata.name; parser expects top-level name",
+    "laterGates": "not reached: current workload inventory, prior RBAC completeness, lifecycle exclusions and summary persistence"
+  },
+  "productionAcceptance": false,
+  "scannerSubmissions": 0,
+  "clusterMutations": 0,
+  "nextSmallestAction": "Review this coverage-only PR; separately correct RBAC related-object identity parsing and replay retained evidence before requesting a production assessment"
+}

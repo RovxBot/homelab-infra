@@ -1,0 +1,272 @@
+{
+  "metadata": {
+    "scanMetadata": {
+      "kubescapeVersion": "4.0.20",
+      "targetNames": [
+        "nsa"
+      ],
+      "targetType": "Framework"
+    },
+    "targetMetadata": {
+      "clusterContextMetadata": {
+        "contextName": "home"
+      }
+    }
+  },
+  "scanCoverage": {
+    "coverageScore": 83.30769,
+    "degraded": true,
+    "evaluatedControls": 24,
+    "failedGVRPulls": [
+      {
+        "controls": [
+          "C-0066",
+          "C-0067",
+          "C-0068"
+        ],
+        "error": "failed to get cloud provider, cluster: home",
+        "gvr": "container.googleapis.com/v1/ClusterDescribe"
+      },
+      {
+        "controls": [
+          "C-0066",
+          "C-0067",
+          "C-0068"
+        ],
+        "error": "failed to get cloud provider, cluster: home",
+        "gvr": "eks.amazonaws.com/v1/ClusterDescribe"
+      },
+      {
+        "controls": [
+          "C-0069",
+          "C-0070"
+        ],
+        "error": "This control is scanned exclusively by the Kubescape operator, not the Kubescape CLI. Install the Kubescape operator:\n     https://kubescape.io/docs/install-operator/.",
+        "gvr": "hostdata.kubescape.cloud/v1beta0/KubeletInfo"
+      },
+      {
+        "controls": [
+          "C-0066",
+          "C-0067",
+          "C-0068"
+        ],
+        "error": "failed to get cloud provider, cluster: home",
+        "gvr": "management.azure.com/v1/ClusterDescribe"
+      }
+    ],
+    "notEvaluatedControls": [
+      {
+        "controlID": "C-0069",
+        "missingGVRs": [
+          "hostdata.kubescape.cloud/v1beta0/KubeletInfo"
+        ]
+      },
+      {
+        "controlID": "C-0070",
+        "missingGVRs": [
+          "hostdata.kubescape.cloud/v1beta0/KubeletInfo"
+        ]
+      }
+    ],
+    "silentFailedGVRCount": 3,
+    "totalControls": 26
+  },
+  "summaryDetails": {
+    "frameworks": [
+      {
+        "controls": {
+          "C-0002": {
+            "controlID": "C-0002",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0005": {
+            "controlID": "C-0005",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0012": {
+            "controlID": "C-0012",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0013": {
+            "controlID": "C-0013",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0016": {
+            "controlID": "C-0016",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0017": {
+            "controlID": "C-0017",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0030": {
+            "controlID": "C-0030",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0034": {
+            "controlID": "C-0034",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0035": {
+            "controlID": "C-0035",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0038": {
+            "controlID": "C-0038",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0041": {
+            "controlID": "C-0041",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0044": {
+            "controlID": "C-0044",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0046": {
+            "controlID": "C-0046",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0054": {
+            "controlID": "C-0054",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0055": {
+            "controlID": "C-0055",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0057": {
+            "controlID": "C-0057",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0058": {
+            "controlID": "C-0058",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0059": {
+            "controlID": "C-0059",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0066": {
+            "controlID": "C-0066",
+            "status": "skipped",
+            "statusInfo": {
+              "info": "failed to get cloud provider, cluster: home",
+              "status": "skipped"
+            }
+          },
+          "C-0067": {
+            "controlID": "C-0067",
+            "status": "skipped",
+            "statusInfo": {
+              "info": "failed to get cloud provider, cluster: home",
+              "status": "skipped"
+            }
+          },
+          "C-0068": {
+            "controlID": "C-0068",
+            "status": "skipped",
+            "statusInfo": {
+              "info": "failed to get cloud provider, cluster: home",
+              "status": "skipped"
+            }
+          },
+          "C-0069": {
+            "controlID": "C-0069",
+            "status": "skipped",
+            "statusInfo": {
+              "info": "missing: hostdata.kubescape.cloud/v1beta0/KubeletInfo",
+              "status": "skipped",
+              "subStatus": "notEvaluated"
+            }
+          },
+          "C-0070": {
+            "controlID": "C-0070",
+            "status": "skipped",
+            "statusInfo": {
+              "info": "missing: hostdata.kubescape.cloud/v1beta0/KubeletInfo",
+              "status": "skipped",
+              "subStatus": "notEvaluated"
+            }
+          },
+          "C-0270": {
+            "controlID": "C-0270",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0271": {
+            "controlID": "C-0271",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          },
+          "C-0292": {
+            "controlID": "C-0292",
+            "status": "passed",
+            "statusInfo": {
+              "status": "passed"
+            }
+          }
+        },
+        "name": "NSA"
+      }
+    ]
+  }
+}
