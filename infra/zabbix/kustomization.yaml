@@ -12,6 +12,7 @@ resources:
   - postgres.yaml
   - server.yaml
   - frontend.yaml
+  - kubernetes
   - ../../secrets/zabbix.enc.yaml
 configMapGenerator:
   - name: zabbix-frontend-nginx

@@ -1,0 +1,881 @@
+{
+  "issue": "https://github.com/RovxBot/homelab-infra/issues/2343",
+  "date": "2026-11-28",
+  "timezone": "Australia/Adelaide",
+  "baseCommit": "982bcaf53ee08979cb263b83971b2cce9861be67",
+  "status": "local qualification verified; proposed PR, no production contact or deployment",
+  "pins": {
+    "zabbixTemplates": {
+      "release": "8.0.0",
+      "commit": "c81e276e505924eaa115d0aa4bb81c388233f924",
+      "source": "https://raw.githubusercontent.com/zabbix/zabbix/c81e276e505924eaa115d0aa4bb81c388233f924/templates/app/kubernetes_cluster_http/template_kubernetes_cluster.yaml",
+      "sha256": "381387062c667528a5b87865dc4bd1d1f96a668ebf19accc0648b80496d8d629",
+      "templates": [
+        "Kubernetes Cluster by HTTP",
+        "Kubernetes Node by HTTP"
+      ],
+      "templateVendorVersion": "8.0-3",
+      "readmeTestedKubernetes": "1.32.6"
+    },
+    "vendorChart": {
+      "url": "https://git.zabbix.com/projects/ZT/repos/kubernetes-helm/browse?at=655475d926040a513fd598c0628c9eaedba60abb",
+      "commit": "655475d926040a513fd598c0628c9eaedba60abb",
+      "branch": "release/8.0",
+      "version": "1.0.0",
+      "appVersion": "8.0.0",
+      "lock": {
+        "kube-state-metrics": "9.0.0",
+        "prometheus-node-exporter": "5.0.1"
+      },
+      "deployed": false,
+      "reasonsNotInstalled": [
+        "default proxy unnecessary",
+        "broader RBAC than actual retained requests",
+        "persistent service-account-token Secret",
+        "node-exporter conflicts with restricted controls"
+      ]
+    },
+    "releaseTemplateChartMasterLink": {
+      "commit": "0141d8198c82872eb139849109c0fbc0a1328b1c",
+      "chart": "2.0.0",
+      "appVersion": "trunk",
+      "chartRanges": {
+        "kube-state-metrics": "7.2.*",
+        "prometheus-node-exporter": "4.51.*"
+      },
+      "lockOnlyDependency": "kube-state-metrics 5.7.0",
+      "status": "inconsistent moving target; not used"
+    },
+    "deployedCollectorChart": {
+      "version": "9.0.0",
+      "url": "oci://ghcr.io/prometheus-community/charts/kube-state-metrics",
+      "manifestDigest": "sha256:c7c5096b686d5ef5e5a5afc72b66d603db710168653350acfcb91c5e50e2d115",
+      "contentLayerDigest": "sha256:d187c0990b6e65708280d65b3b371f93f99ef99277fb3d22975d952f110504f6",
+      "status": "verified manifest and content SHA-256; source extracted for Helm render"
+    },
+    "collectorImage": {
+      "name": "registry.k8s.io/kube-state-metrics/kube-state-metrics",
+      "tag": "v2.18.0",
+      "indexDigest": "sha256:1545919b72e3ae035454fc054131e8d0f14b42ef6fc5b2ad5c751cafa6b2130e",
+      "linuxAmd64Digest": "sha256:e780845683dabd141d25d88a9d7221b567844832bf4f48d1c52f081861174661",
+      "status": "verified index, amd64 manifest and every layer; official binary extracted for native local canary",
+      "kubernetesClient": "1.34",
+      "caveat": "Upstream maintainers normally support latest KSM. This qualified older image override is explicit; no claim of vendor certification or image container runtime acceptance."
+    },
+    "unavailableChartDefaultImage": {
+      "tag": "v2.20.0",
+      "indexDigest": "sha256:42cfe3723a5f058171c627537fb57a3ea0f26e4380fa18555a95cb1a1b4cfc5b",
+      "index": "verified",
+      "amd64Manifest": "404 via registry.k8s.io and backing regional artifact URL; not used"
+    }
+  },
+  "resourceBudget": {
+    "collectorReplicas": 1,
+    "nodesObserved": 8,
+    "perNodeCollectorReplicas": 0,
+    "additionalRequests": {
+      "cpuMillicores": 100,
+      "memoryMi": 256
+    },
+    "additionalLimits": {
+      "cpuMillicores": 300,
+      "memoryMi": 512
+    },
+    "foundationPlusIntegrationRequests": {
+      "cpuMillicores": 1500,
+      "memoryMi": 3584
+    },
+    "foundationPlusIntegrationLimits": {
+      "cpuMillicores": 3800,
+      "memoryMi": 6144
+    },
+    "rollout": "Recreate, no deliberate surge",
+    "placement": "Linux/amd64; soft prefer metal7, avoid metal4; no tolerations or priority override",
+    "newStorageGi": 0,
+    "capacity": "rendered budget, not measured use; refresh current per-node/build/N-1 reservations under #2341 before rollout"
+  },
+  "transportAndCredentials": {
+    "metrics": "native TLS HTTPS Service DNS; no Authorization header; no metrics client authentication; internal metadata readable by cluster clients",
+    "api": "HTTPS kubernetes.default.svc; HTTP-agent verify_peer/verify_host YES; full template TLS macro; redirects disabled",
+    "trust": "server mounts native kube-root-ca.crt and SOPS metrics CA; vendor startup copies to writable ssl_ca_internal and openssl rehash; restart via Git required on either CA change (subPath mount)",
+    "metricsCertificate": {
+      "notAfter": "2027-11-28T04:45:30+00:00",
+      "dns": "zabbix-kube-state-metrics.zabbix.svc",
+      "caFingerprint": "b8485a083211b456ac9c00bc3675aab6b390d3bd06d8da54b084f6b8156ffeee"
+    },
+    "privateKey": "only SOPS ciphertext committed; signing key not retained; encrypted with existing recipient; local decrypt/MAC not available",
+    "apiReader": "GET /livez /readyz; no Pod attachment or token Secret; Kubernetes bootstrap discovery rights also apply",
+    "provisioning": "operator TokenRequest, 24h requested bounded attended pilot, actual exp/aud must be inspected privately; Secret-text Zabbix host macro",
+    "rotation": "native manual TokenRequest + macro update; no unattended refresher, no claim of unattended operation; projected exporter token uses native kubelet/client-go lifecycle",
+    "revocation": "reviewed Git ServiceAccount deletion/recreation changes UID and invalidates old tokens; binding removal alone is not authentication revocation"
+  },
+  "metricScope": [
+    {
+      "status": "supported by source/profile; production unverified",
+      "metrics": "node inventory, Ready counts, raw conditions, CPU/memory allocatable, requests/limits",
+      "source": "kube-state-metrics; native dependent parsing"
+    },
+    {
+      "status": "supported by source/profile; production unverified",
+      "metrics": "namespace/pod phase, restarts, deployment desired/available/mismatch, workload/service/ingress counts, PV/PVC phase/declared capacity",
+      "source": "kube-state-metrics"
+    },
+    {
+      "status": "supported transport locally; production unverified",
+      "metrics": "API livez/readyz",
+      "source": "Kubernetes API with native HTTP agents"
+    },
+    {
+      "status": "unsupported/disabled",
+      "metrics": "cluster/namespace/deployment actual CPU/RAM usage",
+      "source": "vendor kube.resource.metrics preprocessing uses nodes/proxy/metrics/resource; grant withheld"
+    },
+    {
+      "status": "unsupported/disabled",
+      "metrics": "per-node CPU/RAM/swap/pressure/network/disk IO/host filesystem usage",
+      "source": "node-exporter; host paths/network/PID conflict with controls"
+    },
+    {
+      "status": "unsupported/disabled",
+      "metrics": "Secret/ConfigMap counts and obsolete Endpoints count",
+      "source": "Secret/ConfigMap collection deliberately absent; no unused EndpointSlice collector"
+    },
+    {
+      "status": "unverified/outside PR",
+      "metrics": "Flux reconciliation, Longhorn replicas/backups, Cilium datapath, internal control-plane metrics, DB internals, app/edge health, native maintenance/SLA lifecycle",
+      "source": "separate qualification; existing monitoring retained"
+    }
+  ],
+  "nativeTemplateProfile": {
+    "builder": "scripts/zabbix/build_kubernetes_profile.py",
+    "mode": "offline, byte-pinned input; native import export only, no runtime code/API caller",
+    "names": [
+      "Homelab Kubernetes Cluster state by HTTP",
+      "Homelab Kubernetes Node inventory by HTTP"
+    ],
+    "activeClusterItems": 28,
+    "disabledNodeItems": 22,
+    "changes": [
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.cluster.cpu_usage",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.cluster.cpu_utilization",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.cluster.memory_usage",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.cluster.memory_utilization",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.configmap.count",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.endpoint.count",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.resource.metrics",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.secret.count",
+        "status": "disabled"
+      },
+      {
+        "key": "kube.state.metrics",
+        "transport": "native HTTPS agent; no credentials"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.deployment.cpu_total[{#NAMESPACE}/{#DEPLOYMENT}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.deployment.cpu_usage[{#NAMESPACE}/{#DEPLOYMENT}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.deployment.memory_usage[{#NAMESPACE}/{#DEPLOYMENT}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.deployment.memory_usage_percentage[{#NAMESPACE}/{#DEPLOYMENT}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.namespace.cpu_total[{#NAMESPACE}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.namespace.cpu_usage[{#NAMESPACE}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.namespace.memory_usage[{#NAMESPACE}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Cluster by HTTP",
+        "key": "kube.namespace.memory_usage_percentage[{#NAMESPACE}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.boot_time",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.cpu_core",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.cpu_pressure_waiting",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.cpu_utilization",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.exporter.metrics",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.io_pressure_stalled",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.io_pressure_waiting",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.load_avg_1min",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.load_avg_5min",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.load_avg_15min",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_available",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_buffers",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_cache",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_pressure_stalled",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_pressure_waiting",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_swap_free",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_swap_total",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_swap_used",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_total",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.memory_utilization",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.network_receive_bytes",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.network_transmit_bytes",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.filesystem.avail_bytes[{#FSNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.filesystem.size_bytes[{#FSNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.filesystem.used_bytes[{#FSNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.filesystem.utilization[{#FSNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.net.if.receive_bytes[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.net.if.receive_errors[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.net.if.receive_packets[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.net.if.transmit_bytes[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.net.if.transmit_errors[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.net.if.transmit_packets[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.network.if.oper.status[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.network.if.speed[{#IFNAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.disk_io_utilization[{#NAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.disk_read_bytes[{#NAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.disk_read_io_ps[{#NAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.disk_write_bytes[{#NAME}]",
+        "status": "disabled"
+      },
+      {
+        "template": "Kubernetes Node by HTTP",
+        "key": "kube.node.disk_write_io_ps[{#NAME}]",
+        "status": "disabled"
+      }
+    ],
+    "nativeImport": "not run; mandatory review/acceptance gate"
+  },
+  "localValidation": {
+    "tools": {
+      "kustomize": "5.5.0",
+      "helm": "3.17.3",
+      "kubeconform": "0.6.7",
+      "kubeApiserver": "1.34.1",
+      "etcd": "3.6.5",
+      "kyverno": "1.20.0 f666af06e9bd310c7e730f1523c0430e90371a89",
+      "renovate": "44.126.1"
+    },
+    "render": "verified; component Kustomize --load-restrictor LoadRestrictionsNone; pinned OCI content Helm template --kube-version 1.34.1",
+    "schema": {
+      "collector": {
+        "valid": 5,
+        "invalid": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "component": {
+        "valid": 16,
+        "invalid": 0,
+        "errors": 0,
+        "skipped": 2,
+        "skipReason": "kubeconform lacks these two CRD schemas; both passed server dry-run against exact current-main Flux CRDs on isolated Kubernetes 1.34.1",
+        "secretHandling": "only SOPS metadata removed from temporary schema input; no decryption"
+      }
+    },
+    "cel": "verified against current-main workload/namespace source: 29 pass, 0 fail/warn/error/skip across four Deployments and namespace; no fresh live-policy comparison",
+    "unitTests": "6 passed",
+    "renovate": "verified: strict config valid; 25 policy/extraction tests passed, including atomic tag/sha regex ownership and OCI tag/digest extraction",
+    "preservation": "verified render comparison: all 12 existing foundation objects retained; 11 identical parsed objects; server Pod template differs only in two read-only CA volumes/mounts; existing owner and all unrelated sources untouched",
+    "localApi": {
+      "target": "isolated loopback Kubernetes v1.34.1; not cooked-k8s",
+      "results": [
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts/zabbix-api-reader/token",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts/zabbix-api-reader/token",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/livez",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/readyz",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/livez",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/readyz",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts/zabbix-api-reader/token",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/readyz",
+          "method": "GET",
+          "status": 401
+        },
+        {
+          "path": "/api/v1/nodes",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/secrets",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/pods",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/configmaps",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/nodes/metal1/proxy/metrics/resource",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts/zabbix-api-reader/token",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts/zabbix-kube-state-metrics/token",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/apis/batch/v1/cronjobs",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/batch/v1/cronjobs?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/daemonsets",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/daemonsets?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/deployments",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/deployments?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/networking.k8s.io/v1/ingresses",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/networking.k8s.io/v1/ingresses?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/batch/v1/jobs",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/batch/v1/jobs?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/namespaces",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/namespaces?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/nodes",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/nodes?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/persistentvolumeclaims",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/persistentvolumeclaims?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/persistentvolumes",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/persistentvolumes?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/pods",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/pods?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/replicasets",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/replicasets?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/services",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/services?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/statefulsets",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/apis/apps/v1/statefulsets?watch=true&timeoutSeconds=1",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/secrets",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/configmaps",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/nodes/metal1",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/nodes/metal1/proxy/metrics/resource",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/apis/apps/v1/namespaces/zabbix/deployments",
+          "method": "GET",
+          "status": 403
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts/zabbix-api-reader",
+          "method": "DELETE",
+          "status": 200
+        },
+        {
+          "path": "/readyz",
+          "method": "GET",
+          "status": 401
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/readyz",
+          "method": "GET",
+          "status": 401
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts/zabbix-api-reader/token",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/readyz",
+          "method": "GET",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/serviceaccounts",
+          "method": "POST",
+          "status": 409
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/pods?dryRun=All",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/pods?dryRun=All",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/pods?dryRun=All",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/pods?dryRun=All",
+          "method": "POST",
+          "status": 201
+        },
+        {
+          "path": "/api/v1/namespaces/zabbix/pods?dryRun=All",
+          "method": "POST",
+          "status": 403
+        }
+      ],
+      "tokenLifecycle": {
+        "freshAndRotated": "verified",
+        "wrongAudience401": "verified",
+        "deleteAndRecreateSARevokesOldToken401": "verified",
+        "expiration": "1h requested; returned expirationTimestamp observed; expiry wait not run"
+      },
+      "tls": {
+        "trustedCAAndSAN": "verified",
+        "untrustedCA": "verified rejection",
+        "wrongSAN": "verified rejection"
+      },
+      "psa": "all four actual Pod templates admitted dryRun under restricted:v1.34; hostNetwork negative rejected",
+      "production": "not contacted"
+    },
+    "collectorRuntime": {
+      "collector": "official v2.18.0 linux/amd64 binary extracted from verified image layers",
+      "runtime": "native workstation process against isolated v1.34.1 API; no container or production deployment",
+      "checks": [
+        {
+          "path": "/metrics",
+          "port": 18080,
+          "host": "zabbix-kube-state-metrics.zabbix.svc",
+          "tls": true,
+          "exit": 0,
+          "http": "200"
+        },
+        {
+          "path": "/livez",
+          "port": 18080,
+          "host": "zabbix-kube-state-metrics.zabbix.svc",
+          "tls": true,
+          "exit": 0,
+          "http": "200"
+        },
+        {
+          "path": "/healthz",
+          "port": 18080,
+          "host": "zabbix-kube-state-metrics.zabbix.svc",
+          "tls": true,
+          "exit": 0,
+          "http": "200"
+        },
+        {
+          "path": "/readyz",
+          "port": 18081,
+          "host": "zabbix-kube-state-metrics.zabbix.svc",
+          "tls": true,
+          "exit": 0,
+          "http": "200"
+        },
+        {
+          "path": "/metrics",
+          "port": 18080,
+          "host": "zabbix-kube-state-metrics.zabbix.svc",
+          "tls": true,
+          "exit": 60,
+          "http": "000"
+        },
+        {
+          "path": "/metrics",
+          "port": 18080,
+          "host": "wrong.invalid",
+          "tls": true,
+          "exit": 60,
+          "http": "000"
+        },
+        {
+          "path": "/metrics",
+          "port": 18080,
+          "host": "zabbix-kube-state-metrics.zabbix.svc",
+          "tls": false,
+          "exit": 0,
+          "http": "400"
+        }
+      ],
+      "hashedCaDirectory": "verified with openssl rehash and curl --capath",
+      "fixtureMetrics": {
+        "node_info": 8,
+        "readyTrue": 8,
+        "allocatableSeries": 24
+      },
+      "metricsClientAuthentication": "none; no bearer token sent; internal metadata exposed to cluster clients",
+      "containerAndTalosRuntime": "not run"
+    },
+    "limitations": [
+      "No container daemon, Talos host or production access used",
+      "No Zabbix import/API runtime validation",
+      "No elapsed token-expiry wait or real kubelet projected-token rotation",
+      "No live metrics/capacity/acceptance claim"
+    ],
+    "fluxCrdDryRun": "verified: OCIRepository and HelmRelease both admitted by current-main CRD schemas in isolated v1.34.1 API; no production change"
+  },
+  "acceptanceGates": [
+    "independent ChatGPT/security review and hosted CI; no merge in this task",
+    "current capacity/build/per-node reservation approval under #2341",
+    "approved Flux rollout, SOPS decrypt, CA startup hashing and Talos/PSA/Kyverno runtime",
+    "native template import and host setup through existing loopback frontend",
+    "real eight-node UUID/name discovery and state totals; unsupported usage checks remain disabled",
+    "production API issuer/audience/expiry, attended rotation/revocation and TLS positive/negative checks",
+    "normal/build resource history, values per second and database growth; existing backup/restore gates unchanged"
+  ],
+  "rollback": "disable native monitoring host, revoke API reader through Git, revert only new collector/source/RBAC/TLS Secret and server CA mounts; keep zabbix Flux owner, Namespace, existing workloads, PVC/PV/StorageClass/database and credentials; native configuration is stored in DB and requires separate unlink-preserving-history if desired; no MoP BackupVolume actions",
+  "wiki": "proposed Zabbix.md plus Monitoring-and-Alerts/_Sidebar navigation diff outside GitOps repo; not published",
+  "sourceSha256": {
+    "infra/zabbix/kubernetes/collectors.yaml": "6b92a26a024e10517023029ed65e8604508f84bd50fb1a71aa71eee50d2c68ba",
+    "infra/zabbix/kubernetes/api-reader.yaml": "a83e583e9bc32d76bb260010414b78d20a5887fd5fafb52207f12ac587280277",
+    "infra/zabbix/kubernetes/kustomization.yaml": "b1e5139b6edddcd202e3a4a2dbcb496a89c9839f8570ffcfdbea9c3fb63c8164",
+    "infra/zabbix/server.yaml": "de40933e0439627d63d8cecb98b4372bc801e65401a1d61fbfe7a7d8acebf20a",
+    "infra/zabbix/kustomization.yaml": "ea6b2abb0f915c1d324dc13d89259f399c1d0e33184043e58cbd9551a08790f9",
+    "scripts/zabbix/build_kubernetes_profile.py": "040369be6c23d5940124dd20dbbbc934f3f044b540c74fd861d49cca47b65fd9",
+    "scripts/tests/test_zabbix_kubernetes.py": "b2ee758c995917ee69d9bea0a476222bb0501adcd2aae71c39f5c083b5a6e13c",
+    "secrets/zabbix-kubernetes-tls.enc.yaml": "1b7f20facb193ce3db97e274bf4316132756e2523c837b382db690f7623288fe",
+    "renovate.json": "4f57670a169e7c9f0583627139d189743fa428fb991baeccdcb1c80ae995c556",
+    ".github/tests/renovate-policy.test.cjs": "b4a56c6b1682af08b78c9ae6ca65895c93ba8b3d09b42589afe28d23e432ceb1"
+  }
+}

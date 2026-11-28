@@ -1,0 +1,662 @@
+{
+  "pr": "https://github.com/RovxBot/homelab-infra/pull/2352",
+  "addresses": "https://github.com/RovxBot/homelab-infra/pull/2352#issuecomment-7234371325",
+  "date": "2026-11-28",
+  "timezone": "Australia/Adelaide",
+  "baseCommit": "65e7ee9c2f485774a3f2fc2aa71ba2225d9c0715",
+  "scope": "Offline native-template correction, regression tests and CI selection only; deployment and security manifests unchanged; no production contact, merge or hosted-CI waiting.",
+  "artifact": {
+    "sourceSHA256": "381387062c667528a5b87865dc4bd1d1f96a668ebf19accc0648b80496d8d629",
+    "builderSHA256": "4c86fab85d9b97a53f4aa093a6e0cd519a8ff59cb1491b1d2abf0fcc1edc3f54",
+    "generatedYAMLSHA256": "1e45e6459eb3071256931addadf016a15a7de21554a71a9067191d802e1fe1f2",
+    "explicitItemChanges": 59,
+    "fixture": "scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz"
+  },
+  "staticValidation": {
+    "label": "Static contracts and Python validation, not runtime proof",
+    "templateAndSecurityContracts": {
+      "passed": 14,
+      "command": "python3 -m unittest discover -s scripts/tests -p 'test_zabbix*.py'"
+    },
+    "ciSelectionTests": {
+      "passed": 50,
+      "command": "python3 -m unittest discover -s scripts/ci/tests -p 'test_detect_changes.py'"
+    },
+    "selectedTestRunnerTests": {
+      "passed": 17,
+      "command": "python3 -m unittest discover -s scripts/ci/tests -p 'test_run_selected_tests.py'"
+    },
+    "hostedRunnerLocallyExercised": "classify_changes on a Zabbix manifest or byte-exact fixture selects test_zabbix*.py; run_selected_tests.py --suite scripts executes all 14 contracts",
+    "pythonCompile": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "nativeRuntime": {
+    "label": "Actual native server/API observations with controlled HTTPS fixtures, not production acceptance",
+    "serverVersion": "8.0.0",
+    "apiVersion": "8.0.0",
+    "serverRevision": "c81e276",
+    "images": [
+      {
+        "image": "zabbix/zabbix-server-pgsql:ubuntu-8.0.0",
+        "index": "sha256:1bbfd3fec8fa61ab1dc9bd048b0e46935724d09de315d825300274632d3af5a7",
+        "amd64": "sha256:1bf249a89ec489fca1ac0a3a638ca9d5e667dba415c275fd79e6b55cb83e4cc6",
+        "layers": [
+          "sha256:edafa32f5d9e4d9629f0dbc6c01e63c79ff08133c01cfb7d3363aa8bd8a614cf",
+          "sha256:f3f25b84a7d74315d94ee4108231f8f5e0cd2a44725a7204d5dd6ce91c151697",
+          "sha256:eec2488cc3dd8427c86a7bcd2f9bdc0b1b651367abf5f49dcb20d98acc5d72ca",
+          "sha256:cbc7d87afe5048fd87f4c7fecc3183dd0c406cbbcae3070c05cb05d636e69608",
+          "sha256:4f01dbc5f73eebb313f41094e88e305a0d0e9b23551b273a0fd1d6024462c1a8",
+          "sha256:4d64fb4e4fe6b56849270ff8f9f1177f075cf15b8f7d55fa6d77586b8aa299f5",
+          "sha256:30deac0482d0f5e65bc7926fabcccd650056e39c4ed7d03749cac1956f1e2a12",
+          "sha256:a83c0e56ba61f02e2848687fb3cf76648827b21244a2398caa4a176e2eebbd99",
+          "sha256:4db411b502c0fc89e66d0434f3201c3efefc3bfdf53f4fd9175d0a70b3e869f2",
+          "sha256:96229d3caa57b3657d025ce073e752244ffcaf6852b947bf9cf44c56492c9698",
+          "sha256:4dce2785aeeb53cff99e6577bc6c1e8fed277144d73c82a8bbc4682bf7301d42",
+          "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1"
+        ],
+        "verified": true
+      },
+      {
+        "image": "zabbix/zabbix-web-nginx-pgsql:ubuntu-8.0.0",
+        "index": "sha256:2f574332d548bc324ab7d5b96f93f3ff3d34ba7ca55edb7839a2dbba4dcb41ec",
+        "amd64": "sha256:dacace5416e2447ff18e8a10214025cffaf09eb1ec5c3e6952aeeaf3eb163eda",
+        "layers": [
+          "sha256:edafa32f5d9e4d9629f0dbc6c01e63c79ff08133c01cfb7d3363aa8bd8a614cf",
+          "sha256:f3f25b84a7d74315d94ee4108231f8f5e0cd2a44725a7204d5dd6ce91c151697",
+          "sha256:5154a072c28ea72de7463e5381eb788a244bfab812dad4cd81b411d7845fb5ad",
+          "sha256:83ee265deb1cf5f6486558a0657a3d69fa9ebee9bfc2f3abff11a761dcea5093",
+          "sha256:58e15098115983aa80594bfc79f14b435d6df9955afa1998b2d8b55ad23670c0",
+          "sha256:7c50a83c38348129285af5fcb2d5be1b594d79fbec8ea05384d14ad164300001",
+          "sha256:d081de3177848d1e95bed4a04a434c40609276dcb0234411f739e585db438d88",
+          "sha256:791e4744e5abfec6fe2ceddb248255e4024aee1e73f987b792358a90a272a158",
+          "sha256:6e0fae02d16160688e7cb7f0aa1a22290548620a83d03a6029a026585c794ca9",
+          "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1"
+        ],
+        "verified": true
+      },
+      {
+        "image": "library/postgres:17.12-bookworm",
+        "index": "sha256:1eff563f6c868b9b433566e9f3cf6e5c79fbd3b95bf70ec7277d376cdbfc50d7",
+        "amd64": "sha256:c7a16500f728a9c09731e772f228ee7a29615585e8019772f05b620522f62d03",
+        "layers": [
+          "sha256:b1dd3d113aab1041fd80cc61d9db7ffbc058f756bf46fc149a0d9aa8b85935f4",
+          "sha256:24397a51b4bbc1e5ac1af6231b18eae1e3762eeb93dc64a49039d4d85255c846",
+          "sha256:bd601577229d39f2f8e45102f05aba35655bcadfa615954375e90a551fab9078",
+          "sha256:273a40752861fa2a3e6d88c6dd3fcba8a5b58d46988b006e0c6c51f2336d8224",
+          "sha256:2c19f8cb75f99cf72c72009caeeb3f33a5a8ec2c612eb26be82805db14b5807d",
+          "sha256:e4f41589f5ae8a59314d4ca5ae8c875126a1ebdf4ee6157071166c49518923e3",
+          "sha256:e82bd47ce1adcd7a3f34ef75d2219177e936a53a9f707bbdaf969499b07807db",
+          "sha256:65b3d2b711b44a542216911f4eb1d7e952666e66943a7a533877555f8f1cda02",
+          "sha256:0c806bf4269eea00f94a70ae0a5a2a52939a210da367c6418587e710add493c0",
+          "sha256:b3fe295a0def4b09fd70541c539cad100b0b5a081bad5e12f6314886bbc736b5",
+          "sha256:5becdd7eb439fc1793b1071da3c378d40ee04dcef8ffd4888db4a0953ccdbcea",
+          "sha256:61e9934b38e3ecf789ad1223f1d5ec578faa7a9364b7e7600ad70a91cb98f424",
+          "sha256:fc6c6c6e80da2d4abcb1b53d02009167688d342880c07fd10690e9e0f5336079"
+        ],
+        "verified": true
+      }
+    ],
+    "isolation": "Disposable local user/PID/mount namespaces and separate chroots; official native server and PHP API from verified image layers; PostgreSQL 17.12, loopback only. Not a Docker/Talos container runtime test.",
+    "disposableOverrides": "Loopback database trust, AllowRoot for mapped namespace root, five-second config-cache refresh and manual hashed fixture CA directory. No production configuration was changed.",
+    "import": {
+      "completeGeneratedProfile": true,
+      "configurationImportCreate": true,
+      "configurationImportRepeat": true,
+      "fixesDiscovered": "Native reader rejects UUIDv5 identifiers and some PyYAML folded quoted scripts; corrected deterministic UUIDv4 shape and literal/unfolded serialization, with regressions."
+    },
+    "timings": {
+      "poll_seconds": 60,
+      "nodata_seconds": 300,
+      "recovery_window_seconds": 180
+    },
+    "runtimeScope": "Full unmodified template imported twice. Only three corrected items enabled per disposable host. Loopback HTTPS fixtures simulate response codes; no real token issuer expiry/revocation is asserted.",
+    "fixtureContract": "Trusted localhost HTTPS; one constant kube_node_info series. API bodies are ok even for 401/403/500/302; redirects point to a healthy fixture. Wrong-CA and wrong-SAN targets remain TLS verified. Empty200 returns HTML without node inventory.",
+    "cases": [
+      {
+        "case": "healthy",
+        "openProblems": [],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843377,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843378,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": true,
+            "lastClock": 1795843379,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": ""
+          }
+        },
+        "earlyRecoveryProblemCount": 0,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "collector500",
+        "openProblems": [
+          "State telemetry unavailable or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843396,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843337,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": false,
+            "lastClock": 1795842978,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": "Response code \"500\" did not match any of the required status codes \"200\"\nkube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n"
+          }
+        },
+        "earlyRecoveryProblemCount": 1,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "collector-refused",
+        "openProblems": [
+          "State telemetry unavailable or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843355,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843356,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": false,
+            "lastClock": 1795842997,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": "Cannot perform request: Failed to connect to localhost port 19999 after 0 ms: Could not connect to server"
+          }
+        },
+        "earlyRecoveryProblemCount": 1,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "empty200",
+        "openProblems": [
+          "State telemetry unavailable or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843374,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843375,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": false,
+            "lastClock": 1795842956,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": "cannot perform regular expression \"(?m)^kube_node_info\\{[^\\r\\n]+\\}[ \\t]+1(?:\\.0+)?[ \\t]*$\" validation for value of type \"string\": value does not match regular expression"
+          }
+        },
+        "earlyRecoveryProblemCount": 1,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "api500",
+        "openProblems": [
+          "Livez HTTP check failed or stale",
+          "Readyz HTTP check failed or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843393,
+            "lastValue": "500",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843394,
+            "lastValue": "500",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": true,
+            "lastClock": 1795843395,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": ""
+          }
+        },
+        "earlyRecoveryProblemCount": 2,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "expired401",
+        "openProblems": [
+          "Livez HTTP check failed or stale",
+          "Readyz HTTP check failed or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843352,
+            "lastValue": "401",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843353,
+            "lastValue": "401",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": true,
+            "lastClock": 1795843354,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": ""
+          }
+        },
+        "earlyRecoveryProblemCount": 2,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "revoked401",
+        "openProblems": [
+          "Livez HTTP check failed or stale",
+          "Readyz HTTP check failed or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843371,
+            "lastValue": "401",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843372,
+            "lastValue": "401",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": true,
+            "lastClock": 1795843373,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": ""
+          }
+        },
+        "earlyRecoveryProblemCount": 2,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "forbidden403",
+        "openProblems": [
+          "Livez HTTP check failed or stale",
+          "Readyz HTTP check failed or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843390,
+            "lastValue": "403",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843391,
+            "lastValue": "403",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": true,
+            "lastClock": 1795843392,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": ""
+          }
+        },
+        "earlyRecoveryProblemCount": 2,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "redirect302",
+        "openProblems": [
+          "Livez HTTP check failed or stale",
+          "Readyz HTTP check failed or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843349,
+            "lastValue": "302",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843350,
+            "lastValue": "302",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": true,
+            "lastClock": 1795843351,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": ""
+          }
+        },
+        "earlyRecoveryProblemCount": 2,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "wrong-ca",
+        "openProblems": [
+          "Livez HTTP check failed or stale",
+          "Readyz HTTP check failed or stale",
+          "State telemetry unavailable or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": false,
+            "lastClock": 1795843008,
+            "lastValue": "200",
+            "error": "Cannot perform request: SSL certificate OpenSSL verify result: self-signed certificate (18)"
+          },
+          "kube.get.readyz": {
+            "supported": false,
+            "lastClock": 1795843009,
+            "lastValue": "200",
+            "error": "Cannot perform request: SSL certificate OpenSSL verify result: self-signed certificate (18)"
+          },
+          "kube.state.metrics": {
+            "supported": false,
+            "lastClock": 1795842950,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": "Cannot perform request: SSL certificate OpenSSL verify result: self-signed certificate (18)"
+          }
+        },
+        "earlyRecoveryProblemCount": 3,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "wrong-san",
+        "openProblems": [
+          "Livez HTTP check failed or stale",
+          "Readyz HTTP check failed or stale",
+          "State telemetry unavailable or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": false,
+            "lastClock": 1795842967,
+            "lastValue": "200",
+            "error": "Cannot perform request: SSL: no alternative certificate subject name matches target hostname 'wrong.local'"
+          },
+          "kube.get.readyz": {
+            "supported": false,
+            "lastClock": 1795842968,
+            "lastValue": "200",
+            "error": "Cannot perform request: SSL: no alternative certificate subject name matches target hostname 'wrong.local'"
+          },
+          "kube.state.metrics": {
+            "supported": false,
+            "lastClock": 1795842969,
+            "lastValue": "kube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n",
+            "error": "Cannot perform request: SSL: no alternative certificate subject name matches target hostname 'wrong.local'"
+          }
+        },
+        "earlyRecoveryProblemCount": 3,
+        "finalProblemCount": 0
+      },
+      {
+        "case": "startup",
+        "openProblems": [
+          "State telemetry unavailable or stale"
+        ],
+        "failureValues": {
+          "kube.get.livez": {
+            "supported": true,
+            "lastClock": 1795843346,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.get.readyz": {
+            "supported": true,
+            "lastClock": 1795843347,
+            "lastValue": "200",
+            "error": ""
+          },
+          "kube.state.metrics": {
+            "supported": false,
+            "lastClock": 0,
+            "lastValue": "",
+            "error": "Response code \"500\" did not match any of the required status codes \"200\"\nkube_node_info{node=\"fixture\",system_uuid=\"local\"} 1\n"
+          }
+        },
+        "earlyRecoveryProblemCount": 1,
+        "finalProblemCount": 0
+      }
+    ],
+    "noHistoryStartup": {
+      "noSuccessfulSamples": true,
+      "openProblemsAfter350Seconds": 3,
+      "stillOpenAfter70SecondsOfResumedTelemetry": true,
+      "recoveredAfter260SecondsOfResumedTelemetry": true
+    },
+    "problemRecoveryPairs": [
+      {
+        "case": "revoked401",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "3",
+        "problemClock": 1795843011,
+        "recoveryEvent": "39",
+        "recoveryClock": 1795843551
+      },
+      {
+        "case": "revoked401",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "4",
+        "problemClock": 1795843012,
+        "recoveryEvent": "40",
+        "recoveryClock": 1795843552
+      },
+      {
+        "case": "forbidden403",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "5",
+        "problemClock": 1795843030,
+        "recoveryEvent": "45",
+        "recoveryClock": 1795843570
+      },
+      {
+        "case": "forbidden403",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "6",
+        "problemClock": 1795843031,
+        "recoveryEvent": "47",
+        "recoveryClock": 1795843576
+      },
+      {
+        "case": "api500",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "7",
+        "problemClock": 1795843033,
+        "recoveryEvent": "48",
+        "recoveryClock": 1795843602
+      },
+      {
+        "case": "api500",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "8",
+        "problemClock": 1795843034,
+        "recoveryEvent": "46",
+        "recoveryClock": 1795843574
+      },
+      {
+        "case": "redirect302",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "9",
+        "problemClock": 1795843049,
+        "recoveryEvent": "34",
+        "recoveryClock": 1795843536
+      },
+      {
+        "case": "redirect302",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "10",
+        "problemClock": 1795843050,
+        "recoveryEvent": "31",
+        "recoveryClock": 1795843530
+      },
+      {
+        "case": "expired401",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "11",
+        "problemClock": 1795843052,
+        "recoveryEvent": "32",
+        "recoveryClock": 1795843532
+      },
+      {
+        "case": "expired401",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "12",
+        "problemClock": 1795843053,
+        "recoveryEvent": "33",
+        "recoveryClock": 1795843533
+      },
+      {
+        "case": "startup",
+        "name": "Kubernetes Cluster: State telemetry unavailable or stale",
+        "problemEvent": "13",
+        "problemClock": 1795843123,
+        "recoveryEvent": "30",
+        "recoveryClock": 1795843528
+      },
+      {
+        "case": "wrong-ca",
+        "name": "Kubernetes Cluster: State telemetry unavailable or stale",
+        "problemEvent": "17",
+        "problemClock": 1795843250,
+        "recoveryEvent": "38",
+        "recoveryClock": 1795843550
+      },
+      {
+        "case": "empty200",
+        "name": "Kubernetes Cluster: State telemetry unavailable or stale",
+        "problemEvent": "18",
+        "problemClock": 1795843256,
+        "recoveryEvent": "41",
+        "recoveryClock": 1795843556
+      },
+      {
+        "case": "wrong-san",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "19",
+        "problemClock": 1795843267,
+        "recoveryEvent": "42",
+        "recoveryClock": 1795843567
+      },
+      {
+        "case": "wrong-san",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "20",
+        "problemClock": 1795843268,
+        "recoveryEvent": "43",
+        "recoveryClock": 1795843568
+      },
+      {
+        "case": "wrong-san",
+        "name": "Kubernetes Cluster: State telemetry unavailable or stale",
+        "problemEvent": "21",
+        "problemClock": 1795843269,
+        "recoveryEvent": "44",
+        "recoveryClock": 1795843569
+      },
+      {
+        "case": "collector500",
+        "name": "Kubernetes Cluster: State telemetry unavailable or stale",
+        "problemEvent": "22",
+        "problemClock": 1795843278,
+        "recoveryEvent": "29",
+        "recoveryClock": 1795843518
+      },
+      {
+        "case": "collector-refused",
+        "name": "Kubernetes Cluster: State telemetry unavailable or stale",
+        "problemEvent": "23",
+        "problemClock": 1795843297,
+        "recoveryEvent": "35",
+        "recoveryClock": 1795843537
+      },
+      {
+        "case": "wrong-ca",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "24",
+        "problemClock": 1795843308,
+        "recoveryEvent": "36",
+        "recoveryClock": 1795843548
+      },
+      {
+        "case": "wrong-ca",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "25",
+        "problemClock": 1795843309,
+        "recoveryEvent": "37",
+        "recoveryClock": 1795843549
+      },
+      {
+        "case": "startup-no-history",
+        "name": "Kubernetes Cluster: Livez HTTP check failed or stale",
+        "problemEvent": "14",
+        "problemClock": 1795843245,
+        "recoveryEvent": "26",
+        "recoveryClock": 1795843425
+      },
+      {
+        "case": "startup-no-history",
+        "name": "Kubernetes Cluster: Readyz HTTP check failed or stale",
+        "problemEvent": "15",
+        "problemClock": 1795843246,
+        "recoveryEvent": "27",
+        "recoveryClock": 1795843426
+      },
+      {
+        "case": "startup-no-history",
+        "name": "Kubernetes Cluster: State telemetry unavailable or stale",
+        "problemEvent": "16",
+        "problemClock": 1795843247,
+        "recoveryEvent": "28",
+        "recoveryClock": 1795843427
+      }
+    ],
+    "result": "23 native problem/recovery pairs; no false problem on unchanged healthy telemetry; problems remain open after at most two resumed polls; all corrected items supported and all collection problems resolved after qualified recovery."
+  },
+  "remainingGates": [
+    "Hosted CI and independent review; not waited for or merged.",
+    "Current capacity refresh and history/DB growth, including global housekeeping overrides of one-hour raw history.",
+    "Production import, Flux/Talos rollout, entrypoint CA startup, actual eight-node discovery and workload metrics.",
+    "Real issuer elapsed token expiration, attended macro rotation, production revocation and unattended credential acceptance; HTTP 401/403 fixtures do not prove these.",
+    "Freshness detects lost polling/valid inventory, not the age of objects inside an otherwise responding collector cache.",
+    "Existing foundation backup/restore and historical capacity gates remain open."
+  ],
+  "wiki": "Updated proposal remains unpublished; complete proposed Zabbix.md / Monitoring-and-Alerts.md / _Sidebar.md diff retained in PR description."
+}

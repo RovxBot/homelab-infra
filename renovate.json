@@ -83,6 +83,17 @@
       "matchStrings": [
         "# renovate: datasource=docker depName=(?<depName>\\S+)\\s+default\\s+=\\s+\\\"[^\\\"]+:(?<currentValue>[^@\\\"]+)@(?<currentDigest>sha256:[a-f0-9]+)\\\""
       ]
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^infra/zabbix/kubernetes/collectors\\.yaml$/"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "registry.k8s.io/kube-state-metrics/kube-state-metrics",
+      "matchStrings": [
+        "      tag: (?<currentValue>v\\d+\\.\\d+\\.\\d+)\\s+sha: (?<currentDigest>sha256:[a-f0-9]{64})"
+      ]
     }
   ],
   "schedule": [
@@ -615,6 +626,19 @@
       "description": "Scanner build inputs require an explicitly reviewed candidate build and fresh evidence; Renovate may extract these dependencies but never edit this Dockerfile.",
       "matchFileNames": [
         "infra/kubescape/recurring/scanner/**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "The collector chart uses image.sha, which Flux extraction cannot update atomically with its tag. The scoped regex manager owns this image pair.",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchFileNames": [
+        "infra/zabbix/kubernetes/collectors.yaml"
+      ],
+      "matchDepNames": [
+        "registry.k8s.io/kube-state-metrics/kube-state-metrics"
       ],
       "enabled": false
     }

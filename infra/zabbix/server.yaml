@@ -52,6 +52,17 @@ spec:
         runAsGroup: 1995
         seccompProfile:
           type: RuntimeDefault
+      volumes:
+        # Vendor entrypoint copies these CAs into its writable hashed CA directory.
+        - name: cluster-ca
+          configMap:
+            name: kube-root-ca.crt
+        - name: metrics-ca
+          secret:
+            secretName: zabbix-kubernetes-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
       containers:
         - name: server
           image: zabbix/zabbix-server-pgsql:ubuntu-8.0.0@sha256:1bbfd3fec8fa61ab1dc9bd048b0e46935724d09de315d825300274632d3af5a7
@@ -69,6 +80,15 @@ spec:
                   key: database-password
             - name: ZBX_ENABLEGLOBALSCRIPTS
               value: "0"
+          volumeMounts:
+            - name: cluster-ca
+              mountPath: /var/lib/zabbix/ssl/ssl_ca/kubernetes.crt
+              subPath: ca.crt
+              readOnly: true
+            - name: metrics-ca
+              mountPath: /var/lib/zabbix/ssl/ssl_ca/metrics.crt
+              subPath: ca.crt
+              readOnly: true
           ports:
             - name: zabbix
               containerPort: 10051

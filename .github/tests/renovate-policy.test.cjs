@@ -501,3 +501,21 @@ if (process.env.RENOVATE_LOOKUP_LOG) {
     }))));
   });
 }
+
+test('Zabbix collector OCI chart and sha image pins are extracted by their owning managers', async () => {
+  const file = 'infra/zabbix/kubernetes/collectors.yaml';
+  const text = readFileSync(join(root, file), 'utf8');
+  const manager = raw.customManagers.find(m => m.depNameTemplate === 'registry.k8s.io/kube-state-metrics/kube-state-metrics');
+  const extracted = extractRegex(text, file, manager);
+  assert.equal(extracted.deps.length, 1);
+  assert.equal(extracted.deps[0].currentValue, 'v2.18.0');
+  assert.equal(extracted.deps[0].currentDigest, 'sha256:1545919b72e3ae035454fc054131e8d0f14b42ef6fc5b2ad5c751cafa6b2130e');
+  const flux = extractFlux(text, file, {});
+  const chart = flux.deps.find(d => d.depName === 'ghcr.io/prometheus-community/charts/kube-state-metrics');
+  assert.ok(chart, JSON.stringify(flux.deps));
+  assert.equal(chart.currentValue, '9.0.0');
+  assert.equal(chart.currentDigest, 'sha256:c7c5096b686d5ef5e5a5afc72b66d603db710168653350acfcb91c5e50e2d115');
+  const fluxImage = flux.deps.find(d => d.depName === extracted.deps[0].depName);
+  assert.equal((await effective({ manager: 'flux', packageFile: file, dep: { ...fluxImage, updates: [{ updateType: 'minor' }] } })).enabled, false);
+  assert.notEqual((await effective({ manager: 'custom.regex', packageFile: file, dep: { ...extracted.deps[0], updates: [{ updateType: 'minor' }] } })).enabled, false);
+});
