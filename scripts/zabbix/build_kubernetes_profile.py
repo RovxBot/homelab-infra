@@ -106,6 +106,13 @@ def build(raw):
                 if key == 'kube.state.metrics.check':
                     item['description'] = ('Obsolete script JSON error check; disabled with its trigger. '
                                            'Native HTTP collection failures are detected on kube.state.metrics.')
+            elif key == 'kube.pod.daemonset_count':
+                # KSM 2.18 emits no *_labels series with our empty allowlist.
+                # Creation time has one series per persisted DaemonSet, with
+                # intrinsic namespace/daemonset labels; count series, not time.
+                assert item['preprocessing'][0]['parameters'] == ['kube_daemonset_labels', 'function', 'count']
+                item['preprocessing'][0]['parameters'][0] = 'kube_daemonset_created'
+                changes.append({'key': key, 'metric': 'kube_daemonset_created; count objects without label collection'})
             elif key == 'kube.state.metrics':
                 # Native HTTP agent, not a modified collection script. Never send
                 # the Kubernetes bearer token to an exporter or discover Pod IPs.

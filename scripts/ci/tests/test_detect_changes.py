@@ -214,6 +214,7 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
             paths.add('scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz')
             paths.add('scripts/tests/fixtures/zabbix/SOURCE.json')
             paths.add('scripts/tests/fixtures/zabbix/COPYING')
+            paths.add('scripts/tests/fixtures/zabbix/daemonsets-no-labels.prom')
         return paths
 
     def assert_ids(self, checks, expected):

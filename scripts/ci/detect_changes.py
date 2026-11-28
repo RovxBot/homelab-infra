@@ -60,6 +60,7 @@ COMPONENT_SCRIPT_PATHS = {
         'scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz',
         'scripts/tests/fixtures/zabbix/SOURCE.json',
         'scripts/tests/fixtures/zabbix/COPYING',
+        'scripts/tests/fixtures/zabbix/daemonsets-no-labels.prom',
     },
     'test_koito*.py': {
         'scripts/koito-audit-lastfm.py',
