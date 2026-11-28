@@ -1536,6 +1536,26 @@ class PostureContractTests(unittest.TestCase):
         with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
             R.posture_scope(result)
 
+    def test_pinned_unsupported_host_and_cloud_gaps_do_not_bypass_collection_gate(self):
+        # v4.0.20 records intentionally unavailable external inputs in the same
+        # failedGVRPulls field as collection failures. Keep failing closed until
+        # a separately reviewed coverage contract distinguishes these cases.
+        failures=[{'gvr': provider+'/ClusterDescribe', 'controls': ['C-0066','C-0067','C-0068'],
+                   'error': 'failed to get cloud provider, cluster: home'}
+                  for provider in ('container.googleapis.com/v1','eks.amazonaws.com/v1','management.azure.com/v1')]
+        failures.append({'gvr': 'hostdata.kubescape.cloud/v1beta0/KubeletInfo',
+                         'controls': ['C-0069','C-0070'],
+                         'error': 'This control is scanned exclusively by the Kubescape operator, not the Kubescape CLI. Install the Kubescape operator:\n     https://kubescape.io/docs/install-operator/.'})
+        coverage={'failedGVRPulls': failures, 'silentFailedGVRCount': 3,
+                  'notEvaluatedControls': [{'controlID': c, 'missingGVRs': [failures[-1]['gvr']]}
+                                           for c in ('C-0069','C-0070')],
+                  'totalControls': 26, 'evaluatedControls': 24, 'coverageScore': 83.30769, 'degraded': True}
+        for pulls in (failures, *([f] for f in failures),
+                      [{'gvr': 'rbac.authorization.k8s.io/v1/rolebindings', 'error': 'forbidden'}]):
+            with self.subTest(gvrs=[f['gvr'] for f in pulls]), \
+                    self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope({**self.result, 'scanCoverage': {**coverage, 'failedGVRPulls': pulls}})
+
     def test_scope_slug_matches_pinned_rbac_names_and_long_name_hashing(self):
         self.assertEqual(R.posture_slug('Group-system:serviceaccounts-ClusterRole-system:service-account-issuer-discovery-ClusterRoleBinding-system:service-account-issuer-discovery'),
                          'group-system-serviceaccounts-clusterrole-system-service-account-issuer-discovery-clusterrolebinding-system-service-account-issuer-discovery')

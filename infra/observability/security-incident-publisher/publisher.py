@@ -1106,7 +1106,13 @@ def observe_cve_recovery(publisher, ready, outcomes):
                        (json.dumps(candidate, sort_keys=True), key))
             counts["candidates"] += 1
             counts["proofQualified"] += int(candidate["proofQualified"])
-        counts["baselines"] = db.execute("SELECT count(*) FROM cve_recovery_observations").fetchone()[0]
+        # Retirement removes active enrollment, not historical positive evidence.
+        # Count current keys without deleting retired baselines or issue mappings;
+        # re-enrollment must reuse them and absence must never imply recovery.
+        enrolled_keys = tuple(cve_key(workload) for workload in sorted(CVE_ALLOWED))
+        counts["baselines"] = db.execute(
+            "SELECT count(*) FROM cve_recovery_observations WHERE key IN ("
+            + ",".join("?" for _ in enrolled_keys) + ")", enrolled_keys).fetchone()[0]
         require(counts["baselines"] <= len(CVE_ALLOWED))
     return counts
 
@@ -1480,12 +1486,15 @@ def cve_main(token):
                                      fingerprint=cve_revision, owns=owns_cve, create_limit=min(9, len(CVE_ALLOWED)))
         # Recovery notices require a fresh positive recovery proof and full
         # enrolled coverage. Remote issue state changes remain hard disabled.
-        phase = "cve_sync"
+        phase = "cve_sync_recurrence"
         recurrence = sync_cve_recurrence(publisher, ready, enabled=CVE_REOPEN_ENABLED)
+        phase = "cve_sync_entries"
         outcomes = sync_cve_entries(publisher, ready)
+        phase = "cve_sync_recovery"
         recovery = observe_cve_recovery(publisher, ready, outcomes)
         notices_enabled = (CVE_RECOVERY_NOTICES_ENABLED and not CVE_CLOSURE_ENABLED
                            and len(ready) == len(CVE_ALLOWED))
+        phase = "cve_sync_closure"
         closure = sync_cve_closure(publisher, ready, outcomes,
                                    enabled=CVE_CLOSURE_ENABLED, notify_only=notices_enabled)
         pending = conn.execute("SELECT count(*) FROM issues WHERE pending_create != 0 OR pending_update IS NOT NULL").fetchone()[0]

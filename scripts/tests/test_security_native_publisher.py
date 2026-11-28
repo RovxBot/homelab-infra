@@ -743,6 +743,67 @@ class CVEPublisherTests(unittest.TestCase):
             self.assertEqual(result["manualClosed"],1)
             self.assertEqual(github.comments_written,0)
 
+    def test_retired_recovery_baselines_survive_scope_contraction_and_reenrollment(self):
+        entries=pub.validate_cve(self.rich_fixture(),datetime(2026,11,24,6,1,tzinfo=timezone.utc))[:2]
+        active,retired=entries
+        enrolled=frozenset(e["workload"] for e in entries)
+        github=FakeGitHub()
+        with sqlite3.connect(":memory:") as db:
+            self.addCleanup(db.close)
+            writer=pub.DurablePublisher(db,github,renderer=pub.render_cve,
+                fingerprint=pub.cve_revision,owns=pub.owns_cve)
+            with patch.object(pub,"CVE_ALLOWED",enrolled):
+                outcomes=pub.sync_cve_entries(writer,entries)
+                self.assertEqual(pub.observe_cve_recovery(writer,entries,outcomes)["baselines"],2)
+            history=db.execute("SELECT key,number,published_revision,baseline FROM cve_recovery_observations WHERE key=?",
+                               (retired["key"],)).fetchone()
+            mappings=db.execute("SELECT * FROM issues ORDER BY key").fetchall()
+            with db:
+                db.execute("UPDATE cve_recovery_observations SET candidate='{}' WHERE key=?",(retired["key"],))
+            with patch.object(pub,"CVE_ALLOWED",frozenset((active["workload"],))):
+                outcomes=pub.sync_cve_entries(writer,[active])
+                counts=pub.observe_cve_recovery(writer,[active],outcomes)
+                self.assertEqual(counts,{"baselines":1,"candidates":0,"proofQualified":0,"manualClosed":0})
+                self.assertEqual(db.execute("SELECT count(*) FROM cve_recovery_observations").fetchone()[0],2)
+                self.assertEqual(db.execute("SELECT key,number,published_revision,baseline FROM cve_recovery_observations WHERE key=?",
+                                            (retired["key"],)).fetchone(),history)
+                self.assertEqual(db.execute("SELECT candidate FROM cve_recovery_observations WHERE key=?",
+                                            (retired["key"],)).fetchone(),(None,))
+                self.assertEqual(pub.sync_cve_closure(writer,[active],outcomes,notify_only=True)["notified"],0)
+                # Missing current evidence cannot turn either historical row into recovery.
+                self.assertEqual(pub.observe_cve_recovery(writer,[],[])["baselines"],1)
+                self.assertEqual(pub.sync_cve_closure(writer,[],[],notify_only=True)["notified"],0)
+            with patch.object(pub,"CVE_ALLOWED",enrolled):
+                outcomes=pub.sync_cve_entries(writer,entries)
+                self.assertEqual(outcomes,["unchanged","unchanged"])
+                self.assertEqual(pub.observe_cve_recovery(writer,entries,outcomes)["baselines"],2)
+            self.assertEqual(db.execute("SELECT * FROM issues ORDER BY key").fetchall(),mappings)
+            self.assertEqual(github.create_calls,2)
+            self.assertEqual(github.comments_written,0)
+
+    def test_cve_sync_failure_identifies_operation_without_private_exception_text(self):
+        stages=("sync_cve_recurrence","sync_cve_entries","observe_cve_recovery","sync_cve_closure")
+        for failed,code in zip(stages,("recurrence","entries","recovery","closure")):
+            connection=sqlite3.connect(":memory:")
+            self.addCleanup(connection.close)
+            with self.subTest(stage=failed), \
+                    patch.dict(pub.os.environ,{},clear=True), \
+                    patch.object(pub,"fetch_cve_projection",return_value=[]), \
+                    patch.object(pub.os,"open",return_value=123), \
+                    patch.object(pub.os,"close"), patch.object(pub.fcntl,"flock"), \
+                    patch.object(pub.sqlite3,"connect",return_value=connection), \
+                    patch.object(pub,"PrivateGitea",return_value=FakeGitHub()), \
+                    patch.object(pub,"sync_cve_recurrence",return_value={}), \
+                    patch.object(pub,"sync_cve_entries",return_value=[]), \
+                    patch.object(pub,"observe_cve_recovery",return_value={}), \
+                    patch.object(pub,"sync_cve_closure",return_value={}), \
+                    patch.object(pub,failed,side_effect=ValueError("private finding and credential")), \
+                    self.assertRaises(pub.PublisherFailure) as caught:
+                pub.cve_main("fixture-token")
+            self.assertEqual(str(caught.exception),"cve_sync_"+code)
+            self.assertIsNone(caught.exception.__cause__)
+            self.assertTrue(caught.exception.__suppress_context__)
+
     def test_recovery_shadow_rejects_scope_change_partial_rescan_and_unowned_issue(self):
         now=datetime(2026,11,24,6,1,tzinfo=timezone.utc)
         entry=pub.validate_cve(self.rich_fixture(),now)[0]
