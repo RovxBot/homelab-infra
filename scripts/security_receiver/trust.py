@@ -249,7 +249,6 @@ class KubernetesTrust:
             # permission is granted here. Other direct owners stay denied.
             require((namespace, kind, ref.get("name")) in {
                 ("wotlk", "StatefulSet", "wotlk-mariadb"),
-                ("mop", "StatefulSet", "skyfire-mariadb"),
                 ("kube-system", "DaemonSet", "kube-proxy"),
             }, "workload_owner_invalid")
         require(ref.get("apiVersion") == "apps/v1"

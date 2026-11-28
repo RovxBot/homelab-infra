@@ -141,7 +141,6 @@ class TrustedSourceTests(unittest.TestCase):
     def test_direct_controller_ownership_qualification_and_rejections(self):
         for namespace,kind,name,resource in (
             ("wotlk","StatefulSet","wotlk-mariadb","statefulsets"),
-            ("mop","StatefulSet","skyfire-mariadb","statefulsets"),
             ("kube-system","DaemonSet","kube-proxy","daemonsets")):
             self.api=FakeTrust()
             self.api.namespaces=frozenset((namespace,))

@@ -36,7 +36,7 @@ admissionController httpDetection seccompProfileService sandboxSeccomp manageWor
 syncSBOM agentRuntimePosture riskAcceptance remediation autoUpgrading prometheusExporter""".split())
 CERTGEN_NAMES = {"certgen-create", "certgen-patch"}
 APISERVICE = "v1beta1.spdx.softwarecomposition.kubescape.io"
-CANARY_NAMESPACE = "birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mop,mqtt,security,stirling-pdf,wger,wireguard,wotlk"
+CANARY_NAMESPACE = "birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mqtt,security,stirling-pdf,wger,wireguard,wotlk"
 CERTGEN_BUDGET = {"requests": {"cpu": "10m", "memory": "32Mi"},
                   "limits": {"cpu": "100m", "memory": "128Mi"}}
 WORKLOADS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}

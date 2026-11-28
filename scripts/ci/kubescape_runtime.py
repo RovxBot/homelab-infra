@@ -7,7 +7,7 @@ from security_native_exporter_preflight import EXPORTER
 IMAGE = 'quay.io/kubescape/node-agent:v0.3.310@sha256:99152dbefd07e524418f682882ad300cb74821aaa4e42e6477c42a9fa4686e60'
 NODES = ["metal0","metal2","metal3","metal4","metal5","metal6","metal7","metal8"]
 NAMESPACES = ['homepage', 'memos', 'kubescape-runtime-test', 'koito', 'monitoring', 'stirling-pdf', 'cloudflared', 'mqtt', 'security']
-AGENT_NAMESPACES = NAMESPACES + ['wotlk', 'mop']
+AGENT_NAMESPACES = NAMESPACES + ['wotlk']
 RULES = ['R0001', 'R0004', 'R0007', 'R1000', 'R1002']
 CAPS = ['SYS_ADMIN', 'SYS_PTRACE', 'NET_ADMIN', 'SYSLOG', 'SYS_RESOURCE', 'IPC_LOCK', 'NET_RAW']
 BUDGET = {'requests': {'cpu': '100m', 'memory': '180Mi'}, 'limits': {'cpu': '500m', 'memory': '1400Mi'}}
@@ -80,7 +80,7 @@ def check_config(resources):
     maps = {r['metadata']['name']: r['data'] for r in resources if r['kind'] == 'ConfigMap'}
     cfg = json.loads(maps['node-agent']['config.json'])
     assert cfg['runtimeDetectionEnabled'] is True and cfg['applicationProfileServiceEnabled'] is True
-    assert cfg['includeNamespaces'] == 'birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mop,mqtt,security,stirling-pdf,wger,wireguard,wotlk'  # Runtime env override remains independent.
+    assert cfg['includeNamespaces'] == 'birdnet-go,cloudflared,gitea,gitea-runners,home-assistant,homepage,immich,invoiceninja,koito,media,memos,monitoring,mqtt,security,stirling-pdf,wger,wireguard,wotlk'  # Runtime env override remains independent.
     assert cfg['exporters'] == {
         'stdoutExporter': True, 'alertManagerExporterUrls': [],
         'syslogExporterURL': '', 'httpExporterConfig': EXPORTER
@@ -124,7 +124,7 @@ def check_direct_bindings(root):
     assert composition == {"apiVersion":"kustomize.config.k8s.io/v1beta1",
                            "kind":"Kustomization","resources":["mariadb.yaml"]}
     bindings = list(yaml.safe_load_all((path / "mariadb.yaml").read_text()))
-    targets = [("wotlk","wotlk-mariadb"),("mop","skyfire-mariadb")]
+    targets = [("wotlk","wotlk-mariadb")]
     assert len(bindings) == len(targets)
     for binding, (namespace, name) in zip(bindings, targets):
         assert binding == {
@@ -145,7 +145,7 @@ def check_direct_bindings(root):
     parent = yaml.safe_load((root / "clusters/home/kustomization.yaml").read_text())
     assert parent["resources"].count("infrastructure/kubescape-runtime-bindings-kustomization.yaml") == 1
     assert "kube-system" not in AGENT_NAMESPACES
-    assert AGENT_NAMESPACES == NAMESPACES + ["wotlk","mop"]
+    assert AGENT_NAMESPACES == NAMESPACES + ["wotlk"]
 
 
 def check_boundary(kyverno, work, resources, root):

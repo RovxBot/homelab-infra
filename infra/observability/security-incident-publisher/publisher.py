@@ -37,7 +37,6 @@ ALLOWED = frozenset(("homepage/Deployment/homepage", "homepage/Deployment/homepa
                      "mqtt/Deployment/mosquitto",
                      "security/Deployment/vaultwarden",
                      "wotlk/StatefulSet/wotlk-mariadb",
-                     "mop/StatefulSet/skyfire-mariadb",
                      "kube-system/DaemonSet/kube-proxy"))
 FIELDS = frozenset(("key", "workload", "rule", "severity", "first", "last", "count", "state"))
 KEY = re.compile(r"[0-9a-f]{64}\Z")

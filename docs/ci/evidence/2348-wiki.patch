@@ -1,0 +1,191 @@
+diff --git a/Application-Catalog.md b/Application-Catalog.md
+index 9e987bb..7a9faa5 100644
+--- a/Application-Catalog.md
++++ b/Application-Catalog.md
+@@ -10 +10 @@ The application catalog is a starting point for services deployed to `cooked-k8s
+-OpenBrew is retired from the maintained catalog by the [maintainer decision](https://github.com/RovxBot/homelab-infra/issues/2299#issuecomment-7206458691). [PR #2330](https://github.com/RovxBot/homelab-infra/pull/2330) proposes the repository and deployment removal. Cluster rollout, permanent storage deletion and external cleanup remain pending; catalog removal does not claim those gates have passed. The former application page is preserved in Wiki Git history.
++MoP/SkyFire and OpenBrew are permanently retired by owner decision ([#2348](https://github.com/RovxBot/homelab-infra/issues/2348), [#2299](https://github.com/RovxBot/homelab-infra/issues/2299)). [The retirement PR](https://github.com/RovxBot/homelab-infra/issues/2348) removes MoP desired state and inventories final disposal for both applications. OpenBrew runtime removal was observed before this PR. MoP rollout, permanent storage deletion and external cleanup remain pending independent review; no recovery capability is required. See [[Backup and Recovery]].
+@@ -55 +54,0 @@ BirdNET-Go publishes events to Home Assistant via MQTT. Homepage's `pod-report`
+-| [[SkyFire MoP]] | `mop` | Separate Mists of Pandaria game realm |
+@@ -60 +59 @@ BirdNET-Go publishes events to Home Assistant via MQTT. Homepage's `pod-report`
+-AzerothCore and MoP image builds are controlled by distinct GitHub Actions workflows. Game server credentials and database data are separate from immutable image build artifacts.
++AzerothCore image builds remain controlled by their dedicated GitHub Actions workflow. Game server credentials and database data are separate from immutable image build artifacts.
+diff --git a/Backup-and-Recovery.md b/Backup-and-Recovery.md
+index c718b7d..5a41dc0 100644
+--- a/Backup-and-Recovery.md
++++ b/Backup-and-Recovery.md
+@@ -9 +9 @@ Off-site recovery for `cooked-k8s` combines Longhorn volume backups, application
+-OpenBrew permanent retirement is approved; execution remains gated by review and acceptance of [PR #2330](https://github.com/RovxBot/homelab-infra/pull/2330). The [#2299 inventory and procedure](https://github.com/RovxBot/homelab-infra/issues/2299) identifies only the dedicated 20 GiB database and 5 GiB media volumes and their backup history. Protected PVCs and namespace are not removed during PR preparation. Require exact UID/ownership checks and no remaining workload, attachment, snapshot, clone or restore consumer before maintainer deletion.
++The owner approved permanent MoP/SkyFire and OpenBrew disposal with no retained application data or recovery requirement on 28 November 2026 ACDT. This explicitly supersedes the earlier OpenBrew security/incident acceptance dependency; Kubescape retirement remains a separate gated workstream. [The retirement PR](https://github.com/RovxBot/homelab-infra/issues/2348) and its [immutable removal inventory](https://github.com/RovxBot/homelab-infra/blob/main/docs/ci/evidence/2348-retirement.json) are proposals awaiting independent review. No live deletion or external disposal has been performed by this task.
+@@ -11 +11,26 @@ OpenBrew permanent retirement is approved; execution remains gated by review and
+-Shared B2 buckets, shared backup blocks, unrelated recovery points and all cluster-wide SystemBackups are preserved. Native `Backup` objects named `system-backup-*` are volume recovery points, distinct from cluster-wide `SystemBackup` archives. Preserved archives may still describe the retired namespace; any later restore must review and exclude retired identities before replay. The existing retention helper preserves a latest recovery point and is not authorization to purge all application history. No permanent deletion or recovery acceptance is claimed here.
++| Application / claim | Size | PV / Longhorn volume |
++| --- | --- | --- |
++| `mop/skyfire-mariadb-data` | 40 GiB | `pvc-82545f5a-ac48-4e26-83f0-70e99d30256e` |
++| `mop/skyfire-data-rwx` | 50 GiB | `pvc-acb570eb-435e-4435-bb89-6222588d551e` |
++| `openbrew/openbrew-database` | 20 GiB | `pvc-202a55fb-d47d-40a4-959e-271591f1dda8` |
++| `openbrew/openbrew-media` | 5 GiB | `pvc-0abe9a7a-207a-428b-98a5-953bc6e23d05` |
++
++All four Longhorn PVs have Delete reclaim and three configured replicas. The 28 November read-only snapshot identified 27 native snapshots and 22 completed native Backup records, with exact UIDs, volume labels, canonical target URLs and BackupVolume owners verified in the receipt. Counts may change; refresh immediately before disposal. The additional 100 GiB NFS claim is an advertised capacity, not measured NAS usage. Its PV `nfs-wow-mop-client-mop` uses Retain reclaim and only references the read-only client directory; deleting the PV cannot erase NAS files.
++
++### Reviewed execution sequence
++
++1. The independent reviewer checks the exact PR head and inventory, WotLK/shared-resource preservation, remaining 44-workload posture contract, unchanged 11-workload vulnerability cohort, 12-workload runtime publication contract and all eight runtime nodes. Require Repo Checks, Kubescape render/admission checks and publication, scanning and anonymous retrieval of the exact receiver digest before merge. Refresh ownership, claim/PV/CSI handle links, current Flux prune settings and restore/clone consumers before approving the irreversible merge. Unexpected resources or ownership drift stop the process.
++2. After separately authorized merge, normal Flux removes `apps-mop` and its resources using observed `prune=true` / default MirrorPrune. **MoP namespace/PVC deletion and its Delete-reclaim Longhorn deletion are part of that reconciliation.** No staged retention annotation is assumed to have been applied. Kubernetes PVC protection and CSI controllers handle in-use claims; do not bypass them. Cross-owner receiver RBAC and the SkyFire runtime binding also prune; owners reconcile independently and may retry during namespace termination. Verify convergence of all remaining owners, absence of both retired Flux children, no retired namespace resource inventory and no controller that can recreate either application. If namespace/CSI deletion stalls, stop for diagnosis without forcing finalizers.
++3. Verify all MoP workloads, CronJobs and dependants have disappeared; let controller garbage collection remove Pods, ReplicaSets, ControllerRevisions, EndpointSlices, Longhorn snapshots/replicas and the single dedicated RWX share manager. Verify the two exact MoP PV/Longhorn volume handles and native snapshot identities disappear. Do not directly delete replica files, shared Longhorn policies, attachment tickets or snapshots from other volumes. Confirm WotLK service endpoints and game connectivity, unchanged databases/PVCs, node-agent readiness on all eight nodes, and remaining vulnerability, posture, runtime and incident-publishing functionality. Existing unresolved production qualification is still reported as incomplete; intentional retirement cannot make missing remaining evidence pass.
++4. OpenBrew's two PVCs and namespace have live `prune=disabled` and are outside current desired state. After a fresh namespace API-object inventory, consumer/attachment/snapshot/restore/clone review and explicit destructive execution approval, delete **only** the two listed PVCs, one at a time. Use each reviewed UID and a fresh resourceVersion as Kubernetes DeleteOptions preconditions; let normal Delete-reclaim CSI controllers remove the matching PV/volume/snapshots. Then delete only Namespace `openbrew` with its reviewed UID and fresh resourceVersion. Confirm absence and no recreation after each step. Do not race-delete PVs or force finalizers. The receipt contains baseline UIDs, which are not timeless deletion authority.
++5. Refresh Longhorn's native remote backup inventory for exactly the four volume IDs and compare every Backup/BackupVolume UID, URL, label, target and owner. Check all cluster volumes and CSI snapshot contents for restore/clone references and require no in-flight backup/restore. Following independent review and explicit execution approval, remove each exact dedicated native Backup through Longhorn's supported native delete operation, one at a time with UID/resourceVersion preconditions. Verify remote deletion completion after each; remove the now-empty dedicated BackupVolume metadata through the supported native workflow. The general retention helper intentionally keeps a latest point and cannot implement full retirement. Never purge the bucket, directly delete shared blocks, invoke cluster-wide archive cleanup or force finalizers.
++6. Privately enumerate B2 file versions, hide markers, unfinished uploads, locks, replication and any separate copies under each reviewed dedicated Longhorn volume prefix. Native metadata does not prove all B2 versions disappeared. Use supported Longhorn cleanup first; review any remaining exact object-version IDs with the owner/B2 administrator before deleting only proven dedicated versions. Preserve the shared bucket, all unrelated backups, shared recovery credentials and every cluster SystemBackup. Shared archives may describe retired objects: exclude those objects from future restore; do not destroy unrelated archive history to erase a description.
++7. The NAS owner must prove exclusive ownership and absence of NAS/manual clients, symlinks, snapshots and other copies before removing only `192.168.1.154:/volume1/Plex Media/Games/MOP-5.4.8`. Cluster PV inspection found one PV for this path; that does not establish NAS-side exclusivity. Record actual bytes freed. Preserve the parent Games/Plex exports and every WotLK client/asset directory. Do not run a recursive deletion using a wildcard or an unverified mount path.
++8. Verify and remove only dedicated registry packages `ghcr.io/rovxbot/skyfire-mop` and `ghcr.io/rovxbot/openbrew-sqlserver`, including reviewed versions and build caches/artifacts after checking external consumers. Package API access was unavailable (403, missing read:packages). Do not remove upstream MySQL/SQL Server images, WotLK/registration packages or shared build caches. Remove authoritative DNS/Access configuration only for verified `openbrew.cooked.beer` record/application IDs; preserve the shared Cloudflare tunnel/zone/credentials. MoP has native LAN listeners on metal8 TCP 3724/8085, with no repository Tunnel/DNS entry; review any outside launcher/router/DNS configuration before removing only MoP rules. Preserve WotLK routing on its selected nodes.
++9. Reverify the private OpenBrew OIDC app/service-principal IDs and exclusive callback/grants; revoke only dedicated credentials and delete only that dedicated registration/SP. Remove dedicated password-manager/CI copies of application credentials, while retaining shared SOPS age keys, B2, Entra, registry and tunnel credentials. Review matching alert/incident retirement privately; do not call retirement a recovery, delete shared incident stores, expose private findings or close unrelated incidents. Publish Wiki completion only after observed rollout and separately reviewed disposal, recording actual resource recovery.
++
++For each manual Kubernetes deletion, construct `apiVersion: v1`, `kind: DeleteOptions`, with `preconditions.uid` and `preconditions.resourceVersion` from the freshly reviewed exact object. Submit to its **exact** namespaced API URL using `kubectl delete --raw URL -f DELETE_OPTIONS_FILE`; no selectors, `--all`, force, or stale identifiers. Stop on a precondition conflict, missing ownership evidence, changed target or incomplete controller cleanup. This is a reviewed procedure, not an instruction to execute during PR preparation.
++
++Prospective MoP reservation recovery is 2.50 CPU / 7.50 GiB RAM (2.25 CPU / 4.50 GiB on metal8, 0.25 CPU / 3 GiB on metal4); OpenBrew has no active pods and adds no current reservation saving. Storage is 115 GiB logical / 345 GiB nominal at three replicas; summed Longhorn actualSize implies approximately 35.72 GiB replicated allocation, not a measured disk-free result. NFS and B2 bytes remain unmeasured. MoP's share manager has no configured requests. No N-1 or replacement-workload capacity acceptance is inferred.
++
++There is no data rollback promise after PVC/native-backup/NFS/credential/package disposal. Before an authorized merge, amend the PR on unexpected state. After deletion begins, stop and diagnose or forward-fix through a reviewed change; do not redeploy old manifests or replay shared archives blindly.
+diff --git a/CI-and-GitHub-Actions.md b/CI-and-GitHub-Actions.md
+index 526f2f6..c41f1b4 100644
+--- a/CI-and-GitHub-Actions.md
++++ b/CI-and-GitHub-Actions.md
+@@ -251 +251 @@ Not all workflows deploy software. They may build and smoke-test an immutable im
+-| AzerothCore WotLK / SkyFire MoP | Build and smoke-test server images, then propose manifest changes |
++| AzerothCore WotLK | Build and smoke-test server images, then propose manifest changes |
+@@ -306,0 +307,4 @@ Consolidated from [README](https://github.com/RovxBot/homelab-infra/blob/4468df7
++
++## MoP image retirement proposal
++
++[The retirement PR](https://github.com/RovxBot/homelab-infra/issues/2348) removes the dispatch-only SkyFire build workflow and all dedicated build inputs. WotLK workflow and build inputs remain byte-identical. No game-server build is needed for retirement. Removing the retired receiver projection requires one unchanged-base receiver rebuild; its exact digest must be published, scanned and retrievable before merge. This proposal does not claim hosted checks or production acceptance.
+diff --git a/Cloudflare-Tunnel.md b/Cloudflare-Tunnel.md
+index b518920..271580d 100644
+--- a/Cloudflare-Tunnel.md
++++ b/Cloudflare-Tunnel.md
+@@ -31 +31 @@ Other routes include media management tools, Memos, Koito, Invoice Ninja, Wger a
+-OpenBrew route retirement is proposed in [PR #2330](https://github.com/RovxBot/homelab-infra/pull/2330). Removal of `openbrew.cooked.beer` from authoritative Cloudflare DNS requires confirmation of the exact dedicated record after rollout acceptance. The shared tunnel and every other route remain in service; DNS deletion is not claimed.
++OpenBrew's repository tunnel route was removed by [PR #2330](https://github.com/RovxBot/homelab-infra/pull/2330). [The final retirement proposal](https://github.com/RovxBot/homelab-infra/issues/2348) still requires owner-side verification and removal of only the exact dedicated `openbrew.cooked.beer` DNS/Access identities. No authoritative DNS deletion is claimed. The shared tunnel and every remaining route are unchanged. MoP uses native LAN game listeners and has no repository tunnel route.
+diff --git a/Kubescape.md b/Kubescape.md
+index c71370f..6c8deec 100644
+--- a/Kubescape.md
++++ b/Kubescape.md
+@@ -9 +9 @@ Kubescape assesses selected Kubernetes workloads for security posture and image
+-[PR #2330](https://github.com/RovxBot/homelab-infra/pull/2330) removes only the retired OpenBrew namespace and identities from active scanner/runtime scope, admission contracts, receiver inventory/projection and publisher expectations. The configured scope retains 47 posture workloads, 11 CVE workloads and 13 runtime publisher workloads. All other workload coverage, freshness gates, node scope, privileges and shared receiver state are preserved; historical incidents remain private evidence rather than being deleted as resolved vulnerabilities.
++[PR #2330](https://github.com/RovxBot/homelab-infra/pull/2330) removed OpenBrew from active scope. [The MoP retirement proposal](https://github.com/RovxBot/homelab-infra/issues/2348) removes only MoP's namespace, three posture identities, direct-controller runtime binding/RBAC and receiver/publisher projection. Proposed coverage is **44 posture workloads, the unchanged 11 CVE workloads, 12 runtime publisher workloads and all eight runtime nodes**. All remaining workload coverage, freshness gates, privileges and shared receiver state remain protected. Local checks do not establish production acceptance; the dated qualification failures below remain historical evidence. The owner explicitly removed the earlier OpenBrew security-acceptance dependency for data disposal; reviewed destructive execution is still required.
+@@ -40 +40 @@ Remaining acceptance gates, owned by independent ChatGPT review and production a
+-3. Complete a fresh posture assessment covering **47 workloads**, inspect explicit lifecycle exclusions and verify current qualified vulnerability coverage for the retained cohort.
++3. Complete a fresh posture assessment covering **44 workloads**, inspect explicit lifecycle exclusions and verify current qualified vulnerability coverage for the retained cohort.
+@@ -78 +78 @@ The vulnerability and posture runners are serialized with shared storage and sca
+-| NSA posture | 20:13 daily | 47 configured workloads across 19 active namespaces plus shared RBAC observations |
++| NSA posture | 20:13 daily | 44 proposed workloads across 18 active namespaces plus shared RBAC observations |
+diff --git a/Renovate.md b/Renovate.md
+index 5cb57ae..8f3dafa 100644
+--- a/Renovate.md
++++ b/Renovate.md
+@@ -92 +92 @@ For the most predictable maintenance cycle, review and merge the current weekly
+-Pipeline-produced digests are promoted by their owning workflow, including Gitea toolchain/backup, wowdecomp toolchain, Kubernetes MCP, MoP, WotLK and registration images. Gitea toolchain changes must coordinate runner/admission configuration, backup jobs and restore tools. Cilium OCI maintenance remains separate; generated Flux bootstrap YAML is excluded and digest-checked. Gitea rootless tag/digest updates use their atomic regex manager; the Terraform image regex retains its own scope.
++Pipeline-produced digests are promoted by their owning workflow, including Gitea toolchain/backup, wowdecomp toolchain, Kubernetes MCP, WotLK and registration images. Gitea toolchain changes must coordinate runner/admission configuration, backup jobs and restore tools. Cilium OCI maintenance remains separate; generated Flux bootstrap YAML is excluded and digest-checked. Gitea rootless tag/digest updates use their atomic regex manager; the Terraform image regex retains its own scope.
+@@ -128,0 +129,2 @@ Consolidated from [renovate-operations](https://github.com/RovxBot/homelab-infra
++
++[The retirement PR](https://github.com/RovxBot/homelab-infra/issues/2348) removes only the obsolete SkyFire output entry; the OpenBrew output was already removed by #2330. Shared maintenance scheduling and WotLK immutable promotion remain unchanged.
+diff --git a/SkyFire-MoP.md b/SkyFire-MoP.md
+index 23ae452..c4bb97c 100644
+--- a/SkyFire-MoP.md
++++ b/SkyFire-MoP.md
+@@ -1 +1 @@
+-# SkyFire MoP
++# SkyFire MoP — retirement pending
+@@ -5 +5 @@
+-SkyFire provides a separate World of Warcraft Mists of Pandaria 5.4.8 realm, based on the unmodified [ProjectSkyfire/SkyFire_548](https://github.com/ProjectSkyfire/SkyFire_548) core. It runs independently of the WotLK/AzerothCore namespace and uses a different database and client-data pipeline. Third-party gameplay modules are not built into this deployment.
++The owner permanently retired MoP/SkyFire on 28 November 2026 ACDT. No application data, backup retention or recovery capability is required. [The retirement PR](https://github.com/RovxBot/homelab-infra/issues/2348) removes its workloads, Flux owner, encrypted Secret and dedicated image build inputs. This page is a retirement notice; the earlier setup procedure remains in Wiki history.
+@@ -7,9 +7 @@ SkyFire provides a separate World of Warcraft Mists of Pandaria 5.4.8 realm, bas
+-| Property | Current design |
+-| --- | --- |
+-| Namespace | `mop` |
+-| Client version | WoW 5.4.8, build 18414 |
+-| Game services | `skyfire-authserver`, `skyfire-worldserver` |
+-| Database | `skyfire-mariadb` StatefulSet using MySQL 8.4 image |
+-| Game data | Longhorn `skyfire-data-rwx` shared PVC |
+-| Node placement | Authserver and worldserver selected to `metal8` |
+-| Network | TCP `3724` auth and TCP `8085` world listeners |
++**Pending:** independent PR review, hosted checks and receiver image publication, merge/normal Flux rollout, then separately reviewed external disposal. No live deletion was performed during preparation. Unlike OpenBrew, the MoP namespace and claims lack prune protection: merging the reviewed PR permits Flux to delete them and Delete-reclaim Longhorn storage. This is an irreversible merge gate, not a workload-only shutdown.
+@@ -17,73 +9 @@ SkyFire provides a separate World of Warcraft Mists of Pandaria 5.4.8 realm, bas
+-## Architecture
+-
+-```mermaid
+-flowchart TD
+-    Client[Compatible 5.4.8 client] -->|TCP 3724| Auth[SkyFire authserver]
+-    Client -->|TCP 8085| World[SkyFire worldserver]
+-    Auth -->|Authentication data| SQL[(MySQL 8.4)]
+-    World -->|World and character data| SQL
+-    World -->|dbc, db2, maps, vmaps, mmaps| Data[(Longhorn RWX)]
+-    Extract[Reviewed client-data extraction] -->|Generated assets| Data
+-```
+-
+-The realm has one authserver and one worldserver. They use selected host ports on a reviewed node instead of exposing all traffic through an HTTP ingress. The worldserver also requires its complete extracted asset directories before normal startup.
+-
+-## Source and build provenance
+-
+-The image workflow builds the SkyFire core from the source revision recorded in [`ops/mop-images/skyfire.ref`](https://github.com/RovxBot/homelab-infra/blob/main/ops/mop-images/skyfire.ref). Its database inputs are verified against the reviewed upstream release. Image build and smoke tests precede a separate image-reference pull request; applying a published image to the live realm remains a reviewed GitOps action.
+-
+-For the canonical setup expectations, see [`apps/mop/README.md`](https://github.com/RovxBot/homelab-infra/blob/main/apps/mop/README.md).
+-
+-## Database and client assets
+-
+-MySQL persists authentication, character and world information on a dedicated volume. Database bootstrap applies the required base schema and approved upstream updates for a fresh dataset. Runtime credentials are injected from a SOPS-encrypted Secret.
+-
+-The shared data volume contains `dbc`, `db2`, `maps`, `vmaps` and `mmaps` derived from a compatible client source. Missing or mismatched data can prevent server startup or break world movement even when the container image is healthy.
+-
+-Two extraction CronJob definitions are present:
+-
+-- `skyfire-client-extract` prepares complete datasets, including resource-intensive map generation.
+-- `skyfire-client-db2-extract` repairs the narrower DB2 extraction case without regenerating all map data.
+-
+-**Both CronJobs are suspended** by default and are intended for separately reviewed, one-off Jobs. Their cron expressions are placeholders for Kubernetes CronJob resources, not evidence that scheduled extraction is active.
+-
+-> [!CAUTION]
+-> Full extraction writes the shared data directories and can replace previously generated assets. Do not unsuspend the job or start an extraction against production storage without confirming the client build, source volume, a verified backup and a maintenance window.
+-
+-## Network and identity
+-
+-The native client protocol is not proxied through Cloudflare Tunnel. Client access depends on the intended LAN/edge routing and native game authentication; no HTTP identity provider protects the game TCP listener. Database credentials must remain separate from client connection settings.
+-
+-Keep the WotLK and MoP host-port/node placement decisions coordinated, as their applications use the same conventional game port numbers on **different** selected nodes. Changing either node selector or port mapping requires a routing review. See [[Network Architecture]] and [[AzerothCore WotLK]].
+-
+-## Recovery and maintenance
+-
+-The database and extracted client-data PVCs require distinct recovery plans. Longhorn can restore the underlying volumes, but a recovered realm must also pass SQL startup, database compatibility, client login, map loading and world-entry tests.
+-
+-Do not perform unreviewed schema downgrades after a newer SkyFire image has applied migrations. Prefer a test restore into separate volumes before committing to production replacement.
+-
+-## Operate
+-
+-```bash
+-kubectl -n mop get deployments,statefulsets,pods,services,pvc
+-kubectl -n mop get cronjobs
+-kubectl -n flux-system get kustomization apps-mop
+-kubectl -n mop get pods -o wide
+-```
+-
+-The extractor CronJobs should remain suspended outside an approved one-time operation. A Ready Pod alone does not establish that a compatible 5.4.8 client can authenticate and enter the world.
+-
+-| Symptom | First investigation |
+-| --- | --- |
+-| Authserver cannot start | Database readiness, credentials and schema version |
+-| Client can authenticate but cannot enter world | Worldserver readiness, host port and advertised realm address |
+-| Worldserver reports missing maps | Shared data PVC and extracted directory completeness |
+-| DB2-derived gameplay data absent | Existing extraction provenance and reviewed narrow repair procedure |
+-| Extractor exceeds node capacity | Requested CPU/memory, scratch space and client source |
+-| Image upgrade fails | Source revision, database migration and image smoke-test evidence |
+-
+-## Related pages
+-
+-- [[AzerothCore WotLK]] · [[Application Catalog]] · [[Network Architecture]]
+-- [[Longhorn]] · [[Backup and Recovery]] · [[CI and GitHub Actions]]
+-- [SkyFire manifests](https://github.com/RovxBot/homelab-infra/tree/main/apps/mop).
++The exact resource/UID inventory and ordered disposal procedure are linked from [[Backup and Recovery]]. WotLK remains a separate application with unchanged databases, client assets, build inputs and connectivity. Do not delete its assets or edit shared game/NAS paths.
+diff --git a/_Sidebar.md b/_Sidebar.md
+index 4ecbe5f..f704c0c 100644
+--- a/_Sidebar.md
++++ b/_Sidebar.md
+@@ -57 +56,0 @@
+-- [[SkyFire MoP]]
