@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-frontend
+spec:
+  template:
+    spec:
+      containers:
+        - name: frontend
+          env:
+            - name: ZBX_CERT_STORAGE
+              value: file
+            - name: ZBX_SSO_IDP_CERTFILE
+              value: /etc/zabbix/saml/idp.crt
+            - name: ZBX_SSO_SETTINGS
+              value: >-
+                {"strict":true,"baseurl":"https://zabbix.cooked.beer/","use_proxy_headers":false,"security":{"wantXMLValidation":true,"requestedAuthnContext":false,"signatureAlgorithm":"http://www.w3.org/2001/04/xmldsig-more#rsa-sha256","digestAlgorithm":"http://www.w3.org/2001/04/xmlenc#sha256"}}
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/fastcgi_params
+              subPath: fastcgi_params
+              readOnly: true
+            - name: saml-certificate
+              mountPath: /etc/zabbix/saml
+              readOnly: true
+        # Dedicated tunnel: only this Pod can reach the loopback origin. Using
+        # the shared tunnel would load-balance unrelated hosts to this connector.
+        # This is the existing official transport, not an authentication service.
+        - name: cloudflared
+          image: cloudflare/cloudflared@sha256:e613aadbc2d9511785d2e67a86b0c8ac18dd63a3f9af0d06faf04cbfdcb35f2d
+          imagePullPolicy: IfNotPresent
+          args: [tunnel, --no-autoupdate, --config, /etc/cloudflared/config.yaml, run]
+          ports:
+            - name: tunnel-metrics
+              containerPort: 2001
+          startupProbe:
+            httpGet:
+              path: /metrics
+              port: tunnel-metrics
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: tunnel-metrics
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: tunnel-metrics
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tunnel-config
+              mountPath: /etc/cloudflared
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: saml-certificate
+          secret:
+            secretName: zabbix-access
+            items:
+              - key: idp.crt
+                path: idp.crt
+        - name: tunnel-config
+          secret:
+            secretName: zabbix-access
+            items:
+              - key: config.yaml
+                path: config.yaml
+              - key: credentials.json
+                path: credentials.json

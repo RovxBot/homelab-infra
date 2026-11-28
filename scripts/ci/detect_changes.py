@@ -56,10 +56,14 @@ KYVERNO_PATHS = ('infra/kyverno/', 'infra/kyverno-policies/',
 COMPONENT_SCRIPT_PATHS = {
     'test_zabbix*.py': {
         'scripts/zabbix/build_kubernetes_profile.py',
+        'scripts/zabbix/build_access_bundle.py',
         'scripts/tests/test_zabbix_kubernetes.py',
+        'scripts/tests/test_zabbix_access.py',
         'scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz',
         'scripts/tests/fixtures/zabbix/SOURCE.json',
         'scripts/tests/fixtures/zabbix/COPYING',
+        'scripts/tests/fixtures/zabbix/daemonsets-no-labels.prom',
+        'scripts/tests/fixtures/zabbix/role-permissions-8.0.0.json',
     },
     'test_koito*.py': {
         'scripts/koito-audit-lastfm.py',
@@ -115,7 +119,8 @@ def script_test_patterns(paths: list[str], *, full: bool,
     ) for path in paths):
         return ['test_*.py']
     owners = {
-        ('infra/zabbix/', 'secrets/zabbix-kubernetes-tls.enc.yaml'): ['test_zabbix*.py'],
+        ('infra/zabbix/', 'infra/zabbix-access/', 'secrets/zabbix-access.enc.yaml',
+         'secrets/zabbix-kubernetes-tls.enc.yaml'): ['test_zabbix*.py'],
         ('apps/koito/',): ['test_koito*.py'],
         ('infra/observability/', 'infra/pod-report/'):
             ['test_gatus*.py', 'test_cluster_health.py', 'test_kubescape_health.py', 'test_security_policy_publisher.py', 'test_security_native_publisher.py', 'test_security_admission_observer.py'],

@@ -129,6 +129,51 @@ class NativeTemplateContract(unittest.TestCase):
                     check(child)
         check(self.data)
 
+    def test_metric_reimport_preserves_every_existing_uuid(self):
+        def identifiers(value):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    if key == 'uuid':
+                        yield child
+                    else:
+                        yield from identifiers(child)
+            elif isinstance(value, list):
+                for child in value:
+                    yield from identifiers(child)
+        # Fingerprint of the complete accepted #2352 profile, in export order.
+        self.assertEqual(hashlib.sha256('\n'.join(identifiers(self.data)).encode()).hexdigest(),
+                         '4879c5f95a1a84f011fc3efa0cfcecca77d3801f9e4930b8954660dfe55f7238')
+        item = self.items['kube.pod.daemonset_count']
+        self.assertEqual(item['uuid'], 'f5f90e5313aa4eb1ae8866ae0d4d4bf8')
+        self.assertEqual(item['preprocessing'][0]['parameters'],
+                         ['kube_daemonset_created', 'function', 'count'])
+        self.assertEqual(item['master_item']['key'], 'kube.state.metrics')
+
+    def test_enabled_dependencies_do_not_require_arbitrary_labels_or_annotations(self):
+        def enabled_dependencies(value):
+            if isinstance(value, dict):
+                if value.get('status') == 'DISABLED':
+                    return
+                for child in value.values():
+                    yield from enabled_dependencies(child)
+            elif isinstance(value, list):
+                for child in value:
+                    yield from enabled_dependencies(child)
+            elif isinstance(value, str):
+                yield from re.findall(r'\bkube_\w+_(?:labels|annotations)\b', value)
+        self.assertEqual(list(enabled_dependencies(self.data['zabbix_export']['templates'])), [])
+
+    def test_daemonset_fixture_represents_eleven_objects_without_label_collection(self):
+        # Exposition input also exercised by disposable native Zabbix (retained
+        # evidence). This static check is not an implementation of its parser.
+        text = (ROOT / 'scripts/tests/fixtures/zabbix/daemonsets-no-labels.prom').read_text()
+        series = re.findall(r'^kube_daemonset_created\{([^}]+)\} (\d+)$', text, re.M)
+        self.assertEqual(len(series), 11)
+        self.assertEqual(len({labels for labels, _ in series}), 11)
+        self.assertNotRegex(text, r'(?m)^kube_daemonset_(?:labels|annotations)\b')
+        self.assertEqual(self.items['kube.pod.daemonset_count']['preprocessing'][0]['parameters'],
+                         ['kube_daemonset_created', 'function', 'count'])
+
     def test_script_json_error_check_and_misleading_trigger_are_disabled(self):
         item = self.items['kube.state.metrics.check']
         self.assertEqual(item['status'], 'DISABLED')

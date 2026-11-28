@@ -1,0 +1,18 @@
+{
+  "tenant_id": "REPLACE_WITH_TENANT_UUID",
+  "group_object_ids": {
+    "admin": "REPLACE_WITH_homelab.zabbix.admin_OBJECT_UUID",
+    "operator": "REPLACE_WITH_homelab.zabbix.operator_OBJECT_UUID",
+    "viewer": "REPLACE_WITH_homelab.zabbix.viewer_OBJECT_UUID"
+  },
+  "idp_certificate_file": "/private/path/Entra-SAML-signing.cer",
+  "cloudflare": {
+    "team_name": "REPLACE_WITH_ACCESS_TEAM_SLUG",
+    "audience": "REPLACE_WITH_ZABBIX_ACCESS_APPLICATION_AUD_TAG",
+    "tunnel_credentials": {
+      "AccountTag": "REPLACE_WITH_ACCOUNT_TAG",
+      "TunnelID": "REPLACE_WITH_NEW_DEDICATED_TUNNEL_UUID",
+      "TunnelSecret": "REPLACE_WITH_DEDICATED_TUNNEL_CREDENTIAL"
+    }
+  }
+}

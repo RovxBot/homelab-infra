@@ -55,8 +55,10 @@ class CheckSelectionTests(unittest.TestCase):
 
     def test_zabbix_manifests_and_fixture_select_native_contracts(self):
         for path in ('infra/zabbix/kubernetes/collectors.yaml', 'infra/zabbix/server.yaml',
+                     'infra/zabbix-access/frontend.yaml', 'secrets/zabbix-access.enc.yaml',
                      'secrets/zabbix-kubernetes-tls.enc.yaml',
                      'scripts/zabbix/build_kubernetes_profile.py',
+                     'scripts/zabbix/build_access_bundle.py', 'scripts/tests/test_zabbix_access.py',
                      'scripts/tests/test_zabbix_kubernetes.py',
                      'scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz'):
             with self.subTest(path=path):
@@ -156,7 +158,7 @@ class ComponentSelectionTests(unittest.TestCase):
     # Independent reviewed inventory: do not derive expected ownership from the
     # selector's map or compare only counts (equal counts can hide missing IDs).
     SOURCE_STEMS = {
-        'zabbix': ('zabbix/build_kubernetes_profile',),
+        'zabbix': ('zabbix/build_kubernetes_profile', 'zabbix/build_access_bundle'),
         'koito': ('koito-audit-lastfm', 'koito-export-lastfm', 'koito-prepare-lastfm-import'),
         'longhorn': (
             'longhorn-b2-object-lifecycle', 'longhorn-prune-snapshots',
@@ -167,7 +169,7 @@ class ComponentSelectionTests(unittest.TestCase):
         ),
     }
     TEST_MODULES = {
-        'zabbix': {'test_zabbix_kubernetes'},
+        'zabbix': {'test_zabbix_kubernetes', 'test_zabbix_access'},
         'koito': {
             'test_koito_audit_lastfm', 'test_koito_bridge_manifest',
             'test_koito_export_lastfm', 'test_koito_prepare_lastfm_import',
@@ -214,6 +216,8 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
             paths.add('scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz')
             paths.add('scripts/tests/fixtures/zabbix/SOURCE.json')
             paths.add('scripts/tests/fixtures/zabbix/COPYING')
+            paths.add('scripts/tests/fixtures/zabbix/daemonsets-no-labels.prom')
+            paths.add('scripts/tests/fixtures/zabbix/role-permissions-8.0.0.json')
         return paths
 
     def assert_ids(self, checks, expected):

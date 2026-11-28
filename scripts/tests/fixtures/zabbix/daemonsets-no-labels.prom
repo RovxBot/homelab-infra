@@ -1,0 +1,24 @@
+# Representative KSM 2.18.0 exposition: metricLabelsAllowlist=[], metricAnnotationsAllowList=[]
+# TYPE kube_daemonset_created gauge
+kube_daemonset_created{namespace="fixture-0",daemonset="agent-0"} 1700000000
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-0",daemonset="agent-0"} 8
+kube_daemonset_created{namespace="fixture-1",daemonset="agent-1"} 1700000001
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-1",daemonset="agent-1"} 8
+kube_daemonset_created{namespace="fixture-2",daemonset="agent-2"} 1700000002
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-2",daemonset="agent-2"} 8
+kube_daemonset_created{namespace="fixture-0",daemonset="agent-3"} 1700000003
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-0",daemonset="agent-3"} 8
+kube_daemonset_created{namespace="fixture-1",daemonset="agent-4"} 1700000004
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-1",daemonset="agent-4"} 8
+kube_daemonset_created{namespace="fixture-2",daemonset="agent-5"} 1700000005
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-2",daemonset="agent-5"} 8
+kube_daemonset_created{namespace="fixture-0",daemonset="agent-6"} 1700000006
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-0",daemonset="agent-6"} 8
+kube_daemonset_created{namespace="fixture-1",daemonset="agent-7"} 1700000007
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-1",daemonset="agent-7"} 8
+kube_daemonset_created{namespace="fixture-2",daemonset="agent-8"} 1700000008
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-2",daemonset="agent-8"} 8
+kube_daemonset_created{namespace="fixture-0",daemonset="agent-9"} 1700000009
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-0",daemonset="agent-9"} 8
+kube_daemonset_created{namespace="fixture-1",daemonset="agent-10"} 1700000010
+kube_daemonset_status_desired_number_scheduled{namespace="fixture-1",daemonset="agent-10"} 8

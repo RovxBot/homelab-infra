@@ -1,0 +1,72 @@
+{
+  "status": "verified",
+  "target": "disposable native Zabbix 8.0.0 / PostgreSQL 17.12; localhost only; not production",
+  "input": "scripts/tests/fixtures/zabbix/daemonsets-no-labels.prom",
+  "labelCollection": "empty label and annotation allowlists; representative exposition with no *_labels or *_annotations series",
+  "before": {
+    "itemid": "72150",
+    "lastclock": "1795845735",
+    "lastvalue": "0"
+  },
+  "after": {
+    "itemid": "72150",
+    "lastclock": "1795845740",
+    "lastvalue": "11"
+  },
+  "zeroObjectsWithUnrelatedSeries": {
+    "itemid": "72150",
+    "lastclock": "1795845741",
+    "lastvalue": "0"
+  },
+  "restored": {
+    "itemid": "72150",
+    "lastclock": "1795845742",
+    "lastvalue": "11"
+  },
+  "historyBeforeAndAfterReimport": [
+    {
+      "clock": "1795845735",
+      "value": "0"
+    },
+    {
+      "clock": "1795845736",
+      "value": "0"
+    },
+    {
+      "clock": "1795845737",
+      "value": "0"
+    },
+    {
+      "clock": "1795845738",
+      "value": "0"
+    },
+    {
+      "clock": "1795845739",
+      "value": "0"
+    },
+    {
+      "clock": "1795845740",
+      "value": "11"
+    }
+  ],
+  "uuidFingerprint": "4879c5f95a1a84f011fc3efa0cfcecca77d3801f9e4930b8954660dfe55f7238",
+  "limitations": [
+    "Representative exposition, not a fresh production KSM scrape",
+    "Only count and master enabled; temporary 1s poll for deterministic test; production 1m profile retained",
+    "Real production reimport/count acceptance remains owner gate"
+  ],
+  "qualificationDate": "2026-11-28",
+  "workstream": "https://github.com/RovxBot/homelab-infra/issues/2343",
+  "metricSource": "https://github.com/kubernetes/kube-state-metrics/blob/v2.18.0/internal/store/daemonset.go",
+  "dependencyReview": {
+    "status": "verified",
+    "scope": "All enabled cluster/node items, discovery rules, item/host prototypes and preprocessing/scripts in the exact 8.0.0 generated profile",
+    "result": "DaemonSet count was the only enabled *_labels or *_annotations dependency. Other enabled dependencies use intrinsic resource identity/status/spec metrics. No change to collector allowlists or RBAC. This review is not a full production accuracy assessment."
+  },
+  "localValidation": {
+    "staticContracts": "17 passed",
+    "CISelectionTests": "50 passed",
+    "nativeImportAndReimport": "verified",
+    "production": "not contacted"
+  }
+}

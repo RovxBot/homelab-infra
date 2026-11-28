@@ -1,0 +1,490 @@
+{
+  "qualificationDate": "2026-11-28",
+  "timezone": "Australia/Adelaide",
+  "workstream": "https://github.com/RovxBot/homelab-infra/issues/2346",
+  "sourceBaseCommit": "f80fa24a3a20042039c66f98a9f5606145db8e01",
+  "status": "verified local implementation; staged opt-in; no production acceptance, external account access, deployment or Wiki publication",
+  "acceptedProductionBaseline": {
+    "source": "Owner instruction and #2343 comments 7234952206 / 7234968467; not re-investigated here",
+    "zabbix": "8.0.0",
+    "postgres": "17.12",
+    "healthyPodsOnMetal7": 4,
+    "discoveredNodes": 8,
+    "apiLivezReadyz": "OK",
+    "listedItems": "more than 1000",
+    "initialPostImportSample": "approximately 91m CPU / 431MiB RAM"
+  },
+  "architecture": {
+    "publicUrl": "https://zabbix.cooked.beer",
+    "mode": "Existing official cloudflared transport as a dedicated-tunnel sidecar; no custom authentication service",
+    "privateFrontend": "127.0.0.1:8080, existing Service port-forward",
+    "connectorOrigin": "127.0.0.1:8081; canonical Host; native SAML only; local login/API/SCIM/setup blocked",
+    "privateAccess": "Whole-host Cloudflare Access AND connector team/AUD JWT validation AND native Zabbix SAML/JIT/RBAC",
+    "activeFluxPath": "./infra/zabbix (unchanged)",
+    "stagedOverlay": "infra/zabbix-access",
+    "activation": "Real owner-supplied SOPS Secret, native configuration and separate reviewed Flux activation required; Secret is deliberately absent, mandatory, and not allowlisted",
+    "sharedTunnel": "unchanged; reuse rejected by builder",
+    "networkPolicy": "Cilium remains never; no policy introduced",
+    "spCredentials": "No client secret, SP private key or assertion encryption key; signed IdP response and assertion required",
+    "defaultAccess": "Guests disabled; no wildcard mapping or default Super admin; deprovisioned group disabled"
+  },
+  "exactFrontend": {
+    "image": "zabbix/zabbix-web-nginx-pgsql:ubuntu-8.0.0@sha256:2f574332d548bc324ab7d5b96f93f3ff3d34ba7ca55edb7839a2dbba4dcb41ec",
+    "amd64Manifest": "sha256:dacace5416e2447ff18e8a10214025cffaf09eb1ec5c3e6952aeeaf3eb163eda",
+    "php": "8.5.4",
+    "openssl": "OpenSSL 3.5.5 27 Jan 2026",
+    "phpSaml": "4.3.2",
+    "phpSamlCommit": "26b3a47349415e5b7aa300ba4ab7fc316c65f19e",
+    "requiredExtensionsLoaded": [
+      "openssl",
+      "dom",
+      "libxml",
+      "xml",
+      "xmlwriter",
+      "mbstring",
+      "pgsql"
+    ],
+    "additionalPackages": "none",
+    "composerLockSha256": "22e6c03edd77ce0564303e1bb6d57a953049bf25bfda29c57c6285207f77bd46"
+  },
+  "cloudflared": {
+    "image": "cloudflare/cloudflared@sha256:e613aadbc2d9511785d2e67a86b0c8ac18dd63a3f9af0d06faf04cbfdcb35f2d",
+    "index": "sha256:e613aadbc2d9511785d2e67a86b0c8ac18dd63a3f9af0d06faf04cbfdcb35f2d",
+    "amd64": "sha256:28b1b51bc44446fafe254b37cd12b024f417a4e48a4b3c136620c2b93cdb0064",
+    "layers": [
+      "sha256:2cc7ee286bf3a9e6af5f71756d7fc8e22e23ce65fec9047d774511ffcef79fa8",
+      "sha256:c172f21841dff4c8cf45cde46589c1c2616cefe7e819965e92e6d3475c428aa0",
+      "sha256:fc4330146a1cc76e06ce6def693f5da42c16e2615be6f49e1ea5b6e249ff8262",
+      "sha256:777e9d0975e474519f4f14ff87e547cbb8f9fff4cfc4f1a147ac81906880e503",
+      "sha256:d6b1b89eccacc15c2420b2776d72c1dae334a00805ed9af54bf2f71e4d536f28",
+      "sha256:2780920e5dbfbe103d03a583ed75345306e572ec5a48cb10361f046767d9f29a",
+      "sha256:7c12895b777bcaa8ccae0605b4de635b68fc32d60fa08f421dc3818bf55ee212",
+      "sha256:3214acf345c0cc6bbdb56b698a41ccdefc624a09d6beb0d38b5de0b2303ecaf4",
+      "sha256:52630fc75a18675c530ed9eba5f55eca09b03e91bd5bc15307918bbc1a7e7296",
+      "sha256:dd64bf2dd177757451a98fcdc999a339c35dee5d9872d8f4dc69c8f3c4dd0112",
+      "sha256:b839dfae01f66e15c6a8b63520557ed315bdfe036342fa7a0c537259f10d7a9a",
+      "sha256:c3c9c2f21e6c3293a061cee538a81f4cb29ea224f43d075750ec702b923b77d7",
+      "sha256:ec1b04bf2eb2122e86781f791b03ea0cf6588694e0f4a88245250224c186cdf0",
+      "sha256:b96fe2995f90d0ef0bf14f9b4a67b5f4e77d478e6108166e0565adc9efd6e4a3",
+      "sha256:810e2b405a0884835290e120ef380aa14dd1f53198a0cfa2260147e736d82cd5",
+      "sha256:bd8962e292918c50c90edebd9684c053bc386b9c5503acd8fec75d0c6f93a0b7",
+      "sha256:208bf18bfcdc726b93ead2fc48fe5c02345604d3f4654a96b9d809618f0f5025",
+      "sha256:299fe4821d504957474a8751dee173a687559a77339afb46ed488c39fb3c3a49"
+    ],
+    "verified": true,
+    "version": "2026.11.1",
+    "configValidation": "verified by exact binary; canonical host/ACS selects rule 0; unmatched hostname selects 404 fallback",
+    "accountOrLiveJwtAcceptance": "not run"
+  },
+  "sourceSha256": {
+    "infra/zabbix-access/frontend.yaml": "7d7abc6bcab7271abfacb85a89ba2d3f388e1011295db8be7bfe3db64cd031c1",
+    "infra/zabbix-access/nginx.conf": "8ca8c55f430a3a90723f48ebae7e49fc3d44244e2a9d7cbff79090d5a4784324",
+    "infra/zabbix-access/fastcgi_params": "db6f5c67f3628672082a9f88a3650734bd057dcbc793cb0a9c1862d25b4104d4",
+    "infra/zabbix-access/kustomization.yaml": "f3b30ea5a6e0213e085941729c3bc01dc2511b176ee5884bcbac5090b1ab0c6f",
+    "scripts/zabbix/build_access_bundle.py": "6de7346122d1800286c97c3975b92abb49b119244f7c49ac5ad633440ea10f56",
+    "scripts/tests/fixtures/zabbix/role-permissions-8.0.0.json": "7c109f4e148f83fa6200a62e60350439085266a8f571f7cdf4db2cbd90e024e7"
+  },
+  "localValidation": {
+    "staticContracts": "28 passed; includes pinned upstream profile, all 167 UUIDs and native role-permission enumeration",
+    "ciSelectionTests": "50 passed",
+    "pythonSyntax": "verified",
+    "sopsCli": "verified: all four stringData keys encrypted under existing age recipient; no plaintext output; fixture credentials only",
+    "componentAndOverlayRenders": "verified; existing 18 objects retained, 16 unchanged; only frontend Deployment and generated NGINX ConfigMap differ in opt-in overlay",
+    "activeProductionSecrets": "verified: all base-render references resolve; staged access Secret remains deliberate prerequisite",
+    "kubeconform": "Kubernetes 1.34.1, strict: 16 valid, 0 invalid/errors, 2 Flux CRDs skipped",
+    "existingWorkloadCelPolicies": "7 pass; 0 fail/warn/error/skip on actual rendered frontend and namespace; no fresh live policy comparison",
+    "nativeNginx": "exact image NGINX syntax and runtime with vendor server-common include; only ports relocated to 28080/28081 to avoid workstation conflicts",
+    "cookie": "verified Secure (case-insensitive header parse and native Cookie secure flag), HttpOnly, host-only; no explicit SameSite in native 8.0.0",
+    "resourceDelta": {
+      "requests": {
+        "cpu": "50m",
+        "memory": "128Mi"
+      },
+      "limits": {
+        "cpu": "500m",
+        "memory": "256Mi"
+      },
+      "newPods": 0,
+      "newStorage": 0
+    }
+  },
+  "nativeSamlTests": {
+    "status": "verified",
+    "target": "disposable native 8.0.0 NGINX/PHP-FPM and PostgreSQL 17.12; signed local IdP fixtures, not Entra",
+    "results": [
+      {
+        "case": "viewer",
+        "result": "viewer",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "operator",
+        "result": "operator",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "admin",
+        "result": "admin",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "operator+viewer",
+        "result": "operator",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "admin+viewer",
+        "result": "admin",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "admin+operator+viewer",
+        "result": "admin",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "expired",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "issuer",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "audience",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "destination",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "unsigned-assertion",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "unsigned-response",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "tamper",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "no-mapped-groups",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "operator+viewer",
+        "result": "operator",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "viewer",
+        "result": "viewer",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "no-mapped-groups",
+        "result": "denied",
+        "status": 200
+      },
+      {
+        "case": "all-groups-removed-next-assertion",
+        "result": "deprovisioned and previously issued native cookie rejected"
+      },
+      {
+        "case": "operator",
+        "result": "operator",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "native-logout-session-reuse",
+        "result": "rejected old native session cookie"
+      },
+      {
+        "case": "audit-attribution",
+        "result": "native login/logout attributed to immutable object ID; provisioning uses System"
+      }
+    ],
+    "auditSample": [
+      {
+        "auditid": "cmx00xcsu00010ccms64f1lbb",
+        "username": "f70db2e1-c5ac-4d54-a152-1bd9ff9a252b",
+        "action": "4",
+        "resourceid": "91",
+        "clock": "1795846983"
+      },
+      {
+        "auditid": "cmx00xcrz00020dcmiyp1xi2b",
+        "username": "f70db2e1-c5ac-4d54-a152-1bd9ff9a252b",
+        "action": "8",
+        "resourceid": "91",
+        "clock": "1795846983"
+      }
+    ],
+    "limitations": [
+      "NGINX listener ports relocated to 28080/28081 for workstation conflicts",
+      "Cookies carried explicitly on local HTTP fixture transport; real browser/HTTPS SAML POST and Cloudflare acceptance not run",
+      "Native JIT updates only when a new assertion is processed; removal before reauthentication does not notify Zabbix",
+      "Cloudflare sessions and Entra assignment/MFA/revocation must be tested by owner"
+    ]
+  },
+  "nativeAccessTests": {
+    "status": "verified",
+    "target": "disposable native 8.0.0; local fixtures only",
+    "results": [
+      {
+        "case": "viewer",
+        "result": "viewer",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "viewer-host-configuration",
+        "result": "denied"
+      },
+      {
+        "case": "viewer-public-api",
+        "result": "403"
+      },
+      {
+        "case": "operator",
+        "result": "operator",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "operator-host-configuration",
+        "result": "denied"
+      },
+      {
+        "case": "operator-public-api",
+        "result": "403"
+      },
+      {
+        "case": "admin",
+        "result": "admin",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "admin-host-configuration",
+        "result": "allowed"
+      },
+      {
+        "case": "admin-public-api",
+        "result": "403"
+      },
+      {
+        "case": "wrong-trusted-signing-certificate",
+        "result": "denied; user not provisioned"
+      },
+      {
+        "case": "viewer",
+        "result": "viewer",
+        "status": 302,
+        "attribution": "immutable object ID username",
+        "cookieSecure": true,
+        "cookieHttpOnly": true
+      },
+      {
+        "case": "restore-correct-signing-certificate",
+        "result": "login restored"
+      },
+      {
+        "case": "private-break-glass",
+        "result": "native local administrator login verified; disposable default credentials only"
+      },
+      {
+        "case": "public-local-login-/index.php",
+        "result": "denied"
+      },
+      {
+        "case": "public-local-login-/index.php?reconnect=1",
+        "result": "denied"
+      },
+      {
+        "case": "public-local-login-/index.php/anything",
+        "result": "denied"
+      },
+      {
+        "case": "public-local-login-/index_http.php",
+        "result": "denied"
+      },
+      {
+        "case": "public-local-login-/api_scim.php",
+        "result": "denied"
+      },
+      {
+        "case": "forged-forwarding-headers",
+        "result": "canonical HTTPS ACS retained"
+      },
+      {
+        "case": "wrong-origin-host",
+        "result": "421 for login/SAML/API"
+      },
+      {
+        "case": "direct-origin",
+        "result": "non-loopback IPv4 and IPv6 loopback refused on both frontend ports"
+      }
+    ]
+  },
+  "nativeEffectiveRoleRules": {
+    "status": "verified",
+    "nativeVersion": "8.0.0",
+    "reasonForExplicitDenies": "Native create compiles unlisted current UI/actions from enabled old defaults even when new default_access=0. Final plan enumerates all current User/Admin permissions and verifies effective rules after create/update.",
+    "results": [
+      {
+        "role": "admin",
+        "createAndUpdate": "verified",
+        "enabledUI": [
+          "monitoring.dashboard",
+          "monitoring.problems",
+          "monitoring.hosts",
+          "monitoring.latest_data",
+          "monitoring.maps",
+          "configuration.hosts",
+          "configuration.maintenance"
+        ],
+        "enabledActions": [
+          "acknowledge_problems",
+          "suppress_problems",
+          "close_problems",
+          "change_severity",
+          "add_problem_comments",
+          "edit_maintenance"
+        ],
+        "allOtherUIAndActions": "explicitly denied",
+        "apiAndModules": "denied"
+      },
+      {
+        "role": "operator",
+        "createAndUpdate": "verified",
+        "enabledUI": [
+          "monitoring.dashboard",
+          "monitoring.problems",
+          "monitoring.hosts",
+          "monitoring.latest_data",
+          "monitoring.maps"
+        ],
+        "enabledActions": [
+          "acknowledge_problems",
+          "add_problem_comments"
+        ],
+        "allOtherUIAndActions": "explicitly denied",
+        "apiAndModules": "denied"
+      },
+      {
+        "role": "viewer",
+        "createAndUpdate": "verified",
+        "enabledUI": [
+          "monitoring.dashboard",
+          "monitoring.problems",
+          "monitoring.hosts",
+          "monitoring.latest_data",
+          "monitoring.maps"
+        ],
+        "enabledActions": [],
+        "allOtherUIAndActions": "explicitly denied",
+        "apiAndModules": "denied"
+      }
+    ]
+  },
+  "nativeHostScope": {
+    "status": "verified",
+    "observations": [
+      {
+        "role": "admin",
+        "ApplicationsHost": "visible",
+        "ungrantedGroupHost": "hidden"
+      },
+      {
+        "role": "operator",
+        "ApplicationsHost": "visible",
+        "ungrantedGroupHost": "hidden"
+      },
+      {
+        "role": "viewer",
+        "ApplicationsHost": "visible",
+        "ungrantedGroupHost": "hidden"
+      }
+    ],
+    "limitation": "Temporarily enabled the role API flag only in disposable fixtures to inspect native host.get permission filters; reset to API-deny immediately after each request. Actual UI host-configuration deny/allow and public API deny tested separately."
+  },
+  "certificateExpiry": {
+    "builder": "verified rejection of expired certificate",
+    "nativeToolkit": "verified: pinned expired certificate with the same signing key still validates signatures; no automatic NotAfter enforcement",
+    "requiredOperation": "Entra certificate-expiry notifications, owner rotation/requalification before NotAfter; do not claim native expiry rejection"
+  },
+  "exactVersionBehavior": {
+    "strictMode": "true; canonical baseurl; no proxy-header trust",
+    "destinationComparison": "Keep toolkit default query-tolerant destination comparison for native ?acs. destinationStrictlyMatches=true rejected valid ACS in local test; strict=false is not used. Wrong-host destination is rejected.",
+    "requestCorrelation": "Native processResponse() is called without a request ID; additional unsolicited-InResponseTo rejection would reject normal SP responses. Defaults retained; no stronger request-ID/replay enforcement claimed.",
+    "roleCreation": "Every current native UI/action explicitly enumerated to prevent enabled creation-default inheritance. Effective role.create/update compared against plan in native 8.0.0.",
+    "jitRemoval": "Groups/role updated only at a fresh assertion; no immediate Entra change notification, SCIM, Graph lookup or automatic session revocation",
+    "sessionRevocation": "Native logout/old-cookie rejection and deprovisioning/old-cookie rejection verified. Immediate targeted native administrator revocation without a fresh assertion is not established; owner must qualify Access session revocation and emergency containment.",
+    "certificateTrust": "Wrong pinned signing certificate/signature rejected; native toolkit does not enforce NotAfter on a pinned signing key; owner rotation/expiry notifications required"
+  },
+  "limitations": [
+    "Disposable official native binaries in local user/PID/mount namespaces and chroots, not a Docker/Talos runtime or a browser canary. PHP-FPM used a fixture-only root pool inside user namespace; production restricted Pod settings were rendered/policy-checked, not runtime-tested here.",
+    "Signed local IdP fixture assertions and synthetic identities, not Microsoft Entra-issued assertions; no tenant/group licensing/assignment/MFA validation.",
+    "Cloudflared image layers and config parsing verified; no Cloudflare app/DNS/edge TLS/live Access JWT/session revocation tested.",
+    "SAML and proxy tests used HTTP loopback with explicit cookie transport to exercise native Secure-cookie generation; real browser HTTPS/cross-site POST remains mandatory."
+  ],
+  "productionAcceptancePending": [
+    "ChatGPT/security review and hosted CI; no wait or merge in this task",
+    "Owner Entra groups/object IDs, assignment/licensing/MFA/claims and SHA-256 response+assertion signing; exact app signing certificate",
+    "Dedicated Cloudflare tunnel/Access whole-host policy/team/AUD, cache/HTTPS/cookie settings, DNS and live JWT/session revocation negatives",
+    "Current placement/resource qualification and reviewed SOPS/Flux activation; no placeholder Secret",
+    "Rotated private local break-glass and IdP outage test; no public password/API bypass",
+    "Real assigned/unassigned/overlap/downgrade/removal and open-session offboarding tests; native and Access audit correlation",
+    "Signing-key rotation/old-key rejection, expiry notification ownership and real browser HTTPS/SAML/cookie/canonical URL acceptance",
+    "Direct Pod/Service origin refusal including IPv6, existing four Pods/node discovery/API health/database continuity",
+    "Unattended Kubernetes API token lifecycle remains outstanding; backup/restore, capacity/build history and full metric accuracy remain open"
+  ],
+  "rollback": "Unpublished Wiki proposal contains owner-side route containment and focused Flux activation revert, native auth rollback via private Internal break-glass, certificate rollback without signature weakening, and metric reimport preserving history. No namespace/database/storage/credentials/history deletion.",
+  "wiki": "Prepared outside GitOps repository for review only; no push or publication",
+  "productionWrites": "none"
+}
