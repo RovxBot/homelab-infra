@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: zabbix-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-frontend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: zabbix-frontend
+  template:
+    metadata:
+      labels:
+        app: zabbix-frontend
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [metal7]
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values: [metal4]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1997
+        runAsGroup: 1995
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: frontend
+          image: zabbix/zabbix-web-nginx-pgsql:ubuntu-8.0.0@sha256:2f574332d548bc324ab7d5b96f93f3ff3d34ba7ca55edb7839a2dbba4dcb41ec
+          env:
+            - name: DB_SERVER_HOST
+              value: zabbix-postgres
+            - name: POSTGRES_DB
+              value: zabbix
+            - name: POSTGRES_USER
+              value: zabbix
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-credentials
+                  key: database-password
+            - name: ZBX_SERVER_HOST
+              value: zabbix-server
+            - name: ZBX_SERVER_NAME
+              value: Homelab
+            - name: PHP_TZ
+              value: Australia/Adelaide
+            - name: PHP_FPM_PM_MAX_CHILDREN
+              value: "5"
+            - name: PHP_FPM_PM_START_SERVERS
+              value: "2"
+            - name: PHP_FPM_PM_MIN_SPARE_SERVERS
+              value: "1"
+            - name: PHP_FPM_PM_MAX_SPARE_SERVERS
+              value: "3"
+          ports:
+            - name: http
+              containerPort: 8080
+          # /ping is the vendor PHP-FPM health endpoint, restricted to loopback.
+          startupProbe:
+            exec:
+              command: [curl, --fail, --silent, --max-time, "4", http://127.0.0.1:8080/ping]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 180
+          readinessProbe:
+            httpGet:
+              path: /index.php
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: [curl, --fail, --silent, --max-time, "4", http://127.0.0.1:8080/ping]
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Vendor entrypoint generates NGINX/PHP configuration in the image.
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

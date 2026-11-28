@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-server
+spec:
+  type: ClusterIP
+  selector:
+    app: zabbix-server
+  ports:
+    - name: zabbix
+      port: 10051
+      targetPort: zabbix
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-server
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: zabbix-server
+  template:
+    metadata:
+      labels:
+        app: zabbix-server
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 120
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [metal7]
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values: [metal4]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1997
+        runAsGroup: 1995
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: server
+          image: zabbix/zabbix-server-pgsql:ubuntu-8.0.0@sha256:1bbfd3fec8fa61ab1dc9bd048b0e46935724d09de315d825300274632d3af5a7
+          env:
+            - name: DB_SERVER_HOST
+              value: zabbix-postgres
+            - name: POSTGRES_DB
+              value: zabbix
+            - name: POSTGRES_USER
+              value: zabbix
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-credentials
+                  key: database-password
+            - name: ZBX_ENABLEGLOBALSCRIPTS
+              value: "0"
+          ports:
+            - name: zabbix
+              containerPort: 10051
+          # The vendor entrypoint waits for PostgreSQL and imports its schema.
+          startupProbe:
+            tcpSocket:
+              port: zabbix
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 180
+          readinessProbe:
+            tcpSocket:
+              port: zabbix
+            periodSeconds: 10
+            timeoutSeconds: 3
+          # Check the local parent process without restarting on a DB outage.
+          livenessProbe:
+            exec:
+              command: [/bin/sh, -ec, 'kill -0 "$(cat /tmp/zabbix_server.pid)"']
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Vendor entrypoint generates configuration in the image filesystem.
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1500m
+              memory: 2Gi

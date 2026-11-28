@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: zabbix
+labels:
+  - includeSelectors: false
+    includeTemplates: true
+    pairs:
+      homelab.cooked.beer/owner: sam
+resources:
+  - namespace.yaml
+  - storage.yaml
+  - postgres.yaml
+  - server.yaml
+  - frontend.yaml
+  - ../../secrets/zabbix.enc.yaml
+configMapGenerator:
+  - name: zabbix-postgres-init
+    files:
+      - 01-zabbix.sql=postgres-init.sql
