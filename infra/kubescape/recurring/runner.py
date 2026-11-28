@@ -171,6 +171,14 @@ def posture_slug(value):
     return name
 
 
+def posture_label(value):
+    """Pinned names.ToValidLabelValue; retain raw identities separately."""
+    if re.fullmatch(r"(?:[a-zA-Z0-9](?:[-_.a-zA-Z0-9]{0,61}[a-zA-Z0-9])?)?", value):
+        return value
+    value = re.sub(r"[^a-zA-Z0-9_.-]", "-", value).lower().strip("-")[:63]
+    return re.sub(r"^[^a-z0-9]+|[^a-z0-9]+$", "", value)
+
+
 def posture_namespaces(config):
     contract = config.get("postureLifecycle", {})
     namespaces = contract.get("activeNamespaces")
@@ -180,6 +188,57 @@ def posture_namespaces(config):
                and len(namespaces) == len(set(namespaces)), "posture_lifecycle_contract_invalid")
     db.require({w.split("/", 1)[0] for w in config["postureWorkloads"]} <= set(namespaces), "posture_lifecycle_contract_invalid")
     return sorted(namespaces)
+
+
+def posture_identity(obj):
+    """Read native ObjectMeta or vector fields without losing conflicting values."""
+    reason = "posture_identity_invalid"
+    db.require(isinstance(obj, dict), reason)
+    meta = obj.get("metadata", {})
+    db.require(isinstance(meta, dict), reason)
+    identity = {"kind": obj.get("kind")}
+    for field in ("name", "namespace"):
+        values = [source[field] for source in (obj, meta) if field in source]
+        db.require(all(isinstance(v, str) for v in values) and len(set(values)) <= 1, reason)
+        identity[field] = values[0] if values else ""
+    db.require(all(isinstance(v, str) for v in identity.values())
+               and re.fullmatch(r"[A-Z][A-Za-z0-9]*", identity["kind"])
+               and identity["name"].strip() and not re.search(r"[\x00-\x1f\x7f]", identity["name"])
+               and (identity["kind"] in {"Group", "User"} or not re.search(r"[\s/]", identity["name"])), reason)
+    namespace = identity["namespace"]
+    db.require(not namespace or (len(namespace) <= 63 and re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)), reason)
+    return identity
+
+
+def posture_rbac(subject, related):
+    """Validate the exact subject/role/binding vector before naming persistence."""
+    reason = "posture_rbac_incomplete"
+    identities = [posture_identity(o) for o in related]
+    roles = [i for i, o in enumerate(identities) if o["kind"] in {"Role", "ClusterRole"}]
+    bindings = [i for i, o in enumerate(identities) if o["kind"] in {"RoleBinding", "ClusterRoleBinding"}]
+    db.require(len(related) == 2 and len(roles) == len(bindings) == 1, reason)
+    role, binding = identities[roles[0]], identities[bindings[0]]
+    db.require(subject["kind"] in {"ServiceAccount", "Group", "User"}
+               and bool(subject["namespace"]) == (subject["kind"] == "ServiceAccount")
+               and bool(role["namespace"]) == (role["kind"] == "Role")
+               and bool(binding["namespace"]) == (binding["kind"] == "RoleBinding")
+               and (role["kind"] != "Role" or role["namespace"] == binding["namespace"]), reason)
+    obj = related[bindings[0]]
+    ref, subjects = obj.get("roleRef"), obj.get("subjects")
+    db.require(isinstance(ref, dict) and ref.get("kind") == role["kind"] and ref.get("name") == role["name"]
+               and ref.get("apiGroup") == "rbac.authorization.k8s.io" and isinstance(subjects, list) and subjects, reason)
+    members = []
+    for value in subjects:
+        member = posture_identity(value)
+        db.require(member["kind"] in {"ServiceAccount", "Group", "User"}
+                   and value.get("apiGroup", "") == ("" if member["kind"] == "ServiceAccount" else "rbac.authorization.k8s.io")
+                   and (member["kind"] == "ServiceAccount" or not member["namespace"]), reason)
+        if member["kind"] == "ServiceAccount":
+            member["namespace"] = member["namespace"] or binding["namespace"]
+            db.require(bool(member["namespace"]), reason)
+        members.append(member)
+    db.require(subject in members, reason)
+    return {"subject": subject, "role": role, "binding": binding}
 
 
 def posture_scope(result, namespaces=None):
@@ -200,33 +259,35 @@ def posture_scope(result, namespaces=None):
                "posture_resource_inventory_missing")
     objects = {r["resourceID"]: r["object"] for r in resources}
     db.require(len(objects) == len(resources), "posture_identity_ambiguous")
-    expected, shared, referenced_namespaces = set(), set(), set()
+    expected, shared, referenced_namespaces, rbac = set(), set(), set(), {}
     for value in results:
         obj = objects.get(value.get("resourceID"))
         db.require(isinstance(obj, dict), "posture_identity_missing")
-        meta = obj.get("metadata", obj)
-        kind, name = obj.get("kind"), meta.get("name")
-        db.require(isinstance(kind, str) and isinstance(name, str) and name, "posture_identity_invalid")
+        subject = posture_identity(obj)
+        kind, name = subject["kind"], subject["name"]
         related = obj.get("relatedObjects", [])
+        db.require(isinstance(related, list), "posture_rbac_incomplete")
+        db.require(related or kind not in {"Group", "User"}, "posture_rbac_incomplete")
         identity = kind + "-" + name
-        namespace = meta.get("namespace") or NS
-        if meta.get("namespace"):
-            referenced_namespaces.add(meta["namespace"])
+        namespace = subject["namespace"] or NS
+        if subject["namespace"]:
+            referenced_namespaces.add(subject["namespace"])
         if related:
-            roles = [o for o in related if o.get("kind") in {"Role", "ClusterRole"}]
-            bindings = [o for o in related if o.get("kind") in {"RoleBinding", "ClusterRoleBinding"}]
-            db.require(len(related) == 2 and len(roles) == len(bindings) == 1, "posture_rbac_incomplete")
-            identity += "-" + roles[0]["kind"] + "-" + roles[0]["name"]
-            identity += "-" + bindings[0]["kind"] + "-" + bindings[0]["name"]
+            vector = posture_rbac(subject, related)
+            for part in (vector["role"], vector["binding"]):
+                identity += "-" + part["kind"] + "-" + part["name"]
+                if part["namespace"]:
+                    referenced_namespaces.add(part["namespace"])
             namespace = NS
-            referenced_namespaces.update(o["namespace"] for o in related if o.get("namespace"))
         key = namespace + "/" + posture_slug(identity)
         db.require(key not in expected, "posture_identity_ambiguous")
         expected.add(key)
         if related:
             shared.add(key)
+            rbac[key] = vector
     db.require(bool(shared), "posture_shared_rbac_missing")
-    return {"expected": expected, "shared": shared, "referencedNamespaces": referenced_namespaces, "coverage": coverage}
+    return {"expected": expected, "shared": shared, "rbac": rbac,
+            "referencedNamespaces": referenced_namespaces, "coverage": coverage}
 
 
 def posture_workloads(api):
@@ -1095,6 +1156,25 @@ def check_posture(result, summaries, started, required_workloads=(), *, scope=No
     for summary in current:
         db.require(db.timestamp(summary["metadata"]["annotations"]["kubescape.io/report-created-at"]) >= db.timestamp(started), "posture_report_stale")
         db.require(bool(summary["spec"].get("controls")), "posture_controls_empty")
+        meta = summary["metadata"]
+        key = meta.get("namespace", "") + "/" + meta["name"]
+        if scope is not None and key in scope["rbac"]:
+            vector = scope["rbac"][key]
+            subject, binding = vector["subject"], vector["binding"]
+            labels = meta.get("labels", {})
+            expected_labels = {"kubescape.io/workload-" + k: posture_label(v) for k, v in subject.items()}
+            for part in (vector["role"], binding):
+                prefix = "kubescape.io/" + part["kind"].lower() + "-"
+                expected_labels[prefix + "name"] = posture_label(part["name"])
+                if part["namespace"]:
+                    expected_labels[prefix + "namespace"] = part["namespace"]
+            role_labels = {"kubescape.io/" + k.lower() + "-" + f
+                           for k in ("Role", "ClusterRole", "RoleBinding", "ClusterRoleBinding") for f in ("name", "namespace")}
+            db.require(labels.get("kubescape.io/rbac-resource") == "true"
+                       and all(labels.get(k, "") == expected_labels.get(k, "") for k in expected_labels.keys() | role_labels)
+                       and meta.get("annotations", {}).get("kubescape.io/wlid") ==
+                       "wlid://cluster-home/namespace-" + binding["namespace"] + "/" + binding["kind"].lower() + "-" + binding["name"],
+                       "posture_identity_invalid")
     db.require(any(s["metadata"].get("namespace") == "memos" and s["metadata"]["name"] == "deployment-memos" for s in summaries), "posture_memos_missing")
     if scope is not None:
         db.require(bool(scope["shared"]) and scope["shared"] <= observed, "posture_shared_rbac_missing")

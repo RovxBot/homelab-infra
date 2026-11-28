@@ -31,6 +31,23 @@ def row():
             "containerType": "containers", "runningDigest": R.client.MEMOS_IMAGE}
 
 
+def rbac_vector():
+    return {'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos', 'relatedObjects': [
+        {'kind': 'ClusterRole', 'name': 'reader'},
+        {'kind': 'ClusterRoleBinding', 'name': 'reader',
+         'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'ClusterRole', 'name': 'reader'},
+         'subjects': [{'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos'}]}]}
+
+
+def rbac_summary_identity(summary):
+    summary['metadata'].setdefault('labels', {}).update({
+        'kubescape.io/rbac-resource': 'true', 'kubescape.io/workload-kind': 'ServiceAccount',
+        'kubescape.io/workload-name': 'reader', 'kubescape.io/workload-namespace': 'memos',
+        'kubescape.io/clusterrole-name': 'reader', 'kubescape.io/clusterrolebinding-name': 'reader'})
+    summary['metadata']['annotations']['kubescape.io/wlid'] = 'wlid://cluster-home/namespace-/clusterrolebinding-reader'
+    return summary
+
+
 class CompletionWindowTests(unittest.TestCase):
     def test_vulnerability_slots_and_daily_posture(self):
         history = Path("/history")
@@ -575,20 +592,21 @@ class BatchTests(unittest.TestCase):
                     "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}}, "spec": {"controls": {"x": {}}}}
         summaries = [summary(namespace, name) for namespace, name in
                      (target.split("/") for target in CONFIG["postureWorkloads"])]
-        summaries.append(summary("kubescape", "serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader"))
+        summaries.append(rbac_summary_identity(summary("kubescape", "serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader")))
         result = copy.deepcopy(EXTERNAL_POSTURE)
         objects = [{"apiVersion": "apps/v1", "kind": "Deployment" if name.startswith("deployment-") else "StatefulSet",
                     "metadata": {"namespace": namespace, "name": name.split("-", 1)[1]}}
                    for namespace, name in (t.split("/") for t in CONFIG["postureWorkloads"])]
-        objects.append({"kind": "ServiceAccount", "name": "reader", "namespace": "memos", "relatedObjects": [
-            {"kind": "ClusterRole", "name": "reader"}, {"kind": "ClusterRoleBinding", "name": "reader"}]})
+        objects.append(rbac_vector())
         result.update(resources=[{"resourceID": str(i), "object": obj} for i, obj in enumerate(objects)],
                       results=[{"resourceID": str(i)} for i in range(len(objects))])
         result['metadata']['scanMetadata']['includeNamespaces'] = CONFIG["postureLifecycle"]["activeNamespaces"]
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
             api = mock.Mock()
             api.items.side_effect = lambda base, kind, namespace=None: summaries if kind == "workloadconfigurationscansummaries" else []
-            api.get.side_effect = lambda base, kind, name, namespace: next(s for s in summaries if s["metadata"]["name"] == name)
+            api.get.side_effect = lambda base, kind, name, namespace=None, optional=False: (
+                next(s for s in summaries if s["metadata"]["name"] == name) if kind == 'workloadconfigurationscansummaries'
+                else {**rbac_vector()['relatedObjects'][1], 'metadata': {'name': 'reader', 'uid': 'binding'}})
             runner = R.Runner(api, self.config(), EXPECTED, Path(path), "posture")
             with mock.patch.object(R, "workload_rows", side_effect=AssertionError("target coupling")), \
                     mock.patch.object(R, "posture_environment"), \
@@ -1451,13 +1469,12 @@ class PostureContractTests(unittest.TestCase):
         self.result = {**copy.deepcopy(EXTERNAL_POSTURE),
                        'resources': [
                            {'resourceID': 'workload', 'object': {'kind': 'Deployment', 'metadata': {'name': 'memos', 'namespace': 'memos'}}},
-                           {'resourceID': 'rbac', 'object': {'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos',
-                               'relatedObjects': [{'kind': 'ClusterRole', 'name': 'reader'},
-                                                  {'kind': 'ClusterRoleBinding', 'name': 'reader'}]}}],
+                           {'resourceID': 'rbac', 'object': rbac_vector()}],
                        'results': [{'resourceID': 'workload'}, {'resourceID': 'rbac'}]}
         self.result['metadata']['scanMetadata']['includeNamespaces'] = ['memos']
         self.shared = 'serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader'
         self.summaries = [self.summary('memos', 'deployment-memos'), self.summary('kubescape', self.shared)]
+        rbac_summary_identity(self.summaries[1])
         self.workloads = []
         self.api.items.side_effect = lambda base, kind, namespace=None: copy.deepcopy(self.summaries if kind == 'workloadconfigurationscansummaries' else [o for o in self.workloads if o['kind'].lower() + 's' == kind])
         self.api.get.side_effect = self.get
@@ -1699,6 +1716,133 @@ class PostureContractTests(unittest.TestCase):
         digest = hashlib.sha256(value.encode()).hexdigest()
         self.assertEqual(R.posture_slug(value), ('configmap-' + 'a' * 250)[:243] + '-' + digest[:4] + '-' + digest[-4:])
 
+    def native_vector(self, role_kind='Role', subject_kind='ServiceAccount'):
+        subject = {'kind': subject_kind, 'name': 'reader', 'relatedObjects': [
+            {'kind': role_kind, 'metadata': {'name': 'reader'}},
+            {'kind': 'RoleBinding', 'metadata': {'name': 'reader', 'namespace': 'bindings'},
+             'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': role_kind, 'name': 'reader'},
+             'subjects': [{'kind': subject_kind, 'name': 'reader'}]}]}
+        if role_kind == 'Role':
+            subject['relatedObjects'][0]['metadata']['namespace'] = 'bindings'
+        if subject_kind == 'ServiceAccount':
+            subject['namespace'] = 'subjects'
+            subject['relatedObjects'][1]['subjects'][0]['namespace'] = 'subjects'
+        else:
+            subject['relatedObjects'][1]['subjects'][0]['apiGroup'] = 'rbac.authorization.k8s.io'
+        return subject
+
+    def test_native_metadata_preserves_subject_role_binding_and_namespaces(self):
+        for role in ('Role', 'ClusterRole'):
+            for subject_kind in ('ServiceAccount', 'Group', 'User'):
+                subject = self.native_vector(role, subject_kind)
+                self.result['resources'][1]['object'] = subject
+                expected = f'kubescape/{subject_kind.lower()}-reader-{role.lower()}-reader-rolebinding-reader'
+                with self.subTest(role=role, subject=subject_kind):
+                    scope = R.posture_scope(self.result)
+                    self.assertEqual(scope['shared'], {expected})
+                    vector = scope['rbac'][expected]
+                    self.assertEqual(vector['subject'], {'kind': subject_kind, 'name': 'reader',
+                                                        'namespace': 'subjects' if subject_kind == 'ServiceAccount' else ''})
+                    self.assertEqual(vector['role']['namespace'], 'bindings' if role == 'Role' else '')
+                    self.assertEqual(vector['binding'], {'kind': 'RoleBinding', 'name': 'reader', 'namespace': 'bindings'})
+                    self.assertIn('bindings', scope['referencedNamespaces'])
+        # Native order and consistent duplicate flat fields preserve identity.
+        subject = self.native_vector()
+        for obj in [subject] + subject['relatedObjects']:
+            obj['metadata'] = {**obj.get('metadata', {}), **{k: obj[k] for k in ('name', 'namespace') if k in obj}}
+            obj.update(obj['metadata'])
+        subject['relatedObjects'].reverse()
+        self.result['resources'][1]['object'] = subject
+        self.assertIn('bindings', R.posture_scope(self.result)['referencedNamespaces'])
+
+    def test_native_metadata_qualifies_through_persistence(self):
+        for obj in self.result['resources'][1]['object']['relatedObjects']:
+            obj['metadata'] = {'name': obj.pop('name')}
+        checked = self.qualify()
+        self.assertEqual(checked['sharedRBACSummaries'], 1)
+
+    def test_malformed_conflicting_and_inconsistent_rbac_identities_rejected(self):
+        mutations = [
+            lambda s, r, b: r.update(metadata=None),
+            lambda s, r, b: r['metadata'].pop('name'),
+            lambda s, r, b: r['metadata'].update(name=None),
+            lambda s, r, b: r['metadata'].update(name=[]),
+            lambda s, r, b: r['metadata'].update(name=''),
+            lambda s, r, b: r['metadata'].update(name=' reader'),
+            lambda s, r, b: r.update(name='conflict'),
+            lambda s, r, b: r.update(namespace='other'),
+            lambda s, r, b: b.update(name='conflict'),
+            lambda s, r, b: b.update(namespace='other'),
+            lambda s, r, b: s.update(metadata={'name': 'conflict'}),
+            lambda s, r, b: s.update(metadata={'namespace': 'other'}),
+            lambda s, r, b: s.update(namespace=None),
+            lambda s, r, b: r['metadata'].update(namespace='other'),
+            lambda s, r, b: b['metadata'].update(namespace=''),
+            lambda s, r, b: b['metadata'].update(namespace=[]),
+            lambda s, r, b: b.update(kind='ClusterRoleBinding'),
+            lambda s, r, b: r.update(kind='ClusterRole'),
+            lambda s, r, b: b.update(roleRef=None),
+            lambda s, r, b: b['roleRef'].update(name='different'),
+            lambda s, r, b: b['roleRef'].update(kind='ClusterRole'),
+            lambda s, r, b: b['roleRef'].update(apiGroup='other'),
+            lambda s, r, b: b.update(subjects=None),
+            lambda s, r, b: b.update(subjects=[]),
+            lambda s, r, b: b['subjects'][0].update(namespace='other'),
+            lambda s, r, b: b['subjects'][0].update(name='different'),
+            lambda s, r, b: b['subjects'][0].update(kind='User'),
+            lambda s, r, b: s['relatedObjects'].append(copy.deepcopy(r)),
+            lambda s, r, b: s['relatedObjects'].__setitem__(0, None),
+            lambda s, r, b: s.update(relatedObjects={}),
+        ]
+        for index, mutate in enumerate(mutations):
+            subject = self.native_vector()
+            mutate(subject, *subject['relatedObjects'])
+            self.result['resources'][1]['object'] = subject
+            with self.subTest(case=index), self.assertRaisesRegex(R.db.Rejected, 'posture_(identity_invalid|rbac_incomplete)'):
+                R.posture_scope(self.result)
+
+    def test_persisted_rbac_identity_must_match_exact_vector(self):
+        for field in ('name', 'namespace', 'kind'):
+            summary = copy.deepcopy(self.summaries[1])
+            summary['metadata']['labels']['kubescape.io/workload-' + field] = 'different'
+            with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_identity_invalid'):
+                R.check_posture(self.result, [self.summaries[0], summary], self.started, scope=R.posture_scope(self.result))
+        summary = copy.deepcopy(self.summaries[1])
+        summary['metadata']['annotations']['kubescape.io/wlid'] = 'wlid://cluster-home/namespace-other/rolebinding-reader'
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_invalid'):
+            R.check_posture(self.result, [self.summaries[0], summary], self.started, scope=R.posture_scope(self.result))
+        for field in ('clusterrole-name', 'clusterrolebinding-name', 'role-namespace'):
+            summary = copy.deepcopy(self.summaries[1])
+            summary['metadata']['labels']['kubescape.io/' + field] = 'different'
+            with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_identity_invalid'):
+                R.check_posture(self.result, [self.summaries[0], summary], self.started, scope=R.posture_scope(self.result))
+
+    def test_namespaced_vectors_with_same_slug_cannot_be_collapsed(self):
+        other = copy.deepcopy(self.result['resources'][1])
+        other['resourceID'] = 'other-namespace'
+        other['object']['namespace'] = 'other'
+        other['object']['relatedObjects'][1]['subjects'][0]['namespace'] = 'other'
+        self.result['resources'].append(other)
+        self.result['results'].append({'resourceID': 'other-namespace'})
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
+            R.posture_scope(self.result)
+
+    def test_native_user_name_and_sanitized_labels_preserve_raw_identity(self):
+        subject = self.result['resources'][1]['object']
+        subject.update(kind='User', name='issuer.example/alice@example.org')
+        del subject['namespace']
+        subject['relatedObjects'][1]['subjects'] = [{'kind': 'User', 'name': subject['name'], 'apiGroup': 'rbac.authorization.k8s.io'}]
+        scope = R.posture_scope(self.result)
+        key, = scope['shared']
+        summary = self.summaries[1]
+        summary['metadata']['name'] = key.split('/', 1)[1]
+        labels = summary['metadata']['labels']
+        labels.update({'kubescape.io/workload-kind': 'User', 'kubescape.io/workload-name': R.posture_label(subject['name'])})
+        del labels['kubescape.io/workload-namespace']
+        checked = self.qualify()
+        self.assertEqual(checked['sharedRBACSummaries'], 1)
+        self.assertEqual(scope['rbac'][key]['subject']['name'], subject['name'])
+
     def workload(self, kind, name, namespace='memos', maps=(), **spec):
         pod = {'containers': [{'name': 'app'}], 'volumes': [{'name': 'v' + str(i), 'configMap': {'name': n}} for i, n in enumerate(maps)]}
         if kind == 'Pod':
@@ -1803,14 +1947,17 @@ class PostureContractTests(unittest.TestCase):
         previous = self.summary('kubescape', self.shared, True, 'ServiceAccount', 'wlid://cluster-home/namespace-/clusterrolebinding-reader')
         previous['metadata']['labels'].update({'kubescape.io/rbac-resource': 'true', 'kubescape.io/workload-namespace': 'memos'})
         self.result['resources'][1]['object']['relatedObjects'][0]['name'] = 'reader-next'
+        self.result['resources'][1]['object']['relatedObjects'][1]['roleRef']['name'] = 'reader-next'
         next_name = 'serviceaccount-reader-clusterrole-reader-next-clusterrolebinding-reader'
         self.summaries[1]['metadata']['name'] = next_name
+        self.summaries[1]['metadata']['labels']['kubescape.io/clusterrole-name'] = 'reader-next'
         self.summaries.append(previous)
         self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else {'metadata': {'name': n, 'uid': 'binding', 'resourceVersion': '2'}, 'roleRef': {'kind': 'ClusterRole', 'name': 'reader-next'}, 'subjects': [{'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos'}]}
         checked = self.runner.qualify_posture(self.result, self.started, [previous])
         self.assertEqual(checked['excludedSummaries'][0]['state'], 'verified_superseded_binding')
         self.assertEqual(checked['excludedSummaries'][0]['currentBindingSummaries'], ['kubescape/' + next_name])
         self.result['resources'][1]['object']['relatedObjects'][0]['name'] = 'wrong-report-role'
+        self.result['resources'][1]['object']['relatedObjects'][1]['roleRef']['name'] = 'wrong-report-role'
         with self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
             self.runner.qualify_posture(self.result, self.started, [previous])
 
