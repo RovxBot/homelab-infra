@@ -1,0 +1,10 @@
+{
+  "source": "https://raw.githubusercontent.com/zabbix/zabbix/c81e276e505924eaa115d0aa4bb81c388233f924/templates/app/kubernetes_cluster_http/template_kubernetes_cluster.yaml",
+  "release": "8.0.0",
+  "upstream": "Zabbix SIA",
+  "license": "AGPL-3.0-only",
+  "licenseFile": "COPYING",
+  "fixture": "template_kubernetes_cluster-8.0.0.yaml.gz",
+  "compression": "gzip, mtime=0; decompressed bytes are unmodified",
+  "decompressedSHA256": "381387062c667528a5b87865dc4bd1d1f96a668ebf19accc0648b80496d8d629"
+}

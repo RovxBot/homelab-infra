@@ -53,6 +53,17 @@ class CheckSelectionTests(unittest.TestCase):
             for pattern in detect.script_test_patterns(list(paths), full=False):
                 self.assertTrue(list(tests.glob(pattern)), pattern)
 
+    def test_zabbix_manifests_and_fixture_select_native_contracts(self):
+        for path in ('infra/zabbix/kubernetes/collectors.yaml', 'infra/zabbix/server.yaml',
+                     'secrets/zabbix-kubernetes-tls.enc.yaml',
+                     'scripts/zabbix/build_kubernetes_profile.py',
+                     'scripts/tests/test_zabbix_kubernetes.py',
+                     'scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz'):
+            with self.subTest(path=path):
+                checks = detect.classify_changes([path])
+                self.assertEqual(checks['unit_tests'], 'true')
+                self.assertEqual(json.loads(checks['script_tests']), ['test_zabbix*.py'])
+
     def test_kyverno_old_and_new_paths_keep_regression_and_manifest_checks(self):
         for path in ['migration/kyverno/policies/workloads.yaml',
                      'migration/kyverno/namespace-example/namespace/kustomization.yaml',
@@ -145,6 +156,7 @@ class ComponentSelectionTests(unittest.TestCase):
     # Independent reviewed inventory: do not derive expected ownership from the
     # selector's map or compare only counts (equal counts can hide missing IDs).
     SOURCE_STEMS = {
+        'zabbix': ('zabbix/build_kubernetes_profile',),
         'koito': ('koito-audit-lastfm', 'koito-export-lastfm', 'koito-prepare-lastfm-import'),
         'longhorn': (
             'longhorn-b2-object-lifecycle', 'longhorn-prune-snapshots',
@@ -155,6 +167,7 @@ class ComponentSelectionTests(unittest.TestCase):
         ),
     }
     TEST_MODULES = {
+        'zabbix': {'test_zabbix_kubernetes'},
         'koito': {
             'test_koito_audit_lastfm', 'test_koito_bridge_manifest',
             'test_koito_export_lastfm', 'test_koito_prepare_lastfm_import',
@@ -176,7 +189,7 @@ class ComponentSelectionTests(unittest.TestCase):
 import json, sys
 sys.path.insert(0, 'scripts/ci')
 from run_selected_tests import discover_suite, test_cases
-patterns = ['test_*.py', 'test_koito*.py', 'test_longhorn*.py',
+patterns = ['test_*.py', 'test_koito*.py', 'test_longhorn*.py', 'test_zabbix*.py',
             'test_gatus_alert_config.py', 'test_kyverno*.py',
             'test_kubescape_status_guardrail.py']
 print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/tests', [p])))
@@ -197,6 +210,10 @@ print(json.dumps({p: sorted(t.id() for t in test_cases(discover_suite('scripts/t
         paths.update(f'scripts/tests/{module}.py' for module in cls.TEST_MODULES[owner])
         if owner == 'longhorn':
             paths.add('scripts/tests/helpers/longhorn_retention.py')
+        if owner == 'zabbix':
+            paths.add('scripts/tests/fixtures/zabbix/template_kubernetes_cluster-8.0.0.yaml.gz')
+            paths.add('scripts/tests/fixtures/zabbix/SOURCE.json')
+            paths.add('scripts/tests/fixtures/zabbix/COPYING')
         return paths
 
     def assert_ids(self, checks, expected):
