@@ -1827,6 +1827,20 @@ class PostureContractTests(unittest.TestCase):
         with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
             R.posture_scope(self.result)
 
+    def test_same_subject_with_roles_and_bindings_in_different_namespaces_rejected(self):
+        # Retained replay shape: one subject, three distinct namespaced pairs.
+        subject = self.native_vector()
+        self.result['resources'][1]['object'] = subject
+        for namespace in ('other-bindings', 'third-bindings'):
+            other = copy.deepcopy(self.result['resources'][1])
+            other['resourceID'] = namespace
+            for obj in other['object']['relatedObjects']:
+                obj['metadata']['namespace'] = namespace
+            self.result['resources'].append(other)
+            self.result['results'].append({'resourceID': namespace})
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
+            R.posture_scope(self.result)
+
     def test_native_user_name_and_sanitized_labels_preserve_raw_identity(self):
         subject = self.result['resources'][1]['object']
         subject.update(kind='User', name='issuer.example/alice@example.org')
