@@ -14,6 +14,10 @@ resources:
   - frontend.yaml
   - ../../secrets/zabbix.enc.yaml
 configMapGenerator:
+  - name: zabbix-frontend-nginx
+    files:
+      - nginx.conf
+      - nginx_ssl.conf
   - name: zabbix-postgres-init
     files:
       - 01-zabbix.sql=postgres-init.sql

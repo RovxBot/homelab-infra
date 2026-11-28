@@ -84,6 +84,17 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          # Native vendor vhosts, restricted to the Pod's IPv4 loopback.
+          # The generated ConfigMap name rolls the Pod when templates change.
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/zabbix/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/zabbix/nginx_ssl.conf
+              subPath: nginx_ssl.conf
+              readOnly: true
           # /ping is the vendor PHP-FPM health endpoint, restricted to loopback.
           startupProbe:
             exec:
@@ -92,9 +103,8 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 180
           readinessProbe:
-            httpGet:
-              path: /index.php
-              port: http
+            exec:
+              command: [curl, --fail, --silent, --max-time, "4", http://127.0.0.1:8080/index.php]
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
@@ -116,3 +126,7 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: zabbix-frontend-nginx
