@@ -15,6 +15,7 @@ import fcntl
 import gzip
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -42,6 +43,122 @@ IDLE_WAIT_SECONDS = 120
 IDLE_POLL_SECONDS = 5
 INVENTORY_MAX_AGE_MINUTES = 65
 POSTURE_PERSISTENCE_SECONDS = 60
+# Coverage contract: Kubescape ec65d318 (v4.0.20), NSA on Talos bare metal.
+# core/pkg/resourcehandler/k8sresources.go and core/cautils/scancoverage.go
+# record unavailable external inputs as failed pulls, including three silent
+# cloud gaps. Requalify this contract when the scanner/policy shape changes.
+POSTURE_COVERAGE_CONTRACT = "kubescape-4.0.20-nsa-talos-bare-metal-v1"
+POSTURE_IMAGE = "quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060"
+# Verified against the image's offline nsa.json and the retained response;
+# hashes and extraction provenance are in posture-coverage-policy.json.
+POSTURE_NSA_CONTROLS = frozenset((
+    "C-0002", "C-0005", "C-0012", "C-0013", "C-0016", "C-0017", "C-0030", "C-0034", "C-0035",
+    "C-0038", "C-0041", "C-0044", "C-0046", "C-0054", "C-0055", "C-0057", "C-0058", "C-0059",
+    "C-0066", "C-0067", "C-0068", "C-0069", "C-0070", "C-0270", "C-0271", "C-0292",
+))
+POSTURE_CLOUD_CONTROLS = ("C-0066", "C-0067", "C-0068")
+POSTURE_HOST_CONTROLS = ("C-0069", "C-0070")
+POSTURE_HOST_GVR = "hostdata.kubescape.cloud/v1beta0/KubeletInfo"
+POSTURE_CLOUD_ERROR = "failed to get cloud provider, cluster: home"
+POSTURE_HOST_ERROR = ("This control is scanned exclusively by the Kubescape operator, not the Kubescape CLI. Install the Kubescape operator:\n"
+                      "     https://kubescape.io/docs/install-operator/.")
+POSTURE_EXTERNAL_INPUTS = {
+    **{provider + "/v1/ClusterDescribe": (POSTURE_CLOUD_CONTROLS, POSTURE_CLOUD_ERROR)
+       for provider in ("container.googleapis.com", "eks.amazonaws.com", "management.azure.com")},
+    POSTURE_HOST_GVR: (POSTURE_HOST_CONTROLS, POSTURE_HOST_ERROR),
+}
+
+
+def posture_environment(api):
+    """Verify applicability using existing read permissions; never enable collectors."""
+    pod = component_pod(api, "kubescape")
+    containers = pod["spec"]["containers"]
+    db.require(len(containers) == 1 and containers[0]["image"] == POSTURE_IMAGE,
+               "posture_coverage_contract_mismatch")
+    env = {e["name"]: e.get("value") for e in containers[0].get("env", [])}
+    db.require(all(env.get(k) == v for k, v in {"KS_ENABLE_HOST_SCANNER": "false", "KS_OFFLINE": "true",
+                                               "KS_CONTEXT": "home"}.items()), "posture_coverage_contract_mismatch")
+    values = api.get("/apis/helm.toolkit.fluxcd.io/v2", "helmreleases", "kubescape")["spec"]["values"]
+    image = values["kubescape"]["image"]
+    db.require(image["repository"] + ":" + image["tag"] == POSTURE_IMAGE
+               and values["capabilities"]["nodeScan"] == "disable"
+               and values["capabilities"]["kubescapeOffline"] == "enable"
+               and values["credentials"]["cloudSecret"] == "", "posture_coverage_contract_mismatch")
+    nodes = api.items(CORE, "nodes")
+    # k8s-interface v0.0.221 detects cloud providers from spec.providerID.
+    db.require(bool(nodes) and all(not n.get("spec", {}).get("providerID")
+               and n.get("status", {}).get("nodeInfo", {}).get("osImage", "").startswith("Talos (")
+               for n in nodes), "posture_coverage_contract_mismatch")
+
+
+def posture_coverage(result):
+    """Accept only the explained pinned response; preserve its degraded score."""
+    reason = "posture_collection_incomplete"
+    metadata = result.get("metadata", {}).get("scanMetadata", {})
+    context = result.get("metadata", {}).get("targetMetadata", {}).get("clusterContextMetadata", {})
+    db.require(metadata.get("kubescapeVersion") == "4.0.20" and metadata.get("targetType") == "Framework"
+               and metadata.get("targetNames") == ["nsa"] and metadata.get("hostScanner", False) is False
+               and context.get("contextName") == "home" and not context.get("cloudProvider"),
+               "posture_coverage_contract_mismatch")
+    coverage = result.get("scanCoverage")
+    fields = {"failedGVRPulls", "notEvaluatedControls", "partialGVRPulls", "policyDegradations", "skippedManifests",
+              "vacuousFrameworks", "coverageScore", "evaluatedControls", "totalControls", "degraded",
+              "silentFailedGVRCount", "unexaminedKinds"}
+    db.require(isinstance(coverage, dict) and not coverage.keys() - fields, reason)
+    for field in ("partialGVRPulls", "policyDegradations", "skippedManifests", "vacuousFrameworks"):
+        value = coverage.get(field, [])
+        db.require(isinstance(value, list) and not value, reason)
+    pulls = coverage.get("failedGVRPulls")
+    db.require(isinstance(pulls, list) and len(pulls) == len(POSTURE_EXTERNAL_INPUTS), reason)
+    seen = set()
+    for pull in pulls:
+        db.require(isinstance(pull, dict) and set(pull) == {"gvr", "controls", "error"}, reason)
+        gvr, controls = pull["gvr"], pull["controls"]
+        db.require(isinstance(gvr, str) and gvr in POSTURE_EXTERNAL_INPUTS and gvr not in seen, reason)
+        expected, error = POSTURE_EXTERNAL_INPUTS[gvr]
+        db.require(isinstance(controls, list) and all(isinstance(c, str) for c in controls)
+                   and sorted(controls) == list(expected) and pull["error"] == error, reason)
+        seen.add(gvr)
+    missing = coverage.get("notEvaluatedControls")
+    db.require(isinstance(missing, list) and len(missing) == 2 and all(isinstance(c, dict) for c in missing)
+               and sorted(missing, key=lambda c: str(c.get("controlID"))) == [
+                   {"controlID": c, "missingGVRs": [POSTURE_HOST_GVR]} for c in POSTURE_HOST_CONTROLS], reason)
+    # v4.0.20 computes 24/26*100 - 3*3 in float32. No other penalty is explained.
+    for field, expected in (("totalControls", 26), ("evaluatedControls", 24), ("silentFailedGVRCount", 3)):
+        db.require(type(coverage.get(field)) is int and coverage[field] == expected, reason)
+    score = coverage.get("coverageScore")
+    db.require(type(score) in (int, float) and math.isfinite(score) and math.isclose(score, 83.30769, abs_tol=0.00001)
+               and coverage.get("degraded") is True, reason)
+    unexamined = coverage.get("unexaminedKinds", [])
+    db.require(isinstance(unexamined, list), reason)
+    for kind in unexamined:
+        db.require(isinstance(kind, dict) and set(kind) == {"groupVersionResource", "kind"}
+                   and all(isinstance(v, str) and v for v in kind.values())
+                   and re.fullmatch(r"[a-z0-9.-]*/v[0-9]+(?:(?:alpha|beta)[0-9]+)?/[a-z0-9]+", kind["groupVersionResource"])
+                   and re.fullmatch(r"[A-Z][A-Za-z0-9]*", kind["kind"]), reason)
+    db.require(len({(k["groupVersionResource"], k["kind"]) for k in unexamined}) == len(unexamined), reason)
+    frameworks = result.get("summaryDetails", {}).get("frameworks")
+    db.require(isinstance(frameworks, list) and len(frameworks) == 1 and isinstance(frameworks[0], dict)
+               and frameworks[0].get("name") == "NSA", reason)
+    controls = frameworks[0].get("controls")
+    db.require(isinstance(controls, dict) and controls.keys() == POSTURE_NSA_CONTROLS, reason)
+    unsupported = POSTURE_CLOUD_CONTROLS + POSTURE_HOST_CONTROLS
+    for identifier, control in controls.items():
+        db.require(isinstance(control, dict) and control.get("controlID") == identifier, reason)
+        info = control.get("statusInfo")
+        db.require(isinstance(info, dict), reason)
+        if identifier in unsupported:
+            expected = {"status": "skipped", "info": POSTURE_CLOUD_ERROR} if identifier in POSTURE_CLOUD_CONTROLS else {
+                "status": "skipped", "subStatus": "notEvaluated", "info": "missing: " + POSTURE_HOST_GVR}
+            db.require(control.get("status") == "skipped" and info == expected, reason)
+        else:
+            db.require(info.get("status") in {"passed", "failed"}
+                       and info.get("subStatus", "") in {"", "irrelevant", "w/exceptions"}, reason)
+    return {"contract": POSTURE_COVERAGE_CONTRACT, "scannerCoverageScore": score, "scannerDegraded": True,
+            "unsupportedControls": len(unsupported), "unsupportedControlIDs": list(unsupported),
+            "unsupportedInputs": [{"gvr": gvr, "controlIDs": list(ids), "state": "unsupported"}
+                                  for gvr, (ids, _) in sorted(POSTURE_EXTERNAL_INPUTS.items())],
+            "unexaminedKinds": unexamined}
 
 
 def posture_slug(value):
@@ -54,6 +171,14 @@ def posture_slug(value):
     return name
 
 
+def posture_label(value):
+    """Pinned names.ToValidLabelValue; retain raw identities separately."""
+    if re.fullmatch(r"(?:[a-zA-Z0-9](?:[-_.a-zA-Z0-9]{0,61}[a-zA-Z0-9])?)?", value):
+        return value
+    value = re.sub(r"[^a-zA-Z0-9_.-]", "-", value).lower().strip("-")[:63]
+    return re.sub(r"^[^a-z0-9]+|[^a-z0-9]+$", "", value)
+
+
 def posture_namespaces(config):
     contract = config.get("postureLifecycle", {})
     namespaces = contract.get("activeNamespaces")
@@ -63,6 +188,57 @@ def posture_namespaces(config):
                and len(namespaces) == len(set(namespaces)), "posture_lifecycle_contract_invalid")
     db.require({w.split("/", 1)[0] for w in config["postureWorkloads"]} <= set(namespaces), "posture_lifecycle_contract_invalid")
     return sorted(namespaces)
+
+
+def posture_identity(obj):
+    """Read native ObjectMeta or vector fields without losing conflicting values."""
+    reason = "posture_identity_invalid"
+    db.require(isinstance(obj, dict), reason)
+    meta = obj.get("metadata", {})
+    db.require(isinstance(meta, dict), reason)
+    identity = {"kind": obj.get("kind")}
+    for field in ("name", "namespace"):
+        values = [source[field] for source in (obj, meta) if field in source]
+        db.require(all(isinstance(v, str) for v in values) and len(set(values)) <= 1, reason)
+        identity[field] = values[0] if values else ""
+    db.require(all(isinstance(v, str) for v in identity.values())
+               and re.fullmatch(r"[A-Z][A-Za-z0-9]*", identity["kind"])
+               and identity["name"].strip() and not re.search(r"[\x00-\x1f\x7f]", identity["name"])
+               and (identity["kind"] in {"Group", "User"} or not re.search(r"[\s/]", identity["name"])), reason)
+    namespace = identity["namespace"]
+    db.require(not namespace or (len(namespace) <= 63 and re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)), reason)
+    return identity
+
+
+def posture_rbac(subject, related):
+    """Validate the exact subject/role/binding vector before naming persistence."""
+    reason = "posture_rbac_incomplete"
+    identities = [posture_identity(o) for o in related]
+    roles = [i for i, o in enumerate(identities) if o["kind"] in {"Role", "ClusterRole"}]
+    bindings = [i for i, o in enumerate(identities) if o["kind"] in {"RoleBinding", "ClusterRoleBinding"}]
+    db.require(len(related) == 2 and len(roles) == len(bindings) == 1, reason)
+    role, binding = identities[roles[0]], identities[bindings[0]]
+    db.require(subject["kind"] in {"ServiceAccount", "Group", "User"}
+               and bool(subject["namespace"]) == (subject["kind"] == "ServiceAccount")
+               and bool(role["namespace"]) == (role["kind"] == "Role")
+               and bool(binding["namespace"]) == (binding["kind"] == "RoleBinding")
+               and (role["kind"] != "Role" or role["namespace"] == binding["namespace"]), reason)
+    obj = related[bindings[0]]
+    ref, subjects = obj.get("roleRef"), obj.get("subjects")
+    db.require(isinstance(ref, dict) and ref.get("kind") == role["kind"] and ref.get("name") == role["name"]
+               and ref.get("apiGroup") == "rbac.authorization.k8s.io" and isinstance(subjects, list) and subjects, reason)
+    members = []
+    for value in subjects:
+        member = posture_identity(value)
+        db.require(member["kind"] in {"ServiceAccount", "Group", "User"}
+                   and value.get("apiGroup", "") == ("" if member["kind"] == "ServiceAccount" else "rbac.authorization.k8s.io")
+                   and (member["kind"] == "ServiceAccount" or not member["namespace"]), reason)
+        if member["kind"] == "ServiceAccount":
+            member["namespace"] = member["namespace"] or binding["namespace"]
+            db.require(bool(member["namespace"]), reason)
+        members.append(member)
+    db.require(subject in members, reason)
+    return {"subject": subject, "role": role, "binding": binding}
 
 
 def posture_scope(result, namespaces=None):
@@ -77,44 +253,41 @@ def posture_scope(result, namespaces=None):
         db.require(isinstance(included, list) and len(included) == len(set(included))
                    and set(included) == set(namespaces) and not metadata.get("excludedNamespaces")
                    and metadata.get("scanningTarget", 0) == 0, "posture_scan_scope_mismatch")
-    coverage = result.get("scanCoverage") or {}
-    db.require(isinstance(coverage, dict), "posture_collection_incomplete")
-    # Omitted API objects cannot establish completeness. Unsupported/manual
-    # controls retain their separate notEvaluated/Action Required overlay.
-    db.require(not any(coverage.get(k) for k in ("failedGVRPulls", "partialGVRPulls", "policyDegradations",
-                                                "skippedManifests", "vacuousFrameworks")), "posture_collection_incomplete")
+    coverage = posture_coverage(result)
     resources, results = result.get("resources"), result.get("results")
     db.require(isinstance(resources, list) and isinstance(results, list) and results,
                "posture_resource_inventory_missing")
     objects = {r["resourceID"]: r["object"] for r in resources}
     db.require(len(objects) == len(resources), "posture_identity_ambiguous")
-    expected, shared, referenced_namespaces = set(), set(), set()
+    expected, shared, referenced_namespaces, rbac = set(), set(), set(), {}
     for value in results:
         obj = objects.get(value.get("resourceID"))
         db.require(isinstance(obj, dict), "posture_identity_missing")
-        meta = obj.get("metadata", obj)
-        kind, name = obj.get("kind"), meta.get("name")
-        db.require(isinstance(kind, str) and isinstance(name, str) and name, "posture_identity_invalid")
+        subject = posture_identity(obj)
+        kind, name = subject["kind"], subject["name"]
         related = obj.get("relatedObjects", [])
+        db.require(isinstance(related, list), "posture_rbac_incomplete")
+        db.require(related or kind not in {"Group", "User"}, "posture_rbac_incomplete")
         identity = kind + "-" + name
-        namespace = meta.get("namespace") or NS
-        if meta.get("namespace"):
-            referenced_namespaces.add(meta["namespace"])
+        namespace = subject["namespace"] or NS
+        if subject["namespace"]:
+            referenced_namespaces.add(subject["namespace"])
         if related:
-            roles = [o for o in related if o.get("kind") in {"Role", "ClusterRole"}]
-            bindings = [o for o in related if o.get("kind") in {"RoleBinding", "ClusterRoleBinding"}]
-            db.require(len(related) == 2 and len(roles) == len(bindings) == 1, "posture_rbac_incomplete")
-            identity += "-" + roles[0]["kind"] + "-" + roles[0]["name"]
-            identity += "-" + bindings[0]["kind"] + "-" + bindings[0]["name"]
+            vector = posture_rbac(subject, related)
+            for part in (vector["role"], vector["binding"]):
+                identity += "-" + part["kind"] + "-" + part["name"]
+                if part["namespace"]:
+                    referenced_namespaces.add(part["namespace"])
             namespace = NS
-            referenced_namespaces.update(o["namespace"] for o in related if o.get("namespace"))
         key = namespace + "/" + posture_slug(identity)
         db.require(key not in expected, "posture_identity_ambiguous")
         expected.add(key)
         if related:
             shared.add(key)
+            rbac[key] = vector
     db.require(bool(shared), "posture_shared_rbac_missing")
-    return {"expected": expected, "shared": shared, "referencedNamespaces": referenced_namespaces}
+    return {"expected": expected, "shared": shared, "rbac": rbac,
+            "referencedNamespaces": referenced_namespaces, "coverage": coverage}
 
 
 def posture_workloads(api):
@@ -983,6 +1156,25 @@ def check_posture(result, summaries, started, required_workloads=(), *, scope=No
     for summary in current:
         db.require(db.timestamp(summary["metadata"]["annotations"]["kubescape.io/report-created-at"]) >= db.timestamp(started), "posture_report_stale")
         db.require(bool(summary["spec"].get("controls")), "posture_controls_empty")
+        meta = summary["metadata"]
+        key = meta.get("namespace", "") + "/" + meta["name"]
+        if scope is not None and key in scope["rbac"]:
+            vector = scope["rbac"][key]
+            subject, binding = vector["subject"], vector["binding"]
+            labels = meta.get("labels", {})
+            expected_labels = {"kubescape.io/workload-" + k: posture_label(v) for k, v in subject.items()}
+            for part in (vector["role"], binding):
+                prefix = "kubescape.io/" + part["kind"].lower() + "-"
+                expected_labels[prefix + "name"] = posture_label(part["name"])
+                if part["namespace"]:
+                    expected_labels[prefix + "namespace"] = part["namespace"]
+            role_labels = {"kubescape.io/" + k.lower() + "-" + f
+                           for k in ("Role", "ClusterRole", "RoleBinding", "ClusterRoleBinding") for f in ("name", "namespace")}
+            db.require(labels.get("kubescape.io/rbac-resource") == "true"
+                       and all(labels.get(k, "") == expected_labels.get(k, "") for k in expected_labels.keys() | role_labels)
+                       and meta.get("annotations", {}).get("kubescape.io/wlid") ==
+                       "wlid://cluster-home/namespace-" + binding["namespace"] + "/" + binding["kind"].lower() + "-" + binding["name"],
+                       "posture_identity_invalid")
     db.require(any(s["metadata"].get("namespace") == "memos" and s["metadata"]["name"] == "deployment-memos" for s in summaries), "posture_memos_missing")
     if scope is not None:
         db.require(bool(scope["shared"]) and scope["shared"] <= observed, "posture_shared_rbac_missing")
@@ -996,7 +1188,8 @@ def check_posture(result, summaries, started, required_workloads=(), *, scope=No
             "expectedSummaries": len(expected),
             "sharedRBACSummaries": len(scope["shared"]) if scope is not None else None,
             "requiredWorkloadCount": len(required_workloads),
-            "coverage": {"notEvaluatedControls": len(not_evaluated), "notEvaluatedControlIDs": not_evaluated,
+            "coverage": {**(scope["coverage"] if scope is not None else {}),
+                         "notEvaluatedControls": len(not_evaluated), "notEvaluatedControlIDs": not_evaluated,
                          "incompleteCoverageControls": len(incomplete_coverage),
                          "incompleteCoverageControlIDs": incomplete_coverage},
             "limitations": ["Host/cloud checks remain unsupported or Action Required; no host collector", "Intentional RBAC exceptions retained; no remediation"]}
@@ -1623,8 +1816,11 @@ class Runner:
         self.clear_fence()
 
     def qualify_posture(self, result, started, previous=()):
+        posture_environment(self.api)
         namespaces = posture_namespaces(self.config)
         scope = posture_scope(result, namespaces)
+        self.result["postureCoverage"] = scope["coverage"]
+        self.save("posture-coverage", scope["coverage"])
         db.require(set(self.config["postureWorkloads"]) <= scope["expected"], "posture_scope_incomplete")
         # A previously persisted RBAC vector with a still-existing binding
         # cannot silently disappear from both the new result and storage.

@@ -20,6 +20,8 @@ CONFIG = json.loads((ROOT / "infra/kubescape/recurring/config.json").read_text()
 # The pre-expansion single-Memos scenarios remain independent of the live cohort.
 CANARY_CONFIG = {**CONFIG, "targets": CONFIG["targets"][:1]}
 EXPECTED = json.loads((ROOT / "infra/kubescape/grype-database.json").read_text())
+# Observed external-input fields only; all other control outcomes are synthetic.
+EXTERNAL_POSTURE = json.loads((ROOT / "scripts/tests/fixtures/kubescape-posture-external-inputs.json").read_text())
 NOW = datetime(2026, 11, 22, 5, tzinfo=timezone.utc)
 
 
@@ -27,6 +29,23 @@ def row():
     return {"namespace": "memos", "kind": "Deployment", "workload": "memos", "container": "memos",
             "workloadUID": "workload-uid", "generation": 1, "podUIDs": ["pod-uid"], "ready": True,
             "containerType": "containers", "runningDigest": R.client.MEMOS_IMAGE}
+
+
+def rbac_vector():
+    return {'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos', 'relatedObjects': [
+        {'kind': 'ClusterRole', 'name': 'reader'},
+        {'kind': 'ClusterRoleBinding', 'name': 'reader',
+         'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'ClusterRole', 'name': 'reader'},
+         'subjects': [{'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos'}]}]}
+
+
+def rbac_summary_identity(summary):
+    summary['metadata'].setdefault('labels', {}).update({
+        'kubescape.io/rbac-resource': 'true', 'kubescape.io/workload-kind': 'ServiceAccount',
+        'kubescape.io/workload-name': 'reader', 'kubescape.io/workload-namespace': 'memos',
+        'kubescape.io/clusterrole-name': 'reader', 'kubescape.io/clusterrolebinding-name': 'reader'})
+    summary['metadata']['annotations']['kubescape.io/wlid'] = 'wlid://cluster-home/namespace-/clusterrolebinding-reader'
+    return summary
 
 
 class CompletionWindowTests(unittest.TestCase):
@@ -573,22 +592,24 @@ class BatchTests(unittest.TestCase):
                     "annotations": {"kubescape.io/report-created-at": R.db.stamp(NOW)}}, "spec": {"controls": {"x": {}}}}
         summaries = [summary(namespace, name) for namespace, name in
                      (target.split("/") for target in CONFIG["postureWorkloads"])]
-        summaries.append(summary("kubescape", "serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader"))
-        result = {"summaryDetails": {"frameworks": [{"controls": [{"status": "passed"}]}]}}
+        summaries.append(rbac_summary_identity(summary("kubescape", "serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader")))
+        result = copy.deepcopy(EXTERNAL_POSTURE)
         objects = [{"apiVersion": "apps/v1", "kind": "Deployment" if name.startswith("deployment-") else "StatefulSet",
                     "metadata": {"namespace": namespace, "name": name.split("-", 1)[1]}}
                    for namespace, name in (t.split("/") for t in CONFIG["postureWorkloads"])]
-        objects.append({"kind": "ServiceAccount", "name": "reader", "namespace": "memos", "relatedObjects": [
-            {"kind": "ClusterRole", "name": "reader"}, {"kind": "ClusterRoleBinding", "name": "reader"}]})
+        objects.append(rbac_vector())
         result.update(resources=[{"resourceID": str(i), "object": obj} for i, obj in enumerate(objects)],
-                      results=[{"resourceID": str(i)} for i in range(len(objects))],
-                      metadata={"scanMetadata": {"includeNamespaces": CONFIG["postureLifecycle"]["activeNamespaces"]}})
+                      results=[{"resourceID": str(i)} for i in range(len(objects))])
+        result['metadata']['scanMetadata']['includeNamespaces'] = CONFIG["postureLifecycle"]["activeNamespaces"]
         with tempfile.TemporaryDirectory() as path, mock.patch.object(R.db, "utcnow", return_value=NOW):
             api = mock.Mock()
             api.items.side_effect = lambda base, kind, namespace=None: summaries if kind == "workloadconfigurationscansummaries" else []
-            api.get.side_effect = lambda base, kind, name, namespace: next(s for s in summaries if s["metadata"]["name"] == name)
+            api.get.side_effect = lambda base, kind, name, namespace=None, optional=False: (
+                next(s for s in summaries if s["metadata"]["name"] == name) if kind == 'workloadconfigurationscansummaries'
+                else {**rbac_vector()['relatedObjects'][1], 'metadata': {'name': 'reader', 'uid': 'binding'}})
             runner = R.Runner(api, self.config(), EXPECTED, Path(path), "posture")
             with mock.patch.object(R, "workload_rows", side_effect=AssertionError("target coupling")), \
+                    mock.patch.object(R, "posture_environment"), \
                     mock.patch.object(R, "component_pod", return_value={"metadata": {"uid": "scanner"}, "status": {"containerStatuses": [{"name": "scanner", "containerID": "container", "restartCount": 0}]}}), \
                     mock.patch.object(R, "service", side_effect=[{"id": "posture"}, {"id": "posture", "type": "v1results", "response": result}, {"type": "notBusy"}]), \
                     mock.patch.object(runner, "gate"), mock.patch.object(runner, "observe"):
@@ -1395,6 +1416,46 @@ class IdleResourceTests(unittest.TestCase):
         self.assertTrue(all(call.args[1] != "/v1/scanImage" for call in self.service.call_args_list))
 
 
+class PostureEnvironmentTests(unittest.TestCase):
+    def setUp(self):
+        self.api = mock.Mock()
+        self.pod = {'metadata': {'uid': 'scanner'}, 'status': {'phase': 'Running',
+                    'conditions': [{'type': 'Ready', 'status': 'True'}]},
+                    'spec': {'containers': [{'image': R.POSTURE_IMAGE, 'env': [
+                        {'name': 'KS_ENABLE_HOST_SCANNER', 'value': 'false'},
+                        {'name': 'KS_OFFLINE', 'value': 'true'}, {'name': 'KS_CONTEXT', 'value': 'home'}]}]}}
+        repository, tag = R.POSTURE_IMAGE.rsplit(':v', 1)
+        self.release = {'spec': {'values': {'kubescape': {'image': {'repository': repository, 'tag': 'v' + tag}},
+                         'capabilities': {'nodeScan': 'disable', 'kubescapeOffline': 'enable'},
+                         'credentials': {'cloudSecret': ''}}}}
+        self.nodes = [{'status': {'nodeInfo': {'osImage': 'Talos (v1.13.3)'}}}]
+        self.api.get.return_value = self.release
+        self.api.items.side_effect = lambda base, kind, namespace=None: self.nodes
+
+    def test_pinned_talos_environment_is_applicable(self):
+        with mock.patch.object(R, 'component_pod', return_value=self.pod):
+            R.posture_environment(self.api)
+        self.api.get.assert_called_once_with('/apis/helm.toolkit.fluxcd.io/v2', 'helmreleases', 'kubescape')
+        self.assertEqual(self.api.items.call_args.args, (R.CORE, 'nodes'))
+
+    def test_changed_pin_host_cloud_or_node_environment_rejected(self):
+        mutations = [lambda: self.pod['spec']['containers'][0].update(image='quay.io/kubescape/kubescape:v4.0.21'),
+                     lambda: self.pod['spec']['containers'][0]['env'][0].update(value='true'),
+                     lambda: self.pod['spec']['containers'][0]['env'][1].update(value='false'),
+                     lambda: self.release['spec']['values']['credentials'].update(cloudSecret='configured'),
+                     lambda: self.release['spec']['values']['capabilities'].update(nodeScan='enable'),
+                     lambda: self.release['spec']['values']['kubescape']['image'].update(tag='v4.0.21'),
+                     lambda: self.nodes[0].update(spec={'providerID': 'aws://region/node'}),
+                     lambda: self.nodes[0]['status']['nodeInfo'].update(osImage='Ubuntu'),
+                     lambda: self.nodes.clear()]
+        for index, mutate in enumerate(mutations):
+            self.setUp()
+            mutate()
+            with self.subTest(case=index), mock.patch.object(R, 'component_pod', return_value=self.pod), \
+                    self.assertRaisesRegex(R.db.Rejected, 'posture_coverage_contract_mismatch'):
+                R.posture_environment(self.api)
+
+
 class PostureContractTests(unittest.TestCase):
     def setUp(self):
         self.temp = self.enterContext(tempfile.TemporaryDirectory())
@@ -1402,16 +1463,18 @@ class PostureContractTests(unittest.TestCase):
         self.config = {**CANARY_CONFIG, 'postureWorkloads': ['memos/deployment-memos'],
                        'postureLifecycle': {'activeNamespaces': ['memos'], 'retainedNamespaceDisposition': 'exclude-if-empty-and-out-of-scope'}}
         self.runner = R.Runner(self.api, self.config, EXPECTED, Path(self.temp), 'posture')
-        self.result = {'summaryDetails': {'frameworks': [{'controls': [{'status': 'passed'}]}]},
+        # Environment applicability has separate tests; lifecycle scenarios use
+        # the real coverage classifier and the observed external-input shape.
+        self.environment = self.enterContext(mock.patch.object(R, 'posture_environment'))
+        self.result = {**copy.deepcopy(EXTERNAL_POSTURE),
                        'resources': [
                            {'resourceID': 'workload', 'object': {'kind': 'Deployment', 'metadata': {'name': 'memos', 'namespace': 'memos'}}},
-                           {'resourceID': 'rbac', 'object': {'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos',
-                               'relatedObjects': [{'kind': 'ClusterRole', 'name': 'reader'},
-                                                  {'kind': 'ClusterRoleBinding', 'name': 'reader'}]}}],
-                       'results': [{'resourceID': 'workload'}, {'resourceID': 'rbac'}],
-                       'metadata': {'scanMetadata': {'includeNamespaces': ['memos']}}}
+                           {'resourceID': 'rbac', 'object': rbac_vector()}],
+                       'results': [{'resourceID': 'workload'}, {'resourceID': 'rbac'}]}
+        self.result['metadata']['scanMetadata']['includeNamespaces'] = ['memos']
         self.shared = 'serviceaccount-reader-clusterrole-reader-clusterrolebinding-reader'
         self.summaries = [self.summary('memos', 'deployment-memos'), self.summary('kubescape', self.shared)]
+        rbac_summary_identity(self.summaries[1])
         self.workloads = []
         self.api.items.side_effect = lambda base, kind, namespace=None: copy.deepcopy(self.summaries if kind == 'workloadconfigurationscansummaries' else [o for o in self.workloads if o['kind'].lower() + 's' == kind])
         self.api.get.side_effect = self.get
@@ -1519,8 +1582,8 @@ class PostureContractTests(unittest.TestCase):
         for field in ('failedGVRPulls', 'partialGVRPulls', 'policyDegradations', 'skippedManifests', 'vacuousFrameworks'):
             with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
                 R.posture_scope({**self.result, 'scanCoverage': {field: [{'gvr': 'rbac.authorization.k8s.io/v1/rolebindings'}]}})
-        self.assertEqual(R.posture_scope({**self.result, 'scanCoverage': {'notEvaluatedControls': [{'controlID': 'host'}]}}),
-                         R.posture_scope(self.result))
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+            R.posture_scope({**self.result, 'scanCoverage': {'notEvaluatedControls': [{'controlID': 'host'}]}})
         for field in ('resources', 'results'):
             result = copy.deepcopy(self.result)
             del result[field]
@@ -1536,25 +1599,114 @@ class PostureContractTests(unittest.TestCase):
         with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
             R.posture_scope(result)
 
-    def test_pinned_unsupported_host_and_cloud_gaps_do_not_bypass_collection_gate(self):
-        # v4.0.20 records intentionally unavailable external inputs in the same
-        # failedGVRPulls field as collection failures. Keep failing closed until
-        # a separately reviewed coverage contract distinguishes these cases.
-        failures=[{'gvr': provider+'/ClusterDescribe', 'controls': ['C-0066','C-0067','C-0068'],
-                   'error': 'failed to get cloud provider, cluster: home'}
-                  for provider in ('container.googleapis.com/v1','eks.amazonaws.com/v1','management.azure.com/v1')]
-        failures.append({'gvr': 'hostdata.kubescape.cloud/v1beta0/KubeletInfo',
-                         'controls': ['C-0069','C-0070'],
-                         'error': 'This control is scanned exclusively by the Kubescape operator, not the Kubescape CLI. Install the Kubescape operator:\n     https://kubescape.io/docs/install-operator/.'})
-        coverage={'failedGVRPulls': failures, 'silentFailedGVRCount': 3,
-                  'notEvaluatedControls': [{'controlID': c, 'missingGVRs': [failures[-1]['gvr']]}
-                                           for c in ('C-0069','C-0070')],
-                  'totalControls': 26, 'evaluatedControls': 24, 'coverageScore': 83.30769, 'degraded': True}
-        for pulls in (failures, *([f] for f in failures),
-                      [{'gvr': 'rbac.authorization.k8s.io/v1/rolebindings', 'error': 'forbidden'}]):
-            with self.subTest(gvrs=[f['gvr'] for f in pulls]), \
-                    self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
-                R.posture_scope({**self.result, 'scanCoverage': {**coverage, 'failedGVRPulls': pulls}})
+    def test_observed_external_inputs_are_explicitly_unsupported_never_passed(self):
+        original = copy.deepcopy(self.result)
+        # Native order is not significant.
+        self.result['scanCoverage']['failedGVRPulls'].reverse()
+        self.result['scanCoverage']['unexaminedKinds'] = [{'groupVersionResource': 'example.io/v1/widgets', 'kind': 'Widget'}]
+        checked = self.qualify()
+        self.environment.assert_called_once_with(self.api)
+        self.assertEqual(checked['controls'], {'Passed': 21, 'Action Required': 5})
+        self.assertEqual(checked['coverage']['unsupportedControlIDs'], ['C-0066', 'C-0067', 'C-0068', 'C-0069', 'C-0070'])
+        self.assertEqual(checked['coverage']['notEvaluatedControlIDs'], ['C-0069', 'C-0070'])
+        self.assertEqual(len(checked['coverage']['unsupportedInputs']), 4)
+        self.assertEqual(checked['coverage']['unexaminedKinds'], self.result['scanCoverage']['unexaminedKinds'])
+        self.assertTrue(checked['coverage']['scannerDegraded'])
+        self.assertEqual(checked['coverage']['scannerCoverageScore'], 83.30769)
+        self.assertEqual(self.result['summaryDetails'], original['summaryDetails'])
+        saved = json.loads(gzip.decompress((self.runner.work / 'posture-coverage.json.gz').read_bytes()))
+        self.assertEqual(saved['unsupportedControls'], 5)
+        self.assertEqual(self.runner.result['postureCoverage'], saved)
+
+    def test_external_contract_rejects_unexpected_mixed_and_malformed_coverage(self):
+        mutations = [
+            lambda c: c['failedGVRPulls'].append({'gvr': '/v1/pods', 'controls': ['C-0002'], 'error': 'forbidden'}),
+            lambda c: c['failedGVRPulls'][0].update(gvr='rbac.authorization.k8s.io/v1/rolebindings'),
+            lambda c: c['failedGVRPulls'][0].update(error='forbidden'),
+            lambda c: c['failedGVRPulls'][0].update(error='cloud-describe-unavailable'),
+            lambda c: c['failedGVRPulls'][0].update(controls=['C-0066']),
+            lambda c: c['failedGVRPulls'][0].update(controls=['C-0066', 'C-0067', 'C-0068', 'C-0068']),
+            lambda c: c['failedGVRPulls'][0].update(controls='C-0066'),
+            lambda c: c['failedGVRPulls'][0].update(extra='unknown'),
+            lambda c: c['failedGVRPulls'].pop(),
+            lambda c: c['failedGVRPulls'].__setitem__(0, c['failedGVRPulls'][1]),
+            lambda c: c.update(failedGVRPulls=None),
+            lambda c: c['notEvaluatedControls'][0].update(reason='control timed out'),
+            lambda c: c['notEvaluatedControls'][0].update(missingGVRs=['/v1/pods']),
+            lambda c: c['notEvaluatedControls'].append({'controlID': 'C-0002', 'reason': 'control timed out'}),
+            lambda c: c.update(notEvaluatedControls=[]),
+            lambda c: c.update(totalControls=25),
+            lambda c: c.update(evaluatedControls=26),
+            lambda c: c.update(silentFailedGVRCount=4),
+            lambda c: c.update(silentFailedGVRCount=True),
+            lambda c: c.update(degraded=False),
+            lambda c: c.update(coverageScore=100),
+            lambda c: c.update(coverageScore=float('nan')),
+            lambda c: c.update(coverageScore='83.30769'),
+            lambda c: c.update(newDegradation=True),
+            lambda c: c.update(unexaminedKinds=[{}]),
+            lambda c: c.update(unexaminedKinds=[{'groupVersionResource': 'bad', 'kind': 'Widget'}]),
+        ]
+        for field in ('partialGVRPulls', 'policyDegradations', 'skippedManifests', 'vacuousFrameworks'):
+            mutations += [lambda c, f=field: c.update({f: ['unexpected']}),
+                          lambda c, f=field: c.update({f: {}})]
+        for index, mutate in enumerate(mutations):
+            result = copy.deepcopy(self.result)
+            mutate(result['scanCoverage'])
+            with self.subTest(case=index), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope(result)
+        for coverage in (None, [], '', False, {}):
+            with self.subTest(coverage=coverage), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope({**self.result, 'scanCoverage': coverage})
+
+    def test_external_contract_rejects_version_config_and_control_drift(self):
+        for field, value in (('kubescapeVersion', '4.0.21'), ('hostScanner', True), ('targetNames', ['cis']),
+                             ('targetType', 'Control')):
+            result = copy.deepcopy(self.result)
+            result['metadata']['scanMetadata'][field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_coverage_contract_mismatch'):
+                R.posture_scope(result)
+        result = copy.deepcopy(self.result)
+        result['metadata']['targetMetadata']['clusterContextMetadata']['cloudProvider'] = 'eks'
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_coverage_contract_mismatch'):
+            R.posture_scope(result)
+        for identifier in ('C-0066', 'C-0069', 'C-0002'):
+            result = copy.deepcopy(self.result)
+            control = result['summaryDetails']['frameworks'][0]['controls'][identifier]
+            control['statusInfo'] = {'status': 'passed'} if identifier != 'C-0002' else {
+                'status': 'failed', 'subStatus': 'incompleteCoverage'}
+            with self.subTest(identifier=identifier), self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                R.posture_scope(result)
+
+    def test_exact_control_ids_match_verified_offline_policy_and_retained_response(self):
+        policy = json.loads((ROOT / 'infra/kubescape/recurring/posture-coverage-policy.json').read_text())
+        self.assertEqual(policy['image'], R.POSTURE_IMAGE)
+        self.assertEqual(policy['contract'], R.POSTURE_COVERAGE_CONTRACT)
+        self.assertEqual(len(policy['controlIDs']), 26)
+        self.assertEqual(set(policy['controlIDs']), R.POSTURE_NSA_CONTROLS)
+        self.assertEqual(set(EXTERNAL_POSTURE['summaryDetails']['frameworks'][0]['controls']), R.POSTURE_NSA_CONTROLS)
+
+    def test_substituted_missing_and_unexpected_control_ids_rejected(self):
+        for identifier in sorted(R.POSTURE_NSA_CONTROLS):
+            for mutation in ('substituted', 'missing', 'unexpected'):
+                result = copy.deepcopy(self.result)
+                controls = result['summaryDetails']['frameworks'][0]['controls']
+                if mutation != 'unexpected':
+                    controls.pop(identifier)
+                if mutation != 'missing':
+                    controls['C-9999'] = {'controlID': 'C-9999', 'status': 'passed', 'statusInfo': {'status': 'passed'}}
+                with self.subTest(identifier=identifier, mutation=mutation), \
+                        self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+                    R.posture_scope(result)
+
+    def test_qualifier_computes_coverage_once_and_scope_remains_fail_closed(self):
+        with mock.patch.object(R, 'posture_coverage', wraps=R.posture_coverage) as coverage:
+            self.qualify()
+        coverage.assert_called_once_with(self.result)
+        result = copy.deepcopy(self.result)
+        result['summaryDetails']['frameworks'][0]['controls'].pop('C-0002')
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_collection_incomplete'):
+            R.posture_scope(result)
 
     def test_scope_slug_matches_pinned_rbac_names_and_long_name_hashing(self):
         self.assertEqual(R.posture_slug('Group-system:serviceaccounts-ClusterRole-system:service-account-issuer-discovery-ClusterRoleBinding-system:service-account-issuer-discovery'),
@@ -1563,6 +1715,147 @@ class PostureContractTests(unittest.TestCase):
         import hashlib
         digest = hashlib.sha256(value.encode()).hexdigest()
         self.assertEqual(R.posture_slug(value), ('configmap-' + 'a' * 250)[:243] + '-' + digest[:4] + '-' + digest[-4:])
+
+    def native_vector(self, role_kind='Role', subject_kind='ServiceAccount'):
+        subject = {'kind': subject_kind, 'name': 'reader', 'relatedObjects': [
+            {'kind': role_kind, 'metadata': {'name': 'reader'}},
+            {'kind': 'RoleBinding', 'metadata': {'name': 'reader', 'namespace': 'bindings'},
+             'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': role_kind, 'name': 'reader'},
+             'subjects': [{'kind': subject_kind, 'name': 'reader'}]}]}
+        if role_kind == 'Role':
+            subject['relatedObjects'][0]['metadata']['namespace'] = 'bindings'
+        if subject_kind == 'ServiceAccount':
+            subject['namespace'] = 'subjects'
+            subject['relatedObjects'][1]['subjects'][0]['namespace'] = 'subjects'
+        else:
+            subject['relatedObjects'][1]['subjects'][0]['apiGroup'] = 'rbac.authorization.k8s.io'
+        return subject
+
+    def test_native_metadata_preserves_subject_role_binding_and_namespaces(self):
+        for role in ('Role', 'ClusterRole'):
+            for subject_kind in ('ServiceAccount', 'Group', 'User'):
+                subject = self.native_vector(role, subject_kind)
+                self.result['resources'][1]['object'] = subject
+                expected = f'kubescape/{subject_kind.lower()}-reader-{role.lower()}-reader-rolebinding-reader'
+                with self.subTest(role=role, subject=subject_kind):
+                    scope = R.posture_scope(self.result)
+                    self.assertEqual(scope['shared'], {expected})
+                    vector = scope['rbac'][expected]
+                    self.assertEqual(vector['subject'], {'kind': subject_kind, 'name': 'reader',
+                                                        'namespace': 'subjects' if subject_kind == 'ServiceAccount' else ''})
+                    self.assertEqual(vector['role']['namespace'], 'bindings' if role == 'Role' else '')
+                    self.assertEqual(vector['binding'], {'kind': 'RoleBinding', 'name': 'reader', 'namespace': 'bindings'})
+                    self.assertIn('bindings', scope['referencedNamespaces'])
+        # Native order and consistent duplicate flat fields preserve identity.
+        subject = self.native_vector()
+        for obj in [subject] + subject['relatedObjects']:
+            obj['metadata'] = {**obj.get('metadata', {}), **{k: obj[k] for k in ('name', 'namespace') if k in obj}}
+            obj.update(obj['metadata'])
+        subject['relatedObjects'].reverse()
+        self.result['resources'][1]['object'] = subject
+        self.assertIn('bindings', R.posture_scope(self.result)['referencedNamespaces'])
+
+    def test_native_metadata_qualifies_through_persistence(self):
+        for obj in self.result['resources'][1]['object']['relatedObjects']:
+            obj['metadata'] = {'name': obj.pop('name')}
+        checked = self.qualify()
+        self.assertEqual(checked['sharedRBACSummaries'], 1)
+
+    def test_malformed_conflicting_and_inconsistent_rbac_identities_rejected(self):
+        mutations = [
+            lambda s, r, b: r.update(metadata=None),
+            lambda s, r, b: r['metadata'].pop('name'),
+            lambda s, r, b: r['metadata'].update(name=None),
+            lambda s, r, b: r['metadata'].update(name=[]),
+            lambda s, r, b: r['metadata'].update(name=''),
+            lambda s, r, b: r['metadata'].update(name=' reader'),
+            lambda s, r, b: r.update(name='conflict'),
+            lambda s, r, b: r.update(namespace='other'),
+            lambda s, r, b: b.update(name='conflict'),
+            lambda s, r, b: b.update(namespace='other'),
+            lambda s, r, b: s.update(metadata={'name': 'conflict'}),
+            lambda s, r, b: s.update(metadata={'namespace': 'other'}),
+            lambda s, r, b: s.update(namespace=None),
+            lambda s, r, b: r['metadata'].update(namespace='other'),
+            lambda s, r, b: b['metadata'].update(namespace=''),
+            lambda s, r, b: b['metadata'].update(namespace=[]),
+            lambda s, r, b: b.update(kind='ClusterRoleBinding'),
+            lambda s, r, b: r.update(kind='ClusterRole'),
+            lambda s, r, b: b.update(roleRef=None),
+            lambda s, r, b: b['roleRef'].update(name='different'),
+            lambda s, r, b: b['roleRef'].update(kind='ClusterRole'),
+            lambda s, r, b: b['roleRef'].update(apiGroup='other'),
+            lambda s, r, b: b.update(subjects=None),
+            lambda s, r, b: b.update(subjects=[]),
+            lambda s, r, b: b['subjects'][0].update(namespace='other'),
+            lambda s, r, b: b['subjects'][0].update(name='different'),
+            lambda s, r, b: b['subjects'][0].update(kind='User'),
+            lambda s, r, b: s['relatedObjects'].append(copy.deepcopy(r)),
+            lambda s, r, b: s['relatedObjects'].__setitem__(0, None),
+            lambda s, r, b: s.update(relatedObjects={}),
+        ]
+        for index, mutate in enumerate(mutations):
+            subject = self.native_vector()
+            mutate(subject, *subject['relatedObjects'])
+            self.result['resources'][1]['object'] = subject
+            with self.subTest(case=index), self.assertRaisesRegex(R.db.Rejected, 'posture_(identity_invalid|rbac_incomplete)'):
+                R.posture_scope(self.result)
+
+    def test_persisted_rbac_identity_must_match_exact_vector(self):
+        for field in ('name', 'namespace', 'kind'):
+            summary = copy.deepcopy(self.summaries[1])
+            summary['metadata']['labels']['kubescape.io/workload-' + field] = 'different'
+            with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_identity_invalid'):
+                R.check_posture(self.result, [self.summaries[0], summary], self.started, scope=R.posture_scope(self.result))
+        summary = copy.deepcopy(self.summaries[1])
+        summary['metadata']['annotations']['kubescape.io/wlid'] = 'wlid://cluster-home/namespace-other/rolebinding-reader'
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_invalid'):
+            R.check_posture(self.result, [self.summaries[0], summary], self.started, scope=R.posture_scope(self.result))
+        for field in ('clusterrole-name', 'clusterrolebinding-name', 'role-namespace'):
+            summary = copy.deepcopy(self.summaries[1])
+            summary['metadata']['labels']['kubescape.io/' + field] = 'different'
+            with self.subTest(field=field), self.assertRaisesRegex(R.db.Rejected, 'posture_identity_invalid'):
+                R.check_posture(self.result, [self.summaries[0], summary], self.started, scope=R.posture_scope(self.result))
+
+    def test_namespaced_vectors_with_same_slug_cannot_be_collapsed(self):
+        other = copy.deepcopy(self.result['resources'][1])
+        other['resourceID'] = 'other-namespace'
+        other['object']['namespace'] = 'other'
+        other['object']['relatedObjects'][1]['subjects'][0]['namespace'] = 'other'
+        self.result['resources'].append(other)
+        self.result['results'].append({'resourceID': 'other-namespace'})
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
+            R.posture_scope(self.result)
+
+    def test_same_subject_with_roles_and_bindings_in_different_namespaces_rejected(self):
+        # Retained replay shape: one subject, three distinct namespaced pairs.
+        subject = self.native_vector()
+        self.result['resources'][1]['object'] = subject
+        for namespace in ('other-bindings', 'third-bindings'):
+            other = copy.deepcopy(self.result['resources'][1])
+            other['resourceID'] = namespace
+            for obj in other['object']['relatedObjects']:
+                obj['metadata']['namespace'] = namespace
+            self.result['resources'].append(other)
+            self.result['results'].append({'resourceID': namespace})
+        with self.assertRaisesRegex(R.db.Rejected, 'posture_identity_ambiguous'):
+            R.posture_scope(self.result)
+
+    def test_native_user_name_and_sanitized_labels_preserve_raw_identity(self):
+        subject = self.result['resources'][1]['object']
+        subject.update(kind='User', name='issuer.example/alice@example.org')
+        del subject['namespace']
+        subject['relatedObjects'][1]['subjects'] = [{'kind': 'User', 'name': subject['name'], 'apiGroup': 'rbac.authorization.k8s.io'}]
+        scope = R.posture_scope(self.result)
+        key, = scope['shared']
+        summary = self.summaries[1]
+        summary['metadata']['name'] = key.split('/', 1)[1]
+        labels = summary['metadata']['labels']
+        labels.update({'kubescape.io/workload-kind': 'User', 'kubescape.io/workload-name': R.posture_label(subject['name'])})
+        del labels['kubescape.io/workload-namespace']
+        checked = self.qualify()
+        self.assertEqual(checked['sharedRBACSummaries'], 1)
+        self.assertEqual(scope['rbac'][key]['subject']['name'], subject['name'])
 
     def workload(self, kind, name, namespace='memos', maps=(), **spec):
         pod = {'containers': [{'name': 'app'}], 'volumes': [{'name': 'v' + str(i), 'configMap': {'name': n}} for i, n in enumerate(maps)]}
@@ -1655,7 +1948,8 @@ class PostureContractTests(unittest.TestCase):
         for metadata in ({}, {'scanMetadata': {'includeNamespaces': ['different']}},
                          {'scanMetadata': {'includeNamespaces': ['memos'], 'excludedNamespaces': ['memos']}},
                          {'scanMetadata': {'includeNamespaces': ['memos'], 'scanningTarget': 1}}):
-            self.result['metadata'] = metadata
+            self.result['metadata'] = {**copy.deepcopy(EXTERNAL_POSTURE['metadata']),
+                                      'scanMetadata': {**EXTERNAL_POSTURE['metadata']['scanMetadata'], **metadata.get('scanMetadata', {})}}
             with self.assertRaisesRegex(R.db.Rejected, 'posture_scan_scope_mismatch'):
                 self.qualify()
         self.result['metadata'] = original
@@ -1667,14 +1961,17 @@ class PostureContractTests(unittest.TestCase):
         previous = self.summary('kubescape', self.shared, True, 'ServiceAccount', 'wlid://cluster-home/namespace-/clusterrolebinding-reader')
         previous['metadata']['labels'].update({'kubescape.io/rbac-resource': 'true', 'kubescape.io/workload-namespace': 'memos'})
         self.result['resources'][1]['object']['relatedObjects'][0]['name'] = 'reader-next'
+        self.result['resources'][1]['object']['relatedObjects'][1]['roleRef']['name'] = 'reader-next'
         next_name = 'serviceaccount-reader-clusterrole-reader-next-clusterrolebinding-reader'
         self.summaries[1]['metadata']['name'] = next_name
+        self.summaries[1]['metadata']['labels']['kubescape.io/clusterrole-name'] = 'reader-next'
         self.summaries.append(previous)
         self.api.get.side_effect = lambda b, k, n, namespace=None, optional=False: self.get(b, k, n, namespace, optional) if k == 'workloadconfigurationscansummaries' else {'metadata': {'name': n, 'uid': 'binding', 'resourceVersion': '2'}, 'roleRef': {'kind': 'ClusterRole', 'name': 'reader-next'}, 'subjects': [{'kind': 'ServiceAccount', 'name': 'reader', 'namespace': 'memos'}]}
         checked = self.runner.qualify_posture(self.result, self.started, [previous])
         self.assertEqual(checked['excludedSummaries'][0]['state'], 'verified_superseded_binding')
         self.assertEqual(checked['excludedSummaries'][0]['currentBindingSummaries'], ['kubescape/' + next_name])
         self.result['resources'][1]['object']['relatedObjects'][0]['name'] = 'wrong-report-role'
+        self.result['resources'][1]['object']['relatedObjects'][1]['roleRef']['name'] = 'wrong-report-role'
         with self.assertRaisesRegex(R.db.Rejected, 'posture_scope_incomplete'):
             self.runner.qualify_posture(self.result, self.started, [previous])
 
@@ -1729,7 +2026,7 @@ class PostureContractTests(unittest.TestCase):
     def test_completed_request_failed_qualification_archives_receipt_and_unblocks(self):
         marker = Path(self.temp) / 'posture-historical.done'
         marker.write_bytes(b'unchanged')
-        for reason in ('posture_report_stale', 'posture_scope_incomplete'):
+        for reason in ('posture_report_stale', 'posture_scope_incomplete', 'posture_collection_incomplete', 'posture_coverage_contract_mismatch'):
             with self.subTest(reason=reason):
                 # New immutable run directory for each real request.
                 self.runner = R.Runner(self.api, self.config, EXPECTED, Path(self.temp), 'posture')

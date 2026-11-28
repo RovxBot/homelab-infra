@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 2,
+  "status": "candidate_offline_replay_rejected_identity_collision",
+  "investigationPR": "https://github.com/RovxBot/homelab-infra/pull/2338",
+  "observedAt": "2026-11-28T00:59:53.004793Z",
+  "contract": "kubescape-4.0.20-nsa-talos-bare-metal-v1",
+  "scanner": {
+    "version": "4.0.20",
+    "sourceCommit": "ec65d3184f6bab7d1ad6e5db9d970d452316d253",
+    "image": "quay.io/kubescape/kubescape:v4.0.20@sha256:439bab2d738f8bd27c742b15444cde77e607ce7d769e805ee1bc25605b355060"
+  },
+  "provenance": {
+    "scannerResultGzipSHA256": "42ae26d5ac25ad947b314dfa950999ea281ee5902a92c9f4576f7de9f1239e99",
+    "runnerSHA256": "32477eadde1bf32ada47e3df939e3b76e322ad84b51c4f438b7000922e7493cc",
+    "intentAndTerminalHashVerified": true,
+    "rawResponse": "retained privately; no findings or resource identities in this receipt",
+    "runnerCommit": "a69b740c4ed904c74e01d35e91837ede06f2ae42",
+    "policyContract": "posture-coverage-policy.json",
+    "qualificationReplayScriptSHA256": "6881ca1b2406771597e2b2b54e8d2d8f383b3e2f95acfbcd31ff3bd0a187e0d5",
+    "downstreamDiagnosticScriptSHA256": "63f171fcbc32699e1a2e77c2caafb3c1c4b04bc83ba8dc570aa97f44acbad8fa",
+    "snapshotSets": [
+      {
+        "purpose": "qualification baseline and environment",
+        "readCount": 234,
+        "manifestSHA256": "2c93756b8ea2d8226b3102dbc3e3039919a8737df9676d1a9a0a5384fb420ac6"
+      },
+      {
+        "purpose": "downstream diagnostic inventory, named summaries, bindings and source rereads",
+        "readCount": 549,
+        "manifestSHA256": "0a86bb49093ff872c4675268958240b0dd149ea8b6ded02de3889b1c871e7cc0"
+      }
+    ],
+    "snapshotVerification": "Every retained GET response SHA256 and read sequence verified during an entirely offline rerun; raw inputs and scripts remain private"
+  },
+  "environment": {
+    "result": "applicable",
+    "method": "Captured GET-only Pod, HelmRelease and Node snapshots; replayed offline without network calls",
+    "checks": [
+      "exact pinned image",
+      "host scanner disabled",
+      "offline mode",
+      "no cloud credential reference",
+      "Talos Nodes without providerID",
+      "home context"
+    ]
+  },
+  "coverage": {
+    "result": "explained_unsupported_external_inputs",
+    "unsupportedControlIDs": [
+      "C-0066",
+      "C-0067",
+      "C-0068",
+      "C-0069",
+      "C-0070"
+    ],
+    "notEvaluatedControlIDs": [
+      "C-0069",
+      "C-0070"
+    ],
+    "nativeCoverageScore": 83.30769,
+    "nativeDegraded": true,
+    "expectedControlIDs": "Exact 26-ID set matches image-bundled offline NSA policy, retained response and fixture; see posture-coverage-policy.json"
+  },
+  "qualification": {
+    "result": "rejected",
+    "reason": "posture_identity_ambiguous",
+    "function": "posture_scope",
+    "nativeRBACVectorsParsed": 27,
+    "collisionGroups": 1,
+    "vectorsInCollision": 3,
+    "cause": "Pinned RoleBindingResourceToSlug omits namespaces: one ServiceAccount subject bound through three same-named Roles and RoleBindings in different namespaces maps to one shared summary name",
+    "source": "https://github.com/kubescape/k8s-interface/blob/v0.0.221/names/slugs.go",
+    "persistenceSource": "https://github.com/kubescape/kubescape/blob/ec65d3184f6bab7d1ad6e5db9d970d452316d253/httphandler/storage/apiserver.go",
+    "laterGates": "The unmodified qualifier stops at ambiguous identity. Later gates were audited independently below; no bypass or qualification acceptance.",
+    "distinctSubjectIdentitiesInCollision": 1,
+    "distinctRoleNamespacesInCollision": 3,
+    "distinctBindingNamespacesInCollision": 3
+  },
+  "productionAcceptance": false,
+  "scannerSubmissions": 0,
+  "clusterMutations": 0,
+  "nextSmallestAction": "Independent review of the exact-ID and RBAC-parser commits and this proposed Wiki diff. Review a namespace-preserving scanner persistence identity contract and its migration before rollout or another production scan; recover the original pre-scan baseline for historical completeness. Keep draft and Wiki publication pending.",
+  "downstreamDiagnostics": {
+    "bindingRereadMatches": true,
+    "bindingSnapshots": 23,
+    "collisionGroups": [
+      3
+    ],
+    "currentInventoryRows": 360,
+    "diagnosticOnly": true,
+    "emptyCurrentSummaries": 0,
+    "exclusionsRereadMatch": true,
+    "historicalInventoryRows": 278,
+    "inventoryRereadMatches": true,
+    "lifecycleCurrentBindingKeysMissing": 0,
+    "lifecycleExclusions": {
+      "retained_out_of_scope": 3,
+      "verified_absent": 8
+    },
+    "missingExpectedSummaryKeys": 0,
+    "missingSharedSummaryKeys": 0,
+    "priorRBACCurrentSnapshotMissingKeys": 0,
+    "requiredWorkloadCount": 47,
+    "requiredWorkloadsPresent": true,
+    "scopeExpectedSummaries": 219,
+    "sharedSummaryKeys": 25,
+    "sharedVectors": 27,
+    "staleCurrentSummaries": 0,
+    "summaryRereadMatches": true,
+    "vectorPersistence": {
+      "matched": 25,
+      "posture_identity_invalid": 2
+    },
+    "priorRBACCompletenessLimit": "Uses captured current named summaries as the binding baseline. Original pre-scan previous-posture snapshot is absent from the retained export; historical completeness is not established.",
+    "interpretation": "All 47 required workload keys and 25 shared summary keys are present. Exclusions and rereads verify against captured snapshots. One stored summary matches only one of the three colliding Role/RoleBinding namespaces; the other two fail exact persisted identity validation. These independent diagnostics do not make the retained assessment qualified."
+  },
+  "scannerRestarts": 0
+}
