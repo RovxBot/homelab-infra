@@ -1,0 +1,60 @@
+{
+  "pullRequest": "https://github.com/RovxBot/homelab-infra/pull/2349",
+  "review": "https://github.com/RovxBot/homelab-infra/pull/2349#issuecomment-7232508214",
+  "qualificationDate": "2026-11-28",
+  "timezone": "Australia/Adelaide",
+  "status": "pre-merge correction; local validation verified; Kubernetes runtime acceptance not run",
+  "sourceBaseCommit": "7477f4cbe463771556894be604cbcefa7bcbbca6",
+  "configuration": {
+    "mechanism": "Native NGINX IPv4 loopback listen directives in read-only ConfigMap replacements for the vendor HTTP and optional TLS virtual hosts; official entrypoint and PHP/FastCGI includes retained.",
+    "http": "127.0.0.1:8080",
+    "optionalHttps": "127.0.0.1:8443; vendor TLS remains inactive without certificates",
+    "ipv6": "No frontend IPv6 listener; vendor wildcard IPv6 include files deliberately omitted.",
+    "rollout": "Kustomize content-hashed ConfigMap reference changes the Pod template; existing singleton Recreate strategy retained.",
+    "readiness": "exec curl --fail --silent --max-time 4 http://127.0.0.1:8080/index.php",
+    "operatorAccess": "kubectl -n zabbix port-forward --address=127.0.0.1 service/zabbix-frontend 8080:80",
+    "passwordRotation": "Immediately change the vendor administrator password on first port-forwarded login, before any other configuration or normal use. Verify new login works and default login is rejected; retain no credentials in evidence.",
+    "postRotation": "Keep loopback-only access after rotation; wider frontend exposure needs a separate reviewed Git change.",
+    "sourceSha256": {
+      "frontend.yaml": "098cf14d2fca471dc674f04b24680e40bc4ce08caf978c5e927b19e454050d71",
+      "kustomization.yaml": "e4094b1a9ff7163abc5654d57f74b21df0d5e7256eead18c03ccf2d301b95dcb",
+      "nginx.conf": "d26b3fde2d874001c55f6703b6778b260a20bd3ceac64998b81b6170804305e7",
+      "nginx_ssl.conf": "76be20bba7fd2cb2dff66d97313e7270af87b1bf04532954bff4c7b671ca3e5c"
+    }
+  },
+  "vendorSources": {
+    "entrypoint": "https://github.com/zabbix/zabbix-docker/blob/f82ffab4b54276b7a0449213535913be142a045f/templates/entrypoints/internal/web/nginx.go",
+    "httpTemplate": "https://github.com/zabbix/zabbix-docker/blob/f82ffab4b54276b7a0449213535913be142a045f/Dockerfiles/web-nginx-pgsql/ubuntu/conf/etc/zabbix/nginx.conf",
+    "httpsTemplate": "https://github.com/zabbix/zabbix-docker/blob/f82ffab4b54276b7a0449213535913be142a045f/Dockerfiles/web-nginx-pgsql/ubuntu/conf/etc/zabbix/nginx_ssl.conf",
+    "listenDirective": "https://nginx.org/en/docs/http/ngx_http_core_module.html#listen"
+  },
+  "localValidation": {
+    "componentRender": "verified; Kustomize 5.5.0; generated name/hash, read-only subPath mounts and exec probes checked",
+    "schema": "verified; kubeconform 0.6.7, Kubernetes 1.34.0: 12 valid, 0 invalid/errors/skipped; SOPS metadata removed only in temporary schema input, ciphertext retained",
+    "secretReferencesAndNamespaceContract": "verified for affected component and Flux owner",
+    "cel": "verified; existing Kyverno 1.20.0 f666af06e9bd310c7e730f1523c0430e90371a89, eight retained policy specs, current frontend Deployment and namespace: 8 pass, 0 fail/warn/error/skip; no fresh live policy comparison",
+    "nginx": {
+      "status": "verified",
+      "version": "1.30.8",
+      "method": "Native workstation NGINX with pinned vendor includes, exact replacement vhost listen directives, relocated filesystem paths and a static canary file; HTTPS enabled with disposable test certificates. No Kubernetes or database initialization.",
+      "activeListeners": [
+        "127.0.0.1:8080",
+        "127.0.0.1:8443 ssl"
+      ],
+      "positiveChecks": "2 requests: HTTP and HTTPS on 127.0.0.1 returned 200 for a static canary; HTTP 200 rechecked after negative tests",
+      "negativeChecks": "12 requests: login, API and static paths on non-loopback workstation IPv4 and IPv6 loopback, HTTP 8080 and HTTPS 8443; all curl exit 7, HTTP 000; forged X-Forwarded-For: 127.0.0.1 did not bypass the restriction",
+      "ipv6Preparation": "Vendor wildcard IPv6 include files were populated but absent from active configuration expansion.",
+      "limitations": "Not the pinned container runtime or Kubernetes Pod IP/port-forward acceptance; PHP-FPM and database initialization not exercised."
+    },
+    "preservation": "verified by baseline comparison: frontend Service, image/env, resources, security contexts, placement, strategy and other probe fields unchanged; no Cilium, storage, secret, server, database or admission-policy edits",
+    "wikiAcceptanceShellSyntax": "verified with bash -n for all four command blocks"
+  },
+  "productionAcceptancePending": [
+    "Review this correction and the updated unpublished Wiki diff; obtain hosted checks on the corrected head. No merge/deployment/CI waiting in this task.",
+    "After separately approved rollout, verify local /ping and /index.php HTTP 200, exec probe health and only loopback NGINX listeners.",
+    "Verify authorised Service and direct-Pod kubectl port-forward access.",
+    "From an existing distinct authorised curl-capable Pod, require refusal/timeout with no HTTP response on every frontend Pod IP for login/API and optional TLS; also check every Service IP on port 80, with and without forged forwarding headers. Recheck local health after negatives.",
+    "Rotate administrator password immediately on first login and verify the vendor default no longer works.",
+    "Original Flux decryption, native initialization, healthy replicas, housekeeping, backup/restore and capacity acceptance gates remain; consult the original foundation evidence and unpublished Wiki proposal."
+  ]
+}

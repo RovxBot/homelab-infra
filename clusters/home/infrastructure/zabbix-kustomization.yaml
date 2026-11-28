@@ -1,0 +1,23 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: zabbix
+  namespace: flux-system
+spec:
+  interval: 10m
+  timeout: 35m
+  wait: true
+  path: ./infra/zabbix
+  prune: true
+  deletionPolicy: Orphan
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: infrastructure
+    - name: kyverno-policies
+    - name: longhorn-node-disks
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age

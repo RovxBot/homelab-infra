@@ -1,0 +1,428 @@
+{
+  "issue": "https://github.com/RovxBot/homelab-infra/issues/2342",
+  "qualificationDate": "2026-11-28",
+  "timezone": "Australia/Adelaide",
+  "status": "pre-deployment; architectural review and production acceptance pending",
+  "sourceBaseCommit": "4befc7652f50f74ce19d119bbc8fe1b0ec184c34",
+  "images": {
+    "zabbix/zabbix-server-pgsql": {
+      "tag": "ubuntu-8.0.0",
+      "index_digest": "sha256:1bbfd3fec8fa61ab1dc9bd048b0e46935724d09de315d825300274632d3af5a7",
+      "amd64_digest": "sha256:1bf249a89ec489fca1ac0a3a638ca9d5e667dba415c275fd79e6b55cb83e4cc6",
+      "config_digest": "sha256:e5c1ab80dd2b9389648f44b826915c07d82233e0b07451b633b0a7351f752ecc",
+      "user": "1997",
+      "entrypoint": [
+        "/usr/bin/docker-entrypoint"
+      ],
+      "cmd": [
+        "/usr/sbin/zabbix_server",
+        "--foreground",
+        "-c",
+        "/etc/zabbix/zabbix_server.conf"
+      ],
+      "healthcheck": null
+    },
+    "zabbix/zabbix-web-nginx-pgsql": {
+      "tag": "ubuntu-8.0.0",
+      "index_digest": "sha256:2f574332d548bc324ab7d5b96f93f3ff3d34ba7ca55edb7839a2dbba4dcb41ec",
+      "amd64_digest": "sha256:dacace5416e2447ff18e8a10214025cffaf09eb1ec5c3e6952aeeaf3eb163eda",
+      "config_digest": "sha256:e7d65c42a4c5ee21997745e7bb61702951e38dedd236be879a85c1612f758264",
+      "user": "1997",
+      "entrypoint": [
+        "/usr/bin/docker-entrypoint"
+      ],
+      "cmd": null,
+      "healthcheck": {
+        "Test": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/ping || exit 1"
+        ],
+        "Interval": 90000000000,
+        "Timeout": 3000000000,
+        "StartPeriod": 40000000000,
+        "StartInterval": 5000000000,
+        "Retries": 3
+      }
+    },
+    "library/postgres": {
+      "tag": "17.12-bookworm",
+      "index_digest": "sha256:1eff563f6c868b9b433566e9f3cf6e5c79fbd3b95bf70ec7277d376cdbfc50d7",
+      "amd64_digest": "sha256:c7a16500f728a9c09731e772f228ee7a29615585e8019772f05b620522f62d03",
+      "config_digest": "sha256:850a2f036953dbe09006295666ee46737e4a15f9ede370bf3bf5718ec0a9e087",
+      "user": null,
+      "entrypoint": [
+        "docker-entrypoint.sh"
+      ],
+      "cmd": [
+        "postgres"
+      ],
+      "healthcheck": null
+    }
+  },
+  "vendorSources": {
+    "zabbixRelease": "https://www.zabbix.com/download_sources",
+    "lifecycle": "https://www.zabbix.com/life_cycle_and_release_policy",
+    "requirements": "https://www.zabbix.com/documentation/8.0/en/manual/installation/requirements",
+    "containerSource": "https://github.com/zabbix/zabbix-docker/tree/f82ffab4b54276b7a0449213535913be142a045f",
+    "postgresRelease": "https://www.postgresql.org/docs/release/17.12/",
+    "postgresImage": "https://hub.docker.com/_/postgres",
+    "longhornClass": "https://longhorn.io/docs/1.13.0/references/storage-class-parameters/"
+  },
+  "rendered": {
+    "replicasPerComponent": 1,
+    "requests": {
+      "cpuMillicores": 1400,
+      "memoryMiB": 3328
+    },
+    "limits": {
+      "cpuMillicores": 3500,
+      "memoryMiB": 5632
+    },
+    "rollout": "Recreate for all three Deployments; no deliberate surge reservation",
+    "pvcGiB": 50,
+    "nominalReplicatedGiB": 150,
+    "retentionTargetsRequireFrontendConfiguration": {
+      "historyDays": 14,
+      "trendsDays": 90
+    }
+  },
+  "scheduling": {
+    "method": "Read-only complete kubectl Node/Pod lists; nonterminal pods; sum regular containers plus restartable init containers, maximum init peak and Pod overhead. Missing bounds counted as zero specified, not guaranteed zero consumption. Current reservations only; no scheduler simulation or failure test.",
+    "sourceResourceVersions": {
+      "nodes": "",
+      "pods": ""
+    },
+    "podCount": 203,
+    "activePodCount": 173,
+    "podLevelResourceSpecs": 0,
+    "containersWithMissingCpuOrMemoryLimits": 114,
+    "nodes": [
+      {
+        "node": "metal0",
+        "allocatableCpuCores": 3.95,
+        "allocatableMemoryGiB": 7.0043,
+        "requestedCpuCores": 1.739,
+        "requestedMemoryGiB": 3.7539,
+        "specifiedCpuLimitsCores": 8.0,
+        "specifiedMemoryLimitsGiB": 10.457,
+        "freeRequestedCpuCores": 2.211,
+        "freeRequestedMemoryGiB": 3.2504,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": true,
+        "taints": []
+      },
+      {
+        "node": "metal2",
+        "allocatableCpuCores": 3.95,
+        "allocatableMemoryGiB": 7.0043,
+        "requestedCpuCores": 1.904,
+        "requestedMemoryGiB": 3.3633,
+        "specifiedCpuLimitsCores": 7.65,
+        "specifiedMemoryLimitsGiB": 12.4922,
+        "freeRequestedCpuCores": 2.046,
+        "freeRequestedMemoryGiB": 3.641,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": true,
+        "taints": []
+      },
+      {
+        "node": "metal3",
+        "allocatableCpuCores": 3.95,
+        "allocatableMemoryGiB": 7.0043,
+        "requestedCpuCores": 1.809,
+        "requestedMemoryGiB": 2.957,
+        "specifiedCpuLimitsCores": 6.45,
+        "specifiedMemoryLimitsGiB": 8.834,
+        "freeRequestedCpuCores": 2.141,
+        "freeRequestedMemoryGiB": 4.0473,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": true,
+        "taints": []
+      },
+      {
+        "node": "metal4",
+        "allocatableCpuCores": 11.950000000000001,
+        "allocatableMemoryGiB": 30.7728,
+        "requestedCpuCores": 6.449,
+        "requestedMemoryGiB": 21.1445,
+        "specifiedCpuLimitsCores": 29.6,
+        "specifiedMemoryLimitsGiB": 58.9922,
+        "freeRequestedCpuCores": 5.501,
+        "freeRequestedMemoryGiB": 9.6283,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": true,
+        "taints": []
+      },
+      {
+        "node": "metal5",
+        "allocatableCpuCores": 3.95,
+        "allocatableMemoryGiB": 7.0255,
+        "requestedCpuCores": 1.784,
+        "requestedMemoryGiB": 3.0781,
+        "specifiedCpuLimitsCores": 11.15,
+        "specifiedMemoryLimitsGiB": 13.2852,
+        "freeRequestedCpuCores": 2.166,
+        "freeRequestedMemoryGiB": 3.9473,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": true,
+        "taints": []
+      },
+      {
+        "node": "metal6",
+        "allocatableCpuCores": 3.95,
+        "allocatableMemoryGiB": 7.1534,
+        "requestedCpuCores": 1.579,
+        "requestedMemoryGiB": 2.9961,
+        "specifiedCpuLimitsCores": 7.2,
+        "specifiedMemoryLimitsGiB": 10.4375,
+        "freeRequestedCpuCores": 2.371,
+        "freeRequestedMemoryGiB": 4.1573,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": true,
+        "taints": []
+      },
+      {
+        "node": "metal7",
+        "allocatableCpuCores": 3.95,
+        "allocatableMemoryGiB": 14.8892,
+        "requestedCpuCores": 1.653,
+        "requestedMemoryGiB": 1.4316,
+        "specifiedCpuLimitsCores": 5.2,
+        "specifiedMemoryLimitsGiB": 6.5332,
+        "freeRequestedCpuCores": 2.297,
+        "freeRequestedMemoryGiB": 13.4576,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": true,
+        "taints": []
+      },
+      {
+        "node": "metal8",
+        "allocatableCpuCores": 3.95,
+        "allocatableMemoryGiB": 14.9916,
+        "requestedCpuCores": 3.129,
+        "requestedMemoryGiB": 5.5566,
+        "specifiedCpuLimitsCores": 7.7,
+        "specifiedMemoryLimitsGiB": 13.0332,
+        "freeRequestedCpuCores": 0.821,
+        "freeRequestedMemoryGiB": 9.435,
+        "eachNewPodIndividuallyFitsCurrentReservations": true,
+        "newBundleFitsCurrentReservations": false,
+        "taints": []
+      }
+    ],
+    "constraints": [
+      "Soft preference metal7 weight 100; avoid metal4 weight 50; no required node affinity, nodeSelector or added tolerations. Current nodes all untainted.",
+      "Single PostgreSQL RWO attachment, native service singletons and Recreate updates entail downtime.",
+      "Current per-node fit does not reserve capacity for displaced existing pods, hard affinities, the unique GPU or future taints.",
+      "Issue #2341 reports up to 12 CPU / 12 GiB additional concurrent build requests. Full build plus N-1 remains unqualified.",
+      "Conservative aggregate screen retaining current reservations after loss of metal4 leaves about 6.204 CPU / 17.541 GiB after this bundle, before build reservations; this is not a feasible-placement proof."
+    ]
+  },
+  "storage": {
+    "liveDefaultClass": {
+      "name": "longhorn",
+      "provisioner": "driver.longhorn.io",
+      "replicas": 3,
+      "reclaimPolicy": "Delete",
+      "dataEngine": "v1",
+      "fsType": "ext4",
+      "volumeBindingMode": "Immediate",
+      "allowVolumeExpansion": true
+    },
+    "proposedClass": {
+      "name": "longhorn-zabbix-retain",
+      "reclaimPolicy": "Retain",
+      "replicas": 3,
+      "replicaSoftAntiAffinity": "disabled",
+      "dataLocality": "disabled",
+      "volumeBindingMode": "Immediate",
+      "dataEngine": "v1",
+      "fsType": "ext4",
+      "allowVolumeExpansion": true
+    },
+    "observedSettings": {
+      "storage-minimal-available-percentage": "25",
+      "storage-over-provisioning-percentage": "100",
+      "replica-soft-anti-affinity": "false",
+      "concurrent-replica-rebuild-per-node-limit": "1",
+      "node-down-pod-deletion-policy": "do-nothing",
+      "replica-replenishment-wait-interval": "600",
+      "allow-volume-creation-with-degraded-availability": "false"
+    },
+    "sourceResourceVersion": "",
+    "conservativeEligibleDistinctNodes": [
+      "metal2",
+      "metal4",
+      "metal6",
+      "metal7",
+      "metal8"
+    ],
+    "disks": [
+      {
+        "node": "metal0",
+        "disk": "default-disk-081400000000",
+        "maximumGiB": 277.174,
+        "reservedGiB": 83.152,
+        "scheduledGiB": 149.0,
+        "availableGiB": 182.227,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": true,
+        "full50GiFits100PercentAllocationAfterReservation": false
+      },
+      {
+        "node": "metal2",
+        "disk": "default-disk-1030800000000",
+        "maximumGiB": 236.208,
+        "reservedGiB": 70.862,
+        "scheduledGiB": 111.375,
+        "availableGiB": 175.0,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": true,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal2",
+        "disk": "extra-disk",
+        "maximumGiB": 111.727,
+        "reservedGiB": 20.0,
+        "scheduledGiB": 80.0,
+        "availableGiB": 100.195,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": true,
+        "full50GiFits100PercentAllocationAfterReservation": false
+      },
+      {
+        "node": "metal3",
+        "disk": "default-disk-1030800000000",
+        "maximumGiB": 109.576,
+        "reservedGiB": 70.862,
+        "scheduledGiB": 15.125,
+        "availableGiB": 63.086,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": false,
+        "full50GiFits100PercentAllocationAfterReservation": false
+      },
+      {
+        "node": "metal4",
+        "disk": "default-disk-081400000000",
+        "maximumGiB": 253.897,
+        "reservedGiB": 76.169,
+        "scheduledGiB": 8.625,
+        "availableGiB": 197.559,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": true,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal5",
+        "disk": "default-disk-081400000000",
+        "maximumGiB": 117.028,
+        "reservedGiB": 35.108,
+        "scheduledGiB": 11.625,
+        "availableGiB": 46.875,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": false,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal5",
+        "disk": "extra-disk",
+        "maximumGiB": 279.324,
+        "reservedGiB": 20.0,
+        "scheduledGiB": 120.0,
+        "availableGiB": 75.391,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": false,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal6",
+        "disk": "default-disk-1030800000000",
+        "maximumGiB": 117.028,
+        "reservedGiB": 35.108,
+        "scheduledGiB": 28.0,
+        "availableGiB": 34.961,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": false,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal6",
+        "disk": "extra-disk",
+        "maximumGiB": 893.815,
+        "reservedGiB": 20.0,
+        "scheduledGiB": 531.0,
+        "availableGiB": 531.25,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": true,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal7",
+        "disk": "default-disk-081400000000",
+        "maximumGiB": 117.028,
+        "reservedGiB": 35.108,
+        "scheduledGiB": 10.0,
+        "availableGiB": 21.875,
+        "readyAndSchedulable": false,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": false,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal7",
+        "disk": "extra-disk",
+        "maximumGiB": 893.815,
+        "reservedGiB": 20.0,
+        "scheduledGiB": 539.0,
+        "availableGiB": 517.676,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": true,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      },
+      {
+        "node": "metal8",
+        "disk": "default-disk-1030400000000",
+        "maximumGiB": 230.622,
+        "reservedGiB": 69.187,
+        "scheduledGiB": 90.125,
+        "availableGiB": 137.988,
+        "readyAndSchedulable": true,
+        "full50GiPhysicalHeadroomAbove25PercentFloor": true,
+        "full50GiFits100PercentAllocationAfterReservation": true
+      }
+    ],
+    "assessment": "Five distinct nodes pass both a full 50 GiB physical-space allowance above the 25% floor and 100% scheduling allowance after reservation. One-node loss leaves four candidates for three copies. New volumes are thin provisioned; snapshots, other growth and rebuild concurrency still need refreshed pre-merge checks. This verifies feasibility, not actual new replicas.",
+    "retention": "Namespace, PVC, Secret and StorageClass are Flux prune protected. Flux Kustomization deletionPolicy Orphan preserves inventory on owner deletion. Retain prevents automatic PV/backend deletion if the PVC is deleted; it does not automatically recreate/rebind a deleted claim or roll back the database.",
+    "backup": "Existing weekly Longhorn system backup requests volume-backup-policy=always and the new class uses backupTargetName=default. No completed backup or application-consistent restore of the new database exists yet. No additional backup Jobs or software introduced.",
+    "failureRecovery": "Existing node-down-pod-deletion-policy=do-nothing. A failed-node PostgreSQL pod/attachment may require reviewed recovery after fencing; automatic failover is not qualified."
+  },
+  "localValidation": {
+    "componentAndClusterRenders": "verified with kustomize 5.5.0",
+    "schema": "verified Kubernetes 1.34 schemas with kubeconform 0.6.7; removed SOPS metadata in memory for schema validation only; missing Flux/CRD schemas skipped",
+    "secretReferences": "verified",
+    "namespaceContract": "verified for affected Flux owner/bundle; namespace does not opt into the optional generated-defaults contract",
+    "cel": "verified 22 pass, 0 fail/error; Kyverno CLI 1.20.0 f666af06e9bd310c7e730f1523c0430e90371a89; all eight relevant policy specs match live",
+    "psa": "verified server-side create dry-run of all three Pod templates in existing policy-check namespace with restricted:v1.34 enforce/audit/warn; no resources persisted",
+    "ciSelection": "49 test_detect_changes tests passed",
+    "sops": "encrypted values and existing repository age recipient verified; no local private key available for decryption/MAC verification",
+    "imageAvailability": "verified registry tag/index, linux/amd64 manifests and image configurations; SHA-256 response bodies match registry digests",
+    "runtimeInitialization": "not run; local Docker daemon unavailable",
+    "freshKyvernoCliTrustBootstrap": "unavailable; official Sigstore TUF endpoint unreachable; used existing CLI matching deployed version/source commit",
+    "ciSelectedCompositionTests": "9 test_gatus_alert_config tests passed; selected by clusters/home change, no Gatus changes",
+    "ciSelectionForProposedDiff": {
+      "manifests": true,
+      "scriptTests": [
+        "test_gatus_alert_config.py"
+      ],
+      "unrelatedBuilds": false
+    }
+  },
+  "productionAcceptancePending": [
+    "Architectural review of the separate unpublished Wiki proposal; manual merge only after pre-merge capacity/storage review under #2341 and hosted CI.",
+    "Flux SOPS decryption, complete native initialization and authenticated frontend/server/database operation on real Longhorn permissions.",
+    "Bound 50 GiB PVC, Retain PV, three healthy replicas on distinct nodes and refreshed failure/rebuild headroom.",
+    "Change built-in Zabbix administrator credential and retain it securely; configure history 14d/trends 90d and enable both internal housekeeping/override settings.",
+    "Database backup plus independently verified restore, with matching application/DB pins; no database downgrade or destructive rollback assumed.",
+    "Measure normal/build peak resource usage and database growth within fixed ceilings; qualify node-failure attachment recovery before acceptance."
+  ]
+}
