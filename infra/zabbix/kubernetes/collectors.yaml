@@ -1,0 +1,159 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: zabbix-kube-state-metrics
+  namespace: zabbix
+spec:
+  interval: 12h
+  url: oci://ghcr.io/prometheus-community/charts/kube-state-metrics
+  ref:
+    tag: 9.0.0
+    digest: sha256:c7c5096b686d5ef5e5a5afc72b66d603db710168653350acfcb91c5e50e2d115
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: zabbix-kube-state-metrics
+  namespace: zabbix
+spec:
+  interval: 30m
+  timeout: 5m
+  releaseName: zabbix-kube-state-metrics
+  chartRef:
+    kind: OCIRepository
+    name: zabbix-kube-state-metrics
+    namespace: zabbix
+  install:
+    remediation:
+      retries: 0
+  upgrade:
+    remediation:
+      retries: 0
+  values:
+    fullnameOverride: zabbix-kube-state-metrics
+    # 2.18 uses Kubernetes client 1.34; exact binary/API/TLS qualified locally.
+    # Umbrella release/8.0 defaults to 2.20, whose amd64 child was unavailable.
+    image:
+      registry: registry.k8s.io
+      repository: kube-state-metrics/kube-state-metrics
+      tag: v2.18.0
+      sha: sha256:1545919b72e3ae035454fc054131e8d0f14b42ef6fc5b2ad5c751cafa6b2130e
+    replicas: 1
+    revisionHistoryLimit: 2
+    updateStrategy: Recreate
+    prometheusScrape: false
+    prometheus:
+      monitor:
+        enabled: false
+    selfMonitor:
+      enabled: false
+    kubeRBACProxy:
+      enabled: false
+    authFilter:
+      enabled: false
+    # Only objects used by the qualified Zabbix cluster-state profile.
+    # In particular: no Secrets, ConfigMaps, webhooks or custom resources.
+    collectors:
+      - cronjobs
+      - daemonsets
+      - deployments
+      - ingresses
+      - jobs
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - persistentvolumes
+      - pods
+      - replicasets
+      - services
+      - statefulsets
+    metricLabelsAllowlist: []
+    metricAnnotationsAllowList: []
+    automountServiceAccountToken: true
+    serviceAccount:
+      create: true
+      name: zabbix-kube-state-metrics
+    rbac:
+      create: true
+      extraRules: []
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      runAsGroup: 65534
+      fsGroup: 65534
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
+    hostNetwork: false
+    nodeSelector:
+      kubernetes.io/os: linux
+      kubernetes.io/arch: amd64
+    tolerations: []
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values: [metal7]
+          - weight: 50
+            preference:
+              matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: NotIn
+                  values: [metal4]
+    customLabels:
+      homelab.cooked.beer/owner: sam
+    extraArgs:
+      - --tls-config=/etc/ksm-tls/web.yaml
+    volumes:
+      - name: tls
+        secret:
+          secretName: zabbix-kubernetes-tls
+          defaultMode: 0440
+          items:
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+            - key: web.yaml
+              path: web.yaml
+    volumeMounts:
+      - name: tls
+        mountPath: /etc/ksm-tls
+        readOnly: true
+    startupProbe:
+      enabled: true
+      httpGet:
+        scheme: HTTPS
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 60
+    livenessProbe:
+      httpGet:
+        scheme: HTTPS
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 6
+    readinessProbe:
+      httpGet:
+        scheme: HTTPS
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
