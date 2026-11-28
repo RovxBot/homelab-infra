@@ -1,0 +1,92 @@
+{
+  "nativeVersion": "8.0.0",
+  "frontendImageIndex": "sha256:2f574332d548bc324ab7d5b96f93f3ff3d34ba7ca55edb7839a2dbba4dcb41ec",
+  "source": "https://github.com/zabbix/zabbix/blob/c81e276e505924eaa115d0aa4bb81c388233f924/ui/include/classes/helpers/CRoleHelper.php",
+  "sourceFileSha256": "72f133ae705ac16ffdd9350558fc6a78d5006740cc7eeb63967268eded7f3de4",
+  "permissionsByType": {
+    "1": {
+      "ui": [
+        "apm.logs",
+        "apm.metrics",
+        "apm.traces",
+        "inventory.hosts",
+        "inventory.overview",
+        "monitoring.dashboard",
+        "monitoring.hosts",
+        "monitoring.latest_data",
+        "monitoring.maps",
+        "monitoring.problems",
+        "reports.availability_report",
+        "reports.top_triggers",
+        "services.services",
+        "services.sla_report"
+      ],
+      "actions": [
+        "acknowledge_problems",
+        "add_problem_comments",
+        "change_problem_ranking",
+        "change_severity",
+        "close_problems",
+        "edit_dashboards",
+        "edit_maps",
+        "edit_own_media",
+        "execute_scripts",
+        "invoke_execute_now",
+        "manage_api_tokens",
+        "suppress_problems"
+      ]
+    },
+    "2": {
+      "ui": [
+        "apm.logs",
+        "apm.metrics",
+        "apm.traces",
+        "configuration.autoregistration_actions",
+        "configuration.discovery",
+        "configuration.discovery_actions",
+        "configuration.host_groups",
+        "configuration.hosts",
+        "configuration.internal_actions",
+        "configuration.maintenance",
+        "configuration.service_actions",
+        "configuration.template_groups",
+        "configuration.templates",
+        "configuration.trigger_actions",
+        "inventory.hosts",
+        "inventory.overview",
+        "monitoring.dashboard",
+        "monitoring.discovery",
+        "monitoring.hosts",
+        "monitoring.latest_data",
+        "monitoring.maps",
+        "monitoring.problems",
+        "reports.availability_report",
+        "reports.notifications",
+        "reports.scheduled_reports",
+        "reports.system_info",
+        "reports.top_triggers",
+        "services.services",
+        "services.sla",
+        "services.sla_report"
+      ],
+      "actions": [
+        "acknowledge_problems",
+        "add_problem_comments",
+        "change_problem_ranking",
+        "change_severity",
+        "close_problems",
+        "edit_dashboards",
+        "edit_maintenance",
+        "edit_maps",
+        "edit_own_media",
+        "execute_scripts",
+        "invoke_execute_now",
+        "manage_api_tokens",
+        "manage_scheduled_reports",
+        "manage_sla",
+        "select_server_for_monitoring",
+        "suppress_problems"
+      ]
+    }
+  }
+}

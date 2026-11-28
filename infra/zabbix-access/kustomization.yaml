@@ -1,0 +1,17 @@
+# Staged opt-in, NOT selected by clusters/home/infrastructure/zabbix-kustomization.yaml.
+# Before activation: review the Wiki proposal, prepare native SAML/RBAC through
+# private port-forward, add the generated SOPS Secret to resources, and qualify
+# the dedicated Access application/tunnel. Never reuse the shared tunnel ID.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: zabbix
+resources:
+  - ../zabbix
+configMapGenerator:
+  - name: zabbix-frontend-nginx
+    behavior: merge
+    files:
+      - nginx.conf
+      - fastcgi_params
+patches:
+  - path: frontend.yaml
